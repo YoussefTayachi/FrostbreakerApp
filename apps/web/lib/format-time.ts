@@ -8,7 +8,7 @@ import type { Lang } from "@/lib/i18n/lang";
  * Lag vorher lokal in inbox/page.tsx, wird jetzt zusaetzlich von der Timeline,
  * dem Pipeline-Board und den Aktivitaeten-Widgets genutzt.
  */
-const LOCALE: Record<Lang, string> = { de: "de-DE", en: "en-GB" };
+const LOCALE: Record<Lang, string> = { de: "de-DE", en: "en-US" };
 
 export function localeOf(lang: Lang): string {
   return LOCALE[lang];

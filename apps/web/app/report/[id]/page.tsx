@@ -55,7 +55,7 @@ export default async function WorkspaceReportPage({
     { label: t.meetings, value: String(data.meetings_booked ?? 0) },
     {
       label: t.pipelineValue,
-      value: new Intl.NumberFormat(lang === "en" ? "en-GB" : "de-DE", {
+      value: new Intl.NumberFormat(lang === "en" ? "en-US" : "de-DE", {
         style: "currency",
         currency: "EUR",
         maximumFractionDigits: 0,

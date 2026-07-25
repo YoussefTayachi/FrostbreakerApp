@@ -2,9 +2,13 @@
 import { createContext, useCallback, useContext, useRef, useState } from "react";
 
 type ToastType = "success" | "error" | "info";
-type Toast = { id: number; message: string; type: ToastType };
+/** Optionale Aktion im Toast, aktuell fuer "Rueckgaengig" nach dem Loeschen. */
+type ToastAction = { label: string; onClick: () => void };
+type Toast = { id: number; message: string; type: ToastType; action?: ToastAction };
 
-const ToastContext = createContext<{ push: (message: string, type?: ToastType) => void }>({
+const ToastContext = createContext<{
+  push: (message: string, type?: ToastType, action?: ToastAction) => void;
+}>({
   push: () => {},
 });
 
@@ -23,12 +27,17 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   const [toasts, setToasts] = useState<Toast[]>([]);
   const nextId = useRef(0);
 
-  const push = useCallback((message: string, type: ToastType = "info") => {
+  const push = useCallback((message: string, type: ToastType = "info", action?: ToastAction) => {
     const id = nextId.current++;
-    setToasts((t) => [...t, { id, message, type }]);
-    window.setTimeout(() => {
-      setToasts((t) => t.filter((x) => x.id !== id));
-    }, 4000);
+    setToasts((t) => [...t, { id, message, type, action }]);
+    // Mit Aktion laenger stehenlassen: 4 Sekunden reichen nicht, um eine
+    // Loeschung zu bemerken und bewusst zurueckzunehmen.
+    window.setTimeout(
+      () => {
+        setToasts((t) => t.filter((x) => x.id !== id));
+      },
+      action ? 8000 : 4000
+    );
   }, []);
 
   function dismiss(id: number) {
@@ -54,6 +63,18 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
               {ICONS[toast.type]}
             </span>
             <span className="min-w-0 flex-1">{toast.message}</span>
+            {toast.action && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  dismiss(toast.id);
+                  toast.action!.onClick();
+                }}
+                className="-my-0.5 shrink-0 rounded-md border border-edge2 px-2 py-1 text-xs font-medium text-soft transition-colors hover:border-edge3 hover:text-ink"
+              >
+                {toast.action.label}
+              </button>
+            )}
           </div>
         ))}
       </div>

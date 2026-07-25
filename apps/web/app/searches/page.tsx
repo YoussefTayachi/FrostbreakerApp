@@ -92,8 +92,20 @@ export default async function SearchesPage() {
                       {s.source === "corporate" ? "Corporate" : "Maps"}
                     </span>
                     {s.schedule !== "none" && (
-                      <span className="rounded-full border border-sky-500/30 bg-sky-500/10 px-2 py-0.5 text-[11px] text-sky-600 dark:text-sky-300">
-                        {t.searches.subscriptionPrefix} · {s.schedule === "weekly" ? t.searches.subscriptionWeekly : t.searches.subscriptionDaily}
+                      <span className="inline-flex items-center gap-1 rounded-full border border-sky-500/30 bg-sky-500/10 px-2 py-0.5 text-[11px] text-sky-600 dark:text-sky-300">
+                        {t.searches.subscriptionPrefix} ·{" "}
+                        {s.schedule === "weekly"
+                          ? t.searches.subscriptionWeekly
+                          : s.schedule === "biweekly"
+                            ? t.searches.subscriptionBiweekly
+                            : t.searches.subscriptionDaily}
+                        <span
+                          title={t.searches.subscriptionHelp}
+                          aria-label={t.searches.subscriptionHelp}
+                          className="flex h-3.5 w-3.5 cursor-help items-center justify-center rounded-full border border-sky-500/40 text-[9px] font-bold"
+                        >
+                          ?
+                        </span>
                       </span>
                     )}
                     {bounceRate !== null && (

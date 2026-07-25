@@ -60,7 +60,10 @@ export default function NewSearchForm({ workspaceId }: { workspaceId: string }) 
   const [painPointNoWebsite, setPainPointNoWebsite] = useState(false);
   const [painPointMaxRating, setPainPointMaxRating] = useState<number | "">("");
   const [selectedPlaybook, setSelectedPlaybook] = useState("");
+  const [advancedOpen, setAdvancedOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  const activeFilterCount = (painPointNoWebsite ? 1 : 0) + (painPointMaxRating !== "" ? 1 : 0);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -121,6 +124,8 @@ export default function NewSearchForm({ workspaceId }: { workspaceId: string }) 
     setQuery(pb.query);
     setPainPointNoWebsite(pb.noWebsite);
     setPainPointMaxRating(pb.maxRating);
+    // Sichtbar machen, was das Playbook still mitgesetzt hat.
+    if (pb.noWebsite || pb.maxRating !== "") setAdvancedOpen(true);
   }
 
   const tabCls = (active: boolean) =>
@@ -168,13 +173,13 @@ export default function NewSearchForm({ workspaceId }: { workspaceId: string }) 
         </label>
       </div>
       {mode === "maps" ? (
-        <div className="flex flex-wrap items-end gap-3">
-          <label className={labelCls + " flex-1"}>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <label className={labelCls + " lg:col-span-2"}>
             {t.newSearchForm.niche}
             <input required placeholder={t.newSearchForm.nichePlaceholder} value={query}
               onChange={(e) => setQuery(e.target.value)} className={inputCls} />
           </label>
-          <label className={labelCls + " flex-1"}>
+          <label className={labelCls + " lg:col-span-2"}>
             {t.newSearchForm.location}
             <input required placeholder={t.newSearchForm.locationPlaceholder} value={location}
               onChange={(e) => setLocation(e.target.value)} className={inputCls} />
@@ -182,49 +187,75 @@ export default function NewSearchForm({ workspaceId }: { workspaceId: string }) 
           <label className={labelCls}>
             {t.newSearchForm.maxBusinesses}
             <input type="number" min={1} max={100} value={maxResults}
-              onChange={(e) => setMaxResults(Number(e.target.value))} className={inputCls + " w-24"} />
+              onChange={(e) => setMaxResults(Number(e.target.value))} className={inputCls} />
           </label>
           <label className={labelCls}>
             {t.newSearchForm.radius}
             <input type="number" min={100} max={50000} step={100} value={radius}
-              onChange={(e) => setRadius(Number(e.target.value))} className={inputCls + " w-28"} />
+              onChange={(e) => setRadius(Number(e.target.value))} className={inputCls} />
           </label>
         </div>
       ) : null}
 
+      {/* Die Pain-Point-Filter standen bisher dauerhaft aufgeklappt zwischen
+          Suchfeldern und Absenden-Knopf und machten die Maske dicht. Sie sind
+          jetzt eingeklappt und oeffnen sich automatisch, sobald ein Filter
+          gesetzt ist -- etwa durch ein Playbook. */}
       {mode === "maps" && (
-        <div className="flex flex-wrap items-center gap-4 rounded-lg border border-edge/60 bg-surface/60 px-3.5 py-3">
-          <p className="text-xs font-medium text-faint">{t.newSearchForm.painPointHeading}</p>
-          <label className="flex cursor-pointer items-center gap-2 text-sm text-soft">
-            <input
-              type="checkbox"
-              checked={painPointNoWebsite}
-              onChange={(e) => setPainPointNoWebsite(e.target.checked)}
-              className="h-4 w-4 rounded accent-sky-500"
-            />
-            {t.newSearchForm.painPointNoWebsite}
-          </label>
-          <label className="flex items-center gap-2 text-sm text-soft">
-            <input
-              type="checkbox"
-              checked={painPointMaxRating !== ""}
-              onChange={(e) => setPainPointMaxRating(e.target.checked ? 4 : "")}
-              className="h-4 w-4 rounded accent-sky-500"
-            />
-            {t.newSearchForm.painPointMaxRating}
-            {painPointMaxRating !== "" && (
-              <input
-                type="number"
-                min={1}
-                max={5}
-                step={0.5}
-                value={painPointMaxRating}
-                onChange={(e) => setPainPointMaxRating(Number(e.target.value))}
-                className={inputCls + " mt-0 w-20 py-1.5"}
+        <details
+          open={advancedOpen}
+          onToggle={(e) => setAdvancedOpen((e.currentTarget as HTMLDetailsElement).open)}
+          className="rounded-lg border border-edge/60 bg-surface/60"
+        >
+          <summary className="flex cursor-pointer list-none items-center gap-2 px-3.5 py-2.5 text-xs font-medium text-faint transition-colors hover:text-soft">
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden className="h-4 w-4">
+              <circle cx="12" cy="12" r="3.2" stroke="currentColor" strokeWidth="1.6" />
+              <path
+                d="M12 3v2.2M12 18.8V21M21 12h-2.2M5.2 12H3m13.4-6.4-1.6 1.6M9.2 14.8l-1.6 1.6m10.8 0-1.6-1.6M9.2 9.2 7.6 7.6"
+                stroke="currentColor"
+                strokeWidth="1.6"
+                strokeLinecap="round"
               />
+            </svg>
+            {t.newSearchForm.painPointHeading}
+            {activeFilterCount > 0 && (
+              <span className="rounded-full bg-sky-500/15 px-1.5 py-0.5 text-[10px] font-semibold text-sky-600 dark:text-sky-300">
+                {activeFilterCount}
+              </span>
             )}
-          </label>
-        </div>
+          </summary>
+          <div className="space-y-3 border-t border-edge/60 px-3.5 py-3">
+            <label className="flex cursor-pointer items-center gap-2 text-sm text-soft">
+              <input
+                type="checkbox"
+                checked={painPointNoWebsite}
+                onChange={(e) => setPainPointNoWebsite(e.target.checked)}
+                className="h-4 w-4 rounded accent-sky-500"
+              />
+              {t.newSearchForm.painPointNoWebsite}
+            </label>
+            <label className="flex items-center gap-2 text-sm text-soft">
+              <input
+                type="checkbox"
+                checked={painPointMaxRating !== ""}
+                onChange={(e) => setPainPointMaxRating(e.target.checked ? 4 : "")}
+                className="h-4 w-4 rounded accent-sky-500"
+              />
+              {t.newSearchForm.painPointMaxRating}
+              {painPointMaxRating !== "" && (
+                <input
+                  type="number"
+                  min={1}
+                  max={5}
+                  step={0.5}
+                  value={painPointMaxRating}
+                  onChange={(e) => setPainPointMaxRating(Number(e.target.value))}
+                  className={inputCls + " mt-0 w-20 py-1.5"}
+                />
+              )}
+            </label>
+          </div>
+        </details>
       )}
 
       {mode === "maps" && <SubmitButton loading={loading} />}

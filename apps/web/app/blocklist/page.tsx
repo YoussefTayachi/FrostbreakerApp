@@ -80,8 +80,24 @@ export default function BlocklistPage() {
   }
 
   async function remove(id: string) {
+    // Die Sperrliste kennt kein Soft-Delete. Fuer "Rueckgaengig" wird die Zeile
+    // deshalb vor dem Loeschen gemerkt und bei Bedarf neu angelegt (neue id).
+    const removed = rows.find((x) => x.id === id);
     await createClient().from("suppression_list").delete().eq("id", id).eq("workspace_id", wsId);
     setRows((r) => r.filter((x) => x.id !== id));
+    if (!removed) return;
+    push(t.blocklist.removed, "success", {
+      label: t.blocklist.undo,
+      onClick: async () => {
+        await createClient().from("suppression_list").insert({
+          workspace_id: wsId,
+          email: removed.email,
+          domain: removed.domain,
+          reason: removed.reason,
+        });
+        reload();
+      },
+    });
   }
 
   return (
