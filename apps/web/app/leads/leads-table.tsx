@@ -2,7 +2,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { OUTREACH_STAGES, stageRank } from "@/lib/crm/stages";
 import CompanyLogo from "../company-logo";
+import ContactTimeline from "../crm/contact-timeline";
+import DealsPanel from "../crm/deals-panel";
+import StatusSelect from "../crm/status-select";
 import { IconSearch } from "../icons";
 import { useT } from "../language-provider";
 import { useToast } from "../toast-provider";
@@ -23,6 +27,7 @@ type Contact = {
   source: string;
   outreach_status: string;
   email_type: string | null;
+  business_id?: string | null;
   businesses: {
     name: string;
     website: string | null;
@@ -55,6 +60,9 @@ type Merged = {
 type Group = {
   key: string;
   name: string;
+  // Fuer Timeline und Deals im Drawer: Gruppen fassen Kontakte einer Firma
+  // zusammen, alle teilen dieselbe business_id.
+  business_id: string | null;
   website: string | null;
   personalization: string | null;
   company_summary: string | null;
@@ -70,17 +78,6 @@ type SearchOption = { id: string; query: string; location: string };
 type LeadsDict = Dictionary["leads"];
 
 const ALL_COLUMN_IDS = ["title", "email", "phone", "sources", "status"] as const;
-
-const STATUS_ORDER = ["new", "contacted", "replied", "meeting_booked", "customer", "not_interested"] as const;
-type OutreachStatus = (typeof STATUS_ORDER)[number];
-
-// Bei mehreren zusammengefuehrten Rohkontakten gewinnt der am weitesten fortgeschrittene
-// Status (Kunde schlaegt Meeting gebucht schlaegt Geantwortet usw.), damit ein bereits
-// erzielter Fortschritt nie durch einen aelteren "new"-Datensatz ueberschrieben wird.
-function statusRank(s: string): number {
-  const i = STATUS_ORDER.indexOf(s as OutreachStatus);
-  return i === -1 ? 0 : i;
-}
 
 function normName(name: string | null): string | null {
   if (!name) return null;
@@ -104,7 +101,7 @@ function mergeInto(target: Merged, c: Contact) {
   if (!target.first_name && c.first_name) target.first_name = c.first_name;
   if (!target.last_name && c.last_name) target.last_name = c.last_name;
   if (!target.linkedin && c.linkedin) target.linkedin = c.linkedin;
-  if (statusRank(c.outreach_status) > statusRank(target.outreach_status)) {
+  if (stageRank(c.outreach_status) > stageRank(target.outreach_status)) {
     target.outreach_status = c.outreach_status;
   }
   if (!target.sources.includes(c.source)) target.sources.push(c.source);
@@ -120,6 +117,7 @@ function groupContacts(contacts: Contact[]): Group[] {
       g = {
         key,
         name: b?.name ?? "Unbekannt",
+        business_id: c.business_id ?? null,
         website: b?.website ?? null,
         personalization: b?.personalization ?? null,
         company_summary: b?.company_summary ?? null,
@@ -217,41 +215,6 @@ function toInstantlyCsv(groups: Group[]): string {
     }
   }
   return [header.join(","), ...lines].join("\n");
-}
-
-const STATUS_SELECT_CLS: Record<string, string> = {
-  new: "border-edge2 bg-chip text-soft",
-  contacted: "border-blue-300 bg-blue-50 text-blue-700 dark:border-blue-500/30 dark:bg-blue-500/10 dark:text-blue-300",
-  replied: "border-sky-300 bg-sky-50 text-sky-700 dark:border-sky-500/30 dark:bg-sky-500/10 dark:text-sky-300",
-  meeting_booked: "border-violet-300 bg-violet-50 text-violet-700 dark:border-violet-500/30 dark:bg-violet-500/10 dark:text-violet-300",
-  customer: "border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300",
-  not_interested: "border-red-300 bg-red-50 text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-300",
-};
-
-function StatusSelect({
-  value,
-  onChange,
-  labels,
-}: {
-  value: string;
-  onChange: (v: string) => void;
-  labels: Record<string, string>;
-}) {
-  return (
-    <select
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      onClick={(e) => e.stopPropagation()}
-      className={
-        "rounded-md border px-2 py-1 text-[11px] font-medium outline-none transition-colors " +
-        (STATUS_SELECT_CLS[value] ?? STATUS_SELECT_CLS.new)
-      }
-    >
-      {STATUS_ORDER.map((s) => (
-        <option key={s} value={s}>{labels[s]}</option>
-      ))}
-    </select>
-  );
 }
 
 function EmailTypeBadge({ c, t }: { c: Merged; t: LeadsDict }) {
@@ -363,16 +326,6 @@ export default function LeadsTable({
   const [open, setOpen] = useState<Set<string>>(new Set());
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [drawer, setDrawer] = useState<Group | null>(null);
-  const [drawerReplies, setDrawerReplies] = useState<
-    {
-      id: string; contact_id: string; subject: string | null; body: string | null;
-      ai_interest: string | null; sent_at: string | null;
-      direction: string; instantly_email_id: string | null;
-    }[]
-  >([]);
-  const [replyOpenId, setReplyOpenId] = useState<string | null>(null);
-  const [replyDrafts, setReplyDrafts] = useState<Record<string, string>>({});
-  const [replyBusyId, setReplyBusyId] = useState<string | null>(null);
   const [cols, setCols] = useState<Set<string>>(new Set(ALL_COLUMN_IDS));
   const [colsOpen, setColsOpen] = useState(false);
   const colsRef = useRef<HTMLDivElement>(null);
@@ -459,47 +412,6 @@ export default function LeadsTable({
   );
   const selectedGroups = filtered.filter((g) => selected.has(g.key));
   const selectedContacts = selectedGroups.reduce((n, g) => n + g.contacts.length, 0);
-
-  async function openDrawer(g: Group) {
-    setDrawer(g);
-    setDrawerReplies([]);
-    const contactIds = g.contacts.map((c) => c.id);
-    if (contactIds.length === 0) return;
-    const { data } = await createClient()
-      .from("messages")
-      .select("id, contact_id, subject, body, ai_interest, sent_at, direction, instantly_email_id")
-      .eq("workspace_id", workspaceId)
-      .in("contact_id", contactIds)
-      .order("sent_at", { ascending: false });
-    setDrawerReplies(data ?? []);
-  }
-
-  async function sendReply(original: { id: string; contact_id: string; subject: string | null }) {
-    const text = (replyDrafts[original.id] ?? "").trim();
-    if (!text || replyBusyId) return;
-    setReplyBusyId(original.id);
-    try {
-      const res = await fetch("/api/instantly/emails/reply", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          messageId: original.id,
-          subject: (L.replySubjectPrefix + (original.subject || "")).trim(),
-          body: text,
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || L.replyErrorGeneric);
-      if (data.id) setDrawerReplies((prev) => [data, ...prev]);
-      setReplyDrafts((prev) => ({ ...prev, [original.id]: "" }));
-      setReplyOpenId(null);
-      push(L.replySentToast, "success");
-    } catch (e) {
-      push((e as Error).message, "error");
-    } finally {
-      setReplyBusyId(null);
-    }
-  }
 
   function toggle(key: string) {
     setOpen((prev) => {
@@ -649,7 +561,7 @@ export default function LeadsTable({
             className="rounded-lg border border-edge2 bg-field px-3.5 py-2.5 text-sm text-ink outline-none transition-colors focus:border-sky-500"
           >
             <option value="">{L.allStatuses}</option>
-            {STATUS_ORDER.map((s) => (
+            {OUTREACH_STAGES.map((s) => (
               <option key={s} value={s}>{L.statusLabels[s]}</option>
             ))}
           </select>
@@ -784,7 +696,7 @@ export default function LeadsTable({
                   </button>
                   <button
                     type="button"
-                    onClick={() => openDrawer(g)}
+                    onClick={() => setDrawer(g)}
                     className="flex min-w-0 flex-1 cursor-pointer items-center gap-2.5 text-left"
                   >
                     <CompanyLogo name={g.name} website={g.website} size={22} />
@@ -1020,85 +932,14 @@ export default function LeadsTable({
               </>
             )}
 
-            {drawerReplies.length > 0 && (
+            {/* Deals und vollstaendiger Verlauf. Ersetzt die frueher hier
+                eingebaute Antwortliste: die Timeline zeigt dieselben E-Mails
+                plus Notizen, Aktivitaeten und Status-Bewegungen. Beantwortet
+                werden E-Mails in der Inbox (/inbox), wo der Thread-Kontext ist. */}
+            {drawer.business_id && (
               <>
-                <p className="mb-2 text-xs font-medium uppercase tracking-wider text-faint">
-                  {L.repliesHeading(drawerReplies.length)}
-                </p>
-                <div className="mb-5 space-y-2">
-                  {drawerReplies.map((r) => (
-                    <div key={r.id} className="rounded-lg border border-edge/60 bg-surface/60 p-3">
-                      <div className="mb-1 flex items-center justify-between gap-2">
-                        <span className="flex min-w-0 items-center gap-1.5">
-                          <span
-                            className={
-                              "shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-wide " +
-                              (r.direction === "inbound"
-                                ? "bg-sky-500/10 text-sky-600 dark:text-sky-300"
-                                : "bg-edge2 text-faint")
-                            }
-                          >
-                            {r.direction === "inbound" ? L.directionInbound : L.directionOutbound}
-                          </span>
-                          <p className="truncate text-xs font-medium text-ink">{r.subject || L.noSubject}</p>
-                        </span>
-                        {r.ai_interest && (
-                          <span
-                            className={
-                              "shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium " +
-                              (r.ai_interest === "interested"
-                                ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-300"
-                                : r.ai_interest === "not_interested"
-                                ? "bg-red-500/10 text-red-600 dark:text-red-300"
-                                : "bg-amber-500/10 text-amber-700 dark:text-amber-300")
-                            }
-                          >
-                            {L.aiInterestLabels[r.ai_interest] ?? r.ai_interest}
-                          </span>
-                        )}
-                      </div>
-                      <p className="whitespace-pre-wrap text-xs leading-relaxed text-soft">{r.body}</p>
-
-                      {r.direction === "inbound" && r.instantly_email_id && (
-                        <div className="mt-2">
-                          {replyOpenId === r.id ? (
-                            <div className="space-y-2">
-                              <textarea
-                                value={replyDrafts[r.id] ?? ""}
-                                onChange={(e) => setReplyDrafts((prev) => ({ ...prev, [r.id]: e.target.value }))}
-                                placeholder={L.replyPlaceholder}
-                                rows={3}
-                                className="w-full rounded-lg border border-edge2 bg-field px-3 py-2 text-xs text-ink placeholder-mute outline-none transition-colors focus:border-sky-500"
-                              />
-                              <div className="flex gap-2">
-                                <button
-                                  onClick={() => sendReply(r)}
-                                  disabled={replyBusyId === r.id || !(replyDrafts[r.id] ?? "").trim()}
-                                  className="rounded-lg bg-sky-600 px-3 py-1.5 text-xs font-medium text-white transition-all hover:bg-sky-500 disabled:opacity-50"
-                                >
-                                  {replyBusyId === r.id ? L.replySending : L.replySend}
-                                </button>
-                                <button
-                                  onClick={() => setReplyOpenId(null)}
-                                  className="rounded-lg border border-edge2 px-3 py-1.5 text-xs font-medium text-faint transition-colors hover:text-ink"
-                                >
-                                  {L.replyCancel}
-                                </button>
-                              </div>
-                            </div>
-                          ) : (
-                            <button
-                              onClick={() => setReplyOpenId(r.id)}
-                              className="text-xs font-medium text-sky-600 transition-colors hover:text-sky-500 dark:text-sky-400"
-                            >
-                              {L.replyButton}
-                            </button>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
+                <DealsPanel businessId={drawer.business_id} className="mb-5" />
+                <ContactTimeline businessId={drawer.business_id} className="mb-5" />
               </>
             )}
 

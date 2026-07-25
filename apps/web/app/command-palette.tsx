@@ -2,7 +2,16 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { IconAgent, IconDashboard, IconInbox, IconLeads, IconSearch, IconSettings, IconShield } from "./icons";
+import {
+  IconAgent,
+  IconDashboard,
+  IconInbox,
+  IconLeads,
+  IconPipeline,
+  IconSearch,
+  IconSettings,
+  IconShield,
+} from "./icons";
 import { useT } from "./language-provider";
 import { useWorkspace } from "./workspace-provider";
 
@@ -38,6 +47,7 @@ export default function CommandPalette() {
     { href: "/", label: t.nav.dashboard, icon: IconDashboard },
     { href: "/searches", label: t.nav.searches, icon: IconSearch },
     { href: "/leads", label: t.nav.leads, icon: IconLeads },
+    { href: "/pipeline", label: t.nav.pipeline, icon: IconPipeline },
     { href: "/inbox", label: t.nav.inbox, icon: IconInbox },
     { href: "/ai-agent", label: t.nav.aiAgent, icon: IconAgent },
     { href: "/blocklist", label: t.nav.blocklist, icon: IconShield },

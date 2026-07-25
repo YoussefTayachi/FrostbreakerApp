@@ -4,7 +4,17 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { UNREAD_CHANGED_EVENT } from "@/lib/unread";
-import { IconAgent, IconDashboard, IconInbox, IconLeads, IconSearch, IconSend, IconSettings, IconShield } from "./icons";
+import {
+  IconAgent,
+  IconDashboard,
+  IconInbox,
+  IconLeads,
+  IconPipeline,
+  IconSearch,
+  IconSend,
+  IconSettings,
+  IconShield,
+} from "./icons";
 import { useT } from "./language-provider";
 import { useWorkspace } from "./workspace-provider";
 
@@ -51,6 +61,7 @@ export default function Nav() {
     { href: "/", label: t.nav.dashboard, icon: IconDashboard, badge: 0 },
     { href: "/searches", label: t.nav.searches, icon: IconSearch, badge: 0 },
     { href: "/leads", label: t.nav.leads, icon: IconLeads, badge: 0 },
+    { href: "/pipeline", label: t.nav.pipeline, icon: IconPipeline, badge: 0 },
     { href: "/inbox", label: t.nav.inbox, icon: IconInbox, badge: unread },
     { href: "/ai-agent", label: t.nav.aiAgent, icon: IconAgent, badge: 0 },
     { href: "/instantly", label: t.nav.instantly, icon: IconSend, badge: 0 },

@@ -1,10 +1,12 @@
 "use client";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { filterSuppressed } from "@/lib/suppression";
+import { formatRelative } from "@/lib/format-time";
 import { notifyUnreadChanged } from "@/lib/unread";
 import CompanyLogo from "../company-logo";
+import ContactTimeline from "../crm/contact-timeline";
 import { useT } from "../language-provider";
 import { useToast } from "../toast-provider";
 import { useWorkspace } from "../workspace-provider";
@@ -26,6 +28,7 @@ type Msg = {
     email: string | null;
     title: string | null;
     outreach_status: string;
+    business_id: string | null;
     businesses: { name: string; website: string | null } | null;
   } | null;
 };
@@ -35,6 +38,7 @@ type Msg = {
 // sonst taucht eine geblockte Firma hier weiter auf, obwohl sie dort verschwunden ist).
 type Conversation = {
   contactId: string;
+  businessId: string | null;
   name: string | null;
   title: string | null;
   email: string | null;
@@ -55,29 +59,6 @@ function when(msg: Msg): string {
   return msg.sent_at ?? msg.created_at;
 }
 
-function formatWhen(iso: string | null, locale: string): string {
-  if (!iso) return "";
-  const d = new Date(iso);
-  const diffMin = Math.round((Date.now() - d.getTime()) / 60_000);
-  const rtf = new Intl.RelativeTimeFormat(locale, { numeric: "auto" });
-  if (diffMin < 1) return rtf.format(0, "minute");
-  if (diffMin < 60) return rtf.format(-diffMin, "minute");
-  if (diffMin < 60 * 24) return rtf.format(-Math.round(diffMin / 60), "hour");
-  if (diffMin < 60 * 24 * 7) return rtf.format(-Math.round(diffMin / (60 * 24)), "day");
-  return d.toLocaleDateString(locale, { day: "2-digit", month: "short", year: "numeric" });
-}
-
-function formatExact(iso: string | null, locale: string): string {
-  if (!iso) return "";
-  return new Date(iso).toLocaleString(locale, {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
-
 function toConversations(messages: Msg[]): Conversation[] {
   const byContact = new Map<string, Conversation>();
   for (const m of messages) {
@@ -87,6 +68,7 @@ function toConversations(messages: Msg[]): Conversation[] {
     if (!c) {
       c = {
         contactId,
+        businessId: m.contacts?.business_id ?? null,
         name: m.contacts?.full_name ?? null,
         title: m.contacts?.title ?? null,
         email: m.contacts?.email ?? null,
@@ -125,7 +107,6 @@ export default function InboxPage() {
   const { push } = useToast();
   const { workspaceId } = useWorkspace();
   const L = t.inbox;
-  const locale = lang === "de" ? "de-DE" : "en-US";
 
   const [messages, setMessages] = useState<Msg[]>([]);
   const [suppression, setSuppression] = useState<{ email: string | null; domain: string | null }[]>([]);
@@ -134,7 +115,6 @@ export default function InboxPage() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
-  const threadRef = useRef<HTMLDivElement>(null);
 
   const load = useCallback(async () => {
     if (!workspaceId) return;
@@ -144,7 +124,7 @@ export default function InboxPage() {
         .from("messages")
         .select(
           "id, contact_id, direction, subject, body, ai_interest, sent_at, created_at, read_at, instantly_email_id, " +
-            "contacts!inner(id, full_name, email, title, outreach_status, businesses(name, website))"
+            "contacts!inner(id, full_name, email, title, outreach_status, business_id, businesses(name, website))"
         )
         .eq("workspace_id", workspaceId)
         .order("sent_at", { ascending: false })
@@ -189,10 +169,6 @@ export default function InboxPage() {
     () => conversations.find((c) => c.contactId === selectedId) ?? null,
     [conversations, selectedId]
   );
-
-  useEffect(() => {
-    threadRef.current?.scrollTo({ top: threadRef.current.scrollHeight });
-  }, [selectedId, selected?.messages.length]);
 
   async function markRead(contactId: string) {
     const ids = conversations
@@ -355,7 +331,7 @@ export default function InboxPage() {
                         >
                           {c.businesses?.name ?? L.unknownContact}
                         </span>
-                        <span className="shrink-0 text-[10px] text-faint">{formatWhen(c.lastAt, locale)}</span>
+                        <span className="shrink-0 text-[10px] text-faint">{formatRelative(c.lastAt, lang)}</span>
                       </span>
                       <span className="mt-0.5 flex items-center gap-1.5">
                         <span className="truncate text-xs text-soft">{c.name ?? c.email ?? L.unknownContact}</span>
@@ -414,38 +390,16 @@ export default function InboxPage() {
                   </div>
                 </div>
 
-                <div ref={threadRef} className="flex-1 space-y-3 overflow-y-auto px-5 py-4 md:max-h-[calc(100vh-27rem)]">
-                  {selected.messages.map((m) => {
-                    const inbound = m.direction === "inbound";
-                    return (
-                      <div
-                        key={m.id}
-                        className={
-                          "max-w-[85%] rounded-lg border px-3.5 py-2.5 " +
-                          (inbound
-                            ? "border-edge/60 bg-surface/60"
-                            : "ml-auto border-sky-500/25 bg-sky-500/5")
-                        }
-                      >
-                        <div className="mb-1 flex flex-wrap items-center gap-1.5">
-                          <span
-                            className={
-                              "rounded-full px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-wide " +
-                              (inbound ? "bg-sky-500/10 text-sky-600 dark:text-sky-300" : "bg-edge2 text-faint")
-                            }
-                          >
-                            {inbound ? L.directionInbound : L.directionOutbound}
-                          </span>
-                          <span className="min-w-0 flex-1 truncate text-xs font-medium text-ink">
-                            {m.subject || L.noSubject}
-                          </span>
-                          {m.ai_interest && <InterestBadge value={m.ai_interest} labels={L.aiInterestLabels} />}
-                        </div>
-                        <p className="whitespace-pre-wrap text-xs leading-relaxed text-soft">{m.body}</p>
-                        <p className="mt-1.5 text-[10px] text-mute">{formatExact(when(m), locale)}</p>
-                      </div>
-                    );
-                  })}
+                {/* Voller Verlauf statt nur der E-Mails: dieselbe Komponente wie
+                    im Lead-Drawer und im Pipeline-Board, damit Notizen und
+                    geloggte Anrufe genau dort sichtbar sind, wo geantwortet wird.
+                    key erzwingt ein Neuladen beim Wechsel der Konversation. */}
+                <div className="flex-1 overflow-y-auto px-5 py-4 md:max-h-[calc(100vh-27rem)]">
+                  <ContactTimeline
+                    key={selected.contactId}
+                    contactId={selected.contactId}
+                    businessId={selected.businessId ?? undefined}
+                  />
                 </div>
 
                 {selected.replyTarget && (

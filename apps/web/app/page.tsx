@@ -7,6 +7,7 @@ import NewSearchForm from "./new-search-form";
 import AutoRefresh from "./auto-refresh";
 import ActivityChart from "./activity-chart";
 import CountUp from "./count-up";
+import ForecastCards, { type PipelineStats } from "./crm/forecast-cards";
 import { IconLock, IconSend, IconSearch, IconMail } from "./icons";
 
 type Stats = {
@@ -71,7 +72,7 @@ export default async function Dashboard({
   if (!ws) return <p className="text-faint">Kein Workspace gefunden.</p>;
   const workspaceId = ws.workspace.id;
 
-  const [statsRes, searchesRes, recentRes, apiKeysRes, campaignsCountRes] = await Promise.all([
+  const [statsRes, searchesRes, recentRes, apiKeysRes, campaignsCountRes, pipelineRes] = await Promise.all([
     supabase.rpc("dashboard_stats", { p_workspace_id: workspaceId, p_days: rangeDays }),
     supabase
       .from("searches")
@@ -88,8 +89,10 @@ export default async function Dashboard({
       .limit(6),
     supabase.from("api_keys").select("provider").eq("workspace_id", workspaceId),
     supabase.from("campaigns").select("id", { count: "exact", head: true }).eq("workspace_id", workspaceId),
+    supabase.rpc("crm_pipeline_stats", { p_workspace_id: workspaceId }),
   ]);
   const stats = (statsRes.data ?? {}) as Stats;
+  const pipelineStats = (pipelineRes.data ?? null) as PipelineStats | null;
   const searches = searchesRes.data ?? [];
   const recent = recentRes.data ?? [];
 
@@ -208,6 +211,10 @@ export default async function Dashboard({
           </div>
         ))}
       </div>
+
+      {/* Forecast + faellige Aufgaben (CRM Phase 4/5) -- blendet sich selbst aus,
+          solange es weder Deals noch offene Aufgaben gibt. */}
+      <ForecastCards stats={pipelineStats} />
 
       {/* ROI-Banner */}
       {(stats.contacts_total ?? 0) > 0 && (
