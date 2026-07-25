@@ -38,9 +38,11 @@ export default async function PipelinePage() {
   const rows = (contactsRes.data ?? []) as unknown as BoardContact[];
   const contacts = filterSuppressed(rows, suppressionRes.data ?? []);
 
+  // Bewusst ohne space-y-*: PipelineBoard setzt seine Abstaende selbst, damit die
+  // Board-Hoehe (100vh minus Kopfbereich) verlaesslich aufgeht.
   return (
-    <div className="fade-up space-y-5">
-      <div>
+    <div className="fade-up">
+      <div className="mb-4">
         <h1 className="text-2xl font-semibold tracking-tight text-ink">{t.pipeline.title}</h1>
         <p className="text-sm text-faint">{t.pipeline.subtitle}</p>
       </div>
