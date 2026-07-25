@@ -14,6 +14,8 @@ import { useWorkspace } from "../workspace-provider";
 type Msg = {
   id: string;
   contact_id: string | null;
+  from_email: string | null;
+  eaccount: string | null;
   direction: string;
   subject: string | null;
   body: string | null;
@@ -36,8 +38,15 @@ type Msg = {
 // Feldnamen email/businesses sind so gewaehlt, dass filterSuppressed() direkt auf
 // Konversationen anwendbar bleibt (gleiche Blockliste wie in der Leads-Ansicht --
 // sonst taucht eine geblockte Firma hier weiter auf, obwohl sie dort verschwunden ist).
+//
+// contactId ist nullable: seit die Inbox mailbox-weit synct statt nur
+// kampagnen-gebundene Antworten, kommen auch Mails von Absendern ohne
+// bestehenden Kontakt an (kein Auto-Anlegen als Lead, siehe poll_instantly.py
+// _process_email). `key` ist der stabile Gruppierungs-/State-Schluessel, der in
+// beiden Faellen existiert (contact_id oder Absenderadresse).
 type Conversation = {
-  contactId: string;
+  key: string;
+  contactId: string | null;
   businessId: string | null;
   name: string | null;
   title: string | null;
@@ -60,18 +69,21 @@ function when(msg: Msg): string {
 }
 
 function toConversations(messages: Msg[]): Conversation[] {
-  const byContact = new Map<string, Conversation>();
+  const byKey = new Map<string, Conversation>();
   for (const m of messages) {
-    const contactId = m.contact_id;
-    if (!contactId) continue;
-    let c = byContact.get(contactId);
+    // Ohne Kontakt gruppiert die rohe Absenderadresse (from_email) statt einer
+    // contact_id -- so landen mehrere Mails derselben unbekannten Adresse in
+    // einer Konversation, statt jede einzeln zu zeigen.
+    const key = m.contact_id ?? "raw:" + (m.from_email ?? m.id);
+    let c = byKey.get(key);
     if (!c) {
       c = {
-        contactId,
+        key,
+        contactId: m.contact_id,
         businessId: m.contacts?.business_id ?? null,
         name: m.contacts?.full_name ?? null,
         title: m.contacts?.title ?? null,
-        email: m.contacts?.email ?? null,
+        email: m.contacts?.email ?? m.from_email ?? null,
         businesses: m.contacts?.businesses ?? null,
         outreachStatus: m.contacts?.outreach_status ?? "new",
         messages: [],
@@ -80,12 +92,12 @@ function toConversations(messages: Msg[]): Conversation[] {
         aiInterest: null,
         replyTarget: null,
       };
-      byContact.set(contactId, c);
+      byKey.set(key, c);
     }
     c.messages.push(m);
   }
 
-  const conversations = [...byContact.values()];
+  const conversations = [...byKey.values()];
   for (const c of conversations) {
     c.messages.sort((a, b) => when(a).localeCompare(when(b)));
     const inbound = c.messages.filter((m) => m.direction === "inbound");
@@ -123,8 +135,8 @@ export default function InboxPage() {
       supabase
         .from("messages")
         .select(
-          "id, contact_id, direction, subject, body, ai_interest, sent_at, created_at, read_at, instantly_email_id, " +
-            "contacts!inner(id, full_name, email, title, outreach_status, business_id, businesses(name, website))"
+          "id, contact_id, from_email, eaccount, direction, subject, body, ai_interest, sent_at, created_at, read_at, instantly_email_id, " +
+            "contacts(id, full_name, email, title, outreach_status, business_id, businesses(name, website))"
         )
         .eq("workspace_id", workspaceId)
         .order("sent_at", { ascending: false })
@@ -166,13 +178,13 @@ export default function InboxPage() {
   }, [conversations, filter]);
 
   const selected = useMemo(
-    () => conversations.find((c) => c.contactId === selectedId) ?? null,
+    () => conversations.find((c) => c.key === selectedId) ?? null,
     [conversations, selectedId]
   );
 
-  async function markRead(contactId: string) {
+  async function markRead(key: string) {
     const ids = conversations
-      .find((c) => c.contactId === contactId)
+      .find((c) => c.key === key)
       ?.messages.filter((m) => m.direction === "inbound" && !m.read_at)
       .map((m) => m.id);
     if (!ids?.length) return;
@@ -211,9 +223,9 @@ export default function InboxPage() {
   }
 
   function select(c: Conversation) {
-    setSelectedId(c.contactId);
+    setSelectedId(c.key);
     setDraft("");
-    if (c.unread > 0) markRead(c.contactId);
+    if (c.unread > 0) markRead(c.key);
   }
 
   async function sendReply() {
@@ -306,10 +318,11 @@ export default function InboxPage() {
           >
             <div className="max-h-[calc(100vh-16rem)] divide-y divide-edge/60 overflow-y-auto">
               {visible.map((c) => {
-                const active = c.contactId === selectedId;
+                const active = c.key === selectedId;
+                const title = c.businesses?.name ?? c.name ?? c.email ?? L.unknownContact;
                 return (
                   <button
-                    key={c.contactId}
+                    key={c.key}
                     onClick={() => select(c)}
                     className={
                       "flex w-full items-start gap-2.5 px-3.5 py-3 text-left transition-colors " +
@@ -317,7 +330,7 @@ export default function InboxPage() {
                     }
                   >
                     <span className="relative mt-0.5">
-                      <CompanyLogo name={c.businesses?.name ?? c.name ?? "?"} website={c.businesses?.website ?? null} size={26} />
+                      <CompanyLogo name={c.businesses?.name ?? c.name ?? c.email ?? "?"} website={c.businesses?.website ?? null} size={26} />
                       {c.unread > 0 && (
                         <span className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full border-2 border-panel bg-sky-500" />
                       )}
@@ -329,14 +342,21 @@ export default function InboxPage() {
                             "truncate text-sm " + (c.unread > 0 ? "font-semibold text-ink" : "text-ink")
                           }
                         >
-                          {c.businesses?.name ?? L.unknownContact}
+                          {title}
                         </span>
                         <span className="shrink-0 text-[10px] text-faint">{formatRelative(c.lastAt, lang)}</span>
                       </span>
-                      <span className="mt-0.5 flex items-center gap-1.5">
-                        <span className="truncate text-xs text-soft">{c.name ?? c.email ?? L.unknownContact}</span>
-                        {c.aiInterest && <InterestBadge value={c.aiInterest} labels={L.aiInterestLabels} />}
-                      </span>
+                      {/* Name/E-Mail-Zeile nur, wenn sie etwas anderes als der Titel zeigt --
+                          bei kontaktlosen Absendern ist der Titel schon die E-Mail-Adresse.
+                          Das KI-Badge bleibt davon unabhaengig sichtbar. */}
+                      {((c.name ?? c.email) && (c.name ?? c.email) !== title) || c.aiInterest ? (
+                        <span className="mt-0.5 flex items-center gap-1.5">
+                          {(c.name ?? c.email) && (c.name ?? c.email) !== title && (
+                            <span className="truncate text-xs text-soft">{c.name ?? c.email}</span>
+                          )}
+                          {c.aiInterest && <InterestBadge value={c.aiInterest} labels={L.aiInterestLabels} />}
+                        </span>
+                      ) : null}
                       <span className="mt-1 block truncate text-xs text-faint">
                         {c.messages[c.messages.length - 1]?.body?.replace(/\s+/g, " ").trim() || L.noSubject}
                       </span>
@@ -365,41 +385,48 @@ export default function InboxPage() {
                     ←
                   </button>
                   <CompanyLogo
-                    name={selected.businesses?.name ?? selected.name ?? "?"}
+                    name={selected.businesses?.name ?? selected.name ?? selected.email ?? "?"}
                     website={selected.businesses?.website ?? null}
                     size={30}
                   />
                   <div className="min-w-0 flex-1">
                     <p className="truncate font-medium text-ink">
-                      {selected.businesses?.name ?? L.unknownContact}
+                      {selected.businesses?.name ?? selected.name ?? selected.email ?? L.unknownContact}
                     </p>
                     <p className="truncate text-xs text-faint">
                       {[selected.name, selected.title, selected.email].filter(Boolean).join(" · ")}
                     </p>
                   </div>
-                  <div className="flex shrink-0 flex-col items-end gap-1">
-                    <span className="rounded-full border border-edge2 bg-chip px-2 py-0.5 text-[10px] font-medium text-soft">
-                      {t.leads.statusLabels[selected.outreachStatus] ?? selected.outreachStatus}
-                    </span>
-                    <Link
-                      href={`/leads?q=${encodeURIComponent(selected.businesses?.name ?? "")}`}
-                      className="text-[11px] text-sky-600 underline-offset-4 hover:underline dark:text-sky-400"
-                    >
-                      {L.openInLeads}
-                    </Link>
-                  </div>
+                  {/* Status-Badge und Lead-Link brauchen einen echten CRM-Kontakt --
+                      bei kontaktlosen Absendern (nur E-Mail bekannt) gibt es beides nicht. */}
+                  {selected.contactId && (
+                    <div className="flex shrink-0 flex-col items-end gap-1">
+                      <span className="rounded-full border border-edge2 bg-chip px-2 py-0.5 text-[10px] font-medium text-soft">
+                        {t.leads.statusLabels[selected.outreachStatus] ?? selected.outreachStatus}
+                      </span>
+                      <Link
+                        href={`/leads?q=${encodeURIComponent(selected.businesses?.name ?? "")}`}
+                        className="text-[11px] text-sky-600 underline-offset-4 hover:underline dark:text-sky-400"
+                      >
+                        {L.openInLeads}
+                      </Link>
+                    </div>
+                  )}
                 </div>
 
-                {/* Voller Verlauf statt nur der E-Mails: dieselbe Komponente wie
-                    im Lead-Drawer und im Pipeline-Board, damit Notizen und
-                    geloggte Anrufe genau dort sichtbar sind, wo geantwortet wird.
-                    key erzwingt ein Neuladen beim Wechsel der Konversation. */}
+                {/* Voller Verlauf (Notizen, Aktivitaeten, Deals) nur bei echtem CRM-
+                    Kontakt -- ohne contact_id gibt es dafuer keine Basis, dann reicht
+                    eine einfache Liste der synchronisierten E-Mails. */}
                 <div className="flex-1 overflow-y-auto px-5 py-4 md:max-h-[calc(100vh-27rem)]">
-                  <ContactTimeline
-                    key={selected.contactId}
-                    contactId={selected.contactId}
-                    businessId={selected.businessId ?? undefined}
-                  />
+                  {selected.contactId ? (
+                    <ContactTimeline
+                      key={selected.key}
+                      contactId={selected.contactId}
+                      businessId={selected.businessId ?? undefined}
+                    />
+                  ) : (
+                    <PlainMessageList messages={selected.messages} lang={lang} noSubjectLabel={L.noSubject} />
+                  )}
                 </div>
 
                 {selected.replyTarget && (
@@ -431,6 +458,37 @@ export default function InboxPage() {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+/** Schlichte Alternative zu ContactTimeline fuer Absender ohne CRM-Kontakt --
+ *  nur die synchronisierten E-Mails selbst, chronologisch, ohne Notizen/Deals. */
+function PlainMessageList({
+  messages,
+  lang,
+  noSubjectLabel,
+}: {
+  messages: Msg[];
+  lang: "de" | "en";
+  noSubjectLabel: string;
+}) {
+  return (
+    <div className="space-y-3">
+      {messages.map((m) => (
+        <div key={m.id} className="rounded-lg border border-edge/60 bg-surface/60 px-3.5 py-3">
+          <div className="flex items-center justify-between gap-3">
+            <span className="text-xs font-medium text-ink">
+              {m.direction === "inbound" ? "→" : "←"} {m.subject || noSubjectLabel}
+            </span>
+            <span className="shrink-0 text-[10px] text-faint">
+              {formatRelative(m.sent_at ?? m.created_at, lang)}
+            </span>
+          </div>
+          {m.eaccount && <p className="mt-0.5 text-[10px] text-faint">{m.eaccount}</p>}
+          <p className="mt-1.5 whitespace-pre-wrap text-xs leading-relaxed text-soft">{m.body}</p>
+        </div>
+      ))}
     </div>
   );
 }

@@ -10,6 +10,15 @@ Growth (siehe Differenzierungs-Plan, Punkt 0).
 Getriggert durch process_due_instantly_polls() in main.py fuer jede Suche mit
 gesetzter instantly_campaign_id, alle paar Minuten (nicht bei jedem Job-Zyklus,
 /emails hat ein Rate-Limit von 20 Requests/Minute bei Instantly).
+
+Zweiter, unabhaengiger Job-Typ in derselben Datei: run_inbox() synct NICHT pro
+Kampagne, sondern pro verbundener Mailbox (eaccount) das komplette Postfach
+(empfangen + gesendet), unabhaengig davon ob eine Mail zu einer Kampagne gehoert.
+Antworten von unbekannten Absendern werden dabei NICHT verworfen (anders als im
+kampagnen-scoped Pfad unten) -- Grund: das soll den eigenen IONOS-Posteingang
+vollstaendig spiegeln, nicht nur Lead-Antworten. Warmup-Mails tauchen hier trotzdem
+nicht auf: Instantlys /api/v2/emails hat kein is_warmup-Feld, aber der IONOS-
+Spamfilter sortiert Warmup-Verkehr schon vor Instantlys eigenem IMAP-Sync aus.
 """
 from datetime import datetime, timezone
 
@@ -47,6 +56,25 @@ def fetch_campaign_analytics(api_key: str, campaign_id: str) -> dict | None:
 
 def fetch_replies(api_key: str, campaign_id: str, since: str | None) -> list[dict]:
     params: dict = {"campaign_id": campaign_id, "email_type": "received", "limit": 100}
+    if since:
+        params["min_timestamp_created"] = since
+    r = httpx.get(f"{BASE_URL}/api/v2/emails", params=params, headers=_headers(api_key), timeout=30)
+    r.raise_for_status()
+    return r.json().get("items") or []
+
+
+def fetch_accounts(api_key: str) -> list[dict]:
+    """Alle mit diesem Workspace verbundenen Instantly-Mailboxen (eaccounts)."""
+    r = httpx.get(f"{BASE_URL}/api/v2/accounts", params={"limit": 100}, headers=_headers(api_key), timeout=30)
+    r.raise_for_status()
+    return r.json().get("items") or []
+
+
+def fetch_inbox_emails(api_key: str, eaccount: str, email_type: str, since: str | None) -> list[dict]:
+    """Postfach-weiter Abruf (kein campaign_id-Filter) -- der Unterschied zu
+    fetch_replies() oben ist genau das: hier zaehlt die Mailbox, nicht die
+    Kampagne, deshalb kommen auch Mails ohne Kampagnenbezug mit."""
+    params: dict = {"eaccount": eaccount, "email_type": email_type, "mode": "emode_all", "limit": 100}
     if since:
         params["min_timestamp_created"] = since
     r = httpx.get(f"{BASE_URL}/api/v2/emails", params=params, headers=_headers(api_key), timeout=30)
@@ -168,3 +196,79 @@ def run(job: dict) -> None:
     sb().table("searches").update(
         {"instantly_last_polled_at": datetime.now(timezone.utc).isoformat()}
     ).eq("id", search_id).execute()
+
+
+def _process_email(ws: str, email: dict, direction: str, eaccount: str, openai_key: str | None) -> None:
+    """Wie _process_reply(), aber OHNE das fruehe return bei unbekanntem Absender --
+    die Mail landet trotzdem in messages, nur ohne contact_id/KI-Klassifizierung/
+    Status-Update (das bleibt CRM-Kontakten vorbehalten, kein OpenAI-Aufruf fuer
+    Mails ohne Lead-Bezug)."""
+    lead_email = (email.get("lead") or "").strip().lower()
+
+    contact = None
+    if lead_email:
+        matches = (
+            sb()
+            .table("contacts")
+            .select("id, outreach_status")
+            .eq("workspace_id", ws)
+            .ilike("email", lead_email)
+            .limit(1)
+            .execute()
+            .data
+        )
+        contact = matches[0] if matches else None
+
+    body_text = ((email.get("body") or {}).get("text")) or ""
+    ai_interest = None
+    if contact and openai_key and body_text:
+        ai_interest = classify_reply(openai_key, body_text)
+
+    sb().table("messages").upsert(
+        {
+            "workspace_id": ws,
+            "contact_id": contact["id"] if contact else None,
+            "from_email": lead_email or None,
+            "eaccount": eaccount,
+            "direction": direction,
+            "status": "received" if direction == "inbound" else "sent",
+            "subject": email.get("subject"),
+            "body": body_text,
+            "sent_at": email.get("timestamp_email"),
+            "instantly_email_id": email["id"],
+            "ai_interest": ai_interest,
+        },
+        on_conflict="workspace_id,instantly_email_id",
+    ).execute()
+
+    if contact and direction == "inbound":
+        if STATUS_RANK.get(contact["outreach_status"], 0) < STATUS_RANK["replied"]:
+            sb().table("contacts").update({"outreach_status": "replied"}).eq("id", contact["id"]).execute()
+
+
+def run_inbox(job: dict) -> None:
+    """Mailbox-weiter Sync, ein Job pro Workspace (nicht pro Suche/Kampagne wie
+    run() oben). Getriggert durch process_due_inbox_sync() in main.py."""
+    ws = job["workspace_id"]
+    api_key = get_api_key(ws, "instantly")
+
+    openai_key: str | None
+    try:
+        openai_key = get_api_key(ws, "openai")
+    except Exception:
+        openai_key = None
+
+    workspace = sb().table("workspaces").select("instantly_inbox_synced_at").eq("id", ws).single().execute().data
+    since = (workspace or {}).get("instantly_inbox_synced_at")
+
+    for account in fetch_accounts(api_key):
+        eaccount = account.get("email")
+        if not eaccount:
+            continue
+        for email_type, direction in (("received", "inbound"), ("sent", "outbound")):
+            for email in fetch_inbox_emails(api_key, eaccount, email_type, since):
+                _process_email(ws, email, direction, eaccount, openai_key)
+
+    sb().table("workspaces").update(
+        {"instantly_inbox_synced_at": datetime.now(timezone.utc).isoformat()}
+    ).eq("id", ws).execute()

@@ -14,7 +14,7 @@ const de = {
   },
   nav: {
     dashboard: "Dashboard", searches: "Suchen", leads: "Alle Leads",
-    pipeline: "Pipeline", inbox: "Antworten",
+    pipeline: "Pipeline", inbox: "Posteingang",
     aiAgent: "AI Agent", instantly: "Instantly", blocklist: "Blockliste", settings: "Einstellungen",
   },
   commandPalette: {
@@ -447,19 +447,19 @@ const de = {
     noResults: "Kein Treffer für diesen Filter.",
   },
   inbox: {
-    title: "Antworten",
+    title: "Posteingang",
     subtitle:
-      "Alle eingehenden Antworten aus deinen Kampagnen — hier lesen und beantworten, ohne nach Instantly zu wechseln.",
+      "Alle E-Mails deiner verbundenen Postfächer — Kampagnen-Antworten und alles andere, hier lesen und beantworten, ohne separat bei Instantly oder IONOS einzuloggen.",
     filterAll: "Alle",
     filterUnread: "Ungelesen",
     markAllRead: "Alle als gelesen",
-    markAllReadDone: (n: number) => `${n} Antworten als gelesen markiert.`,
+    markAllReadDone: (n: number) => `${n} Nachrichten als gelesen markiert.`,
     conversations: (n: number) => (n === 1 ? "1 Konversation" : `${n} Konversationen`),
-    loading: "Lade Antworten...",
-    empty: "Noch keine Antworten.",
+    loading: "Lade Posteingang...",
+    empty: "Noch keine Nachrichten.",
     emptyHint:
-      "Sobald eine Kampagne läuft, erscheinen Antworten automatisch hier — sie werden alle 5 Minuten von Instantly abgeholt.",
-    emptyFiltered: "Keine Antworten für diesen Filter.",
+      "Sobald eine E-Mail in einem deiner verbundenen Postfächer eingeht, erscheint sie automatisch hier — alle 5 Minuten synchronisiert.",
+    emptyFiltered: "Keine Nachrichten für diesen Filter.",
     selectHint: "Wähle links eine Konversation aus.",
     unknownContact: "Unbekannter Kontakt",
     noSubject: "(kein Betreff)",
@@ -850,7 +850,7 @@ const en: Dictionary = {
   },
   nav: {
     dashboard: "Dashboard", searches: "Searches", leads: "All Leads",
-    pipeline: "Pipeline", inbox: "Replies",
+    pipeline: "Pipeline", inbox: "Inbox",
     aiAgent: "AI Agent", instantly: "Instantly", blocklist: "Blocklist", settings: "Settings",
   },
   commandPalette: {
@@ -1279,19 +1279,19 @@ const en: Dictionary = {
     noResults: "No match for this filter.",
   },
   inbox: {
-    title: "Replies",
+    title: "Inbox",
     subtitle:
-      "Every incoming reply from your campaigns — read and answer them here, no need to switch over to Instantly.",
+      "Every email from your connected mailboxes — campaign replies and everything else, read and answer them here, no need to log into Instantly or IONOS separately.",
     filterAll: "All",
     filterUnread: "Unread",
     markAllRead: "Mark all read",
-    markAllReadDone: (n: number) => `Marked ${n} replies as read.`,
+    markAllReadDone: (n: number) => `Marked ${n} messages as read.`,
     conversations: (n: number) => (n === 1 ? "1 conversation" : `${n} conversations`),
-    loading: "Loading replies...",
-    empty: "No replies yet.",
+    loading: "Loading inbox...",
+    empty: "No messages yet.",
     emptyHint:
-      "Once a campaign is running, replies show up here automatically — they are pulled from Instantly every 5 minutes.",
-    emptyFiltered: "No replies for this filter.",
+      "Once an email arrives in one of your connected mailboxes, it shows up here automatically — synced every 5 minutes.",
+    emptyFiltered: "No messages for this filter.",
     selectHint: "Pick a conversation on the left.",
     unknownContact: "Unknown contact",
     noSubject: "(no subject)",

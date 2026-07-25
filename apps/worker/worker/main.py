@@ -16,6 +16,7 @@ HANDLERS = {
     "hunt_persons": hunt_persons.run,
     "personalize": personalize.run,
     "poll_instantly": poll_instantly.run,
+    "poll_instantly_inbox": poll_instantly.run_inbox,
     # Phase 3 (interne Sende-Engine): send_batch, poll_inbox -- bewusst nicht gebaut,
     # siehe Differenzierungs-Plan Punkt 0: Instantly bleibt Sende-Infrastruktur,
     # poll_instantly holt nur die Ergebnisse zurueck.
@@ -73,6 +74,32 @@ def process_due_instantly_polls() -> None:
         queue.enqueue(s["workspace_id"], "poll_instantly", {"search_id": s["id"]})
 
 
+def process_due_inbox_sync() -> None:
+    """Mailbox-weiter Posteingang: ein Job pro Workspace mit hinterlegtem
+    Instantly-Key, alle paar Minuten -- unabhaengig von process_due_instantly_polls()
+    oben, das bleibt fuer die kampagnen-scoped Analytics zustaendig."""
+    cutoff = (datetime.now(timezone.utc) - INSTANTLY_POLL_INTERVAL).isoformat()
+    workspaces_with_key = (
+        sb()
+        .table("api_keys")
+        .select("workspace_id")
+        .eq("provider", "instantly")
+        .execute()
+        .data
+    )
+    due = (
+        sb()
+        .table("workspaces")
+        .select("id")
+        .in_("id", [w["workspace_id"] for w in workspaces_with_key])
+        .or_(f"instantly_inbox_synced_at.is.null,instantly_inbox_synced_at.lt.{cutoff}")
+        .execute()
+        .data
+    )
+    for w in due:
+        queue.enqueue(w["id"], "poll_instantly_inbox", {})
+
+
 def main() -> None:
     log.info("Worker gestartet (%s)", queue.WORKER_ID)
     last_schedule_check = 0.0
@@ -90,6 +117,10 @@ def main() -> None:
                 process_due_instantly_polls()
             except Exception:  # noqa: BLE001
                 log.exception("Instantly-Poll-Scheduler fehlgeschlagen")
+            try:
+                process_due_inbox_sync()
+            except Exception:  # noqa: BLE001
+                log.exception("Inbox-Sync-Scheduler fehlgeschlagen")
         job = queue.claim_job()
         if job is None:
             time.sleep(POLL_INTERVAL_S)
