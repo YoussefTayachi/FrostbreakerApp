@@ -13,7 +13,7 @@ const de = {
     } as Record<string, string>,
   },
   nav: {
-    dashboard: "Dashboard", searches: "Suchen", leads: "Alle Leads",
+    dashboard: "Dashboard", searches: "Suchen", leads: "Alle Leads", inbox: "Antworten",
     aiAgent: "AI Agent", instantly: "Instantly", blocklist: "Blockliste", settings: "Einstellungen",
   },
   commandPalette: {
@@ -306,6 +306,36 @@ const de = {
       "Firma", "Website", "Firmenbeschreibung", "Vorname", "Nachname", "Position", "E-Mail",
       "Confidence", "Telefon", "LinkedIn", "Quellen", "Personalisierung",
     ],
+  },
+  inbox: {
+    title: "Antworten",
+    subtitle:
+      "Alle eingehenden Antworten aus deinen Kampagnen — hier lesen und beantworten, ohne nach Instantly zu wechseln.",
+    filterAll: "Alle",
+    filterUnread: "Ungelesen",
+    markAllRead: "Alle als gelesen",
+    markAllReadDone: (n: number) => `${n} Antworten als gelesen markiert.`,
+    conversations: (n: number) => (n === 1 ? "1 Konversation" : `${n} Konversationen`),
+    loading: "Lade Antworten...",
+    empty: "Noch keine Antworten.",
+    emptyHint:
+      "Sobald eine Kampagne läuft, erscheinen Antworten automatisch hier — sie werden alle 5 Minuten von Instantly abgeholt.",
+    emptyFiltered: "Keine Antworten für diesen Filter.",
+    selectHint: "Wähle links eine Konversation aus.",
+    unknownContact: "Unbekannter Kontakt",
+    noSubject: "(kein Betreff)",
+    directionInbound: "Empfangen",
+    directionOutbound: "Gesendet",
+    aiInterestLabels: {
+      interested: "Interessiert", not_interested: "Kein Interesse", question: "Rückfrage",
+    } as Record<string, string>,
+    openInLeads: "Im Lead-Kontext öffnen →",
+    replyPlaceholder: "Deine Antwort...",
+    replySend: "Antwort senden",
+    replySending: "Sendet...",
+    replySentToast: "Antwort gesendet",
+    replyErrorGeneric: "Antwort konnte nicht gesendet werden.",
+    replySubjectPrefix: "Re: ",
   },
   blocklist: {
     title: "Blockliste",
@@ -667,7 +697,7 @@ const en: Dictionary = {
     statusLabels: { pending: "Pending", running: "Running", completed: "Done", failed: "Failed" },
   },
   nav: {
-    dashboard: "Dashboard", searches: "Searches", leads: "All Leads",
+    dashboard: "Dashboard", searches: "Searches", leads: "All Leads", inbox: "Replies",
     aiAgent: "AI Agent", instantly: "Instantly", blocklist: "Blocklist", settings: "Settings",
   },
   commandPalette: {
@@ -960,6 +990,36 @@ const en: Dictionary = {
       "Company", "Website", "Company summary", "First name", "Last name", "Title", "Email",
       "Confidence", "Phone", "LinkedIn", "Sources", "Personalization",
     ],
+  },
+  inbox: {
+    title: "Replies",
+    subtitle:
+      "Every incoming reply from your campaigns — read and answer them here, no need to switch over to Instantly.",
+    filterAll: "All",
+    filterUnread: "Unread",
+    markAllRead: "Mark all read",
+    markAllReadDone: (n: number) => `Marked ${n} replies as read.`,
+    conversations: (n: number) => (n === 1 ? "1 conversation" : `${n} conversations`),
+    loading: "Loading replies...",
+    empty: "No replies yet.",
+    emptyHint:
+      "Once a campaign is running, replies show up here automatically — they are pulled from Instantly every 5 minutes.",
+    emptyFiltered: "No replies for this filter.",
+    selectHint: "Pick a conversation on the left.",
+    unknownContact: "Unknown contact",
+    noSubject: "(no subject)",
+    directionInbound: "Received",
+    directionOutbound: "Sent",
+    aiInterestLabels: {
+      interested: "Interested", not_interested: "Not interested", question: "Question",
+    },
+    openInLeads: "Open in lead context →",
+    replyPlaceholder: "Your reply...",
+    replySend: "Send reply",
+    replySending: "Sending...",
+    replySentToast: "Reply sent",
+    replyErrorGeneric: "Could not send reply.",
+    replySubjectPrefix: "Re: ",
   },
   blocklist: {
     title: "Blocklist",
