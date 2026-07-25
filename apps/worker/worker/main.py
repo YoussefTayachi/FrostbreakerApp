@@ -119,7 +119,7 @@ def main() -> None:
                 log.exception("Instantly-Poll-Scheduler fehlgeschlagen")
             try:
                 process_due_inbox_sync()
-            except Exception:  # noqa: BLE001
+            except Exception:
                 log.exception("Inbox-Sync-Scheduler fehlgeschlagen")
         job = queue.claim_job()
         if job is None:

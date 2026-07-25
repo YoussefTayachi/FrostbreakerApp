@@ -241,9 +241,8 @@ def _process_email(ws: str, email: dict, direction: str, eaccount: str, openai_k
         on_conflict="workspace_id,instantly_email_id",
     ).execute()
 
-    if contact and direction == "inbound":
-        if STATUS_RANK.get(contact["outreach_status"], 0) < STATUS_RANK["replied"]:
-            sb().table("contacts").update({"outreach_status": "replied"}).eq("id", contact["id"]).execute()
+    if contact and direction == "inbound" and STATUS_RANK.get(contact["outreach_status"], 0) < STATUS_RANK["replied"]:
+        sb().table("contacts").update({"outreach_status": "replied"}).eq("id", contact["id"]).execute()
 
 
 def run_inbox(job: dict) -> None:
@@ -255,8 +254,8 @@ def run_inbox(job: dict) -> None:
     openai_key: str | None
     try:
         openai_key = get_api_key(ws, "openai")
-    except Exception:
-        openai_key = None
+    except Exception:  # noqa: BLE001
+        openai_key = None  # Klassifizierung ist optional, Sync funktioniert auch ohne
 
     workspace = sb().table("workspaces").select("instantly_inbox_synced_at").eq("id", ws).single().execute().data
     since = (workspace or {}).get("instantly_inbox_synced_at")
