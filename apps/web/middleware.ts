@@ -25,11 +25,30 @@ export async function middleware(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
   const publicPaths = ["/login", "/signup"];
-  if (!user && !publicPaths.includes(request.nextUrl.pathname)) {
+  const isPublicPath = publicPaths.includes(request.nextUrl.pathname);
+
+  if (!user && !isPublicPath) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     return NextResponse.redirect(url);
   }
+
+  // Gegenrichtung: wer bereits eingeloggt ist, hat auf /login und /signup
+  // nichts mehr verloren. Ohne diese Regel rendert das Root-Layout die volle
+  // App-Huelle (Sidebar, Nav) und darin das Registrierungsformular -- und ein
+  // erneutes signUp() mit der schon registrierten Adresse liefert aus
+  // Sicherheitsgruenden (Schutz vor E-Mail-Enumeration) ein Erfolgs-Objekt
+  // ohne Session zurueck, ohne eine Mail zu verschicken. Die Seite zeigt dann
+  // "Bestaetigungsmail verschickt", obwohl keine kommt und auch keine noetig
+  // waere. Hier abgefangen statt in beiden Seiten einzeln, damit die Huelle
+  // gar nicht erst gerendert wird.
+  if (user && isPublicPath) {
+    const url = request.nextUrl.clone();
+    url.pathname = "/";
+    url.search = "";
+    return NextResponse.redirect(url);
+  }
+
   return response;
 }
 

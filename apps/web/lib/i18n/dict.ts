@@ -780,10 +780,15 @@ const de = {
     loading: "Lädt…",
     viewPricing: "Preise ansehen",
     errorGeneric: "Fehler beim Laden des Abo-Status.",
+    // Zwei Varianten, weil sich der Zaehler waehrend der Testphase auf den
+    // gesamten Trial-Zeitraum bezieht und danach auf den Kalendermonat --
+    // "diesen Monat" waere im Trial schlicht falsch.
     leadUsageHeading: "Qualifizierte Leads diesen Monat",
+    leadUsageHeadingTrial: "Qualifizierte Leads in der Testphase",
     leadUsageUnlimited: "Unlimitiert (Agentur-Plan)",
     leadUsageLabel: (used: number, cap: number) => `${used.toLocaleString("de-DE")} / ${cap.toLocaleString("de-DE")}`,
     leadUsageCapReached: "Monatslimit erreicht -- neue Suchen erst wieder ab nächstem Monat oder mit Agentur-Plan.",
+    leadUsageCapReachedTrial: "Testphasen-Limit erreicht -- mit einem Plan geht es sofort weiter, deine bisherigen Leads bleiben erhalten.",
   },
   pricing: {
     title: "Preise",
@@ -1579,9 +1584,11 @@ const en: Dictionary = {
     viewPricing: "View pricing",
     errorGeneric: "Could not load subscription status.",
     leadUsageHeading: "Qualified leads this month",
+    leadUsageHeadingTrial: "Qualified leads during the trial",
     leadUsageUnlimited: "Unlimited (Agency plan)",
     leadUsageLabel: (used: number, cap: number) => `${used.toLocaleString("en-US")} / ${cap.toLocaleString("en-US")}`,
     leadUsageCapReached: "Monthly limit reached -- new searches resume next month, or upgrade to the Agency plan.",
+    leadUsageCapReachedTrial: "Trial limit reached -- pick a plan to continue right away, your existing leads are kept.",
   },
   pricing: {
     title: "Pricing",
