@@ -30,7 +30,7 @@ export default async function SearchesPage() {
   if (!ws) return <p className="text-faint">Kein Workspace gefunden.</p>;
   const workspaceId = ws.workspace.id;
 
-  const [{ data }, trashRes, instantlyStatsRes] = await Promise.all([
+  const [{ data }, trashRes, instantlyStatsRes, failedJobsRes] = await Promise.all([
     supabase.rpc("search_overview", { p_workspace_id: workspaceId }),
     supabase
       .from("searches")
@@ -42,9 +42,25 @@ export default async function SearchesPage() {
       .from("instantly_campaign_stats")
       .select("search_id, emails_sent_count, bounced_count, reply_count_unique")
       .eq("workspace_id", workspaceId),
+    // "Fehlgeschlagen" stand bisher ohne Begruendung da. Der Grund liegt in
+    // jobs.last_error; die Zuordnung laeuft ueber payload->>search_id, weil
+    // jobs keine eigene search_id-Spalte hat.
+    supabase
+      .from("jobs")
+      .select("payload, last_error, created_at")
+      .eq("workspace_id", workspaceId)
+      .eq("status", "failed")
+      .not("last_error", "is", null)
+      .order("created_at", { ascending: false })
+      .limit(200),
   ]);
   const searches = (data ?? []) as SearchRow[];
   const trash = trashRes.data ?? [];
+  const errorBySearch = new Map<string, string>();
+  for (const job of failedJobsRes.data ?? []) {
+    const searchId = (job.payload as { search_id?: string } | null)?.search_id;
+    if (searchId && !errorBySearch.has(searchId)) errorBySearch.set(searchId, job.last_error as string);
+  }
   const instantlyBySearch = new Map(
     (instantlyStatsRes.data ?? []).map((r) => [r.search_id, r])
   );
@@ -159,6 +175,12 @@ export default async function SearchesPage() {
                 </div>
                 <TrashButton searchId={s.id} />
               </div>
+              {errorBySearch.has(s.id) && (
+                <p className="mt-3 rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-xs leading-relaxed text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-300">
+                  <span className="font-medium">{t.searches.failureReason}</span>{" "}
+                  {errorBySearch.get(s.id)}
+                </p>
+              )}
             </Link>
           );
         })}

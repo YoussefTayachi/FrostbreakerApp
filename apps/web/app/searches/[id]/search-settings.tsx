@@ -47,12 +47,8 @@ export default function SearchSettings({
 
   async function saveSchedule(value: string) {
     setSchedule(value);
-    const nextRun =
-      value === "daily"
-        ? new Date(Date.now() + 86400000).toISOString()
-        : value === "weekly"
-          ? new Date(Date.now() + 7 * 86400000).toISOString()
-          : null;
+    const days: Record<string, number> = { daily: 1, weekly: 7, biweekly: 14 };
+    const nextRun = days[value] ? new Date(Date.now() + days[value] * 86400000).toISOString() : null;
     await createClient()
       .from("searches")
       .update({ schedule: value, next_run_at: nextRun })
@@ -95,8 +91,9 @@ export default function SearchSettings({
         title={t.searchSettings.scheduleTooltip}
       >
         <option value="none">{t.searchSettings.scheduleNone}</option>
-        <option value="weekly">{t.searchSettings.scheduleWeekly}</option>
         <option value="daily">{t.searchSettings.scheduleDaily}</option>
+        <option value="weekly">{t.searchSettings.scheduleWeekly}</option>
+        <option value="biweekly">{t.searchSettings.scheduleBiweekly}</option>
       </select>
 
       {editingInstantly ? (

@@ -8,6 +8,7 @@ import AutoRefresh from "./auto-refresh";
 import ActivityChart from "./activity-chart";
 import CountUp from "./count-up";
 import ForecastCards, { type PipelineStats } from "./crm/forecast-cards";
+import WelcomeModal from "./welcome-modal";
 import { IconLock, IconSend, IconSearch, IconMail } from "./icons";
 
 type Stats = {
@@ -143,6 +144,17 @@ export default async function Dashboard({
           </div>
         )}
       </div>
+
+      {!onboardingDone && (
+        <WelcomeModal
+          openSteps={[
+            t.onboarding.step1Title,
+            t.onboarding.step2Title,
+            t.onboarding.step3Title,
+            t.onboarding.step4Title,
+          ].filter((_, i) => !onboardingSteps[i].done)}
+        />
+      )}
 
       {!onboardingDone && (
         <div className="rounded-lg border border-edge/60 bg-panel p-5">

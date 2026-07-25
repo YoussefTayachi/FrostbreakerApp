@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useT } from "./language-provider";
@@ -36,6 +36,36 @@ const PLAYBOOKS: Playbook[] = [
   { id: "zahnaerzte_low_rating", query: "Zahnarzt", noWebsite: false, maxRating: 4 },
 ];
 
+// Eigene, benannte Suchvorlagen. Bewusst im localStorage statt in der
+// Datenbank: es gibt keinen Bedarf, sie zwischen Geraeten zu teilen, und so
+// bleibt die Aenderung ohne Migration und ohne zusaetzliche RLS-Regeln.
+type Preset = {
+  name: string;
+  mode: "maps" | "corporate";
+  query: string;
+  location: string;
+  radius: number;
+  maxResults: number;
+  noWebsite: boolean;
+  maxRating: number | "";
+  industry: string;
+  city: string;
+  country: string;
+  headcount: string;
+  keywords: string;
+};
+
+const presetsKey = (workspaceId: string) => `fb_search_presets_${workspaceId}`;
+
+function loadPresets(workspaceId: string): Preset[] {
+  try {
+    const raw = localStorage.getItem(presetsKey(workspaceId));
+    return raw ? (JSON.parse(raw) as Preset[]) : [];
+  } catch {
+    return [];
+  }
+}
+
 const inputCls =
   "mt-1.5 rounded-lg border border-edge2 bg-field px-3.5 py-2.5 text-sm text-ink " +
   "placeholder-mute outline-none transition-colors focus:border-sky-500";
@@ -61,19 +91,19 @@ export default function NewSearchForm({ workspaceId }: { workspaceId: string }) 
   const [painPointMaxRating, setPainPointMaxRating] = useState<number | "">("");
   const [selectedPlaybook, setSelectedPlaybook] = useState("");
   const [advancedOpen, setAdvancedOpen] = useState(false);
+  const [presets, setPresets] = useState<Preset[]>([]);
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => setPresets(loadPresets(workspaceId)), [workspaceId]);
 
   const activeFilterCount = (painPointNoWebsite ? 1 : 0) + (painPointMaxRating !== "" ? 1 : 0);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
-    const nextRun =
-      schedule === "daily"
-        ? new Date(Date.now() + 86400000).toISOString()
-        : schedule === "weekly"
-          ? new Date(Date.now() + 7 * 86400000).toISOString()
-          : null;
+    const SCHEDULE_DAYS: Record<string, number> = { daily: 1, weekly: 7, biweekly: 14 };
+    const days = SCHEDULE_DAYS[schedule];
+    const nextRun = days ? new Date(Date.now() + days * 86400000).toISOString() : null;
     const base = {
       name: listName.trim() || null,
       schedule,
@@ -118,6 +148,24 @@ export default function NewSearchForm({ workspaceId }: { workspaceId: string }) 
 
   function applyPlaybook(id: string) {
     setSelectedPlaybook(id);
+    if (id.startsWith("own:")) {
+      const preset = presets.find((p) => p.name === id.slice(4));
+      if (!preset) return;
+      setMode(preset.mode);
+      setQuery(preset.query);
+      setLocation(preset.location);
+      setRadius(preset.radius);
+      setMaxResults(preset.maxResults);
+      setPainPointNoWebsite(preset.noWebsite);
+      setPainPointMaxRating(preset.maxRating);
+      setIndustry(preset.industry);
+      setCity(preset.city);
+      setCountry(preset.country);
+      setHeadcount(preset.headcount);
+      setKeywords(preset.keywords);
+      if (preset.noWebsite || preset.maxRating !== "") setAdvancedOpen(true);
+      return;
+    }
     const pb = PLAYBOOKS.find((p) => p.id === id);
     if (!pb) return;
     setMode("maps");
@@ -128,25 +176,76 @@ export default function NewSearchForm({ workspaceId }: { workspaceId: string }) 
     if (pb.noWebsite || pb.maxRating !== "") setAdvancedOpen(true);
   }
 
+  function savePreset() {
+    const name = prompt(t.newSearchForm.presetNamePrompt)?.trim();
+    if (!name) return;
+    const preset: Preset = {
+      name, mode, query, location, radius, maxResults,
+      noWebsite: painPointNoWebsite, maxRating: painPointMaxRating,
+      industry, city, country, headcount, keywords,
+    };
+    const next = [...presets.filter((p) => p.name !== name), preset];
+    localStorage.setItem(presetsKey(workspaceId), JSON.stringify(next));
+    setPresets(next);
+    setSelectedPlaybook("own:" + name);
+    push(t.newSearchForm.presetSaved, "success");
+  }
+
+  function deleteSelectedPreset() {
+    const name = selectedPlaybook.slice(4);
+    const next = presets.filter((p) => p.name !== name);
+    localStorage.setItem(presetsKey(workspaceId), JSON.stringify(next));
+    setPresets(next);
+    setSelectedPlaybook("");
+    push(t.newSearchForm.presetDeleted, "success");
+  }
+
   const tabCls = (active: boolean) =>
     "rounded-lg px-3.5 py-1.5 text-sm font-medium transition-colors " +
     (active ? "bg-sky-500/15 text-sky-600 dark:text-sky-300" : "text-faint hover:text-ink");
 
   return (
     <form onSubmit={onSubmit} className="space-y-4">
-      <label className={labelCls + " max-w-xs"}>
-        {t.newSearchForm.playbookLabel}
-        <select
-          value={selectedPlaybook}
-          onChange={(e) => applyPlaybook(e.target.value)}
-          className={inputCls}
+      <div className="flex flex-wrap items-end gap-3">
+        <label className={labelCls + " max-w-xs flex-1"}>
+          {t.newSearchForm.playbookLabel}
+          <select
+            value={selectedPlaybook}
+            onChange={(e) => applyPlaybook(e.target.value)}
+            className={inputCls}
+          >
+            <option value="">{t.newSearchForm.playbookNone}</option>
+            {presets.length > 0 && (
+              <optgroup label={t.newSearchForm.presetGroupOwn}>
+                {presets.map((p) => (
+                  <option key={p.name} value={"own:" + p.name}>{p.name}</option>
+                ))}
+              </optgroup>
+            )}
+            <optgroup label={t.newSearchForm.presetGroupBuiltin}>
+              {PLAYBOOKS.map((pb) => (
+                <option key={pb.id} value={pb.id}>{t.newSearchForm.playbookLabels[pb.id] ?? pb.id}</option>
+              ))}
+            </optgroup>
+          </select>
+        </label>
+        <button
+          type="button"
+          onClick={savePreset}
+          className="rounded-lg border border-edge2 px-3.5 py-2.5 text-sm text-soft transition-colors hover:border-edge3 hover:text-ink"
         >
-          <option value="">{t.newSearchForm.playbookNone}</option>
-          {PLAYBOOKS.map((pb) => (
-            <option key={pb.id} value={pb.id}>{t.newSearchForm.playbookLabels[pb.id] ?? pb.id}</option>
-          ))}
-        </select>
-      </label>
+          {t.newSearchForm.presetSave}
+        </button>
+        {selectedPlaybook.startsWith("own:") && (
+          <button
+            type="button"
+            onClick={deleteSelectedPreset}
+            className="rounded-lg border border-edge2 px-3.5 py-2.5 text-sm text-faint transition-colors hover:border-red-500/50 hover:text-red-600"
+          >
+            {t.newSearchForm.presetDelete}
+          </button>
+        )}
+      </div>
 
       <div className="flex gap-1 rounded-lg border border-edge/60 bg-panel p-1 w-fit">
         <button type="button" className={tabCls(mode === "maps")} onClick={() => setMode("maps")}>
@@ -167,8 +266,9 @@ export default function NewSearchForm({ workspaceId }: { workspaceId: string }) 
           {t.newSearchForm.subscription}
           <select value={schedule} onChange={(e) => setSchedule(e.target.value)} className={inputCls + " w-44"}>
             <option value="none">{t.newSearchForm.subscriptionOnce}</option>
-            <option value="weekly">{t.newSearchForm.subscriptionWeekly}</option>
             <option value="daily">{t.newSearchForm.subscriptionDaily}</option>
+            <option value="weekly">{t.newSearchForm.subscriptionWeekly}</option>
+            <option value="biweekly">{t.newSearchForm.subscriptionBiweekly}</option>
           </select>
         </label>
       </div>

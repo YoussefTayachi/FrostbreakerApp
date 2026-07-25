@@ -22,7 +22,11 @@ HANDLERS = {
 }
 
 POLL_INTERVAL_S = 5
-SCHEDULE_INTERVALS = {"daily": timedelta(days=1), "weekly": timedelta(weeks=1)}
+SCHEDULE_INTERVALS = {
+    "daily": timedelta(days=1),
+    "weekly": timedelta(weeks=1),
+    "biweekly": timedelta(weeks=2),
+}
 INSTANTLY_POLL_INTERVAL = timedelta(minutes=5)
 
 
