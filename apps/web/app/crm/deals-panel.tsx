@@ -14,11 +14,19 @@ import { useT } from "../language-provider";
 import { useToast } from "../toast-provider";
 import { useWorkspace } from "../workspace-provider";
 
+// Waehrung bewusst nicht mehr im UI waehlbar: deals.currency war frei
+// editierbar, aber crm_pipeline_stats() summiert value ueber alle offenen
+// Deals einer Firma OHNE nach Waehrung zu gruppieren, und ForecastCards zeigt
+// das Ergebnis mit einem einzigen, angenommenen Symbol an. Bei zwei Deals mit
+// unterschiedlicher Waehrung waere die Summe still falsch beschriftet. Fest
+// auf EUR (der tatsaechliche Markt), zusaetzlich per Migration 0038 in der DB
+// erzwungen -- die Aggregation muss dadurch nicht angefasst werden.
+const DEAL_CURRENCY = "EUR";
+
 type DraftDeal = {
   id: string | null;
   title: string;
   value: string;
-  currency: string;
   stage: DealStage;
   probability: string;
   expected_close_date: string;
@@ -30,7 +38,6 @@ function emptyDraft(): DraftDeal {
     id: null,
     title: "",
     value: "",
-    currency: "EUR",
     stage,
     probability: String(defaultProbability(stage)),
     expected_close_date: "",
@@ -94,7 +101,7 @@ export default function DealsPanel({
       contact_id: contactId ?? null,
       title,
       value: Number(draft.value) || 0,
-      currency: draft.currency.trim().toUpperCase() || "EUR",
+      currency: DEAL_CURRENCY,
       stage: draft.stage,
       probability: Math.min(100, Math.max(0, Number(draft.probability) || 0)),
       expected_close_date: draft.expected_close_date || null,
@@ -207,7 +214,6 @@ export default function DealsPanel({
                     id: deal.id,
                     title: deal.title,
                     value: String(deal.value ?? ""),
-                    currency: deal.currency,
                     stage: deal.stage,
                     probability: String(deal.probability),
                     expected_close_date: toDateInputValue(deal.expected_close_date),
@@ -260,8 +266,8 @@ export default function DealsPanel({
               className={fieldCls + " mb-2 w-full"}
             />
             <div className="grid gap-2 sm:grid-cols-2">
-              <label className="text-[10px] font-medium text-faint">
-                {C.dealValueLabel}
+              <label className="text-[10px] font-medium text-faint sm:col-span-2">
+                {C.dealValueLabel} ({DEAL_CURRENCY})
                 <input
                   type="number"
                   min={0}
@@ -269,15 +275,6 @@ export default function DealsPanel({
                   value={draft.value}
                   onChange={(e) => setDraft({ ...draft, value: e.target.value })}
                   className={fieldCls + " mt-0.5 w-full"}
-                />
-              </label>
-              <label className="text-[10px] font-medium text-faint">
-                {C.dealCurrencyLabel}
-                <input
-                  maxLength={3}
-                  value={draft.currency}
-                  onChange={(e) => setDraft({ ...draft, currency: e.target.value.toUpperCase() })}
-                  className={fieldCls + " mt-0.5 w-full uppercase"}
                 />
               </label>
               <label className="text-[10px] font-medium text-faint">
