@@ -50,16 +50,29 @@ function estimateRoi(s: Stats) {
   return { hours: Math.round(hours * 10) / 10, value };
 }
 
-export default async function Dashboard() {
+const RANGE_OPTIONS = [7, 14, 30, 90] as const;
+const DEFAULT_RANGE_DAYS = 14;
+
+function parseRangeDays(raw: string | undefined): number {
+  const n = Number(raw);
+  return RANGE_OPTIONS.includes(n as (typeof RANGE_OPTIONS)[number]) ? n : DEFAULT_RANGE_DAYS;
+}
+
+export default async function Dashboard({
+  searchParams,
+}: {
+  searchParams: Promise<{ range?: string }>;
+}) {
   const lang = await getLangServer();
   const t = dict[lang];
+  const rangeDays = parseRangeDays((await searchParams).range);
   const supabase = await createClient();
   const ws = await getCurrentWorkspace(supabase);
   if (!ws) return <p className="text-faint">Kein Workspace gefunden.</p>;
   const workspaceId = ws.workspace.id;
 
   const [statsRes, searchesRes, recentRes, apiKeysRes, campaignsCountRes] = await Promise.all([
-    supabase.rpc("dashboard_stats", { p_workspace_id: workspaceId }),
+    supabase.rpc("dashboard_stats", { p_workspace_id: workspaceId, p_days: rangeDays }),
     supabase
       .from("searches")
       .select("*")
@@ -261,11 +274,29 @@ export default async function Dashboard() {
       {/* Chart + Neueste Leads */}
       <div className="grid gap-5 lg:grid-cols-5">
         <div className="rounded-lg border border-edge/60 bg-panel p-5 shadow-sm lg:col-span-3">
-          <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-sm font-medium text-ink">{t.dashboard.chartTitle}</h2>
-            <span className="text-xs text-mute">
-              {stats.emails_sent ?? 0} {t.dashboard.emailsSent} · {stats.replies ?? 0} {t.dashboard.replies}
-            </span>
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+            <h2 className="text-sm font-medium text-ink">{t.dashboard.chartTitle(rangeDays)}</h2>
+            <div className="flex items-center gap-3">
+              <span className="text-xs text-mute">
+                {stats.emails_sent ?? 0} {t.dashboard.emailsSent} · {stats.replies ?? 0} {t.dashboard.replies}
+              </span>
+              <div className="flex overflow-hidden rounded-lg border border-edge2">
+                {RANGE_OPTIONS.map((days) => (
+                  <Link
+                    key={days}
+                    href={days === DEFAULT_RANGE_DAYS ? "/" : `/?range=${days}`}
+                    className={
+                      "px-2.5 py-1 text-xs font-medium transition-colors " +
+                      (days === rangeDays
+                        ? "bg-sky-600 text-white"
+                        : "text-soft hover:bg-chip hover:text-ink")
+                    }
+                  >
+                    {t.dashboard.rangeOptions[String(days)]}
+                  </Link>
+                ))}
+              </div>
+            </div>
           </div>
           <ActivityChart data={stats.activity ?? []} />
         </div>
