@@ -101,7 +101,9 @@ export default function BillingSection() {
       {usage && (
         <div className="mt-3 rounded-lg border border-edge/60 bg-surface/60 px-4 py-3.5">
           <div className="flex items-center justify-between text-xs">
-            <span className="font-medium text-ink">{B.leadUsageHeading}</span>
+            <span className="font-medium text-ink">
+              {usage.scope === "trial" ? B.leadUsageHeadingTrial : B.leadUsageHeading}
+            </span>
             <span className="text-faint">
               {usage.cap === null ? B.leadUsageUnlimited : B.leadUsageLabel(usage.used, usage.cap)}
             </span>
@@ -118,7 +120,9 @@ export default function BillingSection() {
                 />
               </div>
               {usage.used >= usage.cap && (
-                <p className="mt-2 text-xs text-red-500">{B.leadUsageCapReached}</p>
+                <p className="mt-2 text-xs text-red-500">
+                  {usage.scope === "trial" ? B.leadUsageCapReachedTrial : B.leadUsageCapReached}
+                </p>
               )}
             </>
           )}

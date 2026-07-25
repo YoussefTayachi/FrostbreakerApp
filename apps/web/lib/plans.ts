@@ -8,10 +8,16 @@
 
 export type PlanId = "starter" | "agency";
 
-// Lead-Cap gilt nur fuer Starter (siehe Migration 0025, under_lead_cap()) --
-// zaehlt qualifizierte Leads (email_type = 'personal', nicht info@/office@),
+// Lead-Caps (siehe Migration 0025 und 0029, under_lead_cap()) -- gezaehlt
+// werden qualifizierte Leads (email_type = 'personal', nicht info@/office@),
 // eine Firma zaehlt einmal auch bei mehreren gefundenen Personen.
+// Agentur ist unlimitiert und taucht deshalb hier nicht auf.
 export const STARTER_MONTHLY_LEAD_CAP = 5000;
+
+// Eigener, kleinerer Cap fuer die Testphase. Gilt nicht pro Monat, sondern
+// fuer den gesamten Trial-Zeitraum ab subscriptions.created_at -- sonst
+// haette ein Trial faktisch so viel gedurft wie ein bezahlter Monat.
+export const TRIAL_LEAD_CAP = 500;
 
 export const PLANS: Record<
   PlanId,

@@ -1,6 +1,6 @@
 import Stripe from "stripe";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { PLANS, STARTER_MONTHLY_LEAD_CAP, type PlanId } from "./plans";
+import { PLANS, STARTER_MONTHLY_LEAD_CAP, TRIAL_LEAD_CAP, type PlanId } from "./plans";
 
 // Zentrale Stelle fuer alles Billing-Bezogene. Abo ist an den Account (auth.uid())
 // gebunden, nicht an einen einzelnen Workspace -- siehe Migration 0024.
@@ -8,7 +8,7 @@ import { PLANS, STARTER_MONTHLY_LEAD_CAP, type PlanId } from "./plans";
 // Client-Komponenten sie importieren koennen, ohne die Stripe-SDK mit
 // auszuliefern -- hier nur re-exportiert, damit bestehende Importe aus
 // lib/billing.ts weiterhin funktionieren.
-export { PLANS, STARTER_MONTHLY_LEAD_CAP, type PlanId };
+export { PLANS, STARTER_MONTHLY_LEAD_CAP, TRIAL_LEAD_CAP, type PlanId };
 
 let stripeSingleton: Stripe | null = null;
 
@@ -82,24 +82,40 @@ export async function getBillingStatus(
   };
 }
 
-export type LeadUsage = { used: number; cap: number | null };
+// scope unterscheidet, worauf sich "used" bezieht: waehrend der Testphase auf
+// den gesamten Trial-Zeitraum, danach auf den laufenden Kalendermonat. Die UI
+// braucht das, um nicht faelschlich "diesen Monat" zu beschriften.
+export type LeadUsage = { used: number; cap: number | null; scope: "trial" | "month" };
 
-// Fuer die Fortschrittsanzeige in den Einstellungen ("X / 5.000 Leads diesen
-// Monat"). cap = null bedeutet unlimitiert (Agentur-Plan).
+// Fuer die Fortschrittsanzeige in den Einstellungen. cap = null bedeutet
+// unlimitiert (Agentur-Plan). Muss zu under_lead_cap() aus Migration 0029
+// passen -- dort entscheidet dieselbe Fallunterscheidung darueber, ob eine
+// neue Suche ueberhaupt angelegt werden darf.
 export async function getLeadUsage(supabase: SupabaseClient): Promise<LeadUsage | null> {
   const {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) return null;
 
-  const [{ data: sub }, { data: used }] = await Promise.all([
-    supabase.from("subscriptions").select("plan").eq("owner_id", user.id).single(),
-    supabase.rpc("my_qualified_lead_count"),
-  ]);
+  const { data: sub } = await supabase
+    .from("subscriptions")
+    .select("plan")
+    .eq("owner_id", user.id)
+    .single();
 
-  const isAgency = sub?.plan === "agency";
+  if (sub?.plan === "agency") {
+    // Ohne Cap braucht die Anzeige keine Zahl -- der RPC-Aufruf entfaellt.
+    return { used: 0, cap: null, scope: "month" };
+  }
+
+  const isTrial = sub?.plan === "trial";
+  const { data: used } = await supabase.rpc(
+    isTrial ? "my_trial_lead_count" : "my_qualified_lead_count"
+  );
+
   return {
     used: (used as number | null) ?? 0,
-    cap: isAgency ? null : STARTER_MONTHLY_LEAD_CAP,
+    cap: isTrial ? TRIAL_LEAD_CAP : STARTER_MONTHLY_LEAD_CAP,
+    scope: isTrial ? "trial" : "month",
   };
 }
