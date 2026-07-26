@@ -77,6 +77,10 @@ async function classifyReply(openaiKey: string, bodyText: string): Promise<strin
  *  OpenAI-Aufruf fuer Mails ohne Lead-Bezug). Ersetzt sowohl das fruehere
  *  Python-_process_reply (das Mails ohne Treffer verwarf) als auch
  *  _process_email -- es gibt jetzt nur noch dieses eine Verhalten. */
+/** Gibt eine Fehlermeldung zurueck statt null, wenn der Upsert fehlschlaegt --
+ *  Supabase-js wirft bei einem DB-Fehler NICHT, sondern liefert {error} zurueck,
+ *  das ungeprueft zu ignorieren wuerde genau die Art von Bug verstecken, die
+ *  hier gesucht wird ("Sync meldet ok, aber messages bleibt leer"). */
 async function processEmail(
   supabase: SupabaseClient,
   workspaceId: string,
@@ -84,7 +88,7 @@ async function processEmail(
   direction: "inbound" | "outbound",
   eaccount: string,
   openaiKey: string | null
-): Promise<void> {
+): Promise<string | null> {
   const leadEmail = (email.lead ?? "").trim().toLowerCase();
 
   let contact: { id: string; outreach_status: string } | null = null;
@@ -101,7 +105,7 @@ async function processEmail(
   const bodyText = email.body?.text ?? "";
   const aiInterest = contact && openaiKey && bodyText ? await classifyReply(openaiKey, bodyText) : null;
 
-  await supabase.from("messages").upsert(
+  const { error: upsertError } = await supabase.from("messages").upsert(
     {
       workspace_id: workspaceId,
       contact_id: contact?.id ?? null,
@@ -117,14 +121,21 @@ async function processEmail(
     },
     { onConflict: "workspace_id,instantly_email_id" }
   );
+  if (upsertError) return `messages upsert ${email.id}: ${upsertError.message}`;
 
   if (
     contact &&
     direction === "inbound" &&
     (STATUS_RANK[contact.outreach_status] ?? 0) < STATUS_RANK.replied
   ) {
-    await supabase.from("contacts").update({ outreach_status: "replied" }).eq("id", contact.id);
+    const { error } = await supabase
+      .from("contacts")
+      .update({ outreach_status: "replied" })
+      .eq("id", contact.id);
+    if (error) return `contact status update ${contact.id}: ${error.message}`;
   }
+
+  return null;
 }
 
 async function fetchEmails(
@@ -206,7 +217,8 @@ async function syncCampaigns(
       });
       emailsFound += emails.length;
       for (const email of emails) {
-        await processEmail(supabase, workspaceId, email, "inbound", "", openaiKey);
+        const err = await processEmail(supabase, workspaceId, email, "inbound", "", openaiKey);
+        if (err) errors.push(err);
       }
 
       await supabase
@@ -284,7 +296,8 @@ async function syncInbox(
       });
       emailsFound += emails.length;
       for (const email of emails) {
-        await processEmail(supabase, workspaceId, email, direction, eaccount, openaiKey);
+        const err = await processEmail(supabase, workspaceId, email, direction, eaccount, openaiKey);
+        if (err) errors.push(err);
       }
     })
   );
