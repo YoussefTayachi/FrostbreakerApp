@@ -262,34 +262,42 @@ export async function POST(req: Request) {
     );
   }
 
-  const supabase = createServiceClient();
+  // Ein von aussen (pg_cron) getriggerter Endpoint darf nie mit einem nackten,
+  // body-losen 500 antworten -- ohne diesen Rahmen verschluckt Vercel jeden
+  // Fehler vor dem ersten await (z.B. fehlende Env-Var in createServiceClient)
+  // spurlos, und weder pg_net-Logs noch curl zeigen mehr als "500".
+  try {
+    const supabase = createServiceClient();
 
-  const { data: keyRows } = await supabase
-    .from("api_keys")
-    .select("workspace_id")
-    .eq("provider", "instantly");
-  const workspaceIds = [...new Set((keyRows ?? []).map((r) => r.workspace_id as string))];
+    const { data: keyRows } = await supabase
+      .from("api_keys")
+      .select("workspace_id")
+      .eq("provider", "instantly");
+    const workspaceIds = [...new Set((keyRows ?? []).map((r) => r.workspace_id as string))];
 
-  const results = await Promise.all(
-    workspaceIds.map(async (workspaceId) => {
-      try {
-        const apiKey = await getApiKey(supabase, workspaceId, "instantly");
-        if (!apiKey) return { workspaceId, status: "skipped: no key" };
+    const results = await Promise.all(
+      workspaceIds.map(async (workspaceId) => {
+        try {
+          const apiKey = await getApiKey(supabase, workspaceId, "instantly");
+          if (!apiKey) return { workspaceId, status: "skipped: no key" };
 
-        // KI-Klassifizierung ist optional -- fehlt der OpenAI-Key, laeuft der
-        // Sync trotzdem, nur ohne ai_interest auf neuen Nachrichten.
-        const openaiKey = await getApiKey(supabase, workspaceId, "openai").catch(() => null);
+          // KI-Klassifizierung ist optional -- fehlt der OpenAI-Key, laeuft der
+          // Sync trotzdem, nur ohne ai_interest auf neuen Nachrichten.
+          const openaiKey = await getApiKey(supabase, workspaceId, "openai").catch(() => null);
 
-        await Promise.all([
-          syncCampaigns(supabase, workspaceId, apiKey, openaiKey),
-          syncInbox(supabase, workspaceId, apiKey, openaiKey),
-        ]);
-        return { workspaceId, status: "ok" };
-      } catch (e) {
-        return { workspaceId, status: "error", message: (e as Error).message };
-      }
-    })
-  );
+          await Promise.all([
+            syncCampaigns(supabase, workspaceId, apiKey, openaiKey),
+            syncInbox(supabase, workspaceId, apiKey, openaiKey),
+          ]);
+          return { workspaceId, status: "ok" };
+        } catch (e) {
+          return { workspaceId, status: "error", message: (e as Error).message };
+        }
+      })
+    );
 
-  return NextResponse.json({ workspaces: results.length, results });
+    return NextResponse.json({ workspaces: results.length, results });
+  } catch (e) {
+    return NextResponse.json({ error: (e as Error).message }, { status: 500 });
+  }
 }
