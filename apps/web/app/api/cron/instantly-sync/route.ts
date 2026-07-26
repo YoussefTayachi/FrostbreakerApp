@@ -281,7 +281,10 @@ async function syncInbox(
   });
 
   const pageCount = Math.max(1, Math.ceil(allPairs.length / INBOX_REQUEST_BUDGET));
-  const tickIndex = Math.floor(Date.now() / (5 * 60 * 1000));
+  // Tick-Laenge muss zum tatsaechlichen Cron-Intervall passen (Migration 0043:
+  // jede Minute statt alle 5 Minuten) -- sonst wuerde dieselbe Seite mehrfach
+  // hintereinander drankommen, statt bei jedem Aufruf weiterzurotieren.
+  const tickIndex = Math.floor(Date.now() / (60 * 1000));
   const page = tickIndex % pageCount;
   const pairs = allPairs.slice(page * INBOX_REQUEST_BUDGET, (page + 1) * INBOX_REQUEST_BUDGET);
 
