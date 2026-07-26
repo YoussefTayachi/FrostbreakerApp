@@ -245,7 +245,21 @@ async function syncInbox(
 
 export async function POST(req: Request) {
   if (!isAuthorized(req)) {
-    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+    // Absichtlich nur Laengen/Booleans, nie die Werte selbst -- reicht, um
+    // "Env-Var fehlt" von "Env-Var gesetzt, aber falscher Wert" zu unterscheiden,
+    // ohne das Secret selbst preiszugeben. Nach Diagnose wieder entfernen.
+    const provided = (req.headers.get("authorization") ?? "").replace(/^Bearer\s+/i, "");
+    return NextResponse.json(
+      {
+        error: "unauthorized",
+        debug: {
+          secretConfigured: !!process.env.CRON_SECRET,
+          secretLength: process.env.CRON_SECRET?.length ?? 0,
+          providedLength: provided.length,
+        },
+      },
+      { status: 401 }
+    );
   }
 
   const supabase = createServiceClient();
