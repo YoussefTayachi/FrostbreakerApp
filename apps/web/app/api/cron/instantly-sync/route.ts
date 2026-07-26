@@ -144,12 +144,15 @@ async function syncCampaigns(
   workspaceId: string,
   apiKey: string,
   openaiKey: string | null
-): Promise<void> {
+): Promise<{ searches: number; emailsFound: number; errors: string[] }> {
   const { data: searches } = await supabase
     .from("searches")
     .select("id, instantly_campaign_id, instantly_last_polled_at")
     .eq("workspace_id", workspaceId)
     .not("instantly_campaign_id", "is", null);
+
+  const errors: string[] = [];
+  let emailsFound = 0;
 
   await Promise.all(
     (searches ?? []).map(async (search) => {
@@ -158,7 +161,10 @@ async function syncCampaigns(
       const analytics = await instantlyRequest<Record<string, number>[]>(
         apiKey,
         `/api/v2/campaigns/analytics?id=${campaignId}`
-      ).catch(() => null);
+      ).catch((e) => {
+        errors.push(`analytics ${campaignId}: ${(e as Error).message}`);
+        return null;
+      });
       if (analytics?.[0]) {
         const a = analytics[0];
         await supabase.from("instantly_campaign_stats").upsert(
@@ -184,7 +190,11 @@ async function syncCampaigns(
 
       const params: Record<string, string> = { campaign_id: campaignId, email_type: "received" };
       if (search.instantly_last_polled_at) params.min_timestamp_created = search.instantly_last_polled_at;
-      const emails = await fetchEmails(apiKey, params).catch(() => []);
+      const emails = await fetchEmails(apiKey, params).catch((e) => {
+        errors.push(`emails ${campaignId}: ${(e as Error).message}`);
+        return [];
+      });
+      emailsFound += emails.length;
       for (const email of emails) {
         await processEmail(supabase, workspaceId, email, "inbound", "", openaiKey);
       }
@@ -195,6 +205,8 @@ async function syncCampaigns(
         .eq("id", search.id);
     })
   );
+
+  return { searches: searches?.length ?? 0, emailsFound, errors };
 }
 
 /** Mailbox-Teil: postfach-weiter Sync ueber alle verbundenen eaccounts, beide
@@ -204,7 +216,7 @@ async function syncInbox(
   workspaceId: string,
   apiKey: string,
   openaiKey: string | null
-): Promise<void> {
+): Promise<{ accounts: number; emailsFound: number; since: string | null; errors: string[] }> {
   const { data: workspace } = await supabase
     .from("workspaces")
     .select("instantly_inbox_synced_at")
@@ -212,16 +224,21 @@ async function syncInbox(
     .single();
   const since = workspace?.instantly_inbox_synced_at ?? undefined;
 
+  const errors: string[] = [];
   const accounts = await instantlyRequest<{ items?: { email?: string }[] }>(
     apiKey,
     "/api/v2/accounts?limit=100"
-  ).catch(() => ({ items: [] }));
+  ).catch((e) => {
+    errors.push(`accounts: ${(e as Error).message}`);
+    return { items: [] };
+  });
 
   const directions: { emailType: string; direction: "inbound" | "outbound" }[] = [
     { emailType: "received", direction: "inbound" },
     { emailType: "sent", direction: "outbound" },
   ];
 
+  let emailsFound = 0;
   await Promise.all(
     (accounts.items ?? []).flatMap((account) => {
       const eaccount = account.email;
@@ -229,7 +246,11 @@ async function syncInbox(
       return directions.map(async ({ emailType, direction }) => {
         const params: Record<string, string> = { eaccount, email_type: emailType, mode: "emode_all" };
         if (since) params.min_timestamp_created = since;
-        const emails = await fetchEmails(apiKey, params).catch(() => []);
+        const emails = await fetchEmails(apiKey, params).catch((e) => {
+          errors.push(`emails ${eaccount}/${emailType}: ${(e as Error).message}`);
+          return [];
+        });
+        emailsFound += emails.length;
         for (const email of emails) {
           await processEmail(supabase, workspaceId, email, direction, eaccount, openaiKey);
         }
@@ -241,6 +262,8 @@ async function syncInbox(
     .from("workspaces")
     .update({ instantly_inbox_synced_at: new Date().toISOString() })
     .eq("id", workspaceId);
+
+  return { accounts: accounts.items?.length ?? 0, emailsFound, since: since ?? null, errors };
 }
 
 export async function POST(req: Request) {
@@ -285,11 +308,11 @@ export async function POST(req: Request) {
           // Sync trotzdem, nur ohne ai_interest auf neuen Nachrichten.
           const openaiKey = await getApiKey(supabase, workspaceId, "openai").catch(() => null);
 
-          await Promise.all([
+          const [campaigns, inbox] = await Promise.all([
             syncCampaigns(supabase, workspaceId, apiKey, openaiKey),
             syncInbox(supabase, workspaceId, apiKey, openaiKey),
           ]);
-          return { workspaceId, status: "ok" };
+          return { workspaceId, status: "ok", campaigns, inbox };
         } catch (e) {
           return { workspaceId, status: "error", message: (e as Error).message };
         }
