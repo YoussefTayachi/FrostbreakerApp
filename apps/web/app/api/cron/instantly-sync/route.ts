@@ -136,6 +136,14 @@ async function fetchEmails(
   return data.items ?? [];
 }
 
+// Jede Suche kostet 1 Request gegen /api/v2/emails (die 20/min-Grenze) -- bei
+// vielen aktiven Kampagnen gleichzeitig faellig sonst dasselbe Problem wie bei
+// syncInbox. Kein Rotations-Aufwand noetig: instantly_last_polled_at haengt
+// bereits an der einzelnen Suche, nicht am Workspace, wer diesen Tick nicht
+// drankommt, bleibt einfach mit seinem alten Stand liegen und ist beim
+// naechsten Mal (nach am laengsten unbearbeitet zuerst) wieder faellig.
+const CAMPAIGN_REQUEST_BUDGET = 4;
+
 /** Kampagnen-Teil: Analytics-Rollup + kampagnen-scoped Antworten, wie zuvor
  *  poll_instantly.run() im Python-Worker. Weiterhin fuer die CRM-Pipeline-
  *  Stats (ForecastCards etc.) zustaendig -- unabhaengig vom Mailbox-Teil unten. */
@@ -149,7 +157,9 @@ async function syncCampaigns(
     .from("searches")
     .select("id, instantly_campaign_id, instantly_last_polled_at")
     .eq("workspace_id", workspaceId)
-    .not("instantly_campaign_id", "is", null);
+    .not("instantly_campaign_id", "is", null)
+    .order("instantly_last_polled_at", { ascending: true, nullsFirst: true })
+    .limit(CAMPAIGN_REQUEST_BUDGET);
 
   const errors: string[] = [];
   let emailsFound = 0;
@@ -209,14 +219,28 @@ async function syncCampaigns(
   return { searches: searches?.length ?? 0, emailsFound, errors };
 }
 
+// Instantly erlaubt max. 20 Requests/Minute auf /api/v2/emails. Ein Workspace
+// mit vielen verbundenen Mailboxen (eaccount x {received, sent}) kann das in
+// einem einzelnen Tick locker sprengen -- deshalb wird pro Aufruf nur eine
+// "Seite" der faelligen Paare bearbeitet, der Rest kommt in einem der naechsten
+// 5-Minuten-Ticks dran. BUDGET absichtlich unter 20, damit noch Luft fuer den
+// Kampagnen-Teil (syncCampaigns) bleibt, der parallel dazu laeuft.
+const INBOX_REQUEST_BUDGET = 15;
+
 /** Mailbox-Teil: postfach-weiter Sync ueber alle verbundenen eaccounts, beide
- *  Richtungen, ohne campaign_id-Filter -- wie zuvor poll_instantly.run_inbox(). */
+ *  Richtungen, ohne campaign_id-Filter -- wie zuvor poll_instantly.run_inbox().
+ *  Verarbeitet pro Aufruf nur bis zu INBOX_REQUEST_BUDGET (eaccount, Richtung)-
+ *  Paare (siehe oben) -- bei vielen Mailboxen dauert ein voller Durchlauf
+ *  entsprechend mehrere Ticks, das ist bei einem "alle 5 Minuten"-Sync voellig
+ *  ausreichend. instantly_inbox_synced_at wandert erst weiter, wenn ALLE Paare
+ *  einmal mit demselben since-Wert drangekommen sind -- sonst wuerden Mailboxen,
+ *  die diesen Tick nicht an der Reihe waren, Mails aus der Zwischenzeit verpassen. */
 async function syncInbox(
   supabase: SupabaseClient,
   workspaceId: string,
   apiKey: string,
   openaiKey: string | null
-): Promise<{ accounts: number; emailsFound: number; since: string | null; errors: string[] }> {
+): Promise<{ accounts: number; page: string; emailsFound: number; since: string | null; errors: string[] }> {
   const { data: workspace } = await supabase
     .from("workspaces")
     .select("instantly_inbox_synced_at")
@@ -238,32 +262,49 @@ async function syncInbox(
     { emailType: "sent", direction: "outbound" },
   ];
 
+  const allPairs = (accounts.items ?? []).flatMap((account) => {
+    const eaccount = account.email;
+    if (!eaccount) return [];
+    return directions.map((d) => ({ eaccount, ...d }));
+  });
+
+  const pageCount = Math.max(1, Math.ceil(allPairs.length / INBOX_REQUEST_BUDGET));
+  const tickIndex = Math.floor(Date.now() / (5 * 60 * 1000));
+  const page = tickIndex % pageCount;
+  const pairs = allPairs.slice(page * INBOX_REQUEST_BUDGET, (page + 1) * INBOX_REQUEST_BUDGET);
+
   let emailsFound = 0;
   await Promise.all(
-    (accounts.items ?? []).flatMap((account) => {
-      const eaccount = account.email;
-      if (!eaccount) return [];
-      return directions.map(async ({ emailType, direction }) => {
-        const params: Record<string, string> = { eaccount, email_type: emailType, mode: "emode_all" };
-        if (since) params.min_timestamp_created = since;
-        const emails = await fetchEmails(apiKey, params).catch((e) => {
-          errors.push(`emails ${eaccount}/${emailType}: ${(e as Error).message}`);
-          return [];
-        });
-        emailsFound += emails.length;
-        for (const email of emails) {
-          await processEmail(supabase, workspaceId, email, direction, eaccount, openaiKey);
-        }
+    pairs.map(async ({ eaccount, emailType, direction }) => {
+      const params: Record<string, string> = { eaccount, email_type: emailType, mode: "emode_all" };
+      if (since) params.min_timestamp_created = since;
+      const emails = await fetchEmails(apiKey, params).catch((e) => {
+        errors.push(`emails ${eaccount}/${emailType}: ${(e as Error).message}`);
+        return [];
       });
+      emailsFound += emails.length;
+      for (const email of emails) {
+        await processEmail(supabase, workspaceId, email, direction, eaccount, openaiKey);
+      }
     })
   );
 
-  await supabase
-    .from("workspaces")
-    .update({ instantly_inbox_synced_at: new Date().toISOString() })
-    .eq("id", workspaceId);
+  // since erst vorziehen, wenn dieser Tick die letzte Seite eines vollen
+  // Zyklus war -- vorher blieben alle Seiten beim selben since-Wert.
+  if (page === pageCount - 1) {
+    await supabase
+      .from("workspaces")
+      .update({ instantly_inbox_synced_at: new Date().toISOString() })
+      .eq("id", workspaceId);
+  }
 
-  return { accounts: accounts.items?.length ?? 0, emailsFound, since: since ?? null, errors };
+  return {
+    accounts: accounts.items?.length ?? 0,
+    page: `${page + 1}/${pageCount}`,
+    emailsFound,
+    since: since ?? null,
+    errors,
+  };
 }
 
 export async function POST(req: Request) {
