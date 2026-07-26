@@ -53,5 +53,10 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
+  // api/billing/webhook (Stripe) und api/cron/* (pg_cron) werden ohne
+  // Supabase-Session aufgerufen -- ohne diesen Ausschluss redirected die
+  // Auth-Middleware jeden Aufruf auf /login, bevor die Route ueberhaupt
+  // laeuft. Beide pruefen ihre eigene Authentifizierung selbst (Stripe-
+  // Signatur bzw. CRON_SECRET).
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|api/billing/webhook|api/cron/).*)"],
 };
