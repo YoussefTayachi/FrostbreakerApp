@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentWorkspace } from "@/lib/workspace/server";
-import { fernetDecrypt } from "@/lib/fernet";
+import { getApiKey } from "@/lib/api-keys";
 import { validateIcebreaker } from "@/lib/personalization-defaults";
+import { extractOutputText } from "@/lib/openai";
 
 const MAX_SITE_CHARS = 6000;
 
@@ -31,18 +32,6 @@ async function fetchWebsiteText(url: string): Promise<string | null> {
   } catch {
     return null;
   }
-}
-
-function extractOutputText(json: unknown): string {
-  const j = json as { output?: { type?: string; content?: { type?: string; text?: string }[] }[] };
-  const chunks: string[] = [];
-  for (const item of j.output ?? []) {
-    if (item.type !== "message") continue;
-    for (const c of item.content ?? []) {
-      if (c.type === "output_text" && c.text) chunks.push(c.text);
-    }
-  }
-  return chunks.join("").trim().replace(/^"|"$/g, "");
 }
 
 export async function POST(req: Request) {
@@ -90,16 +79,10 @@ export async function POST(req: Request) {
     );
   }
 
-  const { data: keyRow } = await supabase
-    .from("api_keys")
-    .select("key_ciphertext")
-    .eq("workspace_id", ws.workspace.id)
-    .eq("provider", "openai")
-    .single();
-  if (!keyRow) {
+  const apiKey = await getApiKey(supabase, ws.workspace.id, "openai");
+  if (!apiKey) {
     return NextResponse.json({ error: "Kein OpenAI-Key in den Einstellungen hinterlegt." }, { status: 400 });
   }
-  const apiKey = fernetDecrypt(process.env.APP_ENCRYPTION_KEY!, keyRow.key_ciphertext);
 
   const openaiRes = await fetch("https://api.openai.com/v1/responses", {
     method: "POST",

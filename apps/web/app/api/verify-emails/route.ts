@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentWorkspace } from "@/lib/workspace/server";
-import { fernetDecrypt } from "@/lib/fernet";
+import { getApiKey } from "@/lib/api-keys";
 
 // NeverBounce-Ergebnis -> unsere bestehenden Felder (gleiche Skala wie Hunter, damit
 // die vorhandene VerificationShield-Logik im Frontend unveraendert weiterfunktioniert).
@@ -40,16 +40,10 @@ export async function POST(req: Request) {
   const ws = await getCurrentWorkspace(supabase);
   if (!ws) return NextResponse.json({ error: "Kein Workspace" }, { status: 400 });
 
-  const { data: keyRow } = await supabase
-    .from("api_keys")
-    .select("key_ciphertext")
-    .eq("workspace_id", ws.workspace.id)
-    .eq("provider", "neverbounce")
-    .single();
-  if (!keyRow) {
+  const apiKey = await getApiKey(supabase, ws.workspace.id, "neverbounce");
+  if (!apiKey) {
     return NextResponse.json({ error: "Kein NeverBounce-Key in den Einstellungen hinterlegt." }, { status: 400 });
   }
-  const apiKey = fernetDecrypt(process.env.APP_ENCRYPTION_KEY!, keyRow.key_ciphertext);
 
   // Nur eigene, noch unverifizierte Kontakte mit E-Mail -- verhindert doppelte
   // Kosten fuer bereits von Hunter verifizierte Kontakte.

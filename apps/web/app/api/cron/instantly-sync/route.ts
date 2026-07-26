@@ -1,0 +1,281 @@
+import crypto from "crypto";
+import { NextResponse } from "next/server";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import { createServiceClient } from "@/lib/supabase/service";
+import { instantlyRequest } from "@/lib/instantly";
+import { getApiKey } from "@/lib/api-keys";
+import { extractOutputText } from "@/lib/openai";
+
+// Ersetzt den frueheren Python-Worker-Job "poll_instantly" (kampagnen-scoped
+// Analytics/Antworten) UND "poll_instantly_inbox" (mailbox-weiter Sync) in einer
+// Route: von Supabase pg_cron per pg_net alle 5 Minuten aufgerufen (siehe
+// Migration 0041), statt einen Dauerprozess zu betreiben, der nur laeuft, wenn
+// jemand ihn lokal startet. Beide Aufgaben sind vom selben Typ ("regelmaessig
+// bei Instantly nachschauen") und teilen sich deshalb eine Route statt zwei
+// getrennte Implementationen zu pflegen.
+export const maxDuration = 60;
+
+const STATUS_RANK: Record<string, number> = {
+  new: 0,
+  contacted: 1,
+  not_interested: 1,
+  replied: 2,
+  meeting_booked: 3,
+  customer: 4,
+};
+
+type InstantlyEmail = {
+  id: string;
+  lead?: string | null;
+  subject?: string | null;
+  body?: { text?: string | null } | null;
+  timestamp_email?: string | null;
+};
+
+function isAuthorized(req: Request): boolean {
+  const secret = process.env.CRON_SECRET;
+  if (!secret) return false;
+  const provided = (req.headers.get("authorization") ?? "").replace(/^Bearer\s+/i, "");
+  const a = Buffer.from(provided);
+  const b = Buffer.from(secret);
+  // Laengen muessen zuerst geprueft werden -- timingSafeEqual wirft bei
+  // unterschiedlicher Laenge, statt konstant lange False zu liefern.
+  return a.length === b.length && crypto.timingSafeEqual(a, b);
+}
+
+async function classifyReply(openaiKey: string, bodyText: string): Promise<string | null> {
+  try {
+    const res = await fetch("https://api.openai.com/v1/responses", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${openaiKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: "gpt-4.1-mini",
+        input: [
+          {
+            role: "system",
+            content:
+              "Ordne die folgende Antwort auf eine Akquise-E-Mail in genau eine Kategorie ein: " +
+              "'interested', 'not_interested' oder 'question'. Antworte nur mit dem Kategorie-Wort, sonst nichts.",
+          },
+          { role: "user", content: bodyText.slice(0, 2000) },
+        ],
+      }),
+      signal: AbortSignal.timeout(15000),
+    });
+    if (!res.ok) return null;
+    const label = extractOutputText(await res.json()).trim().toLowerCase();
+    const valid = ["interested", "not_interested", "question"];
+    return valid.includes(label) ? label : "question";
+  } catch {
+    return null;
+  }
+}
+
+/** Sucht einen Kontakt zur Absenderadresse und upserted die Mail immer in
+ *  messages -- mit oder ohne Treffer. KI-Klassifizierung und das Hochstufen
+ *  des outreach_status bleiben echten CRM-Kontakten vorbehalten (kein
+ *  OpenAI-Aufruf fuer Mails ohne Lead-Bezug). Ersetzt sowohl das fruehere
+ *  Python-_process_reply (das Mails ohne Treffer verwarf) als auch
+ *  _process_email -- es gibt jetzt nur noch dieses eine Verhalten. */
+async function processEmail(
+  supabase: SupabaseClient,
+  workspaceId: string,
+  email: InstantlyEmail,
+  direction: "inbound" | "outbound",
+  eaccount: string,
+  openaiKey: string | null
+): Promise<void> {
+  const leadEmail = (email.lead ?? "").trim().toLowerCase();
+
+  let contact: { id: string; outreach_status: string } | null = null;
+  if (leadEmail) {
+    const { data } = await supabase
+      .from("contacts")
+      .select("id, outreach_status")
+      .eq("workspace_id", workspaceId)
+      .ilike("email", leadEmail)
+      .limit(1);
+    contact = data?.[0] ?? null;
+  }
+
+  const bodyText = email.body?.text ?? "";
+  const aiInterest = contact && openaiKey && bodyText ? await classifyReply(openaiKey, bodyText) : null;
+
+  await supabase.from("messages").upsert(
+    {
+      workspace_id: workspaceId,
+      contact_id: contact?.id ?? null,
+      from_email: leadEmail || null,
+      eaccount,
+      direction,
+      status: direction === "inbound" ? "received" : "sent",
+      subject: email.subject ?? null,
+      body: bodyText,
+      sent_at: email.timestamp_email ?? null,
+      instantly_email_id: email.id,
+      ai_interest: aiInterest,
+    },
+    { onConflict: "workspace_id,instantly_email_id" }
+  );
+
+  if (
+    contact &&
+    direction === "inbound" &&
+    (STATUS_RANK[contact.outreach_status] ?? 0) < STATUS_RANK.replied
+  ) {
+    await supabase.from("contacts").update({ outreach_status: "replied" }).eq("id", contact.id);
+  }
+}
+
+async function fetchEmails(
+  apiKey: string,
+  params: Record<string, string>
+): Promise<InstantlyEmail[]> {
+  const query = new URLSearchParams({ limit: "100", ...params });
+  const data = await instantlyRequest<{ items?: InstantlyEmail[] }>(apiKey, `/api/v2/emails?${query}`);
+  return data.items ?? [];
+}
+
+/** Kampagnen-Teil: Analytics-Rollup + kampagnen-scoped Antworten, wie zuvor
+ *  poll_instantly.run() im Python-Worker. Weiterhin fuer die CRM-Pipeline-
+ *  Stats (ForecastCards etc.) zustaendig -- unabhaengig vom Mailbox-Teil unten. */
+async function syncCampaigns(
+  supabase: SupabaseClient,
+  workspaceId: string,
+  apiKey: string,
+  openaiKey: string | null
+): Promise<void> {
+  const { data: searches } = await supabase
+    .from("searches")
+    .select("id, instantly_campaign_id, instantly_last_polled_at")
+    .eq("workspace_id", workspaceId)
+    .not("instantly_campaign_id", "is", null);
+
+  await Promise.all(
+    (searches ?? []).map(async (search) => {
+      const campaignId = search.instantly_campaign_id as string;
+
+      const analytics = await instantlyRequest<Record<string, number>[]>(
+        apiKey,
+        `/api/v2/campaigns/analytics?id=${campaignId}`
+      ).catch(() => null);
+      if (analytics?.[0]) {
+        const a = analytics[0];
+        await supabase.from("instantly_campaign_stats").upsert(
+          {
+            search_id: search.id,
+            workspace_id: workspaceId,
+            leads_count: a.leads_count ?? 0,
+            contacted_count: a.contacted_count ?? 0,
+            emails_sent_count: a.emails_sent_count ?? 0,
+            open_count: a.open_count ?? 0,
+            reply_count: a.reply_count ?? 0,
+            reply_count_unique: a.reply_count_unique ?? 0,
+            bounced_count: a.bounced_count ?? 0,
+            unsubscribed_count: a.unsubscribed_count ?? 0,
+            completed_count: a.completed_count ?? 0,
+            total_opportunities: a.total_opportunities ?? 0,
+            total_opportunity_value: a.total_opportunity_value ?? 0,
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: "search_id" }
+        );
+      }
+
+      const params: Record<string, string> = { campaign_id: campaignId, email_type: "received" };
+      if (search.instantly_last_polled_at) params.min_timestamp_created = search.instantly_last_polled_at;
+      const emails = await fetchEmails(apiKey, params).catch(() => []);
+      for (const email of emails) {
+        await processEmail(supabase, workspaceId, email, "inbound", "", openaiKey);
+      }
+
+      await supabase
+        .from("searches")
+        .update({ instantly_last_polled_at: new Date().toISOString() })
+        .eq("id", search.id);
+    })
+  );
+}
+
+/** Mailbox-Teil: postfach-weiter Sync ueber alle verbundenen eaccounts, beide
+ *  Richtungen, ohne campaign_id-Filter -- wie zuvor poll_instantly.run_inbox(). */
+async function syncInbox(
+  supabase: SupabaseClient,
+  workspaceId: string,
+  apiKey: string,
+  openaiKey: string | null
+): Promise<void> {
+  const { data: workspace } = await supabase
+    .from("workspaces")
+    .select("instantly_inbox_synced_at")
+    .eq("id", workspaceId)
+    .single();
+  const since = workspace?.instantly_inbox_synced_at ?? undefined;
+
+  const accounts = await instantlyRequest<{ items?: { email?: string }[] }>(
+    apiKey,
+    "/api/v2/accounts?limit=100"
+  ).catch(() => ({ items: [] }));
+
+  const directions: { emailType: string; direction: "inbound" | "outbound" }[] = [
+    { emailType: "received", direction: "inbound" },
+    { emailType: "sent", direction: "outbound" },
+  ];
+
+  await Promise.all(
+    (accounts.items ?? []).flatMap((account) => {
+      const eaccount = account.email;
+      if (!eaccount) return [];
+      return directions.map(async ({ emailType, direction }) => {
+        const params: Record<string, string> = { eaccount, email_type: emailType, mode: "emode_all" };
+        if (since) params.min_timestamp_created = since;
+        const emails = await fetchEmails(apiKey, params).catch(() => []);
+        for (const email of emails) {
+          await processEmail(supabase, workspaceId, email, direction, eaccount, openaiKey);
+        }
+      });
+    })
+  );
+
+  await supabase
+    .from("workspaces")
+    .update({ instantly_inbox_synced_at: new Date().toISOString() })
+    .eq("id", workspaceId);
+}
+
+export async function POST(req: Request) {
+  if (!isAuthorized(req)) {
+    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  }
+
+  const supabase = createServiceClient();
+
+  const { data: keyRows } = await supabase
+    .from("api_keys")
+    .select("workspace_id")
+    .eq("provider", "instantly");
+  const workspaceIds = [...new Set((keyRows ?? []).map((r) => r.workspace_id as string))];
+
+  const results = await Promise.all(
+    workspaceIds.map(async (workspaceId) => {
+      try {
+        const apiKey = await getApiKey(supabase, workspaceId, "instantly");
+        if (!apiKey) return { workspaceId, status: "skipped: no key" };
+
+        // KI-Klassifizierung ist optional -- fehlt der OpenAI-Key, laeuft der
+        // Sync trotzdem, nur ohne ai_interest auf neuen Nachrichten.
+        const openaiKey = await getApiKey(supabase, workspaceId, "openai").catch(() => null);
+
+        await Promise.all([
+          syncCampaigns(supabase, workspaceId, apiKey, openaiKey),
+          syncInbox(supabase, workspaceId, apiKey, openaiKey),
+        ]);
+        return { workspaceId, status: "ok" };
+      } catch (e) {
+        return { workspaceId, status: "error", message: (e as Error).message };
+      }
+    })
+  );
+
+  return NextResponse.json({ workspaces: results.length, results });
+}

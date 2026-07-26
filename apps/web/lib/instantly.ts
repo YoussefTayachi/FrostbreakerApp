@@ -5,7 +5,7 @@
 // Kunde getrennt, siehe instantly_native_integration_plan.md Punkt 0.
 import { NextResponse } from "next/server";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { fernetDecrypt } from "./fernet";
+import { getApiKey } from "./api-keys";
 import { getCurrentWorkspace, type WorkspaceSummary } from "./workspace/server";
 
 const BASE_URL = "https://api.instantly.ai";
@@ -15,14 +15,7 @@ export async function getInstantlyApiKey(
   supabase: SupabaseClient,
   workspaceId: string
 ): Promise<string | null> {
-  const { data } = await supabase
-    .from("api_keys")
-    .select("key_ciphertext")
-    .eq("workspace_id", workspaceId)
-    .eq("provider", "instantly")
-    .single();
-  if (!data) return null;
-  return fernetDecrypt(process.env.APP_ENCRYPTION_KEY!, data.key_ciphertext);
+  return getApiKey(supabase, workspaceId, "instantly");
 }
 
 export class InstantlyApiError extends Error {
