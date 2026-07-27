@@ -35,7 +35,10 @@ export default function SignupPage() {
     const { data, error } = await createClient().auth.signUp({
       email,
       password,
-      options: { emailRedirectTo: typeof window !== "undefined" ? window.location.origin : undefined },
+      options: {
+        emailRedirectTo:
+          typeof window !== "undefined" ? `${window.location.origin}/auth/callback` : undefined,
+      },
     });
     setLoading(false);
     if (error) {

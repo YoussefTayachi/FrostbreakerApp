@@ -33,6 +33,12 @@ export async function middleware(request: NextRequest) {
   // wortlos auf dem Dashboard und sah nie, ob die Abmeldung geklappt hat.
   const loggedInMustLeavePaths = ["/login", "/signup"];
   const isPublicPath = publicPaths.includes(request.nextUrl.pathname);
+  // /auth/callback tauscht den Bestaetigungs-Code gegen eine Session -- vor
+  // diesem Tausch existiert noch keine Session, die Middleware wuerde sonst
+  // jeden Aufruf faelschlich auf /login umleiten, bevor die Route laeuft.
+  if (request.nextUrl.pathname === "/auth/callback") {
+    return response;
+  }
 
   if (!user && !isPublicPath) {
     const url = request.nextUrl.clone();
