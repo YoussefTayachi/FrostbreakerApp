@@ -567,6 +567,7 @@ const de = {
       mailboxes: "Mailboxen",
       campaigns: "Kampagnen",
       deliverability: "Zustellbarkeit",
+      emailCheck: "Text-Check",
     },
     statusLabels: {
       draft: "Entwurf",
@@ -819,6 +820,12 @@ const de = {
     recordLabel: "Record:",
     foundSelectorsLabel: "Gefundener Selektor:",
     noKeyHint: "Kein Instantly-Key hinterlegt: du kannst trotzdem jede Domain manuell prüfen.",
+  },
+  emailCheck: {
+    title: "Text-Check",
+    subtitle: "Betreff und Text unabhängig von einer Kampagne prüfen: Lesbarkeit, Spam-Risiko und KI-Klang, genau wie im Kampagnen-Editor.",
+    subjectPlaceholder: "Betreff (optional)",
+    bodyPlaceholder: "Text hier einfügen oder schreiben …",
   },
   welcome: {
     heading: "Willkommen bei Frostbreaker",
@@ -1451,6 +1458,7 @@ const en: Dictionary = {
       mailboxes: "Mailboxes",
       campaigns: "Campaigns",
       deliverability: "Deliverability",
+      emailCheck: "Copy check",
     },
     statusLabels: {
       draft: "Draft",
@@ -1703,6 +1711,12 @@ const en: Dictionary = {
     recordLabel: "Record:",
     foundSelectorsLabel: "Found selector:",
     noKeyHint: "No Instantly key saved: you can still check any domain manually.",
+  },
+  emailCheck: {
+    title: "Copy check",
+    subtitle: "Check a subject and body independently of a campaign: readability, spam risk, and AI-sounding, same as in the campaign editor.",
+    subjectPlaceholder: "Subject (optional)",
+    bodyPlaceholder: "Paste or write your copy here…",
   },
   welcome: {
     heading: "Welcome to Frostbreaker",

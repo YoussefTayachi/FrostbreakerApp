@@ -97,6 +97,7 @@ export default function EmailQualityPanel({
   subject,
   body,
   onHighlightsChange,
+  defaultExpanded = false,
 }: {
   subject: string;
   body: string;
@@ -107,6 +108,13 @@ export default function EmailQualityPanel({
    * des Nutzers statt Dauerzustand.
    */
   onHighlightsChange?: (highlights: Highlights | null) => void;
+  /**
+   * In der dichten Sequenz-Karte (campaign-form.tsx) bewusst eingeklappt, um
+   * den Editor nicht zuzumuellen. Im eigenstaendigen Text-Check (email-check-
+   * panel.tsx) ist das Panel der einzige Seiteninhalt -- dort soll sofort
+   * alles sichtbar sein statt eines weiteren Klicks.
+   */
+  defaultExpanded?: boolean;
 }) {
   const { t, lang } = useT();
   const Q = t.instantly.campaigns.form.quality;
@@ -115,7 +123,7 @@ export default function EmailQualityPanel({
   // eine Sequenz kann englisch getextet sein, waehrend die App auf Deutsch
   // steht. Startwert ist die UI-Sprache, weil das meistens passt.
   const [contentLang, setContentLang] = useState<Lang>(lang);
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(defaultExpanded);
 
   const content = useDebouncedContent(subject, body, DEBOUNCE_MS);
   const report = useMemo(() => runEmailQualityCheck(content, contentLang), [content, contentLang]);
