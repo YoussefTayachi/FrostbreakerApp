@@ -28,7 +28,15 @@ const CAPS_RATIO_LIMIT = 0.1;
 const SUBJECT_EXCLAMATION_LIMIT = 1;
 const BODY_EXCLAMATION_LIMIT = 3;
 
-const PENALTY = { allCaps: 12, exclamation: 8, punctuationCluster: 10 };
+const PENALTY = { allCaps: 12, exclamation: 8, punctuationCluster: 10, unfilledPlaceholder: 25 };
+
+// Eckige Klammern wie "[First Name]" oder "[Company Name]" sind kein
+// Instantly-Syntax (das sind "{{firstName}}", geschweifte Klammern) --
+// tauchen sie trotzdem auf, sind es liegen gebliebene Platzhalter aus einer
+// KI-Vorlage, die unveraendert an echte Empfaenger gehen wuerden. Kaum ein
+// anderes Signal ist so eindeutig, deshalb das hohe Gewicht: schon zwei, drei
+// Treffer sollen zuverlaessig "hoch" ausloesen.
+const UNFILLED_PLACEHOLDER_RE = /\[([^[\]\n]{1,60})\]/g;
 
 const RISK_THRESHOLDS = { medium: 20, high: 50 };
 
@@ -123,6 +131,18 @@ export function checkSpamTriggers(content: EmailContent, lang: Lang): SpamCheckR
         field,
         snippet: m[0],
         offset: { start: m.index, end: m.index + m[0].length },
+      });
+    }
+
+    for (const m of text.matchAll(UNFILLED_PLACEHOLDER_RE)) {
+      score += PENALTY.unfilledPlaceholder;
+      issues.push({
+        category: "unfilled-placeholder",
+        severity: "danger",
+        field,
+        snippet: m[0],
+        offset: { start: m.index, end: m.index + m[0].length },
+        meta: { placeholder: m[0] },
       });
     }
   }

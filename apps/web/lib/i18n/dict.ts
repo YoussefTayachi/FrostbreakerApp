@@ -591,6 +591,8 @@ const de = {
       cardCampaignsBody: "Kampagnen anlegen, Sequenzen bearbeiten, starten und pausieren.",
       cardDeliverabilityTitle: "Zustellbarkeit",
       cardDeliverabilityBody: "SPF, DKIM und DMARC deiner Sende-Domain prüfen.",
+      cardEmailCheckTitle: "Text-Check",
+      cardEmailCheckBody: "Lesbarkeit, Spam-Risiko und KI-Klang prüfen, bevor du versendest.",
       statsHeading: "Zahlen über alle Kampagnen",
       statsSent: "Gesendet",
       statsOpens: "Geöffnet",
@@ -665,6 +667,23 @@ const de = {
           fieldSubject: "Betreff",
           fieldBody: "Text",
           moreIssues: (n: number) => `+ ${n} weitere`,
+          categoryLabels: {
+            "long-sentence": "Lange Sätze",
+            "very-long-sentence": "Sehr lange Sätze",
+            passive: "Passiv-Konstruktionen",
+            adverb: "Verstärker",
+            weasel: "Füllwörter",
+            money: "Geld-Trigger",
+            urgency: "Dringlichkeit",
+            "exaggerated-claims": "Übertriebene Versprechen",
+            "trust-manipulation": "Vertrauensmaschen",
+            "all-caps": "Großschreibung",
+            exclamation: "Ausrufezeichen",
+            "punctuation-cluster": "Satzzeichen-Ketten",
+            "unfilled-placeholder": "Unausgefüllte Platzhalter",
+            "ai-phrase": "KI-Floskeln",
+            "low-burstiness": "Gleichförmige Satzlängen",
+          },
           readability: {
             heading: "Lesbarkeit",
             bands: {
@@ -702,6 +721,8 @@ const de = {
             "all-caps": (v: string | number) => `Komplett großgeschrieben: ${v}× — wirkt wie Schreien.`,
             exclamation: (v: string | number) => `${v} Ausrufezeichen — sparsamer einsetzen.`,
             "punctuation-cluster": (v: string | number) => `Satzzeichen-Kette „${v}“ — eines genügt.`,
+            "unfilled-placeholder": (v: string | number) =>
+              `Unausgefüllter Platzhalter „${v}“ — würde unverändert an echte Empfänger verschickt.`,
             "ai-phrase": (v: string | number) => `KI-typische Floskel „${v}“ — klingt nach Broschüre statt nach dir.`,
             "low-burstiness": (v: string | number) =>
               `Alle Sätze sind ähnlich lang (Streuung ${v}) — mische kurze und lange Sätze.`,
@@ -1482,6 +1503,8 @@ const en: Dictionary = {
       cardCampaignsBody: "Create campaigns, edit sequences, start and pause.",
       cardDeliverabilityTitle: "Deliverability",
       cardDeliverabilityBody: "Check SPF, DKIM and DMARC for your sending domain.",
+      cardEmailCheckTitle: "Copy check",
+      cardEmailCheckBody: "Check readability, spam risk, and AI-sounding before you send.",
       statsHeading: "Numbers across all campaigns",
       statsSent: "Sent",
       statsOpens: "Opened",
@@ -1556,6 +1579,23 @@ const en: Dictionary = {
           fieldSubject: "Subject",
           fieldBody: "Body",
           moreIssues: (n: number) => `+ ${n} more`,
+          categoryLabels: {
+            "long-sentence": "Long sentences",
+            "very-long-sentence": "Very long sentences",
+            passive: "Passive voice",
+            adverb: "Intensifiers",
+            weasel: "Filler words",
+            money: "Money triggers",
+            urgency: "Urgency",
+            "exaggerated-claims": "Exaggerated claims",
+            "trust-manipulation": "Trust bait",
+            "all-caps": "All caps",
+            exclamation: "Exclamation marks",
+            "punctuation-cluster": "Punctuation runs",
+            "unfilled-placeholder": "Unfilled placeholders",
+            "ai-phrase": "AI phrases",
+            "low-burstiness": "Uniform sentence lengths",
+          },
           readability: {
             heading: "Readability",
             bands: {
@@ -1593,6 +1633,8 @@ const en: Dictionary = {
             "all-caps": (v: string | number) => `All caps: ${v}× — reads as shouting.`,
             exclamation: (v: string | number) => `${v} exclamation marks — use them sparingly.`,
             "punctuation-cluster": (v: string | number) => `Punctuation run “${v}” — one is enough.`,
+            "unfilled-placeholder": (v: string | number) =>
+              `Unfilled placeholder “${v}” — would go out to real recipients exactly like this.`,
             "ai-phrase": (v: string | number) => `AI-typical phrase “${v}” — sounds like a brochure, not like you.`,
             "low-burstiness": (v: string | number) =>
               `Every sentence is about the same length (spread ${v}) — mix short and long ones.`,

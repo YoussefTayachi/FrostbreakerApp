@@ -2,22 +2,29 @@
 import { useEffect, useMemo, useState } from "react";
 import { useT } from "../../language-provider";
 import type { Lang } from "@/lib/i18n/lang";
+import { bodyHighlightRanges, hasAnalyzableContent, runEmailQualityCheck, type Highlights } from "@/lib/email-quality";
 import {
-  bodyHighlightRanges,
-  hasAnalyzableContent,
-  runEmailQualityCheck,
-  type EmailField,
-  type Highlights,
-  type QualityIssue,
-  type ReadabilityBand,
-  type RiskLevel,
-  type Severity,
-} from "@/lib/email-quality";
+  RISK_TONE,
+  READABILITY_TONE,
+  SEVERITY_DOT,
+  TONE_BADGE,
+  TONE_DOT,
+  toIssueLines,
+  useDebouncedContent,
+  type IssueLine,
+  type Tone,
+} from "../quality-shared";
 
 // Lesbarkeit, Spam-Trigger und KI-Klang je Sequenzschritt, direkt unter dem
 // Textfeld. Die Pruefungen sind reine Funktionen ohne Netzwerk (siehe
 // lib/email-quality), laufen also waehrend des Tippens im Browser -- anders
 // als der Deliverability-Check, der fuer DNS zwingend einen Serverweg braucht.
+//
+// Bewusst kompakt und eingeklappt-per-default: die Sequenz-Karte
+// (campaign-form.tsx) ist ohnehin schon dicht (Variablen-Buttons, Betreff,
+// Text, Verzoegerung). Fuer die grosse, immer offene Ansicht siehe
+// email-check/quality-sidebar.tsx -- die teilt sich Farben und Gruppierung
+// mit diesem Panel ueber quality-shared.ts, zeigt sie aber viel geraeumiger.
 
 /** Nur gegen Flackern der Badges beim Tippen, nicht aus Performancegruenden. */
 const DEBOUNCE_MS = 450;
@@ -25,79 +32,10 @@ const DEBOUNCE_MS = 450;
 /** Mehr Zeilen je Abschnitt erschlagen die ohnehin dichte Schritt-Karte. */
 const MAX_VISIBLE_ISSUES = 6;
 
-type Tone = "ok" | "warn" | "bad";
-
-// Gleiche Statusfarben wie im Deliverability-Panel und in STATUS_BADGE_CLS --
-// gruen/gelb/rot bedeutet in der App ueberall dasselbe.
-const TONE_BADGE: Record<Tone, string> = {
-  ok: "border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-300",
-  warn: "border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-300",
-  bad: "border-red-500/30 bg-red-500/10 text-red-600 dark:text-red-400",
-};
-const TONE_DOT: Record<Tone, string> = {
-  ok: "bg-emerald-400",
-  warn: "bg-amber-400",
-  bad: "bg-red-400",
-};
-const SEVERITY_DOT: Record<Severity, string> = {
-  info: "bg-edge3",
-  warning: "bg-amber-400",
-  danger: "bg-red-400",
-};
-
-const READABILITY_TONE: Record<ReadabilityBand, Tone> = {
-  "very-easy": "ok",
-  easy: "ok",
-  medium: "warn",
-  difficult: "bad",
-  "very-difficult": "bad",
-};
-const RISK_TONE: Record<RiskLevel, Tone> = { low: "ok", medium: "warn", high: "bad" };
-
-function useDebouncedContent(subject: string, body: string, delay: number) {
-  const [content, setContent] = useState({ subject, body });
-  useEffect(() => {
-    const id = setTimeout(() => setContent({ subject, body }), delay);
-    return () => clearTimeout(id);
-  }, [subject, body, delay]);
-  return content;
-}
-
-/**
- * Der eine Wert, den der Textbaustein in dict.ts einsetzt. Die Pruefungen
- * liefern absichtlich keinen fertigen Satz, damit alle Texte an einer Stelle
- * liegen und uebersetzbar bleiben.
- */
-function issueValue(issue: QualityIssue): string | number {
-  const meta = issue.meta ?? {};
-  return meta.words ?? meta.count ?? meta.word ?? meta.phrase ?? meta.burstiness ?? issue.snippet;
-}
-
-const SEVERITY_ORDER: Record<Severity, number> = { danger: 0, warning: 1, info: 2 };
-
-type Line = { text: string; severity: Severity; field: EmailField; count: number };
-
-/**
- * Gleiche Befunde zusammenfassen: fuenfmal dasselbe Fuellwort soll eine Zeile
- * mit "x5" sein, nicht fuenf identische Zeilen.
- */
-function toLines(issues: QualityIssue[], template: Record<string, (v: string | number) => string>): Line[] {
-  const byKey = new Map<string, Line>();
-  for (const issue of issues) {
-    const text = template[issue.category](issueValue(issue));
-    const key = `${issue.field}|${text}`;
-    const existing = byKey.get(key);
-    if (existing) existing.count++;
-    else byKey.set(key, { text, severity: issue.severity, field: issue.field, count: 1 });
-  }
-  return [...byKey.values()].sort((a, b) => SEVERITY_ORDER[a.severity] - SEVERITY_ORDER[b.severity]);
-}
-
 export default function EmailQualityPanel({
   subject,
   body,
   onHighlightsChange,
-  defaultExpanded = false,
 }: {
   subject: string;
   body: string;
@@ -108,13 +46,6 @@ export default function EmailQualityPanel({
    * des Nutzers statt Dauerzustand.
    */
   onHighlightsChange?: (highlights: Highlights | null) => void;
-  /**
-   * In der dichten Sequenz-Karte (campaign-form.tsx) bewusst eingeklappt, um
-   * den Editor nicht zuzumuellen. Im eigenstaendigen Text-Check (email-check-
-   * panel.tsx) ist das Panel der einzige Seiteninhalt -- dort soll sofort
-   * alles sichtbar sein statt eines weiteren Klicks.
-   */
-  defaultExpanded?: boolean;
 }) {
   const { t, lang } = useT();
   const Q = t.instantly.campaigns.form.quality;
@@ -123,7 +54,7 @@ export default function EmailQualityPanel({
   // eine Sequenz kann englisch getextet sein, waehrend die App auf Deutsch
   // steht. Startwert ist die UI-Sprache, weil das meistens passt.
   const [contentLang, setContentLang] = useState<Lang>(lang);
-  const [expanded, setExpanded] = useState(defaultExpanded);
+  const [expanded, setExpanded] = useState(false);
 
   const content = useDebouncedContent(subject, body, DEBOUNCE_MS);
   const report = useMemo(() => runEmailQualityCheck(content, contentLang), [content, contentLang]);
@@ -149,9 +80,9 @@ export default function EmailQualityPanel({
   }
 
   const { readability, spam, aiSounding } = report;
-  const readabilityLines = toLines(readability.issues, Q.issues);
-  const spamLines = toLines(spam.issues, Q.issues);
-  const aiLines = toLines(aiSounding.issues, Q.issues);
+  const readabilityLines = toIssueLines(readability.issues, Q.issues);
+  const spamLines = toIssueLines(spam.issues, Q.issues);
+  const aiLines = toIssueLines(aiSounding.issues, Q.issues);
 
   const badge = (tone: Tone, label: string) => (
     <span className={"flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[11px] " + TONE_BADGE[tone]}>
@@ -160,7 +91,7 @@ export default function EmailQualityPanel({
     </span>
   );
 
-  const section = (heading: string, tone: Tone, label: string, stats: string | null, lines: Line[]) => (
+  const section = (heading: string, tone: Tone, label: string, stats: string | null, lines: IssueLine[]) => (
     <div>
       <div className="flex flex-wrap items-center gap-2">
         <span className="text-xs font-medium text-soft">{heading}</span>

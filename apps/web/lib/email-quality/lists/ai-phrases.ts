@@ -37,6 +37,16 @@ const DE = [
   "im digitalen zeitalter",
   "unerlässlich",
   "von größter bedeutung",
+  // Speziell fuer KI-generierte Kaltakquise-Mails (nicht nur allgemeines
+  // Konzern-Deutsch): typische Eroeffnungs- und Struktur-Floskeln, wenn ein
+  // Modell explizit um eine Cold-Email gebeten wird. Bewusst als laengere,
+  // mehrteilige Wendungen statt einzelner Woerter -- "kurz gesagt" oder "bin
+  // auf" allein kommen auch in ganz normal von Menschen geschriebenen Mails
+  // vor und wuerden zu oft falsch anschlagen.
+  "das ist genau der grund, warum wir",
+  "wenn sie wie die meisten",
+  "der größte engpass",
+  "unsere kunden sehen typischerweise",
 ] as const;
 
 const EN = [
@@ -74,6 +84,16 @@ const EN = [
   "navigating the complexities",
   "robust and scalable",
   "paradigm shift",
+  // Speziell fuer KI-generierte Kaltakquise-Mails: typische Eroeffnungs- und
+  // Struktur-Floskeln, wenn ein Modell explizit um eine Cold-Email gebeten
+  // wird. Laengere Wendungen, damit generische Kurzphrasen wie "in short"
+  // nicht jede zweite echte Mail treffen.
+  "if you're like most",
+  "that's exactly why we built",
+  "in short, our",
+  "here's what our",
+  "biggest bottleneck",
+  "without sacrificing",
 ] as const;
 
 export const AI_PHRASES: Record<Lang, readonly string[]> = { de: DE, en: EN };

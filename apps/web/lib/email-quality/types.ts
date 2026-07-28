@@ -28,6 +28,7 @@ export type IssueCategory =
   | "all-caps"
   | "exclamation"
   | "punctuation-cluster"
+  | "unfilled-placeholder"
   // KI-Klang
   | "ai-phrase"
   | "low-burstiness";

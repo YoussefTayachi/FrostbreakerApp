@@ -63,6 +63,37 @@ describe("checkSpamTriggers", () => {
     });
   });
 
+  describe("unausgefuellte Platzhalter", () => {
+    it("erkennt eckige Klammern als liegen gebliebene Vorlage", () => {
+      const r = check("Frage an [Company Name]", "Hallo [First Name], kurze Frage.");
+      const hits = r.issues.filter((i) => i.category === "unfilled-placeholder");
+      expect(hits).toHaveLength(2);
+      expect(hits.some((i) => i.field === "subject")).toBe(true);
+      expect(hits.some((i) => i.field === "body")).toBe(true);
+    });
+
+    it("stuft eine Vorlage voller Platzhalter als hohes Risiko ein, auch ohne andere Spam-Woerter", () => {
+      const body =
+        "Hi [First Name], I came across [Company Name] while looking into [Industry]. " +
+        "Are you open to a call this [Day of week]?";
+      const r = check("", body, "en");
+      expect(r.issues.filter((i) => i.category === "unfilled-placeholder").length).toBeGreaterThanOrEqual(3);
+      expect(r.riskLevel).toBe("high");
+    });
+
+    it("verwechselt gueltige Instantly-Variablen nicht mit Platzhaltern", () => {
+      const r = check("", "Hallo {{firstName}}, schoen bei {{companyName}} zu lesen.");
+      expect(r.issues.map((i) => i.category)).not.toContain("unfilled-placeholder");
+    });
+
+    it("zitiert den vollstaendigen Platzhalter inklusive Klammern", () => {
+      const body = "Hallo [First Name], kurze Frage.";
+      const issue = check("", body).issues.find((i) => i.category === "unfilled-placeholder");
+      expect(issue?.snippet).toBe("[First Name]");
+      expect(body.slice(issue!.offset!.start, issue!.offset!.end)).toBe("[First Name]");
+    });
+  });
+
   it("deckelt den Score bei 100", () => {
     const r = check("GRATIS GARANTIERT JETZT HANDELN!!!", "gratis ".repeat(60));
     expect(r.riskScore).toBeLessThanOrEqual(100);
