@@ -11,9 +11,15 @@ import { resolveTxt } from "node:dns/promises";
 // Haeufigste DKIM-Selektoren der gaengigen Provider (Google, M365, IONOS,
 // Mailchimp Transactional, Amazon SES, ...). Wird zusaetzlich um einen vom
 // User eingegebenen Selektor ergaenzt, falls bekannt.
+//
+// "s1-ionos"/"s2-ionos" sind IONOS' tatsaechliche Selektor-Namen (bestaetigt
+// gegen eine echte IONOS-Domain) -- nicht einfach "s1"/"ionos" einzeln, wie
+// man beim Kombinieren gaengiger Kurz-Selektoren vermuten wuerde. Ohne diesen
+// Eintrag meldet der Check bei jedem IONOS-Kunden faelschlich "DKIM fehlt",
+// obwohl es korrekt eingerichtet ist.
 const COMMON_DKIM_SELECTORS = [
   "google", "selector1", "selector2", "default", "dkim", "mail",
-  "k1", "s1", "s2", "smtp", "em", "ionos", "mx",
+  "k1", "s1", "s2", "smtp", "em", "ionos", "mx", "s1-ionos", "s2-ionos",
 ];
 
 function joinTxt(records: string[][]): string[] {
@@ -110,8 +116,25 @@ async function checkDmarc(domain: string): Promise<DmarcResult> {
   return { status: issues.length > 0 ? "warning" : "ok", record: dmarcRecord, policy, issues };
 }
 
+/**
+ * Normalisiert Domain-Eingaben: Protokoll/Pfad abschneiden und, falls jemand
+ * eine komplette E-Mail-Adresse eintraegt (naheliegender Fehler, da genau das
+ * Feld direkt neben den Mailbox-Adressen steht), alles bis zum "@" abschneiden.
+ * Sonst wird "user@domain.tld" woertlich als Hostname abgefragt, findet nie
+ * einen DNS-Record und meldet SPF/DKIM/DMARC faelschlich als "fehlt" --
+ * obwohl die Domain korrekt eingerichtet sein kann.
+ */
+export function normalizeDomainInput(input: string): string {
+  return input
+    .trim()
+    .toLowerCase()
+    .replace(/^https?:\/\//, "")
+    .replace(/\/.*$/, "")
+    .replace(/^[^@\s]*@/, "");
+}
+
 export async function runDeliverabilityCheck(domain: string, dkimSelector?: string): Promise<DeliverabilityReport> {
-  const cleanDomain = domain.trim().toLowerCase().replace(/^https?:\/\//, "").replace(/\/.*$/, "");
+  const cleanDomain = normalizeDomainInput(domain);
   const [spf, dkim, dmarc] = await Promise.all([
     checkSpf(cleanDomain),
     checkDkim(cleanDomain, dkimSelector),
