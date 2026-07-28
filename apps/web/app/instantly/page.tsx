@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getCurrentWorkspace } from "@/lib/workspace/server";
 import { getLangServer } from "@/lib/i18n/lang";
 import { dict } from "@/lib/i18n/dict";
-import { IconLock, IconMail, IconSend, IconShield } from "../icons";
+import { IconLock, IconMail, IconSend, IconShield, IconSparkle } from "../icons";
 import { cardCls } from "@/lib/ui";
 
 export default async function InstantlyOverviewPage() {
@@ -40,6 +40,7 @@ export default async function InstantlyOverviewPage() {
     { href: "/instantly/mailboxes", icon: IconMail, title: O.cardMailboxesTitle, body: O.cardMailboxesBody },
     { href: "/instantly/campaigns", icon: IconSend, title: O.cardCampaignsTitle, body: O.cardCampaignsBody },
     { href: "/instantly/deliverability", icon: IconShield, title: O.cardDeliverabilityTitle, body: O.cardDeliverabilityBody },
+    { href: "/instantly/email-check", icon: IconSparkle, title: O.cardEmailCheckTitle, body: O.cardEmailCheckBody },
   ];
 
   return (

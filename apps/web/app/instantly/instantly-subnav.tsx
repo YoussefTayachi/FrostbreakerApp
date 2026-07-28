@@ -21,6 +21,7 @@ export default function InstantlySubnav() {
     { href: "/instantly/mailboxes", label: S.mailboxes },
     { href: "/instantly/campaigns", label: S.campaigns },
     { href: "/instantly/deliverability", label: S.deliverability },
+    { href: "/instantly/email-check", label: S.emailCheck },
   ];
 
   return (
