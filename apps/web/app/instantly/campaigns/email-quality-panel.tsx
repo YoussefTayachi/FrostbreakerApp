@@ -129,7 +129,16 @@ export default function EmailQualityPanel({
     onHighlightsChange({ ranges: bodyHighlightRanges(report), forText: content.body });
   }, [report, expanded, content.body, onHighlightsChange]);
 
-  if (!hasAnalyzableContent(content)) return null;
+  // Ohne Inhalt keine Badges anzeigen, aber die Zeile trotzdem stehen lassen:
+  // ein Panel, das erst nach dem ersten Tippen auftaucht, wird von niemandem
+  // gefunden, der die Funktion noch nicht kennt.
+  if (!hasAnalyzableContent(content)) {
+    return (
+      <div className="mt-2 rounded-lg border border-edge/60 bg-panel2/60 px-3 py-2">
+        <span className="text-[11px] text-faint">{Q.emptyHint}</span>
+      </div>
+    );
+  }
 
   const { readability, spam, aiSounding } = report;
   const readabilityLines = toLines(readability.issues, Q.issues);
