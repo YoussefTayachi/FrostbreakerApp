@@ -218,6 +218,27 @@ def test_parse_discover_company():
     assert parse_discover_company({})["website"] is None
 
 
+def test_matching_prior_search_ids():
+    from worker.pipelines.get_businesses import matching_prior_search_ids
+
+    filters = {"country": "US", "industry": "Marketing Services", "headcount": "1-10"}
+    prior = [
+        {"id": "s1", "filters": {"country": "US", "industry": "Marketing Services", "headcount": "1-10"}},
+        {"id": "s2", "filters": {"country": "US", "industry": "Marketing Services", "headcount": "11-50"}},
+        {"id": "s3", "filters": {"country": "US", "industry": "Marketing Services", "headcount": "1-10"}},
+        {"id": "s4", "filters": None},
+    ]
+    assert matching_prior_search_ids(filters, prior) == ["s1", "s3"]
+
+
+def test_matching_prior_search_ids_empty_filters_treated_as_dict():
+    from worker.pipelines.get_businesses import matching_prior_search_ids
+
+    prior = [{"id": "s1", "filters": None}, {"id": "s2", "filters": {}}]
+    assert matching_prior_search_ids(None, prior) == ["s1", "s2"]
+    assert matching_prior_search_ids({}, prior) == ["s1", "s2"]
+
+
 def test_suppression_matching():
     from worker.suppression import domain_of, is_suppressed
 

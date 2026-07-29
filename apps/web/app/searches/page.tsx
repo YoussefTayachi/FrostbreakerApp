@@ -14,6 +14,7 @@ type SearchRow = {
   location: string;
   source: string;
   status: string;
+  error: string | null;
   max_results: number;
   created_at: string;
   businesses: number;
@@ -147,7 +148,15 @@ export default async function SearchesPage() {
                 <Metric value={s.with_email} label={t.searches.metricWithEmail} />
                 <div className="w-32">
                   {s.status === "failed" ? (
-                    <span className="text-xs text-red-600 dark:text-red-400">{t.searches.failed}</span>
+                    <span
+                      className={
+                        "text-xs text-red-600 dark:text-red-400" +
+                        (s.error ? " underline decoration-dotted underline-offset-2" : "")
+                      }
+                      title={s.error ?? undefined}
+                    >
+                      {t.searches.failed}
+                    </span>
                   ) : s.status !== "completed" ? (
                     <span className="flex items-center gap-1.5 text-xs text-blue-600 dark:text-blue-300">
                       <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-blue-400" />

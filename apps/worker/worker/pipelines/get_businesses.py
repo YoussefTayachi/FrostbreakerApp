@@ -68,10 +68,52 @@ def parse_place(p: dict) -> dict:
     }
 
 
+def matching_prior_search_ids(filters: dict, prior_searches: list[dict]) -> list[str]:
+    """IDs frueherer Corporate-Suchen mit EXAKT denselben Filtern -- Grundlage
+    fuer den Hunter-Discover-Offset (siehe _discover_offset): Hunter liefert
+    fuer eine fixe Filterkombination ohne offset immer dieselbe erste
+    Ergebnisseite, deshalb muss eine Wiederholung derselben Suche wissen, wie
+    viele Firmen dafuer in diesem Workspace schon geholt wurden."""
+    current = filters or {}
+    return [s["id"] for s in prior_searches if (s.get("filters") or {}) == current]
+
+
+def _discover_offset(search: dict, ws: str) -> int:
+    """Wie viele Firmen wurden fuer exakt diese Filterkombination in diesem
+    Workspace schon von Hunter Discover geholt. Ohne das wuerde eine
+    Wiederholung derselben Suche immer wieder dieselbe erste Ergebnisseite
+    abfragen und dank der Dedupe-Pruefung unten fast nur noch bereits
+    bekannte Firmen sehen -- effektiv keine neuen Leads."""
+    prior = (
+        sb()
+        .table("searches")
+        .select("id, filters")
+        .eq("workspace_id", ws)
+        .eq("source", "corporate")
+        .neq("id", search["id"])
+        .execute()
+        .data
+        or []
+    )
+    matching_ids = matching_prior_search_ids(search.get("filters") or {}, prior)
+    if not matching_ids:
+        return 0
+    count_res = (
+        sb()
+        .table("businesses")
+        .select("id", count="exact", head=True)
+        .eq("workspace_id", ws)
+        .in_("search_id", matching_ids)
+        .execute()
+    )
+    return count_res.count or 0
+
+
 def run_corporate(search: dict, ws: str) -> None:
     """Corporate-Modus: Hunter Discover statt Google Maps."""
     api_key = get_api_key(ws, "hunter")
-    companies = discover_companies(search.get("filters") or {}, api_key)
+    offset = _discover_offset(search, ws)
+    companies = discover_companies(search.get("filters") or {}, api_key, offset=offset)
     existing = {
         b["website"]
         for b in sb().table("businesses").select("website").eq("workspace_id", ws).execute().data
