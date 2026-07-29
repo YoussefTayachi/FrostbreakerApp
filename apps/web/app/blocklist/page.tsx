@@ -1,31 +1,12 @@
 "use client";
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { parseInput } from "@/lib/blocklist";
 import { useT } from "../language-provider";
 import { useToast } from "../toast-provider";
 import { useWorkspace } from "../workspace-provider";
 
 type Row = { id: string; email: string | null; domain: string | null; reason: string };
-
-function parseInput(text: string): { emails: string[]; domains: string[] } {
-  const tokens = text
-    .split(/[\n,;]+/)
-    .map((t) => t.trim().toLowerCase())
-    .filter(Boolean);
-  const emails = new Set<string>();
-  const domains = new Set<string>();
-  for (const t of tokens) {
-    if (t.includes("@")) {
-      // CSV-Zeilen wie "Max;max@firma.de;..." -> E-Mail herausfischen
-      const match = t.match(/[\w.+-]+@[\w-]+\.[\w.-]+/);
-      if (match) emails.add(match[0]);
-    } else {
-      const d = t.replace(/^https?:\/\//, "").replace(/^www\./, "").split("/")[0];
-      if (d.includes(".")) domains.add(d);
-    }
-  }
-  return { emails: [...emails], domains: [...domains] };
-}
 
 export default function BlocklistPage() {
   const { t } = useT();
@@ -33,6 +14,7 @@ export default function BlocklistPage() {
   const { workspaceId: wsId } = useWorkspace();
   const [rows, setRows] = useState<Row[]>([]);
   const [input, setInput] = useState("");
+  const [selected, setSelected] = useState<Set<string>>(new Set());
 
   async function reload() {
     const { data } = await createClient()
@@ -85,6 +67,12 @@ export default function BlocklistPage() {
     const removed = rows.find((x) => x.id === id);
     await createClient().from("suppression_list").delete().eq("id", id).eq("workspace_id", wsId);
     setRows((r) => r.filter((x) => x.id !== id));
+    setSelected((s) => {
+      if (!s.has(id)) return s;
+      const next = new Set(s);
+      next.delete(id);
+      return next;
+    });
     if (!removed) return;
     push(t.blocklist.removed, "success", {
       label: t.blocklist.undo,
@@ -95,6 +83,38 @@ export default function BlocklistPage() {
           domain: removed.domain,
           reason: removed.reason,
         });
+        reload();
+      },
+    });
+  }
+
+  function toggleOne(id: string) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function toggleSelectAll() {
+    setSelected((prev) => (prev.size === rows.length ? new Set() : new Set(rows.map((r) => r.id))));
+  }
+
+  async function removeSelected() {
+    if (selected.size === 0) return;
+    if (!confirm(t.blocklist.removeSelectedConfirm(selected.size))) return;
+    const ids = [...selected];
+    const removedRows = rows.filter((r) => selected.has(r.id));
+    await createClient().from("suppression_list").delete().in("id", ids).eq("workspace_id", wsId);
+    setRows((r) => r.filter((x) => !selected.has(x.id)));
+    setSelected(new Set());
+    push(t.blocklist.removedMultiple(removedRows.length), "success", {
+      label: t.blocklist.undo,
+      onClick: async () => {
+        await createClient()
+          .from("suppression_list")
+          .insert(removedRows.map((r) => ({ workspace_id: wsId, email: r.email, domain: r.domain, reason: r.reason })));
         reload();
       },
     });
@@ -134,12 +154,46 @@ export default function BlocklistPage() {
       </div>
 
       <div className="overflow-hidden rounded-lg border border-edge/60 bg-panel">
-        <h2 className="border-b border-edge/60 px-5 py-3 text-sm font-medium text-ink">
-          {t.blocklist.entries(rows.length)}
-        </h2>
+        <div className="flex flex-wrap items-center gap-3 border-b border-edge/60 px-5 py-3">
+          <h2 className="text-sm font-medium text-ink">{t.blocklist.entries(rows.length)}</h2>
+          {rows.length > 0 && (
+            <label className="flex cursor-pointer items-center gap-2 text-xs text-soft" title={t.blocklist.selectAll}>
+              <input
+                type="checkbox"
+                checked={selected.size === rows.length}
+                ref={(el) => {
+                  if (el) el.indeterminate = selected.size > 0 && selected.size < rows.length;
+                }}
+                onChange={toggleSelectAll}
+                className="h-3.5 w-3.5 rounded accent-sky-500"
+              />
+              {t.blocklist.selectAll}
+            </label>
+          )}
+          {selected.size > 0 && (
+            <div className="ml-auto flex items-center gap-3">
+              <span className="text-xs text-faint">{t.blocklist.selectedCount(selected.size)}</span>
+              <button
+                onClick={removeSelected}
+                className="text-xs font-medium text-red-600 transition-colors hover:text-red-500 dark:text-red-400"
+              >
+                {t.blocklist.removeSelected}
+              </button>
+              <button onClick={() => setSelected(new Set())} className="text-xs text-faint hover:text-ink">
+                {t.blocklist.deselect}
+              </button>
+            </div>
+          )}
+        </div>
         <div className="max-h-96 divide-y divide-edge/60 overflow-y-auto">
           {rows.map((r) => (
             <div key={r.id} className="flex items-center gap-3 px-5 py-2">
+              <input
+                type="checkbox"
+                checked={selected.has(r.id)}
+                onChange={() => toggleOne(r.id)}
+                className="h-3.5 w-3.5 shrink-0 rounded accent-sky-500"
+              />
               <span className="min-w-0 flex-1 truncate font-mono text-sm text-soft">
                 {r.email ?? r.domain}
               </span>
