@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { requireInstantlyContext, instantlyRequest, InstantlyApiError } from "@/lib/instantly";
 import { getBillingStatus } from "@/lib/billing";
 import { filterSuppressed } from "@/lib/suppression";
+import { pickPrimaryContactPerBusiness } from "@/lib/contacts";
 import {
   buildCampaignSchedule,
   buildCampaignSequence,
@@ -74,7 +75,7 @@ export async function POST(req: Request) {
     supabase
       .from("contacts")
       .select(
-        "id, email, first_name, last_name, outreach_status, businesses!inner(name, website, personalization, search_id)"
+        "id, email, first_name, last_name, title, business_id, outreach_status, businesses!inner(name, website, personalization, search_id)"
       )
       .eq("workspace_id", workspaceId)
       .eq("businesses.search_id", searchId)
@@ -88,6 +89,8 @@ export async function POST(req: Request) {
     email: string | null;
     first_name: string | null;
     last_name: string | null;
+    title: string | null;
+    business_id: string | null;
     outreach_status: string;
     businesses: { name: string | null; website: string | null; personalization: string | null } | null;
   };
@@ -100,7 +103,12 @@ export async function POST(req: Request) {
   // uebernommen, auch bereits blockierte/abgelehnte.
   const withEmail = ((contacts ?? []) as unknown as ContactRow[]).filter((c) => !!c.email);
   const notDeclined = withEmail.filter((c) => c.outreach_status !== "not_interested");
-  const rows = filterSuppressed(notDeclined, suppression ?? []);
+  const contactable = filterSuppressed(notDeclined, suppression ?? []);
+  // KI-Recherche und Hunter finden bewusst mehrere moegliche Ansprechpartner
+  // pro Firma (siehe lib/contacts.ts) -- fuer den tatsaechlichen Versand aber
+  // nur die ranghoechste Person je Firma, sonst wuerde jede Mitarbeiterin/jeder
+  // Mitarbeiter derselben Firma angeschrieben.
+  const rows = pickPrimaryContactPerBusiness(contactable);
 
   if (rows.length === 0) {
     return NextResponse.json(

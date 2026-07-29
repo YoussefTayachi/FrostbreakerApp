@@ -1,0 +1,57 @@
+// Sowohl die KI-Recherche (find_decisionmaker, beliebig viele Personen) als
+// auch Hunters Domain-Search (bis zu 5 Personen, nur Maps-Modus) finden
+// bewusst mehrere moegliche Ansprechpartner pro Firma, um die Chance auf einen
+// echten Entscheider zu maximieren. Beim Kampagnen-Versand darf davon aber nur
+// EINE Person tatsaechlich angeschrieben werden -- alle Mitarbeitenden
+// anzuschreiben waere Spam und schadet der Zustellbarkeit. Diese Rangliste
+// waehlt pro Firma die ranghoechste Person nach Jobtitel.
+// Reihenfolge ist hier Pruef-Reihenfolge, nicht Rang-Reihenfolge: "Vice
+// President" enthaelt das Wort "president" und muss deshalb VOR dem
+// allgemeinen President/Owner/CEO-Muster geprueft werden, sonst wuerde ein VP
+// faelschlich als Rang 0 (Geschaeftsfuehrer-Ebene) statt Rang 1 eingestuft.
+//
+// Die deutschen Praefixe (gruender/geschaeftsfuehr) stehen bewusst OHNE
+// abschliessendes \b in einem eigenen Muster: JS-Regex behandelt "\w" als rein
+// ASCII, "ä"/"ü" zaehlen also nicht als Wortzeichen. Ein abschliessendes \b
+// nach "geschäftsführ" wuerde deshalb an der Flexionsendung ("führer",
+// "führerin") scheitern, weil beide Seiten dort "\w"-Zeichen sind (kein Sprung
+// von Wort- zu Nicht-Wortzeichen).
+const TITLE_RANK: { pattern: RegExp; rank: number }[] = [
+  { pattern: /\b(vice president|\bvp\b|evp|svp|cfo|coo|cto|cmo|chief \w+ officer)\b/i, rank: 1 },
+  { pattern: /\b(owner|founder|inhaber|ceo|chief executive|president|managing director|partner)\b/i, rank: 0 },
+  { pattern: /gründer|gruender|geschäftsführ|geschaeftsfuehr/i, rank: 0 },
+  { pattern: /\b(director|head of|leiter)\b/i, rank: 2 },
+  { pattern: /\bmanager\b/i, rank: 3 },
+];
+
+export function rankContactTitle(title: string | null | undefined): number {
+  if (!title) return 5;
+  for (const { pattern, rank } of TITLE_RANK) {
+    if (pattern.test(title)) return rank;
+  }
+  return 4;
+}
+
+/**
+ * Reduziert eine Kontaktliste auf maximal eine Person pro Firma -- die nach
+ * rankContactTitle ranghoechste. Bei Gleichstand gewinnt die zuerst
+ * uebergebene Person (stabil). Kontakte ohne business_id bleiben unveraendert
+ * erhalten (kann bei Aufrufern vorkommen, die das Feld nicht laden).
+ */
+export function pickPrimaryContactPerBusiness<T extends { business_id?: string | null; title?: string | null }>(
+  contacts: T[]
+): T[] {
+  const withBusiness = contacts.filter((c) => c.business_id);
+  const withoutBusiness = contacts.filter((c) => !c.business_id);
+
+  const best = new Map<string, T>();
+  for (const c of withBusiness) {
+    const key = c.business_id as string;
+    const current = best.get(key);
+    if (!current || rankContactTitle(c.title) < rankContactTitle(current.title)) {
+      best.set(key, c);
+    }
+  }
+
+  return [...best.values(), ...withoutBusiness];
+}
