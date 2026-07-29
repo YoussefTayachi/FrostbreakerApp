@@ -305,6 +305,7 @@ const de = {
     companySummaryHeading: "Firmenbeschreibung",
     personalizationHeading: "Personalisierung",
     contactsHeading: (n: number) => `Kontakte (${n})`,
+    primaryContactBadge: "Wird kontaktiert",
     repliesHeading: (n: number) => `Antworten (${n})`,
     noSubject: "(kein Betreff)",
     aiInterestLabels: {
@@ -1237,6 +1238,7 @@ const en: Dictionary = {
     companySummaryHeading: "Company summary",
     personalizationHeading: "Personalization",
     contactsHeading: (n: number) => `Contacts (${n})`,
+    primaryContactBadge: "Will be contacted",
     repliesHeading: (n: number) => `Replies (${n})`,
     noSubject: "(no subject)",
     aiInterestLabels: {

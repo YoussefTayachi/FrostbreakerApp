@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { OUTREACH_STAGES, stageRank } from "@/lib/crm/stages";
+import { pickPrimaryContactPerBusiness } from "@/lib/contacts";
 import CompanyLogo from "../company-logo";
 import ContactTimeline from "../crm/contact-timeline";
 import DealsPanel from "../crm/deals-panel";
@@ -947,11 +948,28 @@ export default function LeadsTable({
               {L.contactsHeading(drawer.contacts.length)}
             </p>
             <div className="space-y-2">
-              {drawer.contacts.map((c) => (
+              {(() => {
+                // Bei mehreren Kontakten derselben Firma schreibt eine Kampagne
+                // nur die ranghoechste Person an (siehe lib/contacts.ts,
+                // dieselbe Funktion wie beim Kampagnen-Start) -- hier dieselbe
+                // Logik angewendet, damit die Anzeige garantiert zum
+                // tatsaechlichen Versandverhalten passt statt nur zu vermuten.
+                const primaryId =
+                  drawer.contacts.length > 1
+                    ? pickPrimaryContactPerBusiness(
+                        drawer.contacts.map((c) => ({ ...c, business_id: drawer.business_id }))
+                      )[0]?.id
+                    : undefined;
+                return drawer.contacts.map((c) => (
                 <div key={c.id} className="rounded-lg border border-edge/60 bg-surface/60 p-3">
                   <div className="flex items-center justify-between gap-2">
                     <p className="text-sm font-medium text-ink">{c.full_name ?? "—"}</p>
                     <span className="flex items-center gap-1.5">
+                      {c.id === primaryId && (
+                        <span className="rounded-full border border-emerald-500/40 bg-emerald-500/10 px-1.5 py-0.5 text-[10px] font-medium text-emerald-600 dark:text-emerald-300">
+                          {L.primaryContactBadge}
+                        </span>
+                      )}
                       {c.sources.map((s) => (
                         <span key={s} className="rounded-full border border-edge2 bg-chip px-1.5 py-0.5 text-[10px] text-soft">
                           {t.common.sourceLabels[s] ?? s}
@@ -981,7 +999,8 @@ export default function LeadsTable({
                     )}
                   </div>
                 </div>
-              ))}
+                ));
+              })()}
             </div>
           </aside>
         </div>
