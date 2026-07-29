@@ -126,6 +126,12 @@ export async function POST(req: Request) {
         sequences: buildCampaignSequence(steps),
         email_list: mailboxes,
         daily_limit: dailyLimit || undefined,
+        // Ohne dieses Feld ist laut Instantly-Doku bei per API angelegten
+        // Kampagnen nicht garantiert, dass Folge-Schritte ausbleiben, sobald
+        // ein Lead geantwortet hat (im UI ist "Stop on reply" default an, bei
+        // API-Erstellung nicht zuverlaessig geerbt) -- explizit gesetzt statt
+        // sich auf einen unspezifizierten Default zu verlassen.
+        stop_on_reply: true,
       }),
     });
 
