@@ -1,6 +1,7 @@
 "use client";
 import { useRef, useState } from "react";
 import { useT } from "../../language-provider";
+import { useWorkspace } from "../../workspace-provider";
 import { inputCls } from "@/lib/ui";
 import EmailQualityPanel from "./email-quality-panel";
 import HighlightedTextarea from "./highlighted-textarea";
@@ -28,6 +29,7 @@ export default function CampaignStepCard({
 }) {
   const { t } = useT();
   const F = t.instantly.campaigns.form;
+  const { workspaceId } = useWorkspace();
 
   const subjectRef = useRef<HTMLInputElement | null>(null);
   const bodyRef = useRef<HTMLTextAreaElement | null>(null);
@@ -46,6 +48,16 @@ export default function CampaignStepCard({
     { token: "{{email}}", label: F.variableEmail },
     { token: "{{personalization}}", label: F.variablePersonalization },
   ];
+
+  // Eigener Opt-out-Link statt eines weiteren Instantly-Merge-Tags: die
+  // Workspace-ID ist schon zum Einfuegezeitpunkt bekannt und wird direkt in
+  // die URL geschrieben, nur {{email}} bleibt als echtes Instantly-Merge-Tag
+  // stehen (das ersetzt Instantly beim Versand pro Empfaenger). Der Klick
+  // landet auf /api/unsubscribe, das die Adresse ohne Login in die Sperrliste
+  // eintraegt -- CAN-SPAM verlangt einen Opt-out ohne zusaetzliche Huerden.
+  function optOutLink(): string {
+    return `${window.location.origin}/api/unsubscribe?ws=${workspaceId}&email={{email}}`;
+  }
 
   function insertVariable(token: string) {
     const el = activeField === "subject" ? subjectRef.current : bodyRef.current;
@@ -98,6 +110,16 @@ export default function CampaignStepCard({
             {v.label}
           </button>
         ))}
+        {/* Optisch abgesetzt: kein Lead-Datenfeld wie die anderen, sondern
+            ein Sicherheits-/Compliance-Baustein. */}
+        <span className="mx-0.5 h-3.5 w-px bg-edge2" aria-hidden />
+        <button
+          type="button"
+          onClick={() => insertVariable(optOutLink())}
+          className="rounded-full border border-edge2 px-2 py-0.5 text-[11px] text-faint transition-colors hover:border-sky-500/50 hover:text-sky-600 dark:hover:text-sky-400"
+        >
+          {F.variableOptOut}
+        </button>
       </div>
 
       <input

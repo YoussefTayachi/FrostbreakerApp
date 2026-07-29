@@ -502,6 +502,15 @@ const de = {
     removeSelectedConfirm: (n: number) => `${n} Einträge von der Blockliste entfernen?`,
     removedMultiple: (n: number) => `${n} Einträge entfernt.`,
   },
+  // Oeffentliche Bestaetigungsseite fuer den Opt-out-Link aus Kampagnen-Mails
+  // (siehe app/api/unsubscribe/route.ts). Kein Login noetig, in
+  // middleware.ts als oeffentlicher Pfad gefuehrt.
+  unsubscribePage: {
+    doneTitle: "Du wurdest abgemeldet",
+    doneBody: "Diese E-Mail-Adresse wird nicht mehr kontaktiert.",
+    invalidTitle: "Link ungültig",
+    invalidBody: "Dieser Abmelde-Link ist unvollständig oder abgelaufen. Bitte antworte stattdessen direkt auf die E-Mail.",
+  },
   settings: {
     title: "Einstellungen",
     subtitle: "API-Keys für deine Datenquellen",
@@ -653,6 +662,7 @@ const de = {
         variableCompanyName: "Firma",
         variableEmail: "E-Mail",
         variablePersonalization: "Icebreaker",
+        variableOptOut: "Abmelde-Link",
         scheduleLabel: "Sende-Fenster",
         until: "bis",
         dailyLimitPlaceholder: "Tageslimit",
@@ -1420,6 +1430,12 @@ const en: Dictionary = {
     removeSelectedConfirm: (n: number) => `Remove ${n} entries from the blocklist?`,
     removedMultiple: (n: number) => `${n} entries removed.`,
   },
+  unsubscribePage: {
+    doneTitle: "You've been unsubscribed",
+    doneBody: "This email address will no longer be contacted.",
+    invalidTitle: "Invalid link",
+    invalidBody: "This unsubscribe link is incomplete or expired. Please reply to the email directly instead.",
+  },
   settings: {
     title: "Settings",
     subtitle: "API keys for your data sources",
@@ -1571,6 +1587,7 @@ const en: Dictionary = {
         variableCompanyName: "Company",
         variableEmail: "Email",
         variablePersonalization: "Icebreaker",
+        variableOptOut: "Opt-out link",
         scheduleLabel: "Sending window",
         until: "to",
         dailyLimitPlaceholder: "Daily limit",

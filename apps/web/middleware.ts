@@ -24,7 +24,7 @@ export async function middleware(request: NextRequest) {
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  const publicPaths = ["/login", "/signup"];
+  const publicPaths = ["/login", "/signup", "/unsubscribe"];
   const isPublicPath = publicPaths.includes(request.nextUrl.pathname);
 
   if (!user && !isPublicPath) {
@@ -53,10 +53,12 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  // api/billing/webhook (Stripe) und api/cron/* (pg_cron) werden ohne
-  // Supabase-Session aufgerufen -- ohne diesen Ausschluss redirected die
-  // Auth-Middleware jeden Aufruf auf /login, bevor die Route ueberhaupt
-  // laeuft. Beide pruefen ihre eigene Authentifizierung selbst (Stripe-
-  // Signatur bzw. CRON_SECRET).
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|api/billing/webhook|api/cron/).*)"],
+  // api/billing/webhook (Stripe), api/cron/* (pg_cron) und api/unsubscribe
+  // (per Klick aus einer Kampagnen-Mail) werden ohne Supabase-Session
+  // aufgerufen -- ohne diesen Ausschluss redirected die Auth-Middleware jeden
+  // Aufruf auf /login, bevor die Route ueberhaupt laeuft. Alle drei pruefen
+  // ihre eigene Authentifizierung selbst (Stripe-Signatur, CRON_SECRET, bzw.
+  // beim Opt-out-Link braucht es bewusst gar keine -- CAN-SPAM verlangt einen
+  // Opt-out ohne zusaetzliche Huerden).
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|api/billing/webhook|api/cron/|api/unsubscribe).*)"],
 };
