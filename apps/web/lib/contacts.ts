@@ -33,14 +33,17 @@ export function rankContactTitle(title: string | null | undefined): number {
 }
 
 /**
- * Reduziert eine Kontaktliste auf maximal eine Person pro Firma -- die nach
- * rankContactTitle ranghoechste. Bei Gleichstand gewinnt die zuerst
- * uebergebene Person (stabil). Kontakte ohne business_id bleiben unveraendert
- * erhalten (kann bei Aufrufern vorkommen, die das Feld nicht laden).
+ * Reduziert eine Kontaktliste auf maximal eine Person pro Firma. Ist bei einer
+ * Firma ein Kontakt manuell als is_primary markiert (Nutzer hat ihn im
+ * Leads-Drawer explizit ausgewaehlt), gewinnt dieser immer -- unabhaengig vom
+ * Titel. Sonst entscheidet weiterhin rankContactTitle, bei Gleichstand
+ * gewinnt die zuerst uebergebene Person (stabil). Kontakte ohne business_id
+ * bleiben unveraendert erhalten (kann bei Aufrufern vorkommen, die das Feld
+ * nicht laden).
  */
-export function pickPrimaryContactPerBusiness<T extends { business_id?: string | null; title?: string | null }>(
-  contacts: T[]
-): T[] {
+export function pickPrimaryContactPerBusiness<
+  T extends { business_id?: string | null; title?: string | null; is_primary?: boolean | null },
+>(contacts: T[]): T[] {
   const withBusiness = contacts.filter((c) => c.business_id);
   const withoutBusiness = contacts.filter((c) => !c.business_id);
 
@@ -48,7 +51,15 @@ export function pickPrimaryContactPerBusiness<T extends { business_id?: string |
   for (const c of withBusiness) {
     const key = c.business_id as string;
     const current = best.get(key);
-    if (!current || rankContactTitle(c.title) < rankContactTitle(current.title)) {
+    if (!current) {
+      best.set(key, c);
+      continue;
+    }
+    if (c.is_primary && !current.is_primary) {
+      best.set(key, c);
+    } else if (!c.is_primary && current.is_primary) {
+      // current bleibt manuell ausgewaehlter Gewinner
+    } else if (rankContactTitle(c.title) < rankContactTitle(current.title)) {
       best.set(key, c);
     }
   }

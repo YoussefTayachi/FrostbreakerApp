@@ -29,6 +29,7 @@ type Contact = {
   outreach_status: string;
   email_type: string | null;
   business_id?: string | null;
+  is_primary?: boolean | null;
   businesses: {
     name: string;
     website: string | null;
@@ -55,6 +56,7 @@ type Merged = {
   linkedin: string | null;
   outreach_status: string;
   email_type: string | null;
+  is_primary: boolean;
   sources: string[];
 };
 
@@ -102,6 +104,7 @@ function mergeInto(target: Merged, c: Contact) {
   if (!target.first_name && c.first_name) target.first_name = c.first_name;
   if (!target.last_name && c.last_name) target.last_name = c.last_name;
   if (!target.linkedin && c.linkedin) target.linkedin = c.linkedin;
+  if (c.is_primary) target.is_primary = true;
   if (stageRank(c.outreach_status) > stageRank(target.outreach_status)) {
     target.outreach_status = c.outreach_status;
   }
@@ -154,6 +157,7 @@ function groupContacts(contacts: Contact[]): Group[] {
         phone: c.phone,
         linkedin: c.linkedin,
         outreach_status: c.outreach_status || "new",
+        is_primary: c.is_primary ?? false,
         sources: [c.source],
       });
     }
@@ -324,6 +328,8 @@ export default function LeadsTable({
   const [statusFilter, setStatusFilter] = useState("");
   const [emailTypeFilter, setEmailTypeFilter] = useState("");
   const [statusOverrides, setStatusOverrides] = useState<Record<string, string>>({});
+  // business_id -> contactId, fuer sofortiges UI-Feedback im offenen Drawer (siehe setPrimaryContact).
+  const [primaryOverrides, setPrimaryOverrides] = useState<Record<string, string>>({});
   const [open, setOpen] = useState<Set<string>>(new Set());
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [drawer, setDrawer] = useState<Group | null>(null);
@@ -366,11 +372,16 @@ export default function LeadsTable({
   // trotzdem aus contacts neu, damit ein echter Reload jederzeit die Quelle der
   // Wahrheit bleibt.
   const allGroups = useMemo(() => {
-    const withOverrides = contacts.map((c) =>
-      statusOverrides[c.id] ? { ...c, outreach_status: statusOverrides[c.id] } : c
-    );
+    const withOverrides = contacts.map((c) => {
+      let next = c;
+      if (statusOverrides[c.id]) next = { ...next, outreach_status: statusOverrides[c.id] };
+      if (c.business_id && primaryOverrides[c.business_id]) {
+        next = { ...next, is_primary: c.id === primaryOverrides[c.business_id] };
+      }
+      return next;
+    });
     return groupContacts(withOverrides);
-  }, [contacts, statusOverrides]);
+  }, [contacts, statusOverrides, primaryOverrides]);
 
   const filtered = useMemo(() => {
     const needle = q.toLowerCase();
@@ -400,6 +411,28 @@ export default function LeadsTable({
       .eq("id", contactId)
       .eq("workspace_id", workspaceId);
     if (error) push(t.common.error + error.message, "error");
+  }
+
+  // Ueberschreibt die automatische Rang-Auswahl (lib/contacts.ts) fuer genau
+  // diese Firma: erst alle anderen Kontakte der Firma zuruecksetzen, dann den
+  // gewaehlten setzen -- sonst wuerde der unique Index
+  // contacts_one_primary_per_business (Migration 0044) den zweiten Schritt
+  // ablehnen, falls kurzzeitig zwei Kontakte gleichzeitig is_primary haetten.
+  async function setPrimaryContact(businessId: string, contactId: string) {
+    setPrimaryOverrides((prev) => ({ ...prev, [businessId]: contactId }));
+    const supabase = createClient();
+    const { error: clearError } = await supabase
+      .from("contacts")
+      .update({ is_primary: false })
+      .eq("business_id", businessId)
+      .eq("workspace_id", workspaceId)
+      .neq("id", contactId);
+    const { error: setError } = await supabase
+      .from("contacts")
+      .update({ is_primary: true })
+      .eq("id", contactId)
+      .eq("workspace_id", workspaceId);
+    if (clearError || setError) push(t.common.error + (clearError ?? setError)!.message, "error");
   }
 
   const totalContacts = useMemo(
@@ -954,22 +987,41 @@ export default function LeadsTable({
                 // dieselbe Funktion wie beim Kampagnen-Start) -- hier dieselbe
                 // Logik angewendet, damit die Anzeige garantiert zum
                 // tatsaechlichen Versandverhalten passt statt nur zu vermuten.
+                // primaryOverrides ueberschreibt is_primary lokal-optimistisch:
+                // drawer selbst ist eine beim Oeffnen eingefrorene Momentaufnahme
+                // (setDrawer(g)), reagiert also nicht von selbst auf spaetere
+                // Aenderungen -- ohne diesen Merge wuerde ein Klick auf "Diesen
+                // kontaktieren" erst nach Schliessen/erneutem Oeffnen sichtbar.
+                const resolvedContacts = drawer.contacts.map((c) =>
+                  drawer.business_id && primaryOverrides[drawer.business_id]
+                    ? { ...c, is_primary: c.id === primaryOverrides[drawer.business_id] }
+                    : c
+                );
                 const primaryId =
-                  drawer.contacts.length > 1
+                  resolvedContacts.length > 1
                     ? pickPrimaryContactPerBusiness(
-                        drawer.contacts.map((c) => ({ ...c, business_id: drawer.business_id }))
+                        resolvedContacts.map((c) => ({ ...c, business_id: drawer.business_id }))
                       )[0]?.id
                     : undefined;
-                return drawer.contacts.map((c) => (
+                return resolvedContacts.map((c) => (
                 <div key={c.id} className="rounded-lg border border-edge/60 bg-surface/60 p-3">
                   <div className="flex items-center justify-between gap-2">
                     <p className="text-sm font-medium text-ink">{c.full_name ?? "—"}</p>
                     <span className="flex items-center gap-1.5">
-                      {c.id === primaryId && (
-                        <span className="rounded-full border border-emerald-500/40 bg-emerald-500/10 px-1.5 py-0.5 text-[10px] font-medium text-emerald-600 dark:text-emerald-300">
-                          {L.primaryContactBadge}
-                        </span>
-                      )}
+                      {resolvedContacts.length > 1 &&
+                        (c.id === primaryId ? (
+                          <span className="rounded-full border border-emerald-500/40 bg-emerald-500/10 px-1.5 py-0.5 text-[10px] font-medium text-emerald-600 dark:text-emerald-300">
+                            {L.primaryContactBadge}
+                          </span>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => drawer.business_id && setPrimaryContact(drawer.business_id, c.id)}
+                            className="rounded-full border border-edge2 px-1.5 py-0.5 text-[10px] text-faint transition-colors hover:border-sky-500/50 hover:text-sky-600 dark:hover:text-sky-400"
+                          >
+                            {L.makePrimaryContact}
+                          </button>
+                        ))}
                       {c.sources.map((s) => (
                         <span key={s} className="rounded-full border border-edge2 bg-chip px-1.5 py-0.5 text-[10px] text-soft">
                           {t.common.sourceLabels[s] ?? s}

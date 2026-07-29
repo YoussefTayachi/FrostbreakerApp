@@ -75,7 +75,7 @@ export async function POST(req: Request) {
     supabase
       .from("contacts")
       .select(
-        "id, email, first_name, last_name, title, business_id, outreach_status, businesses!inner(name, website, personalization, search_id)"
+        "id, email, first_name, last_name, title, business_id, is_primary, outreach_status, businesses!inner(name, website, personalization, search_id)"
       )
       .eq("workspace_id", workspaceId)
       .eq("businesses.search_id", searchId)
@@ -91,6 +91,7 @@ export async function POST(req: Request) {
     last_name: string | null;
     title: string | null;
     business_id: string | null;
+    is_primary: boolean;
     outreach_status: string;
     businesses: { name: string | null; website: string | null; personalization: string | null } | null;
   };

@@ -306,6 +306,7 @@ const de = {
     personalizationHeading: "Personalisierung",
     contactsHeading: (n: number) => `Kontakte (${n})`,
     primaryContactBadge: "Wird kontaktiert",
+    makePrimaryContact: "Diesen kontaktieren",
     repliesHeading: (n: number) => `Antworten (${n})`,
     noSubject: "(kein Betreff)",
     aiInterestLabels: {
@@ -1239,6 +1240,7 @@ const en: Dictionary = {
     personalizationHeading: "Personalization",
     contactsHeading: (n: number) => `Contacts (${n})`,
     primaryContactBadge: "Will be contacted",
+    makePrimaryContact: "Contact this one",
     repliesHeading: (n: number) => `Replies (${n})`,
     noSubject: "(no subject)",
     aiInterestLabels: {

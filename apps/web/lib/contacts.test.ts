@@ -65,4 +65,23 @@ describe("pickPrimaryContactPerBusiness", () => {
     const contacts = [{ title: "Manager", email: "no-business@x.com" }];
     expect(pickPrimaryContactPerBusiness(contacts)).toEqual(contacts);
   });
+
+  it("manuelle Auswahl (is_primary) gewinnt auch gegen einen ranghoeheren Titel", () => {
+    const contacts = [
+      { business_id: "biz1", title: "President & CEO", email: "kim@x.com" },
+      { business_id: "biz1", title: "Marketing Coordinator", email: "angel@x.com", is_primary: true },
+    ];
+    const result = pickPrimaryContactPerBusiness(contacts);
+    expect(result).toHaveLength(1);
+    expect(result[0].email).toBe("angel@x.com");
+  });
+
+  it("faellt bei mehreren manuell markierten Kontakten auf Titel-Rang zurueck", () => {
+    const contacts = [
+      { business_id: "biz1", title: "Manager", email: "a@x.com", is_primary: true },
+      { business_id: "biz1", title: "Owner", email: "b@x.com", is_primary: true },
+    ];
+    const result = pickPrimaryContactPerBusiness(contacts);
+    expect(result[0].email).toBe("b@x.com");
+  });
 });
