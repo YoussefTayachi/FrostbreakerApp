@@ -143,7 +143,12 @@ def run(job: dict) -> None:
     auto_enrich = job["payload"].get("auto_enrich", True)
 
     search = sb().table("searches").select("*").eq("id", search_id).single().execute().data
-    sb().table("searches").update({"status": "running"}).eq("id", search_id).execute()
+    # error mit zuruecksetzen: ein neuer Versuch (Queue-Retry oder Lead-Abo) darf
+    # nicht die Fehlermeldung des vorherigen mitschleppen. Sonst steht am Ende
+    # eine erfolgreich abgeschlossene Suche mit einer Fehlermeldung in der
+    # Datenbank -- irrefuehrend fuer jeden, der sie liest, und eine Zeitbombe
+    # fuer jede Oberflaeche, die error unabhaengig vom Status anzeigt.
+    sb().table("searches").update({"status": "running", "error": None}).eq("id", search_id).execute()
     source = search.get("source", "maps")
     try:
         if source == "corporate":
