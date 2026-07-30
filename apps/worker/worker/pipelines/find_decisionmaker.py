@@ -12,6 +12,7 @@ from tenacity import retry, stop_after_attempt, wait_exponential
 from worker.db import sb
 from worker.email_classify import classify_email
 from worker.keys import get_api_key
+from worker.search_state import BUSINESS_WITH_SEARCH, search_is_deleted
 from worker.suppression import is_suppressed, load_suppression
 
 MODEL = "gpt-4.1-mini"
@@ -146,7 +147,9 @@ def research(business: dict, api_key: str) -> dict:
 def run(job: dict) -> None:
     ws = job["workspace_id"]
     business_id = job["payload"]["business_id"]
-    biz = sb().table("businesses").select("*").eq("id", business_id).single().execute().data
+    biz = sb().table("businesses").select(BUSINESS_WITH_SEARCH).eq("id", business_id).single().execute().data
+    if search_is_deleted(biz):
+        return  # Suche im Papierkorb -- keine OpenAI-Kosten fuer unsichtbare Leads
 
     def set_status(status: str) -> None:
         sb().table("businesses").update({"decisionmaker_status": status}).eq(

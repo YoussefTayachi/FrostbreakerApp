@@ -19,6 +19,7 @@ from openai import OpenAI
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 from worker.db import sb
+from worker.search_state import BUSINESS_WITH_SEARCH, search_is_deleted
 
 MODEL = "gpt-4.1-mini"
 MAX_SITE_CHARS = 6000
@@ -249,9 +250,11 @@ def run(job: dict) -> None:
 
     ws = job["workspace_id"]
     business_id = job["payload"]["business_id"]
-    biz = sb().table("businesses").select("*").eq("id", business_id).single().execute().data
+    biz = sb().table("businesses").select(BUSINESS_WITH_SEARCH).eq("id", business_id).single().execute().data
     if biz.get("personalization"):
         return
+    if search_is_deleted(biz):
+        return  # Suche im Papierkorb -- keine OpenAI-Kosten fuer unsichtbare Leads
 
     cfg = load_agent_config(ws)
     context = build_context(biz, cfg["source"])  # kann NotReadyYet werfen -> Queue retried spaeter
