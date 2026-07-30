@@ -77,3 +77,30 @@ export function validateIcebreaker(
   }
   return problems;
 }
+
+function isPunctuationOnly(word: string): boolean {
+  return word.length > 0 && !/[\p{L}\p{N}]/u.test(word);
+}
+
+// Muss inhaltlich mit sanitize_banned_punctuation() in
+// apps/worker/worker/pipelines/personalize.py uebereinstimmen -- GPT haelt
+// sich an ein verbotenes Satzzeichen (v.a. Gedankenstriche) auch nach einem
+// expliziten Korrektur-Hinweis zuverlaessig NICHT, das ist eine bekannte
+// Modell-Eigenart, kein Prompting-Problem. Fuer banned_words-Eintraege, die
+// ausschliesslich aus Satzzeichen bestehen, wird deshalb hart nachbearbeitet
+// statt sich weiter aufs Modell zu verlassen. Normale verbotene Woerter
+// bleiben aussen vor -- die ersatzlos zu streichen wuerde den Satz oft kaputt
+// machen, das kann nur eine echte Umformulierung (Retry) leisten.
+export function sanitizeBannedPunctuation(text: string, bannedWords: string[]): string {
+  const punctuationWords = Array.from(
+    new Set(bannedWords.map((w) => w.trim()).filter((w) => w && isPunctuationOnly(w)))
+  ).sort((a, b) => b.length - a.length);
+
+  let result = text;
+  for (const w of punctuationWords) {
+    const escaped = w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    result = result.replace(new RegExp(`\\s*${escaped}\\s*`, "g"), ", ");
+  }
+  result = result.replace(/\s+,/g, ",").replace(/,\s*,+/g, ",");
+  return result.replace(/^[\s,]+|[\s,]+$/g, "");
+}

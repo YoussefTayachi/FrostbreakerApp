@@ -11,6 +11,8 @@ der Generierung geprueft; bei Verstoss gibt es genau einen Korrektur-Versuch mit
 Hinweis auf das Problem. Schlaegt auch der zweite Versuch fehl, wird das Ergebnis
 trotzdem gespeichert, aber als personalization_needs_review markiert.
 """
+import re
+
 import httpx
 import trafilatura
 from openai import OpenAI
@@ -159,6 +161,33 @@ def validate(text: str, max_words: int, banned_words: list[str]) -> list[str]:
     return problems
 
 
+def _is_punctuation_only(word: str) -> bool:
+    return bool(word) and not any(ch.isalnum() for ch in word)
+
+
+def sanitize_banned_punctuation(text: str, banned_words: list[str]) -> str:
+    """Verboten markierte Satzzeichen (allen voran Gedankenstriche) haelt sich
+    GPT auch nach einem expliziten Korrektur-Hinweis zuverlaessig NICHT --
+    eine bekannte Modell-Eigenart, kein Prompting-Problem. Fuer Eintraege in
+    banned_words, die ausschliesslich aus Satzzeichen bestehen (z.B. "—",
+    "--", "-"), ersetzt dieser deterministische Nachbearbeitungsschritt sie
+    hart durch ein Komma, statt sich weiter aufs Modell zu verlassen.
+    Normale verbotene WOERTER bleiben bewusst aussen vor -- die ersatzlos aus
+    dem Satz zu streichen wuerde ihn oft kaputt machen, das kann nur eine
+    echte Umformulierung (also der bestehende Retry) leisten."""
+    punctuation_words = sorted(
+        {w.strip() for w in banned_words if w.strip() and _is_punctuation_only(w.strip())},
+        key=len,
+        reverse=True,
+    )
+    result = text
+    for w in punctuation_words:
+        result = re.sub(r"\s*" + re.escape(w) + r"\s*", ", ", result)
+    result = re.sub(r"\s+,", ",", result)
+    result = re.sub(r",\s*,+", ",", result)
+    return result.strip(" ,")
+
+
 @retry(stop=stop_after_attempt(3), wait=wait_exponential(min=5, max=60), reraise=True)
 def generate(
     company_name: str,
@@ -237,6 +266,7 @@ def run(job: dict) -> None:
         line = generate(
             biz["name"], context, api_key, cfg["system_prompt"], correction="; ".join(problems)
         )
+        line = sanitize_banned_punctuation(line, cfg["banned_words"])
         needs_review = bool(validate(line, cfg["max_words"], cfg["banned_words"]))
 
     sb().table("businesses").update(

@@ -159,6 +159,39 @@ def test_validate_word_count_and_banned_words():
     assert any("verbotene" in p for p in problems)
 
 
+def test_sanitize_banned_punctuation_replaces_em_dash():
+    from worker.pipelines.personalize import sanitize_banned_punctuation, validate
+
+    text = "blending tennis with culinary events—that's why I wanted to drop you a line."
+    result = sanitize_banned_punctuation(text, ["—", "--", "-"])
+    assert "—" not in result
+    assert result == "blending tennis with culinary events, that's why I wanted to drop you a line."
+    assert validate(result, max_words=99, banned_words=["—"]) == []
+
+
+def test_sanitize_banned_punctuation_handles_double_before_single_hyphen():
+    from worker.pipelines.personalize import sanitize_banned_punctuation
+
+    text = "Wild Thing and Pasta e Basta--that's why I wanted to drop you a line."
+    result = sanitize_banned_punctuation(text, ["-", "--"])
+    assert "--" not in result
+    assert " - " not in result
+
+
+def test_sanitize_banned_punctuation_leaves_normal_words_alone():
+    from worker.pipelines.personalize import sanitize_banned_punctuation
+
+    text = "Das ist beeindruckend und voller Respekt."
+    assert sanitize_banned_punctuation(text, ["Respekt", "beeindruckt"]) == text
+
+
+def test_sanitize_banned_punctuation_noop_without_punctuation_entries():
+    from worker.pipelines.personalize import sanitize_banned_punctuation
+
+    text = "Ein ganz normaler Satz ohne Verstoss."
+    assert sanitize_banned_punctuation(text, ["Respekt"]) == text
+
+
 def test_load_agent_config_defaults(monkeypatch):
     from worker.pipelines import personalize
 

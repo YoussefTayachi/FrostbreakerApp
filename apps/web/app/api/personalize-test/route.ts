@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentWorkspace } from "@/lib/workspace/server";
 import { getApiKey } from "@/lib/api-keys";
-import { validateIcebreaker, wordCount } from "@/lib/personalization-defaults";
+import { sanitizeBannedPunctuation, validateIcebreaker, wordCount } from "@/lib/personalization-defaults";
 import { extractOutputText } from "@/lib/openai";
 
 const MAX_SITE_CHARS = 6000;
@@ -127,7 +127,7 @@ export async function POST(req: Request) {
         : `Dein letzter Versuch hat folgende Regel(n) verletzt: ${problems.join("; ")}. Bitte korrigiere und antworte erneut nur mit dem Text selbst.`;
     const retry = await callModel(apiKey, systemPrompt, userContent + "\n\n" + correctionNote);
     if (retry.text) {
-      text = retry.text;
+      text = sanitizeBannedPunctuation(retry.text, bannedWords);
       problems = validateIcebreaker(text, maxWords, bannedWords, lang);
       corrected = true;
     }
