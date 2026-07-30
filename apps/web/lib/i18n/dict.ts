@@ -826,6 +826,7 @@ const de = {
     companySummaryPrefix: "Firmenbeschreibung: ",
     words: "Wörter",
     rulesFollowed: "Regeln eingehalten",
+    correctedNote: "Nach Regelverstoß automatisch korrigiert",
   },
   deliverability: {
     title: "Zustellbarkeit",
@@ -1753,6 +1754,7 @@ const en: Dictionary = {
     companySummaryPrefix: "Company summary: ",
     words: "words",
     rulesFollowed: "Rules followed",
+    correctedNote: "Auto-corrected after a rule violation",
   },
   deliverability: {
     title: "Deliverability",

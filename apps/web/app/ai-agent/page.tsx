@@ -11,7 +11,7 @@ import { useToast } from "../toast-provider";
 import { useWorkspace } from "../workspace-provider";
 
 type BusinessOption = { id: string; name: string; company_summary: string | null; website: string | null };
-type TestResult = { text: string; problems: string[]; wordCount: number };
+type TestResult = { text: string; problems: string[]; wordCount: number; corrected: boolean };
 type CustomTemplate = {
   id: string;
   name: string;
@@ -446,6 +446,11 @@ export default function AiAgentPage() {
             <p className="text-sm italic leading-relaxed text-ink">{testResult.text}</p>
             <div className="mt-2 flex items-center gap-2 text-xs">
               <span className="text-faint">{testResult.wordCount} {t.aiAgent.words}</span>
+              {testResult.corrected && (
+                <span className="rounded-full border border-sky-500/30 bg-sky-500/10 px-2 py-0.5 text-sky-600 dark:text-sky-300">
+                  {t.aiAgent.correctedNote}
+                </span>
+              )}
               {testResult.problems.length === 0 ? (
                 <span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-emerald-600 dark:text-emerald-300">
                   {t.aiAgent.rulesFollowed}
