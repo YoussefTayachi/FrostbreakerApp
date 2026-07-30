@@ -1,5 +1,16 @@
 """Unit-Tests fuer worker.search_state (kein Netz, keine DB)."""
-from worker.search_state import search_is_deleted
+from worker.search_state import search_is_deleted, search_source
+
+
+def test_search_source_wird_gelesen():
+    """Entscheidet, ob Hunter als Rueckfallebene ueberhaupt noch aussteht."""
+    assert search_source({"searches": {"source": "corporate"}}) == "corporate"
+    assert search_source({"searches": [{"source": "maps"}]}) == "maps"
+
+
+def test_search_source_ohne_beziehung_ist_none():
+    assert search_source({}) is None
+    assert search_source({"searches": None}) is None
 
 
 def test_deleted_search_is_detected_as_object():

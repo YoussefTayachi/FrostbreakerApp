@@ -12,7 +12,8 @@ from tenacity import retry, stop_after_attempt, wait_exponential
 from worker.db import sb
 from worker.email_classify import classify_email
 from worker.keys import get_api_key
-from worker.search_state import BUSINESS_WITH_SEARCH, search_is_deleted
+from worker.queue import enqueue
+from worker.search_state import BUSINESS_WITH_SEARCH, search_is_deleted, search_source
 from worker.suppression import is_suppressed, load_suppression
 
 MODEL = "gpt-4.1-mini"
@@ -175,6 +176,25 @@ def run(job: dict) -> None:
             set_status("found")
         else:
             set_status("not_found")
+
+        # Hunter als Rueckfallebene, wenn die KI-Recherche zwar Personen, aber
+        # keine einzige E-Mail gefunden hat. Ein Kontakt ohne Adresse ist fuer
+        # Outreach wertlos -- und genau das war der Normalfall: ueber den
+        # gesamten Bestand hatten nur 21,8% der so gefundenen Kontakte eine
+        # E-Mail. Die urspruengliche Annahme, im Corporate-Modus finde die
+        # KI-Websuche die Adresse "ohnehin kostenlos" (siehe
+        # get_businesses._finish), traegt also nicht.
+        #
+        # Bewusst NUR bei leerem Ergebnis: ein Hunter-Credit wird erst
+        # ausgegeben, wenn der kostenlose Weg nachweislich nichts geliefert
+        # hat. Im Maps-Modus laeuft hunt_persons ohnehin schon parallel, dort
+        # wuerde ein zweiter Job denselben Abruf doppelt bezahlen.
+        if (
+            search_source(biz) == "corporate"
+            and biz.get("website")
+            and not any(c.get("email") for c in contacts)
+        ):
+            enqueue(ws, "hunt_persons", {"business_id": business_id})
     except Exception:
         set_status("failed")
         raise

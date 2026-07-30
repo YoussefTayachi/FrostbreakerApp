@@ -15,20 +15,30 @@ die sich zwischenzeitlich erledigt hat.
 
 # Businesses laden und dabei den Papierkorb-Status der zugehoerigen Suche
 # mitnehmen -- spart eine zweite Abfrage pro Job.
-BUSINESS_WITH_SEARCH = "*, searches(deleted_at)"
+BUSINESS_WITH_SEARCH = "*, searches(deleted_at, source)"
 
 
-def search_is_deleted(business: dict) -> bool:
-    """True, wenn die Suche hinter dieser Firma im Papierkorb liegt.
-
-    PostgREST liefert eine many-to-one-Beziehung als Objekt, je nach Version/
-    Abfrage aber auch als einelementige Liste -- beide Formen werden
-    akzeptiert, damit die Kostenbremse nicht an einem Detail der
-    Serialisierung vorbeigreift.
-    """
+def _related_search(business: dict) -> dict | None:
+    """PostgREST liefert eine many-to-one-Beziehung als Objekt, je nach Version/
+    Abfrage aber auch als einelementige Liste -- beide Formen akzeptieren,
+    damit nichts an einem Detail der Serialisierung vorbeigreift."""
     related = business.get("searches")
     if isinstance(related, list):
         related = related[0] if related else None
-    if not isinstance(related, dict):
+    return related if isinstance(related, dict) else None
+
+
+def search_is_deleted(business: dict) -> bool:
+    """True, wenn die Suche hinter dieser Firma im Papierkorb liegt."""
+    related = _related_search(business)
+    if related is None:
         return False
     return related.get("deleted_at") is not None
+
+
+def search_source(business: dict) -> str | None:
+    """"maps" oder "corporate" -- entscheidet, ob Hunter als zweite Quelle
+    ueberhaupt noch aussteht (im Maps-Modus laeuft hunt_persons ohnehin schon
+    parallel, siehe get_businesses._finish)."""
+    related = _related_search(business)
+    return related.get("source") if related else None
