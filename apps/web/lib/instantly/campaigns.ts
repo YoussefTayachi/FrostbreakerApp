@@ -141,6 +141,60 @@ export function buildCampaignSchedule({ days, from, to, timezone }: CampaignSche
   return { schedules: [{ name: "Standard", timing: { from, to }, days: daysObj, timezone: normalizeInstantlyTimezone(timezone) }] };
 }
 
+/**
+ * Instantly speichert einen Mailtext NUR, wenn er wie HTML aussieht.
+ *
+ * Gegen die Live-API ausgemessen (PATCH, danach GET zur Kontrolle):
+ *   "A and B"          -> gespeichert
+ *   "A & B"            -> gespeichert als LEERER String
+ *   "A &amp; B"        -> ebenfalls leer (Escapen allein reicht nicht)
+ *   "A < B"            -> leer
+ *   "<p>A &amp; B</p>" -> gespeichert
+ *
+ * Ein einziges kaufmaennisches Und im Text hat also den kompletten Body
+ * verschluckt -- die API meldet dabei brav HTTP 200, der Text ist aber weg.
+ * Genauso verhaelt sich Text zwischen blossen <br>: der Inhalt faellt raus,
+ * nur die Tags bleiben. Der Inhalt muss in Blockelementen stehen.
+ *
+ * Deshalb wird beim Senden aus dem Klartext des Editors echtes HTML gebaut:
+ * Sonderzeichen maskiert, Leerzeilen zu <p>, einfache Umbrueche zu <br />.
+ */
+export function plainTextToInstantlyHtml(text: string): string {
+  const escaped = text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+  return escaped
+    .split(/\n[ \t]*\n/)
+    .map((paragraph) => `<p>${paragraph.replace(/\n/g, "<br />")}</p>`)
+    .join("");
+}
+
+/**
+ * Gegenrichtung fuer den Editor: aus Instantlys HTML wieder Klartext machen,
+ * sonst stuenden im Textfeld ploetzlich <p>- und <br />-Tags.
+ *
+ * Kampagnen, die vor dieser Umstellung angelegt wurden, enthalten reinen Text
+ * -- der bleibt unangetastet.
+ */
+export function instantlyHtmlToPlainText(body: string): string {
+  if (!body) return "";
+  if (!/<\/?(p|br|div)\b/i.test(body)) return body;
+  return (
+    body
+      .replace(/<br\s*\/?>/gi, "\n")
+      .replace(/<\/p>\s*<p[^>]*>/gi, "\n\n")
+      .replace(/<\/?(p|div)[^>]*>/gi, "")
+      .replace(/&lt;/g, "<")
+      .replace(/&gt;/g, ">")
+      .replace(/&nbsp;/g, " ")
+      .replace(/&quot;/g, '"')
+      // &amp; zuletzt, sonst wuerde aus "&amp;lt;" faelschlich "<"
+      .replace(/&amp;/g, "&")
+      .trim()
+  );
+}
+
 // Laut Instantly-Doku wird beim Top-Level-Feld "sequences" nur das erste Element
 // verwendet (Array existiert nur aus Kompatibilitaetsgruenden). Jeder Schritt hat
 // "variants" (fuer A/B-Tests), wir nutzen bewusst nur eine Variante pro Schritt.
@@ -150,7 +204,7 @@ export function buildCampaignSequence(steps: SequenceStep[]) {
       steps: steps.map((s) => ({
         type: "email",
         delay: s.delayDays ?? 0,
-        variants: [{ subject: s.subject, body: s.body }],
+        variants: [{ subject: s.subject, body: plainTextToInstantlyHtml(s.body) }],
       })),
     },
   ];
@@ -243,7 +297,7 @@ export function sequenceFromInstantly(campaign: InstantlyCampaign): SequenceStep
   const steps = campaign.sequences?.[0]?.steps ?? [];
   return steps.map((s) => ({
     subject: s.variants?.[0]?.subject ?? "",
-    body: s.variants?.[0]?.body ?? "",
+    body: instantlyHtmlToPlainText(s.variants?.[0]?.body ?? ""),
     delayDays: s.delay ?? 0,
   }));
 }

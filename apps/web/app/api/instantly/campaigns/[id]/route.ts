@@ -74,6 +74,35 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
 
   const schedule = scheduleFromInstantly(live);
 
+  // Sicherheitsnetz gegen verschwundene Entwuerfe: die Sequenz kommt bewusst
+  // live von Instantly (dort kann sie jemand direkt bearbeitet haben), aber
+  // wenn ein Text dort leer ist, gewinnt die lokale Kopie. Sonst zeigt die
+  // Oberflaeche ein leeres Feld und ueberschreibt es beim naechsten Speichern
+  // auch noch mit Leere -- der Text waere endgueltig weg, obwohl er in
+  // campaign_steps noch vollstaendig vorliegt.
+  const { data: mirroredSteps } = await supabase
+    .from("campaign_steps")
+    .select("subject, body, wait_days")
+    .eq("campaign_id", local.id)
+    .order("step_order");
+  const liveSteps = sequenceFromInstantly(live);
+  const steps = (liveSteps.length > 0 ? liveSteps : []).map((s, i) => {
+    const mirrored = mirroredSteps?.[i];
+    return {
+      ...s,
+      subject: s.subject?.trim() ? s.subject : mirrored?.subject ?? s.subject,
+      body: s.body?.trim() ? s.body : mirrored?.body ?? s.body,
+    };
+  });
+  const effectiveSteps =
+    steps.length > 0
+      ? steps
+      : (mirroredSteps ?? []).map((s) => ({
+          subject: s.subject,
+          body: s.body,
+          delayDays: s.wait_days,
+        }));
+
   return NextResponse.json({
     id: local.id,
     name: live.name ?? local.name,
@@ -81,7 +110,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
     instantlyCampaignId: local.instantly_campaign_id,
     search: search.data,
     mailboxes: live.email_list ?? local.mailboxes,
-    steps: sequenceFromInstantly(live),
+    steps: effectiveSteps,
     days: schedule.days,
     from: schedule.from || toHhMm(local.send_window_start),
     to: schedule.to || toHhMm(local.send_window_end),
