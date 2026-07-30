@@ -119,9 +119,12 @@ def test_is_company_name():
 
 
 def test_build_context_prefers_company_summary():
+    # Website gesetzt (und keine schwache Bewertung), damit kein Pain-Point-
+    # Signal angehaengt wird -- der Test soll ausschliesslich pruefen, dass die
+    # Firmenbeschreibung als Kontext gewinnt.
     from worker.pipelines.personalize import build_context
 
-    biz = {"company_summary": "Kurze Firmenbeschreibung.", "website": None,
+    biz = {"company_summary": "Kurze Firmenbeschreibung.", "website": "https://example.com",
            "decisionmaker_status": "found"}
     assert build_context(biz, "company_summary") == "Kurze Firmenbeschreibung."
 
@@ -138,10 +141,18 @@ def test_build_context_waits_for_pending_research():
 
 
 def test_build_context_no_retry_once_research_finished_without_summary():
+    """Ist die Recherche durch und hat nichts gefunden, darf build_context nicht
+    weiter mit NotReadyYet auf Nachschub warten (sonst Retry-Spam).
+
+    Ohne Website bleibt dabei bewusst das Pain-Point-Signal als Kontext uebrig
+    -- "hat keine Website" ist ein Verkaufsargument, kein leerer Zustand (siehe
+    pain_point_hint und das Playbook "Restaurants ohne Website")."""
     from worker.pipelines.personalize import build_context
 
     biz = {"company_summary": None, "website": None, "decisionmaker_status": "not_found"}
-    assert build_context(biz, "company_summary") is None
+    context = build_context(biz, "company_summary")  # darf nicht werfen
+    assert context is not None
+    assert "keine auffindbare Website" in context
 
 
 def test_validate_word_count_and_banned_words():
