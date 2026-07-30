@@ -251,6 +251,36 @@ def test_parse_discover_company():
     assert parse_discover_company({})["website"] is None
 
 
+def test_discover_is_retryable_skips_client_errors():
+    import httpx
+
+    from worker.pipelines.discover import DiscoverPaginationError, _is_retryable
+
+    assert _is_retryable(DiscoverPaginationError("nope")) is False
+
+    request = httpx.Request("POST", "https://api.hunter.io/v2/discover")
+    bad_request = httpx.HTTPStatusError("400", request=request, response=httpx.Response(400, request=request))
+    assert _is_retryable(bad_request) is False
+
+    unauthorized = httpx.HTTPStatusError("401", request=request, response=httpx.Response(401, request=request))
+    assert _is_retryable(unauthorized) is False
+
+
+def test_discover_is_retryable_keeps_transient_errors():
+    import httpx
+
+    from worker.pipelines.discover import _is_retryable
+
+    request = httpx.Request("POST", "https://api.hunter.io/v2/discover")
+    rate_limited = httpx.HTTPStatusError("429", request=request, response=httpx.Response(429, request=request))
+    assert _is_retryable(rate_limited) is True
+
+    server_error = httpx.HTTPStatusError("500", request=request, response=httpx.Response(500, request=request))
+    assert _is_retryable(server_error) is True
+
+    assert _is_retryable(TimeoutError("timed out")) is True
+
+
 def test_matching_prior_search_ids():
     from worker.pipelines.get_businesses import matching_prior_search_ids
 

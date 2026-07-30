@@ -9,6 +9,7 @@ import httpx
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 from worker.db import sb
+from worker.http_safety import raise_for_status_safe
 from worker.keys import get_api_key
 from worker.pipelines.discover import discover_companies, parse_discover_company
 from worker.suppression import domain_of, load_suppression
@@ -26,7 +27,7 @@ FIELD_MASK = (
 @retry(stop=stop_after_attempt(3), wait=wait_exponential(min=2, max=30), reraise=True)
 def geocode(location: str, api_key: str) -> dict:
     r = httpx.get(GEOCODE_URL, params={"address": location, "key": api_key}, timeout=30)
-    r.raise_for_status()
+    raise_for_status_safe(r)
     results = r.json().get("results") or []
     if not results:
         raise ValueError(f"Geocoding ohne Treffer für '{location}'")

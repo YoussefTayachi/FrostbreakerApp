@@ -10,6 +10,7 @@ from tenacity import retry, stop_after_attempt, wait_exponential
 
 from worker.db import sb
 from worker.email_classify import classify_email
+from worker.http_safety import raise_for_status_safe
 from worker.keys import get_api_key
 from worker.suppression import is_suppressed, load_suppression
 
@@ -67,7 +68,7 @@ def domain_search(domain: str, api_key: str) -> dict:
         },
         timeout=30,
     )
-    r.raise_for_status()
+    raise_for_status_safe(r)
     return r.json()
 
 
