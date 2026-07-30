@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { citySuggestionsFor, usStateForCity } from "@/lib/locations";
 import { useT } from "./language-provider";
 import { useToast } from "./toast-provider";
 
@@ -585,8 +586,33 @@ export default function NewSearchForm({ workspaceId }: { workspaceId: string }) 
           </label>
           <label className={labelCls}>
             {t.newSearchForm.city}
-            <input placeholder={t.newSearchForm.cityPlaceholder} value={city}
-              onChange={(e) => setCity(e.target.value)} className={inputCls + " w-36"} />
+            {/* Vorschlagsliste statt <select>: Hunter veroeffentlicht keine
+                Staedte-Liste (siehe lib/locations.ts), ein gesperrtes Dropdown
+                wuerde also Gueltigkeit nur vortaeuschen und zugleich Staedte
+                ausschliessen, die Hunter durchaus kennt. */}
+            <input
+              list="corporate-city-options"
+              placeholder={t.newSearchForm.cityPlaceholder}
+              value={city}
+              onChange={(e) => {
+                const next = e.target.value;
+                setCity(next);
+                // Der eigentliche Fehlerschutz: Hunter lehnt eine US-Stadt
+                // ohne Bundesstaat ab, und genau diese Zuordnung tippt man
+                // sich von Hand falsch. Bei bekannter Stadt automatisch
+                // setzen -- unbekannte Stadt laesst die Auswahl unangetastet.
+                if (country === "US") {
+                  const match = usStateForCity(next);
+                  if (match) setUsState(match);
+                }
+              }}
+              className={inputCls + " w-40"}
+            />
+            <datalist id="corporate-city-options">
+              {citySuggestionsFor(country).map((c) => (
+                <option key={c} value={c} />
+              ))}
+            </datalist>
           </label>
           <label className={labelCls}>
             {t.newSearchForm.country}
