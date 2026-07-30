@@ -9,6 +9,7 @@ import httpx
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 from worker.db import sb
+from worker.dedupe import businesses_to_skip
 from worker.http_safety import raise_for_status_safe
 from worker.keys import get_api_key
 from worker.pipelines.discover import discover_companies, parse_discover_company
@@ -85,6 +86,10 @@ def _discover_offset(search: dict, ws: str) -> int:
     Wiederholung derselben Suche immer wieder dieselbe erste Ergebnisseite
     abfragen und dank der Dedupe-Pruefung unten fast nur noch bereits
     bekannte Firmen sehen -- effektiv keine neuen Leads."""
+    # Geloeschte Suchen zaehlen nicht mit: deren Firmen sperren die Dedupe-
+    # Pruefung ebenfalls nicht mehr (siehe worker/dedupe.py). Wuerden sie hier
+    # weiter mitzaehlen, wuerde der Offset an Ergebnissen vorbeispringen, die
+    # gerade wieder aufgenommen werden duerfen.
     prior = (
         sb()
         .table("searches")
@@ -92,6 +97,7 @@ def _discover_offset(search: dict, ws: str) -> int:
         .eq("workspace_id", ws)
         .eq("source", "corporate")
         .neq("id", search["id"])
+        .is_("deleted_at", "null")
         .execute()
         .data
         or []
@@ -115,11 +121,9 @@ def run_corporate(search: dict, ws: str) -> None:
     api_key = get_api_key(ws, "hunter")
     offset = _discover_offset(search, ws)
     companies = discover_companies(search.get("filters") or {}, api_key, offset=offset)
-    existing = {
-        b["website"]
-        for b in sb().table("businesses").select("website").eq("workspace_id", ws).execute().data
-        if b.get("website")
-    }
+    # Nur gegen wirklich noch relevante Firmen sperren, nicht gegen alles je
+    # Gefundene -- siehe worker/dedupe.py.
+    existing = {b["website"] for b in businesses_to_skip(ws) if b.get("website")}
     _, blocked_domains = load_suppression(ws)
     rows = []
     for c in companies:
@@ -157,11 +161,7 @@ def run(job: dict) -> None:
             return
         api_key = get_api_key(ws, "google_maps")
         loc = geocode(search["location"], api_key)
-        known = {
-            b["place_id"]
-            for b in sb().table("businesses").select("place_id").eq("workspace_id", ws).execute().data
-            if b.get("place_id")
-        }
+        known = {b["place_id"] for b in businesses_to_skip(ws) if b.get("place_id")}
         _, blocked_domains = load_suppression(ws)
         filters = search.get("filters") or {}
         pain_point_no_website = bool(filters.get("pain_point_no_website"))
