@@ -85,8 +85,16 @@ def parse_persons(data: dict) -> list[dict]:
     SYSTEM_PROMPT), trotzdem als zweite Absicherung dieselbe Praefix-Heuristik
     wie bei Hunter: falls die gefundene E-Mail doch eine Rollen-Adresse ist
     (info@/office@ etc.), wird der Kontakt verworfen statt als personenbezogen
-    gezaehlt zu werden."""
+    gezaehlt zu werden.
+
+    Zusaetzlich wird innerhalb einer Antwort entdoppelt: das Modell liefert
+    dieselbe Person durchaus mehrfach zurueck (real aufgetreten: zehn Zeilen
+    mit derselben Adresse fuer eine Firma, alle aus einem Durchlauf). Ohne das
+    stehen dieselben Kontakte mehrfach in der Liste und blaehen die Zaehler
+    auf, die der Nutzer im Frontend sieht."""
     out = []
+    seen_emails: set[str] = set()
+    seen_names: set[str] = set()
     for p in data.get("persons", []):
         name = _clean(p.get("name"))
         if name is None or is_company_name(name):
@@ -95,6 +103,18 @@ def parse_persons(data: dict) -> list[dict]:
         email_type = classify_email(email)
         if email_type == "generic":
             continue
+        # E-Mail ist der belastbare Schluessel; fehlt sie, muss der Name
+        # herhalten, sonst landet dieselbe namenlose Person mehrfach drin.
+        if email:
+            key = email.lower()
+            if key in seen_emails:
+                continue
+            seen_emails.add(key)
+        else:
+            key = name.strip().lower()
+            if key in seen_names:
+                continue
+            seen_names.add(key)
         parts = name.split(" ", 1)
         out.append(
             {
@@ -165,10 +185,41 @@ def run(job: dict) -> None:
                 "id", business_id
             ).execute()
         emails, domains = load_suppression(ws)
+        # Schon vorhandene Kontakte dieser Firma ausklammern. Ein Job kann
+        # mehrfach laufen -- etwa wenn der Worker mitten in der Ausfuehrung
+        # stirbt und claim_job() den Job nach der Zeitueberschreitung neu
+        # einreiht (Migration 0047). Ohne diese Pruefung wuerde der zweite
+        # Durchlauf dieselben Personen ein weiteres Mal anlegen.
+        existing_rows = (
+            sb()
+            .table("contacts")
+            .select("email, full_name")
+            .eq("business_id", business_id)
+            .execute()
+            .data
+            or []
+        )
+        known_emails = {r["email"].lower() for r in existing_rows if r.get("email")}
+        # Namen als Rueckfallschluessel: ohne E-Mail gaebe es sonst keinen, und
+        # gerade die Kontakte ohne Adresse wuerden sich bei jedem Wiederholungs-
+        # lauf vervielfachen.
+        known_names = {
+            r["full_name"].strip().lower()
+            for r in existing_rows
+            if r.get("full_name") and not r.get("email")
+        }
+
+        def is_new(c: dict) -> bool:
+            email = (c.get("email") or "").strip().lower()
+            if email:
+                return email not in known_emails
+            name = (c.get("full_name") or "").strip().lower()
+            return bool(name) and name not in known_names
+
         contacts = [
             c | {"workspace_id": ws, "business_id": business_id}
             for c in parse_persons(data)
-            if not is_suppressed(emails, domains, email=c.get("email"))
+            if not is_suppressed(emails, domains, email=c.get("email")) and is_new(c)
         ]
         if contacts:
             sb().table("contacts").insert(contacts).execute()

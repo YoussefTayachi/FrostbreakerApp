@@ -120,6 +120,49 @@ def test_is_company_name():
     assert not is_company_name("Dr. Stefan Kudlacek")
 
 
+def test_parse_persons_entdoppelt_gleiche_email():
+    """Real aufgetreten: die KI lieferte in EINER Antwort zehnmal dieselbe
+    Adresse fuer eine Firma -- alle zehn landeten als eigene Kontakte in der
+    Liste und blaehten die Zaehler im Frontend auf."""
+    data = {
+        "persons": [
+            {"name": "Saba Said", "title": "Founder", "email": "saba.said@innergroup.com",
+             "phone": "NA", "linkedin": "NA", "instagram": "NA", "twitter": "NA", "facebook": "NA"},
+            {"name": "Saba Said", "title": "CEO", "email": "SABA.SAID@innergroup.com",
+             "phone": "NA", "linkedin": "NA", "instagram": "NA", "twitter": "NA", "facebook": "NA"},
+            {"name": "Saba Said", "title": "Owner", "email": "saba.said@innergroup.com",
+             "phone": "NA", "linkedin": "NA", "instagram": "NA", "twitter": "NA", "facebook": "NA"},
+        ]
+    }
+    result = parse_persons(data)
+    assert len(result) == 1, "gleiche Adresse (auch anders geschrieben) nur einmal"
+
+
+def test_parse_persons_entdoppelt_namen_ohne_email():
+    data = {
+        "persons": [
+            {"name": "Jane Doe", "title": "Head of Growth", "email": "NA",
+             "phone": "NA", "linkedin": "NA", "instagram": "NA", "twitter": "NA", "facebook": "NA"},
+            {"name": "Jane Doe", "title": "Growth Lead", "email": "NA",
+             "phone": "NA", "linkedin": "NA", "instagram": "NA", "twitter": "NA", "facebook": "NA"},
+        ]
+    }
+    assert len(parse_persons(data)) == 1
+
+
+def test_parse_persons_behaelt_verschiedene_personen():
+    """Die Entdopplung darf keine echten Kollegen verschlucken."""
+    data = {
+        "persons": [
+            {"name": "Jane Doe", "title": "CEO", "email": "jane@x.com",
+             "phone": "NA", "linkedin": "NA", "instagram": "NA", "twitter": "NA", "facebook": "NA"},
+            {"name": "John Roe", "title": "CTO", "email": "john@x.com",
+             "phone": "NA", "linkedin": "NA", "instagram": "NA", "twitter": "NA", "facebook": "NA"},
+        ]
+    }
+    assert len(parse_persons(data)) == 2
+
+
 def test_build_context_prefers_company_summary():
     # Website gesetzt (und keine schwache Bewertung), damit kein Pain-Point-
     # Signal angehaengt wird -- der Test soll ausschliesslich pruefen, dass die
