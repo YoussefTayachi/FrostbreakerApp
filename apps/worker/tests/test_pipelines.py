@@ -178,6 +178,37 @@ def test_sanitize_banned_punctuation_handles_double_before_single_hyphen():
     assert " - " not in result
 
 
+def test_sanitize_keeps_hyphens_inside_compound_words():
+    """Real aufgetreten: "a two-decade foothold" wurde zu "a two, decade
+    foothold" -- die Sanierung zerlegte echte Woerter."""
+    from worker.pipelines.personalize import sanitize_banned_punctuation
+
+    banned = ["—", "-", "--"]
+    assert sanitize_banned_punctuation("a two-decade foothold", banned) == "a two-decade foothold"
+    assert sanitize_banned_punctuation("values-driven marketing", banned) == "values-driven marketing"
+    assert sanitize_banned_punctuation("an always-on sales system", banned) == "an always-on sales system"
+
+
+def test_sanitize_still_replaces_dashes_between_clauses():
+    """Der eigentliche Zweck darf dabei nicht verloren gehen."""
+    from worker.pipelines.personalize import sanitize_banned_punctuation
+
+    banned = ["—", "-", "--"]
+    assert "—" not in sanitize_banned_punctuation("events—that's why I reached out", banned)
+    # Bindestrich mit Leerzeichen ist ein Satztrenner, kein Wortbestandteil
+    assert " - " not in sanitize_banned_punctuation("erster Teil - zweiter Teil", banned)
+    assert "--" not in sanitize_banned_punctuation("Basta--that's why", banned)
+
+
+def test_sanitize_mixed_case_hyphen_and_em_dash():
+    """Beides im selben Satz: Wort-Bindestrich bleibt, Gedankenstrich geht."""
+    from worker.pipelines.personalize import sanitize_banned_punctuation
+
+    result = sanitize_banned_punctuation("a values-driven agency—that's why", ["—", "-"])
+    assert "values-driven" in result
+    assert "—" not in result
+
+
 def test_sanitize_banned_punctuation_leaves_normal_words_alone():
     from worker.pipelines.personalize import sanitize_banned_punctuation
 

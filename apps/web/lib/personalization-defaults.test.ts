@@ -16,6 +16,27 @@ describe("sanitizeBannedPunctuation", () => {
     expect(result).not.toMatch(/\s-\s/);
   });
 
+  it("behaelt Bindestriche in zusammengesetzten Woertern", () => {
+    // Real aufgetreten: "a two-decade foothold" wurde zu "a two, decade foothold".
+    const banned = ["—", "-", "--"];
+    expect(sanitizeBannedPunctuation("a two-decade foothold", banned)).toBe("a two-decade foothold");
+    expect(sanitizeBannedPunctuation("values-driven marketing", banned)).toBe("values-driven marketing");
+    expect(sanitizeBannedPunctuation("an always-on sales system", banned)).toBe("an always-on sales system");
+  });
+
+  it("ersetzt Striche zwischen Satzteilen weiterhin", () => {
+    const banned = ["—", "-", "--"];
+    expect(sanitizeBannedPunctuation("events—that's why", banned)).not.toContain("—");
+    expect(sanitizeBannedPunctuation("erster Teil - zweiter Teil", banned)).not.toContain(" - ");
+    expect(sanitizeBannedPunctuation("Basta--that's why", banned)).not.toContain("--");
+  });
+
+  it("trennt im selben Satz korrekt zwischen Wort- und Satztrenner", () => {
+    const result = sanitizeBannedPunctuation("a values-driven agency—that's why", ["—", "-"]);
+    expect(result).toContain("values-driven");
+    expect(result).not.toContain("—");
+  });
+
   it("laesst normale Woerter in banned_words unangetastet (kein Buchstabe wird gestrichen)", () => {
     const text = "Das ist beeindruckend und voller Respekt.";
     const result = sanitizeBannedPunctuation(text, ["Respekt", "beeindruckt"]);

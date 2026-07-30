@@ -91,15 +91,37 @@ function isPunctuationOnly(word: string): boolean {
 // statt sich weiter aufs Modell zu verlassen. Normale verbotene Woerter
 // bleiben aussen vor -- die ersatzlos zu streichen wuerde den Satz oft kaputt
 // machen, das kann nur eine echte Umformulierung (Retry) leisten.
+// Striche, die auch WORTINTERN vorkommen duerfen: der normale Bindestrich
+// verbindet zusammengesetzte Woerter ("two-decade", "values-driven"). Wird er
+// dort durch ein Komma ersetzt, zerlegt das echte Woerter ("a two, decade
+// foothold"). Gedankenstriche (— –) und "--" stehen nie innerhalb eines Wortes
+// und werden immer ersetzt, auch ohne Leerzeichen ("events—that's why").
+const DASHES_ALSO_VALID_INSIDE_WORDS = new Set(["-", "‐"]);
+
+function isAlnum(ch: string): boolean {
+  return /[\p{L}\p{N}]/u.test(ch);
+}
+
 export function sanitizeBannedPunctuation(text: string, bannedWords: string[]): string {
   const punctuationWords = Array.from(
     new Set(bannedWords.map((w) => w.trim()).filter((w) => w && isPunctuationOnly(w)))
+    // "--" vor "-", sonst frisst der kurze Treffer den langen an
   ).sort((a, b) => b.length - a.length);
 
   let result = text;
-  for (const w of punctuationWords) {
-    const escaped = w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    result = result.replace(new RegExp(`\\s*${escaped}\\s*`, "g"), ", ");
+  for (const token of punctuationWords) {
+    const escaped = token.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const keepInsideWords = DASHES_ALSO_VALID_INSIDE_WORDS.has(token);
+    const current = result;
+    result = current.replace(new RegExp(`\\s*${escaped}\\s*`, "g"), (match, offset: number) => {
+      if (!keepInsideWords) return ", ";
+      // Wurde Leerraum mitgefressen, stand der Strich zwischen Satzteilen.
+      if (match !== token) return ", ";
+      const before = offset > 0 ? current[offset - 1] : " ";
+      const after = offset + match.length < current.length ? current[offset + match.length] : " ";
+      if (isAlnum(before) && isAlnum(after)) return match; // Bindestrich im Wort
+      return ", ";
+    });
   }
   result = result.replace(/\s+,/g, ",").replace(/,\s*,+/g, ",");
   return result.replace(/^[\s,]+|[\s,]+$/g, "");

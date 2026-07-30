@@ -166,6 +166,35 @@ def _is_punctuation_only(word: str) -> bool:
     return bool(word) and not any(ch.isalnum() for ch in word)
 
 
+# Striche, die auch WORTINTERN vorkommen duerfen: der normale Bindestrich
+# verbindet zusammengesetzte Woerter ("two-decade", "values-driven",
+# "always-on"). Wird er dort durch ein Komma ersetzt, zerlegt das echte Woerter
+# ("a two, decade foothold") -- schlimmer als das Gedankenstrich-Problem, das
+# die Sanierung loesen soll. Gedankenstriche (— –) und der doppelte Bindestrich
+# stehen dagegen nie innerhalb eines Wortes und werden immer ersetzt, auch ohne
+# Leerzeichen drumherum ("events—that's why").
+_DASHES_ALSO_VALID_INSIDE_WORDS = {"-", "‐"}
+
+
+def _replace_punctuation_token(text: str, token: str) -> str:
+    keep_inside_words = token in _DASHES_ALSO_VALID_INSIDE_WORDS
+
+    def repl(match: "re.Match[str]") -> str:
+        if not keep_inside_words:
+            return ", "
+        # Wurde Leerraum mitgefressen, stand der Strich zwischen Satzteilen.
+        if match.group(0) != token:
+            return ", "
+        start, end = match.span()
+        before = text[start - 1] if start > 0 else " "
+        after = text[end] if end < len(text) else " "
+        if before.isalnum() and after.isalnum():
+            return match.group(0)  # Bindestrich im Wort -> unveraendert lassen
+        return ", "
+
+    return re.sub(r"\s*" + re.escape(token) + r"\s*", repl, text)
+
+
 def sanitize_banned_punctuation(text: str, banned_words: list[str]) -> str:
     """Verboten markierte Satzzeichen (allen voran Gedankenstriche) haelt sich
     GPT auch nach einem expliziten Korrektur-Hinweis zuverlaessig NICHT --
@@ -179,11 +208,11 @@ def sanitize_banned_punctuation(text: str, banned_words: list[str]) -> str:
     punctuation_words = sorted(
         {w.strip() for w in banned_words if w.strip() and _is_punctuation_only(w.strip())},
         key=len,
-        reverse=True,
+        reverse=True,  # "--" vor "-", sonst frisst der kurze Treffer den langen an
     )
     result = text
     for w in punctuation_words:
-        result = re.sub(r"\s*" + re.escape(w) + r"\s*", ", ", result)
+        result = _replace_punctuation_token(result, w)
     result = re.sub(r"\s+,", ",", result)
     result = re.sub(r",\s*,+", ",", result)
     return result.strip(" ,")
