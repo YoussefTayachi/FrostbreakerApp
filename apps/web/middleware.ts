@@ -24,7 +24,14 @@ export async function middleware(request: NextRequest) {
   const {
     data: { user },
   } = await supabase.auth.getUser();
+  // Ohne Login erreichbar.
   const publicPaths = ["/login", "/signup", "/unsubscribe"];
+  // Davon die Teilmenge, auf der ein eingeloggter Nutzer nichts verloren hat.
+  // /unsubscribe gehoert ausdruecklich NICHT dazu: die Seite bestaetigt einem
+  // Empfaenger, dass seine Abmeldung angekommen ist. Wer zufaellig in der App
+  // eingeloggt ist -- etwa weil er sie selbst nutzt -- landete sonst
+  // wortlos auf dem Dashboard und sah nie, ob die Abmeldung geklappt hat.
+  const loggedInMustLeavePaths = ["/login", "/signup"];
   const isPublicPath = publicPaths.includes(request.nextUrl.pathname);
 
   if (!user && !isPublicPath) {
@@ -42,7 +49,7 @@ export async function middleware(request: NextRequest) {
   // "Bestaetigungsmail verschickt", obwohl keine kommt und auch keine noetig
   // waere. Hier abgefangen statt in beiden Seiten einzeln, damit die Huelle
   // gar nicht erst gerendert wird.
-  if (user && isPublicPath) {
+  if (user && loggedInMustLeavePaths.includes(request.nextUrl.pathname)) {
     const url = request.nextUrl.clone();
     url.pathname = "/";
     url.search = "";
