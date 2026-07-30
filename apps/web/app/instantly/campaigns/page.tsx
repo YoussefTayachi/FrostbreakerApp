@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useT } from "../../language-provider";
+import { useToast } from "../../toast-provider";
 import { STATUS_BADGE_CLS } from "@/lib/ui";
 
 type CampaignListItem = {
@@ -15,9 +16,28 @@ type CampaignListItem = {
 
 export default function InstantlyCampaignsPage() {
   const { t } = useT();
+  const { push } = useToast();
   const C = t.instantly.campaigns;
   const [items, setItems] = useState<CampaignListItem[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  async function deleteCampaign(c: CampaignListItem) {
+    if (!confirm(C.deleteConfirm(c.name))) return;
+    setDeletingId(c.id);
+    try {
+      const res = await fetch(`/api/instantly/campaigns/${c.id}`, { method: "DELETE" });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        push(C.deleteError + (body.error ?? res.status), "error");
+        return;
+      }
+      setItems((prev) => (prev ?? []).filter((x) => x.id !== c.id));
+      push(C.deleted, "success");
+    } finally {
+      setDeletingId(null);
+    }
+  }
 
   useEffect(() => {
     fetch("/api/instantly/campaigns")
@@ -93,9 +113,19 @@ export default function InstantlyCampaignsPage() {
                   <td className="px-4 py-3 text-faint">{c.mailboxes.length}</td>
                   <td className="px-4 py-3 text-faint">{c.stats?.reply_count_unique ?? "–"}</td>
                   <td className="px-4 py-3 text-right">
-                    <Link href={`/instantly/campaigns/${c.id}`} className="text-xs font-medium text-sky-600 hover:text-sky-500 dark:text-sky-400">
-                      {C.manage}
-                    </Link>
+                    <span className="flex items-center justify-end gap-3">
+                      <Link href={`/instantly/campaigns/${c.id}`} className="text-xs font-medium text-sky-600 hover:text-sky-500 dark:text-sky-400">
+                        {C.manage}
+                      </Link>
+                      <button
+                        type="button"
+                        disabled={deletingId === c.id}
+                        onClick={() => deleteCampaign(c)}
+                        className="text-xs font-medium text-faint transition-colors hover:text-red-600 disabled:opacity-50 dark:hover:text-red-400"
+                      >
+                        {C.delete}
+                      </button>
+                    </span>
                   </td>
                 </tr>
               ))}

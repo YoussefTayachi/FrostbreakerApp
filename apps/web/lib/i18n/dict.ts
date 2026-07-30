@@ -638,6 +638,11 @@ const de = {
       columnMailboxes: "Mailboxen",
       columnReplies: "Antworten",
       manage: "Verwalten",
+      delete: "Löschen",
+      deleteConfirm: (name: string) =>
+        `"${name}" wirklich löschen? Die Kampagne wird auch bei Instantly entfernt, das lässt sich nicht rückgängig machen.`,
+      deleted: "Kampagne gelöscht.",
+      deleteError: "Löschen fehlgeschlagen: ",
       activate: "Starten",
       resume: "Fortsetzen",
       pause: "Pausieren",
@@ -1566,6 +1571,11 @@ const en: Dictionary = {
       columnMailboxes: "Mailboxes",
       columnReplies: "Replies",
       manage: "Manage",
+      delete: "Delete",
+      deleteConfirm: (name: string) =>
+        `Really delete "${name}"? This also removes the campaign on Instantly and can't be undone.`,
+      deleted: "Campaign deleted.",
+      deleteError: "Delete failed: ",
       activate: "Start",
       resume: "Resume",
       pause: "Pause",

@@ -182,3 +182,51 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
 
   return NextResponse.json({ ok: true });
 }
+
+/**
+ * Loescht eine Kampagne komplett -- lokal und (falls vorhanden) auch bei
+ * Instantly. Bewusst tolerant, wenn Instantly die Kampagne schon nicht mehr
+ * kennt (z.B. direkt dort geloescht, oder die Anlage ist beim ersten Schritt
+ * fehlgeschlagen): das darf das Aufraeumen der lokalen Zeile nicht blockieren,
+ * sonst haengt der Nutzer an einer Kampagne fest, deren Detailseite ohnehin
+ * nur noch "Kampagne nicht gefunden" zeigt.
+ */
+export async function DELETE(req: Request, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const supabase = await createClient();
+  const ctx = await requireInstantlyContext(supabase);
+  if ("error" in ctx) return ctx.error;
+
+  const local = await loadOwnedCampaign(supabase, ctx.workspace.id, id);
+  if (!local) {
+    return NextResponse.json({ error: "Kampagne nicht gefunden" }, { status: 404 });
+  }
+
+  if (local.instantly_campaign_id) {
+    try {
+      await instantlyRequest(ctx.apiKey, `/api/v2/campaigns/${local.instantly_campaign_id}`, {
+        method: "DELETE",
+      });
+    } catch (e) {
+      if (!(e instanceof InstantlyApiError) || e.status !== 404) {
+        const status = e instanceof InstantlyApiError ? e.status : 500;
+        return NextResponse.json({ error: (e as Error).message }, { status });
+      }
+    }
+  }
+
+  // Ohne das bleibt searches.instantly_campaign_id gesetzt und der POST-Check
+  // in api/instantly/campaigns ("Diese Suche hat bereits eine verknuepfte
+  // Kampagne") sperrt diese Suche dauerhaft fuer eine neue Kampagne.
+  if (local.search_id) {
+    await supabase
+      .from("searches")
+      .update({ instantly_campaign_id: null })
+      .eq("id", local.search_id)
+      .eq("workspace_id", ctx.workspace.id);
+  }
+
+  await supabase.from("campaigns").delete().eq("id", local.id).eq("workspace_id", ctx.workspace.id);
+
+  return NextResponse.json({ ok: true });
+}
