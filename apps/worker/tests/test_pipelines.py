@@ -243,6 +243,25 @@ def test_build_discover_body():
         build_discover_body({})
 
 
+def test_build_discover_body_includes_us_state():
+    """Ohne Bundesstaat lehnt Hunter eine US-Stadt mit 400 ab."""
+    from worker.pipelines.discover import build_discover_body
+
+    body = build_discover_body({"country": "US", "state": "NY", "city": "New York"})
+    assert body["headquarters_location"]["include"] == [
+        {"country": "US", "state": "NY", "city": "New York"}
+    ]
+
+
+def test_build_discover_body_ignores_state_outside_us():
+    """Hunters Schema kennt state nur fuer die USA -- bei einem anderen Land
+    wuerde das Feld die Anfrage nur unnoetig angreifbar machen."""
+    from worker.pipelines.discover import build_discover_body
+
+    body = build_discover_body({"country": "DE", "state": "NY", "city": "Berlin"})
+    assert body["headquarters_location"]["include"] == [{"country": "DE", "city": "Berlin"}]
+
+
 def test_parse_discover_company():
     from worker.pipelines.discover import parse_discover_company
 

@@ -188,6 +188,33 @@ const INDUSTRIES = [
   "Writing and Editing", "Zoos and Botanical Gardens",
 ];
 const COUNTRY_CODES = ["AT", "DE", "CH", "GB", "US", "NL", "FR", "IT", "ES"];
+
+// Hunters Discover-Schema kennt "state" ausdruecklich NUR fuer country="US"
+// (siehe https://hunter.io/api-documentation/v2#discover). Eine US-Stadt ohne
+// Bundesstaat lehnt Hunter mit 400 ab -- in Hunters eigener Oberflaeche ist
+// jede US-Stadt entsprechend voll qualifiziert ("New York, New York, United
+// States"). Deshalb hier eine feste Auswahl statt Freitext: so kann gar kein
+// ungueltiger Wert entstehen. Reihenfolge = Postal-Code-Alphabet, wie in
+// US-Formularen ueblich.
+const US_STATES: { code: string; name: string }[] = [
+  { code: "AL", name: "Alabama" }, { code: "AK", name: "Alaska" }, { code: "AZ", name: "Arizona" },
+  { code: "AR", name: "Arkansas" }, { code: "CA", name: "California" }, { code: "CO", name: "Colorado" },
+  { code: "CT", name: "Connecticut" }, { code: "DE", name: "Delaware" }, { code: "DC", name: "District of Columbia" },
+  { code: "FL", name: "Florida" }, { code: "GA", name: "Georgia" }, { code: "HI", name: "Hawaii" },
+  { code: "ID", name: "Idaho" }, { code: "IL", name: "Illinois" }, { code: "IN", name: "Indiana" },
+  { code: "IA", name: "Iowa" }, { code: "KS", name: "Kansas" }, { code: "KY", name: "Kentucky" },
+  { code: "LA", name: "Louisiana" }, { code: "ME", name: "Maine" }, { code: "MD", name: "Maryland" },
+  { code: "MA", name: "Massachusetts" }, { code: "MI", name: "Michigan" }, { code: "MN", name: "Minnesota" },
+  { code: "MS", name: "Mississippi" }, { code: "MO", name: "Missouri" }, { code: "MT", name: "Montana" },
+  { code: "NE", name: "Nebraska" }, { code: "NV", name: "Nevada" }, { code: "NH", name: "New Hampshire" },
+  { code: "NJ", name: "New Jersey" }, { code: "NM", name: "New Mexico" }, { code: "NY", name: "New York" },
+  { code: "NC", name: "North Carolina" }, { code: "ND", name: "North Dakota" }, { code: "OH", name: "Ohio" },
+  { code: "OK", name: "Oklahoma" }, { code: "OR", name: "Oregon" }, { code: "PA", name: "Pennsylvania" },
+  { code: "RI", name: "Rhode Island" }, { code: "SC", name: "South Carolina" }, { code: "SD", name: "South Dakota" },
+  { code: "TN", name: "Tennessee" }, { code: "TX", name: "Texas" }, { code: "UT", name: "Utah" },
+  { code: "VT", name: "Vermont" }, { code: "VA", name: "Virginia" }, { code: "WA", name: "Washington" },
+  { code: "WV", name: "West Virginia" }, { code: "WI", name: "Wisconsin" }, { code: "WY", name: "Wyoming" },
+];
 const HEADCOUNTS = ["1-10", "11-50", "51-200", "201-500", "501-1000", "1001-5000", "5001-10000", "10001+"];
 
 // Punkt 7 aus dem Differenzierungs-Plan: vorgefertigte Kombinationen aus
@@ -223,6 +250,9 @@ type Preset = {
   maxRating: number | "";
   industry: string;
   city: string;
+  // Optional, weil Vorlagen aus einer aelteren Version das Feld noch nicht
+  // haben -- die liegen im localStorage und werden nicht migriert.
+  state?: string;
   country: string;
   headcount: string;
   keywords: string;
@@ -257,6 +287,7 @@ export default function NewSearchForm({ workspaceId }: { workspaceId: string }) 
   const [radius, setRadius] = useState(2000);
   const [industry, setIndustry] = useState("");
   const [city, setCity] = useState("");
+  const [usState, setUsState] = useState("");
   const [country, setCountry] = useState("AT");
   const [headcount, setHeadcount] = useState("");
   const [keywords, setKeywords] = useState("");
@@ -270,6 +301,7 @@ export default function NewSearchForm({ workspaceId }: { workspaceId: string }) 
   useEffect(() => setPresets(loadPresets(workspaceId)), [workspaceId]);
 
   const activeFilterCount = (painPointNoWebsite ? 1 : 0) + (painPointMaxRating !== "" ? 1 : 0);
+  const isUs = country === "US";
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -298,9 +330,17 @@ export default function NewSearchForm({ workspaceId }: { workspaceId: string }) 
             ...base,
             workspace_id: workspaceId, source: "corporate",
             query: [industry, keywords].filter(Boolean).join(" · ") || "Corporate-Suche",
-            location: [city, country].filter(Boolean).join(", "),
+            // state nur bei US ueberhaupt gesetzt, siehe US_STATES oben.
+            location: [city, isUs ? usState : "", country].filter(Boolean).join(", "),
             max_results: maxResults,
-            filters: { industry: industry || null, city: city || null, country, headcount: headcount || null, keywords: keywords || null },
+            filters: {
+              industry: industry || null,
+              city: city || null,
+              state: (isUs && usState) || null,
+              country,
+              headcount: headcount || null,
+              keywords: keywords || null,
+            },
           };
     const { error } = await createClient().from("searches").insert(row);
     setLoading(false);
@@ -315,7 +355,7 @@ export default function NewSearchForm({ workspaceId }: { workspaceId: string }) 
       }
       return;
     }
-    setQuery(""); setLocation(""); setKeywords(""); setCity(""); setListName("");
+    setQuery(""); setLocation(""); setKeywords(""); setCity(""); setUsState(""); setListName("");
     router.refresh();
   }
 
@@ -333,6 +373,7 @@ export default function NewSearchForm({ workspaceId }: { workspaceId: string }) 
       setPainPointMaxRating(preset.maxRating);
       setIndustry(preset.industry);
       setCity(preset.city);
+      setUsState(preset.state ?? "");
       setCountry(preset.country);
       setHeadcount(preset.headcount);
       setKeywords(preset.keywords);
@@ -355,7 +396,7 @@ export default function NewSearchForm({ workspaceId }: { workspaceId: string }) 
     const preset: Preset = {
       name, mode, query, location, radius, maxResults,
       noWebsite: painPointNoWebsite, maxRating: painPointMaxRating,
-      industry, city, country, headcount, keywords,
+      industry, city, state: usState, country, headcount, keywords,
     };
     const next = [...presets.filter((p) => p.name !== name), preset];
     localStorage.setItem(presetsKey(workspaceId), JSON.stringify(next));
@@ -549,12 +590,32 @@ export default function NewSearchForm({ workspaceId }: { workspaceId: string }) 
           </label>
           <label className={labelCls}>
             {t.newSearchForm.country}
-            <select value={country} onChange={(e) => setCountry(e.target.value)} className={inputCls + " w-36"}>
+            <select
+              value={country}
+              onChange={(e) => {
+                setCountry(e.target.value);
+                // Bundesstaat gehoert zu den USA -- beim Landwechsel zuruecksetzen,
+                // damit nie ein unsichtbarer Wert mitgeschickt wird.
+                if (e.target.value !== "US") setUsState("");
+              }}
+              className={inputCls + " w-36"}
+            >
               {COUNTRY_CODES.map((code) => (
                 <option key={code} value={code}>{t.newSearchForm.countryLabels[code] ?? code}</option>
               ))}
             </select>
           </label>
+          {isUs && (
+            <label className={labelCls}>
+              {t.newSearchForm.usState}
+              <select value={usState} onChange={(e) => setUsState(e.target.value)} className={inputCls + " w-44"}>
+                <option value="">{t.newSearchForm.allUsStates}</option>
+                {US_STATES.map((s) => (
+                  <option key={s.code} value={s.code}>{s.name}</option>
+                ))}
+              </select>
+            </label>
+          )}
           <label className={labelCls}>
             {t.newSearchForm.headcount}
             <select value={headcount} onChange={(e) => setHeadcount(e.target.value)} className={inputCls + " w-32"}>

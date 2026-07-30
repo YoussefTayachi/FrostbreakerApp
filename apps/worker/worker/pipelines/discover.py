@@ -43,6 +43,13 @@ def build_discover_body(filters: dict) -> dict:
     loc: dict = {}
     if filters.get("country"):
         loc["country"] = filters["country"]
+    # state kennt Hunters Schema ausdruecklich nur fuer die USA -- und eine
+    # US-Stadt OHNE Bundesstaat lehnt Hunter mit 400 ab (in Hunters eigener
+    # Oberflaeche ist jede US-Stadt voll qualifiziert: "New York, New York,
+    # United States"). Bei jedem anderen Land wird das Feld ignoriert bzw.
+    # abgelehnt, deshalb hier hart an country == "US" gebunden.
+    if filters.get("state") and filters.get("country") == "US":
+        loc["state"] = filters["state"]
     if filters.get("city"):
         loc["city"] = filters["city"]
     if loc:
