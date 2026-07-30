@@ -675,6 +675,9 @@ const de = {
         scheduleLabel: "Sende-Fenster",
         until: "bis",
         dailyLimitPlaceholder: "Tageslimit",
+        dailyLimitLabel: "Max. Mails/Tag",
+        dailyLimitHint:
+          "Mehr Mails verschickt diese Kampagne pro Tag nicht, verteilt auf die ausgewählten Mailboxen. Bei frischen Domains niedrig anfangen (10–20) und langsam steigern — ein Schwall am ersten Tag kostet dauerhaft Zustellbarkeit.",
         create: "Kampagne anlegen (als Entwurf)",
         creating: "Wird angelegt…",
         created: "Kampagne angelegt, noch als Entwurf: starte sie auf der Kampagnenseite.",
@@ -1610,6 +1613,9 @@ const en: Dictionary = {
         scheduleLabel: "Sending window",
         until: "to",
         dailyLimitPlaceholder: "Daily limit",
+        dailyLimitLabel: "Max. emails/day",
+        dailyLimitHint:
+          "This campaign sends no more than this per day, spread across the selected mailboxes. Start low on fresh domains (10–20) and raise it slowly — a burst on day one costs you deliverability for good.",
         create: "Create campaign (as draft)",
         creating: "Creating…",
         created: "Campaign created, still a draft: start it from the campaigns page.",

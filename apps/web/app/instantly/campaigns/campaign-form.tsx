@@ -174,14 +174,23 @@ export default function CampaignForm({
               </option>
             ))}
           </select>
-          <input
-            type="number"
-            value={value.dailyLimit}
-            onChange={(e) => onChange({ ...value, dailyLimit: e.target.value })}
-            className={inputCls + " w-24"}
-            placeholder={F.dailyLimitPlaceholder}
-          />
+          {/* Beschriftet, nicht nur per Platzhalter: das Feld ist mit "50"
+              vorbelegt, dadurch war der Platzhalter nie sichtbar und daneben
+              stand eine nackte Zahl ohne jede Erklaerung. Die Uhrzeit- und
+              Zeitzonenfelder erklaeren sich von selbst, diese Zahl nicht. */}
+          <label className="flex items-center gap-2 text-xs text-faint">
+            {F.dailyLimitLabel}
+            <input
+              type="number"
+              min={1}
+              value={value.dailyLimit}
+              onChange={(e) => onChange({ ...value, dailyLimit: e.target.value })}
+              className={inputCls + " w-24"}
+              placeholder={F.dailyLimitPlaceholder}
+            />
+          </label>
         </div>
+        <p className="mt-1.5 text-xs text-mute">{F.dailyLimitHint}</p>
       </div>
 
       <button onClick={onSubmit} disabled={submitting} className={primaryBtnCls}>
