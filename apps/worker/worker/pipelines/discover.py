@@ -5,6 +5,8 @@ Keywords. Der Discover-Call selbst ist bei Hunter kostenlos; Credits fallen
 erst bei der anschließenden Domain-Search (hunt_persons) an.
 Docs: https://hunter.io/api-documentation/v2#discover
 """
+import logging
+
 import httpx
 from tenacity import retry, retry_if_exception, stop_after_attempt, wait_exponential
 
@@ -12,13 +14,7 @@ from worker.http_safety import raise_for_status_safe
 
 DISCOVER_URL = "https://api.hunter.io/v2/discover"
 
-
-class DiscoverPaginationError(Exception):
-    """Hunter lehnt offset/limit ab -- laut Doku nur auf einem Premium-Plan
-    aenderbar, ein Free-Plan-Key bekommt bei offset>0 einen Fehler. Eigene
-    Exception, damit run_corporate das von echten (retry-werten)
-    Netzwerk-/Serverfehlern unterscheiden und dem Nutzer eine klare Meldung
-    statt eines generischen Fehlers zeigen kann."""
+log = logging.getLogger(__name__)
 
 
 def _is_retryable(exc: BaseException) -> bool:
@@ -26,13 +22,19 @@ def _is_retryable(exc: BaseException) -> bool:
     Key, Plan-Limit) dreimal mit Backoff zu wiederholen -- das kann beim naechsten
     Versuch nicht anders ausgehen. 429 (Rate Limit) ist die Ausnahme: das IST
     transient und verdient einen Retry."""
-    if isinstance(exc, DiscoverPaginationError):
-        return False
     if isinstance(exc, httpx.HTTPStatusError):
         status = exc.response.status_code
         if 400 <= status < 500 and status != 429:
             return False
     return True
+
+
+def _is_client_error(exc: BaseException) -> bool:
+    return (
+        isinstance(exc, httpx.HTTPStatusError)
+        and 400 <= exc.response.status_code < 500
+        and exc.response.status_code != 429
+    )
 
 
 def build_discover_body(filters: dict) -> dict:
@@ -73,20 +75,51 @@ def parse_discover_company(c: dict) -> dict:
     retry=retry_if_exception(_is_retryable),
     reraise=True,
 )
-def discover_companies(filters: dict, api_key: str, offset: int = 0) -> list[dict]:
-    # offset/limit sind bei Hunter Query-Parameter, nicht Teil des JSON-Bodys
-    # (der enthaelt nur die inhaltlichen Filter, siehe build_discover_body).
-    params: dict = {"api_key": api_key, "limit": 100}
+def _discover_request(filters: dict, api_key: str, offset: int) -> list[dict]:
+    # offset ist bei Hunter ein Query-Parameter, nicht Teil des JSON-Bodys (der
+    # enthaelt nur die inhaltlichen Filter, siehe build_discover_body). limit
+    # wird bewusst NICHT mitgeschickt: 100 ist ohnehin Hunters Default und
+    # gleichzeitig das Maximum, und je weniger Pagination-Parameter in der
+    # Anfrage stehen, desto weniger Angriffsflaeche fuer eine Plan-Ablehnung.
+    params: dict = {"api_key": api_key}
     if offset:
         params["offset"] = offset
     r = httpx.post(DISCOVER_URL, params=params, json=build_discover_body(filters), timeout=30)
-    # Textsuche statt starrem JSON-Pfad (z.B. errors[].code == "pagination_error"):
-    # Hunters exakte Fehlerstruktur fuer diesen Fall ist nicht dokumentiert, eine
-    # Substring-Pruefung im Rohtext ist robuster gegen eine abweichende Form.
-    if r.status_code == 400 and offset and "pagination" in r.text.lower():
-        raise DiscoverPaginationError(
-            "Hunter erlaubt offset/limit vermutlich nur auf einem Premium-Plan -- "
-            "diese Suche kann nicht weiter als die erste Ergebnisseite blaettern."
-        )
     raise_for_status_safe(r)
     return r.json().get("data") or []
+
+
+def discover_companies(filters: dict, api_key: str, offset: int = 0) -> list[dict]:
+    """Pagination ist bewusst nur eine Verbesserung, keine Voraussetzung.
+
+    Hunter erlaubt offset laut Doku nur ab einem bestimmten Plan; ein Key ohne
+    dieses Recht bekommt dort einen 4xx. Ohne diesen Fallback wuerde eine
+    Wiederholung derselben Suche komplett fehlschlagen (Status "failed", null
+    Firmen) -- schlechter als vor der Pagination, wo sie zumindest lief und die
+    Dedupe-Pruefung die schon bekannten Firmen aussortierte. Deshalb: bei einem
+    Client-Fehler MIT offset einmal ohne offset nachfassen. Ergebnis ist dann
+    wieder Seite 1 (meist nichts Neues nach Dedupe), aber die Suche laeuft
+    sauber durch statt zu sterben.
+
+    Bewusst an JEDEM 4xx festgemacht statt an einer Textsuche nach
+    "pagination": Hunters genaue Fehlerform fuer diesen Fall ist nicht
+    dokumentiert, und ein Fallback-Versuch ohne offset ist auch bei einem
+    anders gelagerten 4xx die richtige Reaktion -- schlaegt der zweite Versuch
+    aus demselben Grund fehl, kommt der Fehler ohnehin unveraendert hoch.
+    """
+    if not offset:
+        return _discover_request(filters, api_key, 0)
+    try:
+        return _discover_request(filters, api_key, offset)
+    except Exception as exc:  # noqa: BLE001 -- bewusst breit, s.u. erneutes raise
+        if not _is_client_error(exc):
+            raise
+        log.warning(
+            "Hunter lehnte offset=%s ab (%s) -- faellt auf die erste Ergebnisseite "
+            "zurueck. Fuer echtes Blaettern braucht es einen Hunter-Plan mit "
+            "Pagination; ohne den liefert eine Wiederholung derselben Filter "
+            "kaum neue Firmen.",
+            offset,
+            exc,
+        )
+        return _discover_request(filters, api_key, 0)

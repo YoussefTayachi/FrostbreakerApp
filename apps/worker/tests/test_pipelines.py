@@ -251,34 +251,80 @@ def test_parse_discover_company():
     assert parse_discover_company({})["website"] is None
 
 
-def test_discover_is_retryable_skips_client_errors():
+def _http_error(status: int):
     import httpx
 
-    from worker.pipelines.discover import DiscoverPaginationError, _is_retryable
-
-    assert _is_retryable(DiscoverPaginationError("nope")) is False
-
     request = httpx.Request("POST", "https://api.hunter.io/v2/discover")
-    bad_request = httpx.HTTPStatusError("400", request=request, response=httpx.Response(400, request=request))
-    assert _is_retryable(bad_request) is False
+    return httpx.HTTPStatusError(
+        str(status), request=request, response=httpx.Response(status, request=request)
+    )
 
-    unauthorized = httpx.HTTPStatusError("401", request=request, response=httpx.Response(401, request=request))
-    assert _is_retryable(unauthorized) is False
+
+def test_discover_is_retryable_skips_client_errors():
+    from worker.pipelines.discover import _is_retryable
+
+    assert _is_retryable(_http_error(400)) is False
+    assert _is_retryable(_http_error(401)) is False
 
 
 def test_discover_is_retryable_keeps_transient_errors():
-    import httpx
-
     from worker.pipelines.discover import _is_retryable
 
-    request = httpx.Request("POST", "https://api.hunter.io/v2/discover")
-    rate_limited = httpx.HTTPStatusError("429", request=request, response=httpx.Response(429, request=request))
-    assert _is_retryable(rate_limited) is True
-
-    server_error = httpx.HTTPStatusError("500", request=request, response=httpx.Response(500, request=request))
-    assert _is_retryable(server_error) is True
-
+    assert _is_retryable(_http_error(429)) is True
+    assert _is_retryable(_http_error(500)) is True
     assert _is_retryable(TimeoutError("timed out")) is True
+
+
+def test_discover_falls_back_to_first_page_when_offset_rejected(monkeypatch):
+    """Kern der Regression: ein Plan ohne Pagination darf die Suche nicht killen."""
+    from worker.pipelines import discover
+
+    calls = []
+
+    def fake_request(filters, api_key, offset):
+        calls.append(offset)
+        if offset:
+            raise _http_error(400)
+        return [{"domain": "example.com", "organization": "Example"}]
+
+    monkeypatch.setattr(discover, "_discover_request", fake_request)
+    result = discover.discover_companies({"country": "US"}, "key", offset=100)
+
+    assert calls == [100, 0], "erst mit offset versuchen, dann ohne"
+    assert len(result) == 1, "Ergebnis der ersten Seite statt einer Exception"
+
+
+def test_discover_does_not_swallow_server_errors(monkeypatch):
+    """Ein 500er ist kein Plan-Problem -- der darf nicht als 'kein Pagination-Recht'
+    umgedeutet und mit einem zweiten Aufruf verschleiert werden."""
+    import pytest
+
+    from worker.pipelines import discover
+
+    calls = []
+
+    def fake_request(filters, api_key, offset):
+        calls.append(offset)
+        raise _http_error(500)
+
+    monkeypatch.setattr(discover, "_discover_request", fake_request)
+    with pytest.raises(Exception):
+        discover.discover_companies({"country": "US"}, "key", offset=100)
+    assert calls == [100], "kein Fallback-Versuch bei einem Serverfehler"
+
+
+def test_discover_without_offset_makes_single_call(monkeypatch):
+    from worker.pipelines import discover
+
+    calls = []
+
+    def fake_request(filters, api_key, offset):
+        calls.append(offset)
+        return []
+
+    monkeypatch.setattr(discover, "_discover_request", fake_request)
+    discover.discover_companies({"country": "US"}, "key", offset=0)
+    assert calls == [0]
 
 
 def test_matching_prior_search_ids():
