@@ -36,7 +36,12 @@ export async function instantlyRequest<T = unknown>(
     ...init,
     headers: {
       Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
+      // Nur setzen, wenn tatsaechlich ein Body mitgeschickt wird -- z.B.
+      // DELETE /api/v2/campaigns/{id} hat keinen Body, lehnt mit
+      // "Content-Type: application/json" ohne Inhalt aber trotzdem mit
+      // "body must be null" ab (anders als POST-Aufrufe ohne Body wie
+      // pause/activate, die das tolerieren).
+      ...(init.body ? { "Content-Type": "application/json" } : {}),
       ...(init.headers ?? {}),
     },
     signal: AbortSignal.timeout(20000),

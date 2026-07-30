@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useT } from "../../../language-provider";
 import { useToast } from "../../../toast-provider";
 import { cardCls, secondaryBtnCls, STATUS_BADGE_CLS } from "@/lib/ui";
@@ -35,6 +36,7 @@ export default function CampaignDetail({ id }: { id: string }) {
   const C = t.instantly.campaigns;
   const D = C.detail;
   const { push } = useToast();
+  const router = useRouter();
 
   const [data, setData] = useState<CampaignDetail | null>(null);
   const [notFound, setNotFound] = useState(false);
@@ -42,6 +44,7 @@ export default function CampaignDetail({ id }: { id: string }) {
   const [saving, setSaving] = useState(false);
   const [activating, setActivating] = useState(false);
   const [addingLeads, setAddingLeads] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   function load() {
     fetch(`/api/instantly/campaigns/${id}`)
@@ -139,7 +142,34 @@ export default function CampaignDetail({ id }: { id: string }) {
     }
   }
 
-  if (notFound) return <p className="text-faint">{D.notFound}</p>;
+  async function deleteCampaign() {
+    if (!confirm(C.deleteConfirm(data?.name ?? ""))) return;
+    setDeleting(true);
+    const res = await fetch(`/api/instantly/campaigns/${id}`, { method: "DELETE" });
+    const body = await res.json().catch(() => ({}));
+    if (res.ok) {
+      push(C.deleted, "success");
+      router.push("/instantly/campaigns");
+    } else {
+      setDeleting(false);
+      push(C.deleteError + (body.error ?? res.status), "error");
+    }
+  }
+
+  if (notFound) {
+    return (
+      <div className="max-w-2xl space-y-4">
+        <p className="text-faint">{D.notFound}</p>
+        <button
+          onClick={deleteCampaign}
+          disabled={deleting}
+          className="rounded-lg border border-red-300 px-4 py-2 text-sm text-red-600 transition-colors hover:border-red-500 disabled:opacity-50 dark:border-red-900/60 dark:text-red-400 dark:hover:border-red-500"
+        >
+          {C.delete}
+        </button>
+      </div>
+    );
+  }
   if (!data || !formValue) return <p className="text-sm text-faint">{t.common.saving}</p>;
 
   return (
@@ -229,6 +259,15 @@ export default function CampaignDetail({ id }: { id: string }) {
           submitLabel={C.form.save}
           submittingLabel={C.form.saving}
         />
+        <div className="mt-6 flex justify-end border-t border-edge/60 pt-4">
+          <button
+            onClick={deleteCampaign}
+            disabled={deleting}
+            className="text-sm font-medium text-faint transition-colors hover:text-red-600 disabled:opacity-50 dark:hover:text-red-400"
+          >
+            {C.delete}
+          </button>
+        </div>
       </div>
     </div>
   );
