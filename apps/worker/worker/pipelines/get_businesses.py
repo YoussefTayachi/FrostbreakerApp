@@ -13,8 +13,8 @@ from worker.dedupe import businesses_to_skip
 from worker.http_safety import raise_for_status_safe
 from worker.keys import get_api_key
 from worker.pipelines.discover import discover_companies, parse_discover_company
-from worker.suppression import domain_of, load_suppression
 from worker.queue import enqueue
+from worker.suppression import domain_of, load_suppression
 
 GEOCODE_URL = "https://maps.googleapis.com/maps/api/geocode/json"
 PLACES_URL = "https://places.googleapis.com/v1/places:searchText"

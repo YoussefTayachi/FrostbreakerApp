@@ -64,14 +64,40 @@ def process_due_schedules() -> None:
 def main() -> None:
     log.info("Worker gestartet (%s)", queue.WORKER_ID)
     last_schedule_check = 0.0
+    consecutive_poll_errors = 0
     while True:
         if time.monotonic() - last_schedule_check > 60:
             last_schedule_check = time.monotonic()
             try:
                 process_due_schedules()
-            except Exception:  # noqa: BLE001
+            except Exception:
                 log.exception("Abo-Scheduler fehlgeschlagen")
-        job = queue.claim_job()
+
+        # Das Abholen selbst war bisher ungeschuetzt: ein einzelner
+        # Netz-Schluckauf (DNS-Aussetzer, Supabase kurz nicht erreichbar,
+        # Verbindungsabbruch) hat den ganzen Prozess beendet. Real passiert:
+        # "httpx.ConnectError: getaddrinfo failed" -- Worker tot. Genau daher
+        # ruehren die staendig wechselnden Worker-IDs und die Jobs, die auf
+        # 'running' haengen blieben: nicht der Hoster hat die Container
+        # ausgetauscht, der Worker ist schlicht abgestuerzt.
+        try:
+            job = queue.claim_job()
+            consecutive_poll_errors = 0
+        except Exception:
+            consecutive_poll_errors += 1
+            # Backoff bis 60s, damit ein laengerer Ausfall nicht im
+            # 5-Sekunden-Takt das Log flutet -- aufgeben ist keine Option,
+            # der Worker soll sich von allein wieder fangen.
+            delay = min(POLL_INTERVAL_S * 2 ** min(consecutive_poll_errors - 1, 4), 60)
+            log.warning(
+                "Job-Abholung fehlgeschlagen (Versuch %s), neuer Versuch in %ss",
+                consecutive_poll_errors,
+                delay,
+                exc_info=True,
+            )
+            time.sleep(delay)
+            continue
+
         if job is None:
             time.sleep(POLL_INTERVAL_S)
             continue
@@ -83,9 +109,16 @@ def main() -> None:
             handler(job)
             queue.complete_job(job["id"])
             log.info("Job %s abgeschlossen", job["id"])
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             log.exception("Job %s fehlgeschlagen", job["id"])
-            queue.fail_job(job, str(exc))
+            # Auch das Wegschreiben des Fehlers geht ueber das Netz. Scheitert
+            # es, darf das den Worker nicht mitreissen -- der Job faellt dann
+            # in die Zeitueberschreitung von claim_job() (Migration 0047) und
+            # wird spaeter automatisch neu eingereiht.
+            try:
+                queue.fail_job(job, str(exc))
+            except Exception:
+                log.exception("Fehlerstatus fuer Job %s konnte nicht gespeichert werden", job["id"])
 
 
 if __name__ == "__main__":

@@ -118,7 +118,7 @@ def discover_companies(filters: dict, api_key: str, offset: int = 0) -> list[dic
         return _discover_request(filters, api_key, 0)
     try:
         return _discover_request(filters, api_key, offset)
-    except Exception as exc:  # noqa: BLE001 -- bewusst breit, s.u. erneutes raise
+    except Exception as exc:
         if not _is_client_error(exc):
             raise
         log.warning(

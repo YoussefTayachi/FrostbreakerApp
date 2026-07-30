@@ -1,4 +1,6 @@
 """Unit-Tests für die reinen Parse-Funktionen (kein Netz, keine DB)."""
+from typing import ClassVar
+
 from worker.pipelines.find_decisionmaker import parse_persons
 from worker.pipelines.get_businesses import parse_place
 from worker.pipelines.hunt_persons import extract_domain, parse_hunter_emails
@@ -238,7 +240,7 @@ def test_load_agent_config_defaults(monkeypatch):
     from worker.pipelines import personalize
 
     class FakeResult:
-        data = {}
+        data: ClassVar[dict] = {}
 
     class FakeQuery:
         def select(self, *a, **k):
@@ -358,6 +360,7 @@ def test_discover_falls_back_to_first_page_when_offset_rejected(monkeypatch):
 def test_discover_does_not_swallow_server_errors(monkeypatch):
     """Ein 500er ist kein Plan-Problem -- der darf nicht als 'kein Pagination-Recht'
     umgedeutet und mit einem zweiten Aufruf verschleiert werden."""
+    import httpx
     import pytest
 
     from worker.pipelines import discover
@@ -369,7 +372,9 @@ def test_discover_does_not_swallow_server_errors(monkeypatch):
         raise _http_error(500)
 
     monkeypatch.setattr(discover, "_discover_request", fake_request)
-    with pytest.raises(Exception):
+    # Bewusst der konkrete Typ: ein beliebiges Exception waere auch bei einem
+    # Tippfehler im Test gruen und wuerde nichts beweisen.
+    with pytest.raises(httpx.HTTPStatusError):
         discover.discover_companies({"country": "US"}, "key", offset=100)
     assert calls == [100], "kein Fallback-Versuch bei einem Serverfehler"
 
