@@ -37,6 +37,45 @@ def test_raise_for_status_safe_redacts_key_in_exception_message():
         assert "400" in str(e)
 
 
+def test_raise_for_status_safe_includes_response_body():
+    """Ohne den Body steht in searches.error nur '400 Bad Request' -- und man
+    raet, welcher Filter schuld war."""
+    request = httpx.Request("POST", "https://api.hunter.io/v2/discover?api_key=SECRET123")
+    response = httpx.Response(
+        400,
+        request=request,
+        json={"errors": [{"details": "Invalid value for headquarters_location.city"}]},
+    )
+    try:
+        raise_for_status_safe(response)
+        assert False, "sollte werfen"
+    except httpx.HTTPStatusError as e:
+        assert "headquarters_location.city" in str(e)
+        assert "SECRET123" not in str(e)
+
+
+def test_raise_for_status_safe_redacts_key_echoed_in_body():
+    request = httpx.Request("POST", "https://api.hunter.io/v2/discover?api_key=SECRET123")
+    response = httpx.Response(
+        400, request=request, text="Bad request: /v2/discover?api_key=SECRET123&offset=100"
+    )
+    try:
+        raise_for_status_safe(response)
+        assert False, "sollte werfen"
+    except httpx.HTTPStatusError as e:
+        assert "SECRET123" not in str(e)
+
+
+def test_raise_for_status_safe_truncates_long_body():
+    request = httpx.Request("POST", "https://api.hunter.io/v2/discover")
+    response = httpx.Response(500, request=request, text="x" * 5000)
+    try:
+        raise_for_status_safe(response)
+        assert False, "sollte werfen"
+    except httpx.HTTPStatusError as e:
+        assert len(str(e)) < 1000
+
+
 def test_raise_for_status_safe_noop_on_success():
     request = httpx.Request("GET", "https://api.hunter.io/v2/discover?api_key=SECRET123")
     response = httpx.Response(200, request=request)
