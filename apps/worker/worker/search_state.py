@@ -15,7 +15,7 @@ die sich zwischenzeitlich erledigt hat.
 
 # Businesses laden und dabei den Papierkorb-Status der zugehoerigen Suche
 # mitnehmen -- spart eine zweite Abfrage pro Job.
-BUSINESS_WITH_SEARCH = "*, searches(deleted_at, source)"
+BUSINESS_WITH_SEARCH = "*, searches(deleted_at)"
 
 
 def _related_search(business: dict) -> dict | None:
@@ -34,11 +34,3 @@ def search_is_deleted(business: dict) -> bool:
     if related is None:
         return False
     return related.get("deleted_at") is not None
-
-
-def search_source(business: dict) -> str | None:
-    """"maps" oder "corporate" -- entscheidet, ob Hunter als zweite Quelle
-    ueberhaupt noch aussteht (im Maps-Modus laeuft hunt_persons ohnehin schon
-    parallel, siehe get_businesses._finish)."""
-    related = _related_search(business)
-    return related.get("source") if related else None

@@ -212,13 +212,19 @@ def _finish(search_id: str, ws: str, auto_enrich: bool, source: str) -> None:
     sb().table("searches").update({"status": "completed"}).eq("id", search_id).execute()
     if not auto_enrich:
         return
-    # Hunter-Domain-Search (hunt_persons) kostet pro Firma Credits. Bei "corporate"
-    # (Hunter Discover) kam die Firma bereits aus einer kostenlosen Datenbank-Suche,
-    # und find_decisionmaker (OpenAI) findet die Email dort ohnehin kostenlos -- ein
-    # zusaetzlicher bezahlter Hunter-Abgleich waere doppelte Kosten fuer denselben
-    # Zweck. Nur im Maps-Modus, wo es keine alternative kostenlose Firmen-Datenbank
-    # gibt, bleibt Hunter als zweite, parallele Quelle aktiv (deckt Faelle ab, in
-    # denen die KI-Websuche nichts findet).
+    # Hunter-Domain-Search (hunt_persons) kostet pro Firma Credits und laeuft
+    # deshalb bewusst NUR im Maps-Modus. Im Corporate-Modus kam die Firma schon
+    # aus Hunters kostenloser Discover-Suche; die E-Mail soll dort allein ueber
+    # find_decisionmaker (OpenAI-Websuche) kommen, damit fuer Adressen keine
+    # Hunter-Credits anfallen. Das ist eine bewusste Kostenentscheidung.
+    #
+    # Preis dieser Entscheidung, damit ihn niemand neu herleiten muss: die
+    # KI-Websuche findet nur, was oeffentlich im Netz steht. Ueber den
+    # gemessenen Bestand hatten dadurch nur rund 22% der so gefundenen Kontakte
+    # ueberhaupt eine E-Mail -- der Rest ist fuer Outreach nicht verwendbar.
+    # Wer das aendern will, zahlt Hunter-Credits; einen kostenlosen dritten Weg
+    # gibt es nicht (Adressen aus Namensmustern zu raten erzeugt Bounces und
+    # ruiniert die Zustellbarkeit).
     run_hunt_persons = source == "maps"
     for b in (
         sb()
