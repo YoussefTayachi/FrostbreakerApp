@@ -66,12 +66,15 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  // api/billing/webhook (Stripe), api/cron/* (pg_cron) und api/unsubscribe
-  // (per Klick aus einer Kampagnen-Mail) werden ohne Supabase-Session
-  // aufgerufen -- ohne diesen Ausschluss redirected die Auth-Middleware jeden
-  // Aufruf auf /login, bevor die Route ueberhaupt laeuft. Alle drei pruefen
-  // ihre eigene Authentifizierung selbst (Stripe-Signatur, CRON_SECRET, bzw.
-  // beim Opt-out-Link braucht es bewusst gar keine -- CAN-SPAM verlangt einen
+  // api/billing/webhook (Stripe), api/cron/* (pg_cron), api/internal/* (pg_net,
+  // z.B. Signup-Benachrichtigung) und api/unsubscribe (per Klick aus einer
+  // Kampagnen-Mail) werden ohne Supabase-Session aufgerufen -- ohne diesen
+  // Ausschluss redirected die Auth-Middleware jeden Aufruf auf /login, bevor
+  // die Route ueberhaupt laeuft. Alle pruefen ihre eigene Authentifizierung
+  // selbst (Stripe-Signatur, CRON_SECRET/INTERNAL_NOTIFY_SECRET, bzw. beim
+  // Opt-out-Link braucht es bewusst gar keine -- CAN-SPAM verlangt einen
   // Opt-out ohne zusaetzliche Huerden).
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|api/billing/webhook|api/cron/|api/unsubscribe).*)"],
+  matcher: [
+    "/((?!_next/static|_next/image|favicon.ico|api/billing/webhook|api/cron/|api/internal/|api/unsubscribe).*)",
+  ],
 };

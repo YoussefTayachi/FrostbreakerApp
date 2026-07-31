@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import type Stripe from "stripe";
 import { getStripe, planFromPriceId } from "@/lib/billing";
 import { createServiceClient } from "@/lib/supabase/service";
+import { sendSlackNotification } from "@/lib/notify";
 
 // Stripe-Webhook. Braucht den RAW Request-Body fuer die Signaturpruefung --
 // req.text() liefert den unangetasteten Body, solange hier kein bodyParser
@@ -62,6 +63,10 @@ export async function POST(req: Request) {
         const subId = typeof session.subscription === "string" ? session.subscription : session.subscription.id;
         const sub = await stripe.subscriptions.retrieve(subId);
         await upsertFromSubscription(sub, session.client_reference_id ?? undefined);
+        const priceId = sub.items.data[0]?.price?.id;
+        const plan = priceId ? planFromPriceId(priceId) : null;
+        const email = session.customer_details?.email ?? session.customer_email ?? "unbekannt";
+        await sendSlackNotification(`💳 Neues Abo: ${email} (${plan ?? "unbekannter Plan"})`);
       }
       break;
     }
