@@ -93,6 +93,61 @@ describe("buildCampaignSequence", () => {
   });
 });
 
+describe("Wartezeit zwischen den Schritten", () => {
+  // Unser Modell: delayDays = warte so lange VOR diesem Schritt.
+  // Instantly:    delay     = warte so lange NACH diesem Schritt.
+  // Ungefiltert durchgereicht ginge das Follow-up sofort raus.
+  it("schreibt die Wartezeit auf den vorherigen Schritt", () => {
+    const seq = buildCampaignSequence([
+      { subject: "1", body: "a", delayDays: 0 },
+      { subject: "2", body: "b", delayDays: 3 },
+    ]);
+    expect(seq[0].steps.map((s) => s.delay)).toEqual([3, 0]);
+  });
+
+  it("kommt mit drei Schritten klar", () => {
+    const seq = buildCampaignSequence([
+      { subject: "1", body: "a", delayDays: 0 },
+      { subject: "2", body: "b", delayDays: 2 },
+      { subject: "3", body: "c", delayDays: 5 },
+    ]);
+    expect(seq[0].steps.map((s) => s.delay)).toEqual([2, 5, 0]);
+  });
+
+  it("liest die Wartezeit wieder an der richtigen Stelle aus", () => {
+    const steps = sequenceFromInstantly({
+      id: "x",
+      name: "x",
+      status: 0,
+      sequences: [
+        {
+          steps: [
+            { delay: 3, variants: [{ subject: "1", body: "<p>a</p>" }] },
+            { delay: 0, variants: [{ subject: "2", body: "<p>b</p>" }] },
+          ],
+        },
+      ],
+    });
+    expect(steps.map((s) => s.delayDays)).toEqual([0, 3]);
+  });
+
+  it("ueberlebt den Weg hin und zurueck", () => {
+    const original = [
+      { subject: "1", body: "a", delayDays: 0 },
+      { subject: "2", body: "b", delayDays: 3 },
+      { subject: "3", body: "c", delayDays: 7 },
+    ];
+    const sent = buildCampaignSequence(original);
+    const back = sequenceFromInstantly({
+      id: "x",
+      name: "x",
+      status: 0,
+      sequences: [{ steps: sent[0].steps }],
+    });
+    expect(back.map((s) => s.delayDays)).toEqual([0, 3, 7]);
+  });
+});
+
 describe("sequenceFromInstantly", () => {
   it("liefert dem Editor wieder Klartext statt Tags", () => {
     const steps = sequenceFromInstantly({
@@ -102,6 +157,8 @@ describe("sequenceFromInstantly", () => {
       sequences: [{ steps: [{ delay: 2, variants: [{ subject: "S", body: "<p>A &amp; B</p>" }] }] }],
     });
     expect(steps[0].body).toBe("A & B");
-    expect(steps[0].delayDays).toBe(2);
+    // Der erste Schritt hat per Definition keine Vorlaufzeit -- die 2 oben ist
+    // in Instantlys Modell die Wartezeit BIS zum naechsten Schritt.
+    expect(steps[0].delayDays).toBe(0);
   });
 });

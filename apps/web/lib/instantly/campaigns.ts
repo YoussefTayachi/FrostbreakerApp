@@ -198,12 +198,24 @@ export function instantlyHtmlToPlainText(body: string): string {
 // Laut Instantly-Doku wird beim Top-Level-Feld "sequences" nur das erste Element
 // verwendet (Array existiert nur aus Kompatibilitaetsgruenden). Jeder Schritt hat
 // "variants" (fuer A/B-Tests), wir nutzen bewusst nur eine Variante pro Schritt.
+//
+// ACHTUNG, unterschiedliche Bedeutung von "delay":
+//   unser Modell:  step[i].delayDays = warte so lange VOR diesem Schritt
+//                  (im Formular steht das Feld deshalb erst ab Schritt 2)
+//   Instantly:     step[i].delay     = warte so lange NACH diesem Schritt,
+//                  bevor der naechste rausgeht ("Send next message in X days",
+//                  in ihrer Oberflaeche unter Schritt 1 zu sehen)
+//
+// Ungefiltert durchgereicht landet die Wartezeit also einen Schritt zu spaet:
+// Schritt 1 bekaeme 0 und das Follow-up ginge sofort nach der ersten Mail
+// raus -- die Verzoegerung, die der Nutzer eingestellt hat, verpufft
+// stillschweigend. Deshalb wird beim Senden um eine Position verschoben.
 export function buildCampaignSequence(steps: SequenceStep[]) {
   return [
     {
-      steps: steps.map((s) => ({
+      steps: steps.map((s, i) => ({
         type: "email",
-        delay: s.delayDays ?? 0,
+        delay: steps[i + 1]?.delayDays ?? 0,
         variants: [{ subject: s.subject, body: plainTextToInstantlyHtml(s.body) }],
       })),
     },
@@ -295,10 +307,13 @@ export type InstantlyCampaign = {
 /** Instantlys Sequenz-Objekt zurueck in unsere editierbare Step-Form uebersetzen. */
 export function sequenceFromInstantly(campaign: InstantlyCampaign): SequenceStep[] {
   const steps = campaign.sequences?.[0]?.steps ?? [];
-  return steps.map((s) => ({
+  return steps.map((s, i) => ({
     subject: s.variants?.[0]?.subject ?? "",
     body: instantlyHtmlToPlainText(s.variants?.[0]?.body ?? ""),
-    delayDays: s.delay ?? 0,
+    // Gegenstueck zur Verschiebung in buildCampaignSequence: die Wartezeit
+    // steht bei Instantly am vorherigen Schritt. Schritt 1 hat per Definition
+    // keine Vorlaufzeit.
+    delayDays: i === 0 ? 0 : steps[i - 1]?.delay ?? 0,
   }));
 }
 
