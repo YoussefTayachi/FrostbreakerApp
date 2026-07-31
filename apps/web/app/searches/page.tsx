@@ -16,6 +16,7 @@ type SearchRow = {
   status: string;
   error: string | null;
   max_results: number;
+  target_email_count: number | null;
   created_at: string;
   businesses: number;
   businesses_done: number;
@@ -145,7 +146,10 @@ export default async function SearchesPage() {
                 </div>
                 <Metric value={s.businesses} label={t.searches.metricBusinesses} />
                 <Metric value={s.contacts} label={t.searches.metricContacts} />
-                <Metric value={s.with_email} label={t.searches.metricWithEmail} />
+                <Metric
+                  value={s.target_email_count ? `${s.with_email}/${s.target_email_count}` : s.with_email}
+                  label={t.searches.metricWithEmail}
+                />
                 <div className="w-32">
                   {s.status === "failed" ? (
                     <span
@@ -223,7 +227,7 @@ export default async function SearchesPage() {
   );
 }
 
-function Metric({ value, label }: { value: number; label: string }) {
+function Metric({ value, label }: { value: number | string; label: string }) {
   return (
     <div className="w-20 text-center">
       <p className="text-lg font-semibold text-ink">{value}</p>

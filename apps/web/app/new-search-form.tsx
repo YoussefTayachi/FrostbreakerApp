@@ -246,7 +246,10 @@ type Preset = {
   query: string;
   location: string;
   radius: number;
-  maxResults: number;
+  targetEmails: number;
+  // Presets von vor der Ziel-E-Mail-Umstellung hatten stattdessen die rohe
+  // Firmenzahl gespeichert -- applyPlaybook faellt beim Lesen darauf zurueck.
+  maxResults?: number;
   noWebsite: boolean;
   maxRating: number | "";
   industry: string;
@@ -260,6 +263,16 @@ type Preset = {
 };
 
 const presetsKey = (workspaceId: string) => `fb_search_presets_${workspaceId}`;
+
+// Gemessene Trefferquote fuer E-Mail-Funde ueber die KI-Websuche liegt laut
+// worker/pipelines/get_businesses.py bei ca. 22%. Hier konservativ mit 20%
+// gerechnet (eher zu viele als zu wenige Firmen durchsuchen), gedeckelt bei
+// MAX_RAW_RESULTS -- dem Limit pro Suche.
+const EMAIL_HIT_RATE = 0.2;
+const MAX_RAW_RESULTS = 100;
+function estimateRawResults(targetEmails: number): number {
+  return Math.min(MAX_RAW_RESULTS, Math.ceil(targetEmails / EMAIL_HIT_RATE));
+}
 
 function loadPresets(workspaceId: string): Preset[] {
   try {
@@ -284,7 +297,7 @@ export default function NewSearchForm({ workspaceId }: { workspaceId: string }) 
   const [schedule, setSchedule] = useState("none");
   const [query, setQuery] = useState("");
   const [location, setLocation] = useState("");
-  const [maxResults, setMaxResults] = useState(10);
+  const [targetEmails, setTargetEmails] = useState(10);
   const [radius, setRadius] = useState(2000);
   const [industry, setIndustry] = useState("");
   const [city, setCity] = useState("");
@@ -319,12 +332,13 @@ export default function NewSearchForm({ workspaceId }: { workspaceId: string }) 
     if (painPointNoWebsite) painPointFilters.pain_point_no_website = true;
     if (painPointMaxRating !== "") painPointFilters.pain_point_max_rating = painPointMaxRating;
 
+    const rawResults = estimateRawResults(targetEmails);
     const row: Record<string, unknown> =
       mode === "maps"
         ? {
             ...base,
             workspace_id: workspaceId, source: "maps", query, location,
-            max_results: maxResults, radius_m: radius,
+            max_results: rawResults, target_email_count: targetEmails, radius_m: radius,
             ...(Object.keys(painPointFilters).length > 0 ? { filters: painPointFilters } : {}),
           }
         : {
@@ -333,7 +347,7 @@ export default function NewSearchForm({ workspaceId }: { workspaceId: string }) 
             query: [industry, keywords].filter(Boolean).join(" · ") || "Corporate-Suche",
             // state nur bei US ueberhaupt gesetzt, siehe US_STATES oben.
             location: [city, isUs ? usState : "", country].filter(Boolean).join(", "),
-            max_results: maxResults,
+            max_results: rawResults, target_email_count: targetEmails,
             filters: {
               industry: industry || null,
               city: city || null,
@@ -369,7 +383,7 @@ export default function NewSearchForm({ workspaceId }: { workspaceId: string }) 
       setQuery(preset.query);
       setLocation(preset.location);
       setRadius(preset.radius);
-      setMaxResults(preset.maxResults);
+      setTargetEmails(preset.targetEmails ?? preset.maxResults ?? 10);
       setPainPointNoWebsite(preset.noWebsite);
       setPainPointMaxRating(preset.maxRating);
       setIndustry(preset.industry);
@@ -395,7 +409,7 @@ export default function NewSearchForm({ workspaceId }: { workspaceId: string }) 
     const name = prompt(t.newSearchForm.presetNamePrompt)?.trim();
     if (!name) return;
     const preset: Preset = {
-      name, mode, query, location, radius, maxResults,
+      name, mode, query, location, radius, targetEmails,
       noWebsite: painPointNoWebsite, maxRating: painPointMaxRating,
       industry, city, state: usState, country, headcount, keywords,
     };
@@ -500,15 +514,18 @@ export default function NewSearchForm({ workspaceId }: { workspaceId: string }) 
               onChange={(e) => setLocation(e.target.value)} className={inputCls} />
           </label>
           <label className={labelCls}>
-            {t.newSearchForm.maxBusinesses}
-            <input type="number" min={1} max={100} value={maxResults}
-              onChange={(e) => setMaxResults(Number(e.target.value))} className={inputCls} />
+            {t.newSearchForm.targetEmailCount}
+            <input type="number" min={1} max={20} value={targetEmails}
+              onChange={(e) => setTargetEmails(Number(e.target.value))} className={inputCls} />
           </label>
           <label className={labelCls}>
             {t.newSearchForm.radius}
             <input type="number" min={100} max={50000} step={100} value={radius}
               onChange={(e) => setRadius(Number(e.target.value))} className={inputCls} />
           </label>
+          <p className="text-xs text-mute sm:col-span-2 lg:col-span-4">
+            {t.newSearchForm.targetEmailCountHint(estimateRawResults(targetEmails))}
+          </p>
         </div>
       ) : null}
 
@@ -655,15 +672,17 @@ export default function NewSearchForm({ workspaceId }: { workspaceId: string }) 
               onChange={(e) => setKeywords(e.target.value)} className={inputCls} />
           </label>
           <label className={labelCls}>
-            {t.newSearchForm.maxBusinesses}
-            <input type="number" min={1} max={100} value={maxResults}
-              onChange={(e) => setMaxResults(Number(e.target.value))} className={inputCls + " w-24"} />
+            {t.newSearchForm.targetEmailCount}
+            <input type="number" min={1} max={20} value={targetEmails}
+              onChange={(e) => setTargetEmails(Number(e.target.value))} className={inputCls + " w-24"} />
           </label>
           <SubmitButton loading={loading} />
         </div>
       ) : null}
       {mode === "corporate" && (
-        <p className="text-xs text-mute">{t.newSearchForm.corporateHint}</p>
+        <p className="text-xs text-mute">
+          {t.newSearchForm.corporateHint} {t.newSearchForm.targetEmailCountHint(estimateRawResults(targetEmails))}
+        </p>
       )}
     </form>
   );

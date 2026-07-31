@@ -387,7 +387,9 @@ export default async function Dashboard({
                   </span>
                 </td>
                 <td className="px-5 py-2.5 text-soft">{s.location}</td>
-                <td className="px-5 py-2.5 text-soft">{s.max_results}</td>
+                <td className="px-5 py-2.5 text-soft" title={s.target_email_count ? `${s.max_results} Firmen durchsucht` : undefined}>
+                  {s.target_email_count ? `🎯 ${s.target_email_count}` : s.max_results}
+                </td>
                 <td className="px-5 py-2.5"><StatusBadge status={s.status} labels={t.common.statusLabels} /></td>
                 <td className="px-5 py-2.5 text-faint">{formatDate(s.created_at, lang)}</td>
               </tr>

@@ -200,7 +200,9 @@ const de = {
     nichePlaceholder: "z.B. Zahnärzte",
     location: "Ort",
     locationPlaceholder: "z.B. Wien",
-    maxBusinesses: "Max. Firmen",
+    targetEmailCount: "Ziel: Leads mit E-Mail",
+    targetEmailCountHint: (raw: number) =>
+      `Bei ~20% Trefferquote durchsuchen wir dafür automatisch bis zu ${raw} Firmen (max. 100 pro Suche).`,
     radius: "Radius (m)",
     painPointHeading: "Erweiterte Filter",
     painPointNoWebsite: "Nur Firmen ohne Website",
@@ -1146,7 +1148,9 @@ const en: Dictionary = {
     nichePlaceholder: "e.g. dentists",
     location: "Location",
     locationPlaceholder: "e.g. Vienna",
-    maxBusinesses: "Max. companies",
+    targetEmailCount: "Target: leads with email",
+    targetEmailCountHint: (raw: number) =>
+      `At a ~20% hit rate we'll automatically search up to ${raw} companies for that (max. 100 per search).`,
     radius: "Radius (m)",
     painPointHeading: "Advanced filters",
     painPointNoWebsite: "Only companies without a website",
