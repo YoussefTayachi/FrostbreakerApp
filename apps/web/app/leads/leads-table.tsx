@@ -80,6 +80,80 @@ type Group = {
 type SearchOption = { id: string; query: string; location: string };
 type LeadsDict = Dictionary["leads"];
 
+/** Mehrfachauswahl von Suchen als Dropdown-Panel (statt eines nativen
+ *  <select multiple>, das als aufgeklapptes Listbox-Element das Layout der
+ *  Filterleiste sprengen wuerde). Schliesst bei Klick ausserhalb. */
+function SearchMultiSelect({
+  searches,
+  selected,
+  onChange,
+  allLabel,
+}: {
+  searches: SearchOption[];
+  selected: Set<string>;
+  onChange: (next: Set<string>) => void;
+  allLabel: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function onClickOutside(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener("mousedown", onClickOutside);
+    return () => document.removeEventListener("mousedown", onClickOutside);
+  }, []);
+
+  function toggle(id: string) {
+    const next = new Set(selected);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    onChange(next);
+  }
+
+  const label = selected.size === 0 ? allLabel : `${allLabel.replace(/^Alle |^All /, "")} (${selected.size})`;
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="rounded-lg border border-edge2 bg-field px-3.5 py-2.5 text-sm text-ink outline-none transition-colors hover:border-edge3 focus:border-sky-500"
+      >
+        {label}
+      </button>
+      {open && (
+        <div className="absolute left-0 top-full z-20 mt-1 max-h-72 w-72 overflow-y-auto rounded-lg border border-edge2 bg-panel p-1.5 shadow-lg">
+          {selected.size > 0 && (
+            <button
+              type="button"
+              onClick={() => onChange(new Set())}
+              className="mb-1 w-full rounded-md px-2 py-1.5 text-left text-xs text-sky-600 hover:bg-chip dark:text-sky-400"
+            >
+              {allLabel}
+            </button>
+          )}
+          {searches.map((s) => (
+            <label
+              key={s.id}
+              className="flex cursor-pointer items-center gap-2.5 rounded-md px-2 py-1.5 text-sm text-ink hover:bg-chip"
+            >
+              <input
+                type="checkbox"
+                checked={selected.has(s.id)}
+                onChange={() => toggle(s.id)}
+                className="h-4 w-4 rounded accent-sky-500"
+              />
+              <span className="truncate">{s.query} — {s.location}</span>
+            </label>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 const ALL_COLUMN_IDS = ["title", "email", "phone", "sources", "status"] as const;
 
 function normName(name: string | null): string | null {
@@ -324,7 +398,10 @@ export default function LeadsTable({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
   const [onlyEmail, setOnlyEmail] = useState(false);
-  const [searchFilter, setSearchFilter] = useState("");
+  // Mehrfachauswahl statt einer einzelnen Suche -- z.B. bei einem
+  // Fan-out ueber mehrere Staedte will man alle zugehoerigen Suchen
+  // zusammen filtern und in einem Rutsch verifizieren, statt jede einzeln.
+  const [searchFilters, setSearchFilters] = useState<Set<string>>(new Set());
   const [statusFilter, setStatusFilter] = useState("");
   const [emailTypeFilter, setEmailTypeFilter] = useState("");
   const [statusOverrides, setStatusOverrides] = useState<Record<string, string>>({});
@@ -386,7 +463,7 @@ export default function LeadsTable({
   const filtered = useMemo(() => {
     const needle = q.toLowerCase();
     return allGroups
-      .filter((g) => !searchFilter || g.search_id === searchFilter)
+      .filter((g) => searchFilters.size === 0 || (!!g.search_id && searchFilters.has(g.search_id)))
       .map((g) => {
         const companyMatch = !needle || g.name.toLowerCase().includes(needle);
         const cs = g.contacts.filter((c) => {
@@ -401,7 +478,7 @@ export default function LeadsTable({
         return { ...g, contacts: cs };
       })
       .filter((g) => g.contacts.length > 0);
-  }, [allGroups, q, onlyEmail, searchFilter, statusFilter, emailTypeFilter]);
+  }, [allGroups, q, onlyEmail, searchFilters, statusFilter, emailTypeFilter]);
 
   async function updateStatus(contactId: string, status: string) {
     setStatusOverrides((prev) => ({ ...prev, [contactId]: status }));
@@ -548,9 +625,12 @@ export default function LeadsTable({
 
   const forceOpen = q.length > 0;
   const activeChips: { label: string; clear: () => void }[] = [];
-  if (searchFilter) {
-    const s = searches?.find((x) => x.id === searchFilter);
-    activeChips.push({ label: L.searchFilterPrefix + (s?.query ?? "…"), clear: () => setSearchFilter("") });
+  for (const id of searchFilters) {
+    const s = searches?.find((x) => x.id === id);
+    activeChips.push({
+      label: L.searchFilterPrefix + (s?.query ?? "…"),
+      clear: () => setSearchFilters((prev) => { const next = new Set(prev); next.delete(id); return next; }),
+    });
   }
   if (onlyEmail) activeChips.push({ label: L.onlyWithEmail, clear: () => setOnlyEmail(false) });
   if (statusFilter) {
@@ -578,16 +658,12 @@ export default function LeadsTable({
             />
           </div>
           {searches && searches.length > 0 && (
-            <select
-              value={searchFilter}
-              onChange={(e) => setSearchFilter(e.target.value)}
-              className="rounded-lg border border-edge2 bg-field px-3.5 py-2.5 text-sm text-ink outline-none transition-colors focus:border-sky-500"
-            >
-              <option value="">{L.allSearches}</option>
-              {searches.map((s) => (
-                <option key={s.id} value={s.id}>{s.query} — {s.location}</option>
-              ))}
-            </select>
+            <SearchMultiSelect
+              searches={searches}
+              selected={searchFilters}
+              onChange={setSearchFilters}
+              allLabel={L.allSearches}
+            />
           )}
           <select
             value={statusFilter}
