@@ -662,8 +662,9 @@ const de = {
       pausedToast: "Kampagne pausiert",
       loadError: "Kampagnen konnten nicht geladen werden",
       form: {
-        searchLabel: "Lead-Quelle (Suche)",
+        searchLabel: "Lead-Quellen (eine oder mehrere Suchen)",
         searchPlaceholder: "Suche wählen…",
+        searchHint: "Mehrfachauswahl möglich — praktisch, wenn eine Suche über mehrere Orte/Nischen aufgefächert wurde und alle Ergebnisse in eine Kampagne sollen.",
         noSearches: "Keine Suche mit Kontakten gefunden: lege zuerst eine Suche an.",
         namePlaceholder: "Kampagnen-Name",
         mailboxesLabel: "Absender-Mailboxen",
@@ -1609,8 +1610,9 @@ const en: Dictionary = {
       pausedToast: "Campaign paused",
       loadError: "Could not load campaigns",
       form: {
-        searchLabel: "Lead source (search)",
+        searchLabel: "Lead sources (one or more searches)",
         searchPlaceholder: "Choose a search…",
+        searchHint: "Multi-select — useful when a search fanned out across several locations/niches and you want all of them in one campaign.",
         noSearches: "No search with contacts found: create a search first.",
         namePlaceholder: "Campaign name",
         mailboxesLabel: "Sending mailboxes",

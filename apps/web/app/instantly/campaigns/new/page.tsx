@@ -5,7 +5,6 @@ import { createClient } from "@/lib/supabase/client";
 import { useT } from "../../../language-provider";
 import { useToast } from "../../../toast-provider";
 import { useWorkspace } from "../../../workspace-provider";
-import { inputCls } from "@/lib/ui";
 import CampaignForm, { emptyCampaignFormValue, type CampaignFormValue } from "../campaign-form";
 
 type SearchOption = { id: string; name: string | null; query: string; location: string; instantly_campaign_id: string | null };
@@ -19,9 +18,14 @@ export default function NewCampaignPage() {
   const { workspaceId } = useWorkspace();
 
   const [searches, setSearches] = useState<SearchOption[] | null>(null);
-  const [searchId, setSearchId] = useState(searchParams.get("searchId") ?? "");
+  const preselected = searchParams.get("searchId");
+  const [searchIds, setSearchIds] = useState<string[]>(preselected ? [preselected] : []);
   const [value, setValue] = useState<CampaignFormValue>(emptyCampaignFormValue());
   const [creating, setCreating] = useState(false);
+
+  function toggleSearch(id: string) {
+    setSearchIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  }
 
   useEffect(() => {
     createClient()
@@ -35,7 +39,7 @@ export default function NewCampaignPage() {
 
   async function create() {
     if (
-      !searchId ||
+      searchIds.length === 0 ||
       !value.name.trim() ||
       value.mailboxes.length === 0 ||
       value.steps.some((s) => !s.subject.trim() || !s.body.trim())
@@ -48,7 +52,7 @@ export default function NewCampaignPage() {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        searchId,
+        searchIds,
         name: value.name,
         mailboxes: value.mailboxes,
         steps: value.steps,
@@ -77,15 +81,33 @@ export default function NewCampaignPage() {
 
       <div>
         <p className="mb-1.5 text-xs font-medium text-faint">{F.searchLabel}</p>
+        <p className="mb-2 text-xs text-faint">{F.searchHint}</p>
         {searches !== null && searches.length === 0 && <p className="text-xs text-faint">{F.noSearches}</p>}
-        <select value={searchId} onChange={(e) => setSearchId(e.target.value)} className={inputCls + " w-full"}>
-          <option value="">{F.searchPlaceholder}</option>
-          {(searches ?? []).map((s) => (
-            <option key={s.id} value={s.id} disabled={!!s.instantly_campaign_id}>
-              {(s.name || s.query) + " · " + s.location + (s.instantly_campaign_id ? " (bereits verknüpft)" : "")}
-            </option>
-          ))}
-        </select>
+        <div className="max-h-64 space-y-1 overflow-y-auto rounded-lg border border-edge2 bg-field p-2">
+          {(searches ?? []).map((s) => {
+            const linked = !!s.instantly_campaign_id;
+            return (
+              <label
+                key={s.id}
+                className={
+                  "flex items-center gap-2.5 rounded-md px-2 py-1.5 text-sm " +
+                  (linked ? "cursor-not-allowed text-mute" : "cursor-pointer text-ink hover:bg-chip")
+                }
+              >
+                <input
+                  type="checkbox"
+                  checked={searchIds.includes(s.id)}
+                  disabled={linked}
+                  onChange={() => toggleSearch(s.id)}
+                />
+                <span className="truncate">
+                  {(s.name || s.query) + " · " + s.location}
+                  {linked && " (bereits verknüpft)"}
+                </span>
+              </label>
+            );
+          })}
+        </div>
       </div>
 
       <CampaignForm

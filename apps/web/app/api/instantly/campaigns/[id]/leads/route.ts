@@ -22,7 +22,13 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   if (!local || !local.instantly_campaign_id) {
     return NextResponse.json({ error: "Kampagne nicht gefunden" }, { status: 404 });
   }
-  if (!local.search_id) {
+
+  const { data: linkedSearches } = await supabase
+    .from("campaign_searches")
+    .select("search_id")
+    .eq("campaign_id", local.id);
+  const searchIds = (linkedSearches ?? []).map((r) => r.search_id);
+  if (searchIds.length === 0) {
     return NextResponse.json({ error: "Diese Kampagne hat keine verknuepfte Suche." }, { status: 400 });
   }
 
@@ -31,7 +37,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       .from("contacts")
       .select("id, email, first_name, last_name, businesses!inner(name, personalization, search_id)")
       .eq("workspace_id", ctx.workspace.id)
-      .eq("businesses.search_id", local.search_id)
+      .in("businesses.search_id", searchIds)
       .not("email", "is", null)
       .limit(5000),
     supabase.from("campaign_leads").select("contact_id").eq("campaign_id", local.id),

@@ -13,7 +13,7 @@ import {
 } from "@/lib/instantly/campaigns";
 
 type CreateCampaignBody = {
-  searchId: string;
+  searchIds: string[];
   name: string;
   mailboxes: string[];
   steps: SequenceStep[];
@@ -48,25 +48,27 @@ export async function POST(req: Request) {
   }
 
   const body = (await req.json()) as CreateCampaignBody;
-  const { searchId, name, mailboxes, steps, days, from, to, timezone, dailyLimit } = body;
+  const { searchIds, name, mailboxes, steps, days, from, to, timezone, dailyLimit } = body;
 
-  if (!searchId || !name?.trim() || !mailboxes?.length || !steps?.length || !days?.length || !from || !to || !timezone) {
+  if (!searchIds?.length || !name?.trim() || !mailboxes?.length || !steps?.length || !days?.length || !from || !to || !timezone) {
     return NextResponse.json({ error: "Pflichtfelder fehlen" }, { status: 400 });
   }
   if (steps.some((s) => !s.subject?.trim() || !s.body?.trim())) {
     return NextResponse.json({ error: "Jeder Schritt braucht Betreff und Text." }, { status: 400 });
   }
 
-  const { data: search } = await supabase
+  const { data: searches } = await supabase
     .from("searches")
     .select("id, name, query, instantly_campaign_id")
-    .eq("id", searchId)
-    .eq("workspace_id", workspaceId)
-    .single();
-  if (!search) return NextResponse.json({ error: "Suche nicht gefunden" }, { status: 404 });
-  if (search.instantly_campaign_id) {
+    .in("id", searchIds)
+    .eq("workspace_id", workspaceId);
+  if (!searches || searches.length !== searchIds.length) {
+    return NextResponse.json({ error: "Mindestens eine Suche wurde nicht gefunden" }, { status: 404 });
+  }
+  const alreadyLinked = searches.find((s) => s.instantly_campaign_id);
+  if (alreadyLinked) {
     return NextResponse.json(
-      { error: "Diese Suche hat bereits eine verknuepfte Kampagne." },
+      { error: `Suche "${alreadyLinked.name ?? alreadyLinked.query}" hat bereits eine verknuepfte Kampagne.` },
       { status: 409 }
     );
   }
@@ -78,7 +80,7 @@ export async function POST(req: Request) {
         "id, email, first_name, last_name, title, business_id, is_primary, outreach_status, businesses!inner(name, website, personalization, search_id)"
       )
       .eq("workspace_id", workspaceId)
-      .eq("businesses.search_id", searchId)
+      .in("businesses.search_id", searchIds)
       .not("email", "is", null)
       .limit(5000),
     supabase.from("suppression_list").select("email, domain").eq("workspace_id", workspaceId),
@@ -164,7 +166,10 @@ export async function POST(req: Request) {
     .from("campaigns")
     .insert({
       workspace_id: workspaceId,
-      search_id: searchId,
+      // Primaere Suche fuer Analytics-Polling (instantly_campaign_stats haengt
+      // an genau einer search_id) -- welche der mehreren Suchen egal, die
+      // Kampagnen-Metriken bei Instantly sind ohnehin ueber alle gemeinsam.
+      search_id: searchIds[0],
       instantly_campaign_id: instantlyCampaign.id,
       name: name.trim(),
       status: toLocalStatus(instantlyCampaign.status),
@@ -205,9 +210,15 @@ export async function POST(req: Request) {
     { onConflict: "campaign_id,contact_id", ignoreDuplicates: true }
   );
 
-  // searches.instantly_campaign_id bleibt die Quelle, die der Worker (poll_instantly.py)
-  // fuer Analytics-Polling und Reply-Verarbeitung liest -- unveraendert.
-  await supabase.from("searches").update({ instantly_campaign_id: instantlyCampaign.id }).eq("id", searchId).eq("workspace_id", workspaceId);
+  await supabase.from("campaign_searches").insert(
+    searchIds.map((id) => ({ campaign_id: localCampaign.id, search_id: id }))
+  );
+
+  // searches.instantly_campaign_id bleibt die Quelle, die der Sync-Cron
+  // (api/cron/instantly-sync) fuer Analytics-Polling und Reply-Verarbeitung
+  // liest -- jetzt fuer ALLE verknuepften Suchen gesetzt, nicht nur die erste,
+  // damit jede von ihnen im UI korrekt als "verknuepft" erscheint.
+  await supabase.from("searches").update({ instantly_campaign_id: instantlyCampaign.id }).in("id", searchIds).eq("workspace_id", workspaceId);
 
   return NextResponse.json({
     ok: true,
