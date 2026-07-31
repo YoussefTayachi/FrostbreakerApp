@@ -91,6 +91,12 @@ async function processEmail(
 ): Promise<string | null> {
   const leadEmail = (email.lead ?? "").trim().toLowerCase();
 
+  // Ohne Instantlys eigenes "lead"-Feld gehoert die Mail zu keinem Thread mit
+  // einem Empfaenger -- z.B. Instantlys "Mailbox eingerichtet"-Bestaetigungen,
+  // Stripe- oder Passkey-Mails an die verbundene Adresse selbst. Als "received"
+  // gespeichert wuerden sie Antwortquoten verfaelschen, ohne je eine Antwort zu sein.
+  if (direction === "inbound" && !leadEmail) return null;
+
   let contact: { id: string; outreach_status: string } | null = null;
   if (leadEmail) {
     const { data } = await supabase
