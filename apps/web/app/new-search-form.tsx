@@ -274,6 +274,18 @@ function estimateRawResults(targetEmails: number): number {
   return Math.min(MAX_RAW_RESULTS, Math.ceil(targetEmails / EMAIL_HIT_RATE));
 }
 
+// Mehrere Suchbegriffe/Orte auf einmal: eine einzelne Google-Places-Abfrage
+// schoepft sich pro Ort/Nische typischerweise nach ~60-120 Treffern aus --
+// mehr rohe Leads gibt's danach nur ueber zusaetzliche, andere Kombinationen
+// (Nachbarbezirk, Synonym-Begriff), nicht ueber einen hoeheren Deckel.
+// Kommagetrennte Eingabe in beiden Feldern ergibt das Kreuzprodukt; Dedupe
+// (place_id pro Workspace) verhindert Dopplungen zwischen den Teilsuchen
+// automatisch, siehe worker/pipelines/get_businesses.py.
+const MAX_FANOUT = 20;
+function parseList(value: string): string[] {
+  return Array.from(new Set(value.split(",").map((v) => v.trim()).filter(Boolean)));
+}
+
 function loadPresets(workspaceId: string): Preset[] {
   try {
     const raw = localStorage.getItem(presetsKey(workspaceId));
@@ -316,48 +328,63 @@ export default function NewSearchForm({ workspaceId }: { workspaceId: string }) 
 
   const activeFilterCount = (painPointNoWebsite ? 1 : 0) + (painPointMaxRating !== "" ? 1 : 0);
   const isUs = country === "US";
+  const queryList = parseList(query);
+  const locationList = parseList(location);
+  const fanoutCount = mode === "maps" ? Math.max(1, queryList.length * locationList.length) : 1;
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setLoading(true);
-    const SCHEDULE_DAYS: Record<string, number> = { daily: 1, weekly: 7, biweekly: 14 };
-    const days = SCHEDULE_DAYS[schedule];
-    const nextRun = days ? new Date(Date.now() + days * 86400000).toISOString() : null;
-    const base = {
-      name: listName.trim() || null,
-      schedule,
-      next_run_at: nextRun,
-    };
     const painPointFilters: Record<string, unknown> = {};
     if (painPointNoWebsite) painPointFilters.pain_point_no_website = true;
     if (painPointMaxRating !== "") painPointFilters.pain_point_max_rating = painPointMaxRating;
-
     const rawResults = estimateRawResults(targetEmails);
-    const row: Record<string, unknown> =
-      mode === "maps"
-        ? {
-            ...base,
-            workspace_id: workspaceId, source: "maps", query, location,
-            max_results: rawResults, target_email_count: targetEmails, radius_m: radius,
-            ...(Object.keys(painPointFilters).length > 0 ? { filters: painPointFilters } : {}),
-          }
-        : {
-            ...base,
-            workspace_id: workspaceId, source: "corporate",
-            query: [industry, keywords].filter(Boolean).join(" · ") || "Corporate-Suche",
-            // state nur bei US ueberhaupt gesetzt, siehe US_STATES oben.
-            location: [city, isUs ? usState : "", country].filter(Boolean).join(", "),
-            max_results: rawResults, target_email_count: targetEmails,
-            filters: {
-              industry: industry || null,
-              city: city || null,
-              state: (isUs && usState) || null,
-              country,
-              headcount: headcount || null,
-              keywords: keywords || null,
-            },
-          };
-    const { error } = await createClient().from("searches").insert(row);
+
+    let rows: Record<string, unknown>[];
+    if (mode === "maps") {
+      if (fanoutCount > MAX_FANOUT) {
+        push(t.newSearchForm.fanoutTooMany(MAX_FANOUT), "error");
+        return;
+      }
+      if (fanoutCount > 1 && !confirm(t.newSearchForm.fanoutConfirm(fanoutCount, rawResults))) {
+        return;
+      }
+      rows = queryList.flatMap((q) =>
+        locationList.map((loc) => ({
+          name: listName.trim() || null,
+          schedule,
+          workspace_id: workspaceId, source: "maps", query: q, location: loc,
+          max_results: rawResults, target_email_count: targetEmails, radius_m: radius,
+          ...(Object.keys(painPointFilters).length > 0 ? { filters: painPointFilters } : {}),
+        }))
+      );
+    } else {
+      rows = [
+        {
+          name: listName.trim() || null,
+          schedule,
+          workspace_id: workspaceId, source: "corporate",
+          query: [industry, keywords].filter(Boolean).join(" · ") || "Corporate-Suche",
+          // state nur bei US ueberhaupt gesetzt, siehe US_STATES oben.
+          location: [city, isUs ? usState : "", country].filter(Boolean).join(", "),
+          max_results: rawResults, target_email_count: targetEmails,
+          filters: {
+            industry: industry || null,
+            city: city || null,
+            state: (isUs && usState) || null,
+            country,
+            headcount: headcount || null,
+            keywords: keywords || null,
+          },
+        },
+      ];
+    }
+    const SCHEDULE_DAYS: Record<string, number> = { daily: 1, weekly: 7, biweekly: 14 };
+    const days = SCHEDULE_DAYS[schedule];
+    const nextRun = days ? new Date(Date.now() + days * 86400000).toISOString() : null;
+    rows = rows.map((r) => ({ ...r, next_run_at: nextRun }));
+
+    setLoading(true);
+    const { error } = await createClient().from("searches").insert(rows);
     setLoading(false);
     if (error) {
       // RLS blockiert den Insert bei abgelaufener Testphase/fehlendem Abo
@@ -524,7 +551,9 @@ export default function NewSearchForm({ workspaceId }: { workspaceId: string }) 
               onChange={(e) => setRadius(Number(e.target.value))} className={inputCls} />
           </label>
           <p className="text-xs text-mute sm:col-span-2 lg:col-span-4">
-            {t.newSearchForm.targetEmailCountHint(estimateRawResults(targetEmails))}
+            {fanoutCount > 1
+              ? t.newSearchForm.fanoutHint(fanoutCount, estimateRawResults(targetEmails))
+              : t.newSearchForm.targetEmailCountHint(estimateRawResults(targetEmails))}
           </p>
         </div>
       ) : null}

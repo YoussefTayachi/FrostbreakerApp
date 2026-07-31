@@ -196,13 +196,19 @@ const de = {
     subscriptionWeekly: "Wöchentlich neue Leads",
     subscriptionBiweekly: "Alle 2 Wochen neue Leads",
     subscriptionDaily: "Täglich neue Leads",
-    niche: "Nische",
-    nichePlaceholder: "z.B. Zahnärzte",
-    location: "Ort",
-    locationPlaceholder: "z.B. Wien",
-    targetEmailCount: "Ziel: Leads mit E-Mail",
+    niche: "Nische (mehrere mit Komma trennen)",
+    nichePlaceholder: "z.B. Zahnärzte, Zahnkliniken",
+    location: "Ort (mehrere mit Komma trennen)",
+    locationPlaceholder: "z.B. Wien 1010, Wien 1020",
+    targetEmailCount: "Ziel: Leads mit E-Mail (pro Suche)",
     targetEmailCountHint: (raw: number) =>
       `Bei ~20% Trefferquote durchsuchen wir dafür automatisch bis zu ${raw} Firmen (max. 100 pro Suche).`,
+    fanoutHint: (count: number, raw: number) =>
+      `→ ${count} Suchen werden erstellt (Kreuzprodukt aus Nischen × Orten), je bis zu ${raw} Firmen — insgesamt bis zu ${count * raw} Firmen durchsucht.`,
+    fanoutConfirm: (count: number, raw: number) =>
+      `${count} einzelne Suchen mit je bis zu ${raw} Firmen wirklich jetzt starten (insgesamt bis zu ${count * raw})?`,
+    fanoutTooMany: (max: number) =>
+      `Zu viele Kombinationen aus Nischen und Orten — max. ${max} Suchen auf einmal.`,
     radius: "Radius (m)",
     painPointHeading: "Erweiterte Filter",
     painPointNoWebsite: "Nur Firmen ohne Website",
@@ -1144,13 +1150,19 @@ const en: Dictionary = {
     subscriptionWeekly: "New leads weekly",
     subscriptionBiweekly: "New leads every 2 weeks",
     subscriptionDaily: "New leads daily",
-    niche: "Niche",
-    nichePlaceholder: "e.g. dentists",
-    location: "Location",
-    locationPlaceholder: "e.g. Vienna",
-    targetEmailCount: "Target: leads with email",
+    niche: "Niche (comma-separate for several)",
+    nichePlaceholder: "e.g. dentists, dental clinics",
+    location: "Location (comma-separate for several)",
+    locationPlaceholder: "e.g. Vienna 1010, Vienna 1020",
+    targetEmailCount: "Target: leads with email (per search)",
     targetEmailCountHint: (raw: number) =>
       `At a ~20% hit rate we'll automatically search up to ${raw} companies for that (max. 100 per search).`,
+    fanoutHint: (count: number, raw: number) =>
+      `→ ${count} searches will be created (niches × locations), up to ${raw} companies each — up to ${count * raw} companies total.`,
+    fanoutConfirm: (count: number, raw: number) =>
+      `Really start ${count} separate searches with up to ${raw} companies each (up to ${count * raw} total)?`,
+    fanoutTooMany: (max: number) =>
+      `Too many niche × location combinations — max. ${max} searches at once.`,
     radius: "Radius (m)",
     painPointHeading: "Advanced filters",
     painPointNoWebsite: "Only companies without a website",
