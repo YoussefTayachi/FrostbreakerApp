@@ -69,7 +69,7 @@ export default function ForecastCards({
       </div>
 
       <Link
-        href="/pipeline"
+        href="/calls"
         className={
           "rounded-lg border bg-panel p-4 transition-colors " +
           (stats.activities_overdue > 0

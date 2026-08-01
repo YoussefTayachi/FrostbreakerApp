@@ -398,6 +398,7 @@ export default function LeadsTable({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
   const [onlyEmail, setOnlyEmail] = useState(false);
+  const [onlyPhone, setOnlyPhone] = useState(false);
   // Mehrfachauswahl statt einer einzelnen Suche -- z.B. bei einem
   // Fan-out ueber mehrere Staedte will man alle zugehoerigen Suchen
   // zusammen filtern und in einem Rutsch verifizieren, statt jede einzeln.
@@ -477,8 +478,13 @@ export default function LeadsTable({
         });
         return { ...g, contacts: cs };
       })
-      .filter((g) => g.contacts.length > 0);
-  }, [allGroups, q, onlyEmail, searchFilters, statusFilter, emailTypeFilter]);
+      .filter((g) => g.contacts.length > 0)
+      // Telefon-Filter bewusst auf Gruppenebene: die Firmennummer
+      // (phone_national aus Google Places) ist fuer jeden Ansprechpartner
+      // dieser Firma anrufbar, nicht nur fuer den, an dessen Kontaktzeile eine
+      // eigene Durchwahl haengt.
+      .filter((g) => !onlyPhone || !!g.phone_national || g.contacts.some((c) => !!c.phone));
+  }, [allGroups, q, onlyEmail, onlyPhone, searchFilters, statusFilter, emailTypeFilter]);
 
   async function updateStatus(contactId: string, status: string) {
     setStatusOverrides((prev) => ({ ...prev, [contactId]: status }));
@@ -633,6 +639,7 @@ export default function LeadsTable({
     });
   }
   if (onlyEmail) activeChips.push({ label: L.onlyWithEmail, clear: () => setOnlyEmail(false) });
+  if (onlyPhone) activeChips.push({ label: L.onlyWithPhone, clear: () => setOnlyPhone(false) });
   if (statusFilter) {
     activeChips.push({ label: L.statusLabels[statusFilter], clear: () => setStatusFilter("") });
   }
@@ -704,6 +711,15 @@ export default function LeadsTable({
               className="h-4 w-4 rounded accent-sky-500"
             />
             {L.onlyWithEmail}
+          </label>
+          <label className="flex cursor-pointer items-center gap-2 text-sm text-soft" title={L.onlyWithPhoneTitle}>
+            <input
+              type="checkbox"
+              checked={onlyPhone}
+              onChange={(e) => setOnlyPhone(e.target.checked)}
+              className="h-4 w-4 rounded accent-sky-500"
+            />
+            {L.onlyWithPhone}
           </label>
           <label
             className="flex cursor-pointer items-center gap-2 text-sm text-soft"

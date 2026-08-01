@@ -105,6 +105,14 @@ export function IconPipeline({ className = "h-4 w-4" }: { className?: string }) 
   );
 }
 
+export function IconPhone({ className = "h-4 w-4" }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M15.5 21A12.5 12.5 0 0 1 3 8.5V6a2 2 0 0 1 2-2h2.2a1 1 0 0 1 .98.8l.7 3.4a1 1 0 0 1-.53 1.1l-1.5.76a10.5 10.5 0 0 0 5.09 5.09l.76-1.5a1 1 0 0 1 1.1-.53l3.4.7a1 1 0 0 1 .8.98V19a2 2 0 0 1-2 2Z" />
+    </svg>
+  );
+}
+
 export function IconInbox({ className = "h-4 w-4" }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
