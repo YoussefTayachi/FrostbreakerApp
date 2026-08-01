@@ -265,6 +265,7 @@ type Preset = {
   // Nur fuer den Apollo-Modus; aeltere Vorlagen kennen die Felder nicht.
   personTitles?: string;
   apolloCountries?: string[];
+  apolloSeniorities?: string[];
 };
 
 const presetsKey = (workspaceId: string) => `fb_search_presets_${workspaceId}`;
@@ -311,10 +312,31 @@ const APOLLO_COUNTRY_NAMES: Record<string, string> = {
 };
 
 // Vorbelegung mit den ueblichen Entscheider-Titeln im DACH- und US-Raum. Frei
-// editierbar -- die Senioritaets-Einschraenkung im Worker greift zusaetzlich,
+// editierbar -- die Senioritaets-Einschraenkung greift zusaetzlich,
 // unabhaengig davon, was hier steht.
 const APOLLO_DEFAULT_TITLES =
   "Founder, Owner, CEO, Geschäftsführer, Managing Director, Head of Marketing, Marketing Director, E-Commerce Manager";
+
+// Zum Anklicken statt Abtippen. person_titles ist bei Apollo bewusst Freitext
+// (unscharfer Abgleich), ein gesperrtes Dropdown waere hier also falsch -- ein
+// Tippfehler kostet aber trotzdem eine halbe Suche, deshalb die Vorschlaege.
+const APOLLO_TITLE_SUGGESTIONS = [
+  "Founder", "Owner", "CEO", "Geschäftsführer", "Managing Director", "CMO", "COO",
+  "Head of Marketing", "Marketing Director", "Marketing Manager",
+  "E-Commerce Manager", "Head of E-Commerce", "Head of Growth", "Head of Sales",
+];
+
+// Apollos vollstaendige, gueltige Werte fuer person_seniorities. MUSS mit
+// APOLLO_SENIORITIES in worker/pipelines/apollo.py uebereinstimmen -- ein Wert
+// ausserhalb dieser Liste ist bei Apollo eine ungueltige Anfrage, keine
+// Geschmacksfrage (der Worker prueft zusaetzlich gegen dieselbe Liste).
+const APOLLO_SENIORITIES = [
+  "owner", "founder", "c_suite", "vp", "head", "director", "manager", "senior", "entry", "intern",
+] as const;
+
+// Vorauswahl: die Stufen, die ueblicherweise entscheiden. "senior"/"entry"/
+// "intern" bleiben abwaehlbar dabei, kosten aber Credits ohne Entscheidungsmacht.
+const APOLLO_DEFAULT_SENIORITIES = ["owner", "founder", "c_suite", "vp", "head", "director"];
 
 function loadPresets(workspaceId: string): Preset[] {
   try {
@@ -350,6 +372,7 @@ export default function NewSearchForm({ workspaceId }: { workspaceId: string }) 
   const [personTitles, setPersonTitles] = useState(APOLLO_DEFAULT_TITLES);
   const [apolloCountries, setApolloCountries] = useState<string[]>(["AT", "DE"]);
   const [apolloTarget, setApolloTarget] = useState(APOLLO_DEFAULT_TARGET);
+  const [apolloSeniorities, setApolloSeniorities] = useState<string[]>(APOLLO_DEFAULT_SENIORITIES);
   const [painPointNoWebsite, setPainPointNoWebsite] = useState(false);
   const [painPointMaxRating, setPainPointMaxRating] = useState<number | "">("");
   const [selectedPlaybook, setSelectedPlaybook] = useState("");
@@ -410,6 +433,7 @@ export default function NewSearchForm({ workspaceId }: { workspaceId: string }) 
           filters: {
             person_titles: personTitles.trim() || null,
             apollo_locations: locations,
+            apollo_seniorities: apolloSeniorities,
             headcount: headcount || null,
             keywords: keywords || null,
           },
@@ -477,6 +501,7 @@ export default function NewSearchForm({ workspaceId }: { workspaceId: string }) 
       setCountry(preset.country);
       setPersonTitles(preset.personTitles ?? APOLLO_DEFAULT_TITLES);
       setApolloCountries(preset.apolloCountries ?? ["AT", "DE"]);
+      setApolloSeniorities(preset.apolloSeniorities ?? APOLLO_DEFAULT_SENIORITIES);
       setHeadcount(preset.headcount);
       setKeywords(preset.keywords);
       if (preset.noWebsite || preset.maxRating !== "") setAdvancedOpen(true);
@@ -499,7 +524,7 @@ export default function NewSearchForm({ workspaceId }: { workspaceId: string }) 
       name, mode, query, location, radius, targetEmails,
       noWebsite: painPointNoWebsite, maxRating: painPointMaxRating,
       industry, city, state: usState, country, headcount, keywords,
-      personTitles, apolloCountries,
+      personTitles, apolloCountries, apolloSeniorities,
     };
     const next = [...presets.filter((p) => p.name !== name), preset];
     localStorage.setItem(presetsKey(workspaceId), JSON.stringify(next));
@@ -821,6 +846,69 @@ export default function NewSearchForm({ workspaceId }: { workspaceId: string }) 
               className={inputCls}
             />
           </label>
+          {/* Anklicken statt abtippen: Apollo gleicht Titel unscharf ab, ein
+              gesperrtes Dropdown waere hier also falsch -- ein Tippfehler
+              kostet aber trotzdem eine ganze Suche. */}
+          <div className="-mt-1 flex flex-wrap gap-1.5">
+            {APOLLO_TITLE_SUGGESTIONS.map((title) => {
+              const active = parseList(personTitles).some(
+                (v) => v.toLowerCase() === title.toLowerCase()
+              );
+              return (
+                <button
+                  key={title}
+                  type="button"
+                  onClick={() =>
+                    setPersonTitles((prev) => {
+                      const list = parseList(prev);
+                      const next = active
+                        ? list.filter((v) => v.toLowerCase() !== title.toLowerCase())
+                        : [...list, title];
+                      return next.join(", ");
+                    })
+                  }
+                  className={
+                    "rounded-lg border px-2 py-0.5 text-[11px] transition-colors " +
+                    (active
+                      ? "border-violet-500/60 bg-violet-500/10 text-violet-700 dark:text-violet-300"
+                      : "border-edge2 text-faint hover:border-edge3 hover:text-ink")
+                  }
+                >
+                  {active ? "✓ " : "+ "}
+                  {title}
+                </button>
+              );
+            })}
+          </div>
+
+          <div>
+            <span className="text-sm font-medium text-soft">{t.newSearchForm.apolloSeniorities}</span>
+            <div className="mt-1.5 flex flex-wrap gap-1.5">
+              {APOLLO_SENIORITIES.map((level) => {
+                const active = apolloSeniorities.includes(level);
+                return (
+                  <button
+                    key={level}
+                    type="button"
+                    onClick={() =>
+                      setApolloSeniorities((prev) =>
+                        prev.includes(level) ? prev.filter((v) => v !== level) : [...prev, level]
+                      )
+                    }
+                    className={
+                      "rounded-lg border px-2.5 py-1 text-xs transition-colors " +
+                      (active
+                        ? "border-violet-500/60 bg-violet-500/10 text-violet-700 dark:text-violet-300"
+                        : "border-edge2 text-faint hover:border-edge3 hover:text-ink")
+                    }
+                  >
+                    {t.newSearchForm.apolloSeniorityLabels[level] ?? level}
+                  </button>
+                );
+              })}
+            </div>
+            <p className="mt-1 text-xs text-mute">{t.newSearchForm.apolloSenioritiesHint}</p>
+          </div>
 
           <div>
             <span className="text-sm font-medium text-soft">{t.newSearchForm.apolloCountries}</span>

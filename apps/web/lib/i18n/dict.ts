@@ -195,6 +195,12 @@ const de = {
     apolloTitles: "Entscheider-Positionen (mit Komma trennen)",
     apolloTitlesPlaceholder: "z.B. Founder, CEO, Head of Marketing",
     apolloCountries: "Länder (Mehrfachauswahl)",
+    apolloSeniorities: "Hierarchiestufe (Apollos eigene Werte)",
+    apolloSenioritiesHint: "Nur diese Stufen werden angefragt. Je niedriger die Stufe, desto mehr Treffer — aber auch mehr Credits für Leute ohne Entscheidungsbefugnis.",
+    apolloSeniorityLabels: {
+      owner: "Inhaber", founder: "Gründer", c_suite: "C-Level", vp: "VP", head: "Head of",
+      director: "Director", manager: "Manager", senior: "Senior", entry: "Einstieg", intern: "Praktikum",
+    } as Record<string, string>,
     apolloTarget: "Leads mit E-Mail",
     apolloNeedsFilter: "Für eine Apollo-Suche braucht es mindestens ein Land, eine Position, ein Keyword oder eine Firmengröße.",
     apolloHint: (max: number) =>
@@ -1193,6 +1199,12 @@ const en: Dictionary = {
     apolloTitles: "Decision-maker titles (comma-separated)",
     apolloTitlesPlaceholder: "e.g. Founder, CEO, Head of Marketing",
     apolloCountries: "Countries (multi-select)",
+    apolloSeniorities: "Seniority (Apollo's own values)",
+    apolloSenioritiesHint: "Only these levels are requested. The lower the level, the more hits — but also more credits spent on people without buying authority.",
+    apolloSeniorityLabels: {
+      owner: "Owner", founder: "Founder", c_suite: "C-suite", vp: "VP", head: "Head of",
+      director: "Director", manager: "Manager", senior: "Senior", entry: "Entry", intern: "Intern",
+    } as Record<string, string>,
     apolloTarget: "Leads with email",
     apolloNeedsFilter: "An Apollo search needs at least a country, a title, a keyword, or a company size.",
     apolloHint: (max: number) =>

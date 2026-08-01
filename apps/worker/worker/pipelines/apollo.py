@@ -75,10 +75,39 @@ def _is_retryable(exc: BaseException) -> bool:
     return True
 
 
-# Senioritaeten, die als Entscheider gelten. Ohne diese Einschraenkung liefert
-# Apollo auch Praktikanten und Sachbearbeiter -- fuer Cold Outreach wertlos,
-# aber sie wuerden Credits und das Tageskontingent verbrauchen.
-DECISIONMAKER_SENIORITIES = ["owner", "founder", "c_suite", "partner", "vp", "head", "director"]
+# Apollos vollstaendige, gueltige Werte fuer person_seniorities. Ein Wert
+# ausserhalb dieser Liste ist keine Geschmacksfrage, sondern eine ungueltige
+# Anfrage -- deshalb wird jede Auswahl aus dem Formular hier gegengeprueft
+# statt ungefiltert durchgereicht (siehe _valid_seniorities).
+APOLLO_SENIORITIES = [
+    "owner",
+    "founder",
+    "c_suite",
+    "vp",
+    "head",
+    "director",
+    "manager",
+    "senior",
+    "entry",
+    "intern",
+]
+
+# Standardauswahl, wenn das Formular keine trifft: Senioritaeten, die als
+# Entscheider gelten. Ohne diese Einschraenkung liefert Apollo auch
+# Praktikanten und Sachbearbeiter -- fuer Cold Outreach wertlos, aber sie
+# wuerden Credits und das Tageskontingent verbrauchen.
+DECISIONMAKER_SENIORITIES = ["owner", "founder", "c_suite", "vp", "head", "director"]
+
+
+def _valid_seniorities(raw: object) -> list[str]:
+    """Nur von Apollo anerkannte Werte weitergeben, Reihenfolge stabil halten.
+    Bleibt nach dem Filtern nichts uebrig, gilt die Entscheider-Vorauswahl --
+    eine Suche ohne Senioritaets-Einschraenkung wuerde quer durch alle
+    Hierarchiestufen Credits verbrauchen."""
+    if not isinstance(raw, list):
+        return list(DECISIONMAKER_SENIORITIES)
+    picked = [s for s in APOLLO_SENIORITIES if s in raw]
+    return picked or list(DECISIONMAKER_SENIORITIES)
 
 
 def _employee_range(headcount: str | None) -> str | None:
@@ -107,7 +136,7 @@ def build_people_search_body(filters: dict, page: int) -> dict:
         "page": page,
         "per_page": PER_PAGE,
         "contact_email_status": ["verified"],
-        "person_seniorities": DECISIONMAKER_SENIORITIES,
+        "person_seniorities": _valid_seniorities(filters.get("apollo_seniorities")),
     }
     titles = [t.strip() for t in str(filters.get("person_titles") or "").split(",") if t.strip()]
     if titles:

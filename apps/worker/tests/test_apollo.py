@@ -3,6 +3,7 @@ import pytest
 
 from worker.pipelines.apollo import (
     APOLLO_MAX_PER_SEARCH,
+    APOLLO_SENIORITIES,
     DECISIONMAKER_SENIORITIES,
     PER_PAGE,
     _employee_range,
@@ -139,3 +140,27 @@ def test_search_cap_is_a_whole_number_of_pages():
     """collect_people blaettert bis APOLLO_MAX_PER_SEARCH // PER_PAGE -- bei
     einem Rest waere die letzte Seite unerreichbar."""
     assert APOLLO_MAX_PER_SEARCH % PER_PAGE == 0
+
+
+def test_default_seniorities_are_all_valid_apollo_values():
+    """Ein Wert ausserhalb von Apollos Enum ist eine ungueltige Anfrage, kein
+    Geschmacksfehler -- "partner" stand hier faelschlich drin."""
+    assert set(DECISIONMAKER_SENIORITIES) <= set(APOLLO_SENIORITIES)
+
+
+def test_seniorities_from_form_are_filtered_against_apollo_enum():
+    body = build_people_search_body(
+        {"keywords": "supplements", "apollo_seniorities": ["owner", "partner", "bogus", "manager"]},
+        page=1,
+    )
+    assert body["person_seniorities"] == ["owner", "manager"]
+
+
+def test_seniorities_fall_back_when_selection_is_empty_or_invalid():
+    """Ohne Einschraenkung wuerde Apollo quer durch alle Hierarchiestufen
+    Credits verbrauchen -- deshalb nie leer weitergeben."""
+    for raw in ([], ["nonsense"], None, "owner"):
+        body = build_people_search_body(
+            {"keywords": "supplements", "apollo_seniorities": raw}, page=1
+        )
+        assert body["person_seniorities"] == DECISIONMAKER_SENIORITIES
