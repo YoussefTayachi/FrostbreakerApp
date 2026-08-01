@@ -240,9 +240,11 @@ const PLAYBOOKS: Playbook[] = [
 // Eigene, benannte Suchvorlagen. Bewusst im localStorage statt in der
 // Datenbank: es gibt keinen Bedarf, sie zwischen Geraeten zu teilen, und so
 // bleibt die Aenderung ohne Migration und ohne zusaetzliche RLS-Regeln.
+type SearchMode = "maps" | "corporate" | "apollo";
+
 type Preset = {
   name: string;
-  mode: "maps" | "corporate";
+  mode: SearchMode;
   query: string;
   location: string;
   radius: number;
@@ -260,6 +262,9 @@ type Preset = {
   country: string;
   headcount: string;
   keywords: string;
+  // Nur fuer den Apollo-Modus; aeltere Vorlagen kennen die Felder nicht.
+  personTitles?: string;
+  apolloCountries?: string[];
 };
 
 const presetsKey = (workspaceId: string) => `fb_search_presets_${workspaceId}`;
@@ -286,6 +291,31 @@ function parseList(value: string): string[] {
   return Array.from(new Set(value.split(",").map((v) => v.trim()).filter(Boolean)));
 }
 
+// Apollo-Modus. Anders als bei Maps/Corporate gibt es hier keine
+// Trefferquoten-Rechnung: Apollos People-Search wird per
+// contact_email_status=verified gefiltert und liefert damit ausschliesslich
+// Personen mit vorliegender E-Mail (siehe worker/pipelines/apollo.py). Die
+// gewuenschte Zahl IST also die Zahl der Leads, nicht eine Hoffnung darauf.
+// 1000 = 10 Apollo-Seiten a 100 Treffern, muss zu APOLLO_MAX_PER_SEARCH im
+// Worker passen; das Tageskontingent (5000/Workspace) prueft der Worker.
+const APOLLO_MAX_TARGET = 1000;
+const APOLLO_DEFAULT_TARGET = 250;
+
+// Apollos organization_locations erwartet ausgeschriebene englische Namen, nicht
+// ISO-Codes -- deshalb eine eigene Zuordnung statt der lokalisierten Labels aus
+// dem Woerterbuch (die je nach UI-Sprache "Deutschland" oder "Germany" waeren
+// und Apollo im ersten Fall nichts liefern).
+const APOLLO_COUNTRY_NAMES: Record<string, string> = {
+  AT: "Austria", DE: "Germany", CH: "Switzerland", GB: "United Kingdom",
+  US: "United States", NL: "Netherlands", FR: "France", IT: "Italy", ES: "Spain",
+};
+
+// Vorbelegung mit den ueblichen Entscheider-Titeln im DACH- und US-Raum. Frei
+// editierbar -- die Senioritaets-Einschraenkung im Worker greift zusaetzlich,
+// unabhaengig davon, was hier steht.
+const APOLLO_DEFAULT_TITLES =
+  "Founder, Owner, CEO, Geschäftsführer, Managing Director, Head of Marketing, Marketing Director, E-Commerce Manager";
+
 function loadPresets(workspaceId: string): Preset[] {
   try {
     const raw = localStorage.getItem(presetsKey(workspaceId));
@@ -304,7 +334,7 @@ export default function NewSearchForm({ workspaceId }: { workspaceId: string }) 
   const router = useRouter();
   const { t } = useT();
   const { push } = useToast();
-  const [mode, setMode] = useState<"maps" | "corporate">("maps");
+  const [mode, setMode] = useState<SearchMode>("maps");
   const [listName, setListName] = useState("");
   const [schedule, setSchedule] = useState("none");
   const [query, setQuery] = useState("");
@@ -317,6 +347,9 @@ export default function NewSearchForm({ workspaceId }: { workspaceId: string }) 
   const [country, setCountry] = useState("AT");
   const [headcount, setHeadcount] = useState("");
   const [keywords, setKeywords] = useState("");
+  const [personTitles, setPersonTitles] = useState(APOLLO_DEFAULT_TITLES);
+  const [apolloCountries, setApolloCountries] = useState<string[]>(["AT", "DE"]);
+  const [apolloTarget, setApolloTarget] = useState(APOLLO_DEFAULT_TARGET);
   const [painPointNoWebsite, setPainPointNoWebsite] = useState(false);
   const [painPointMaxRating, setPainPointMaxRating] = useState<number | "">("");
   const [selectedPlaybook, setSelectedPlaybook] = useState("");
@@ -357,6 +390,31 @@ export default function NewSearchForm({ workspaceId }: { workspaceId: string }) 
           ...(Object.keys(painPointFilters).length > 0 ? { filters: painPointFilters } : {}),
         }))
       );
+    } else if (mode === "apollo") {
+      const titleList = parseList(personTitles);
+      if (apolloCountries.length === 0 && titleList.length === 0 && !keywords.trim() && !headcount) {
+        push(t.newSearchForm.apolloNeedsFilter, "error");
+        return;
+      }
+      const locations = apolloCountries.map((c) => APOLLO_COUNTRY_NAMES[c]).filter(Boolean);
+      rows = [
+        {
+          name: listName.trim() || null,
+          schedule,
+          workspace_id: workspaceId, source: "apollo",
+          query: [keywords, titleList[0]].filter(Boolean).join(" · ") || "Apollo-Suche",
+          location: locations.join(", "),
+          // Kein Trefferquoten-Aufschlag: bei Apollo ist die angefragte Zahl
+          // die Zahl der Leads mit E-Mail (contact_email_status=verified).
+          max_results: apolloTarget, target_email_count: apolloTarget,
+          filters: {
+            person_titles: personTitles.trim() || null,
+            apollo_locations: locations,
+            headcount: headcount || null,
+            keywords: keywords || null,
+          },
+        },
+      ];
     } else {
       rows = [
         {
@@ -417,6 +475,8 @@ export default function NewSearchForm({ workspaceId }: { workspaceId: string }) 
       setCity(preset.city);
       setUsState(preset.state ?? "");
       setCountry(preset.country);
+      setPersonTitles(preset.personTitles ?? APOLLO_DEFAULT_TITLES);
+      setApolloCountries(preset.apolloCountries ?? ["AT", "DE"]);
       setHeadcount(preset.headcount);
       setKeywords(preset.keywords);
       if (preset.noWebsite || preset.maxRating !== "") setAdvancedOpen(true);
@@ -439,6 +499,7 @@ export default function NewSearchForm({ workspaceId }: { workspaceId: string }) 
       name, mode, query, location, radius, targetEmails,
       noWebsite: painPointNoWebsite, maxRating: painPointMaxRating,
       industry, city, state: usState, country, headcount, keywords,
+      personTitles, apolloCountries,
     };
     const next = [...presets.filter((p) => p.name !== name), preset];
     localStorage.setItem(presetsKey(workspaceId), JSON.stringify(next));
@@ -509,6 +570,9 @@ export default function NewSearchForm({ workspaceId }: { workspaceId: string }) 
         </button>
         <button type="button" className={tabCls(mode === "corporate")} onClick={() => setMode("corporate")}>
           {t.newSearchForm.tabCorporate}
+        </button>
+        <button type="button" className={tabCls(mode === "apollo")} onClick={() => setMode("apollo")}>
+          {t.newSearchForm.tabApollo}
         </button>
       </div>
 
@@ -712,6 +776,82 @@ export default function NewSearchForm({ workspaceId }: { workspaceId: string }) 
         <p className="text-xs text-mute">
           {t.newSearchForm.corporateHint} {t.newSearchForm.targetEmailCountHint(estimateRawResults(targetEmails))}
         </p>
+      )}
+
+      {mode === "apollo" && (
+        <>
+          <div className="flex flex-wrap items-end gap-3">
+            <label className={labelCls + " min-w-64 flex-1"}>
+              {t.newSearchForm.apolloKeywords}
+              <input
+                placeholder={t.newSearchForm.apolloKeywordsPlaceholder}
+                value={keywords}
+                onChange={(e) => setKeywords(e.target.value)}
+                className={inputCls}
+              />
+            </label>
+            <label className={labelCls}>
+              {t.newSearchForm.headcount}
+              <select value={headcount} onChange={(e) => setHeadcount(e.target.value)} className={inputCls + " w-32"}>
+                <option value="">{t.newSearchForm.allHeadcounts}</option>
+                {HEADCOUNTS.map((h) => <option key={h} value={h}>{h}</option>)}
+              </select>
+            </label>
+            <label className={labelCls}>
+              {t.newSearchForm.apolloTarget}
+              <input
+                type="number"
+                min={1}
+                max={APOLLO_MAX_TARGET}
+                step={50}
+                value={apolloTarget}
+                onChange={(e) => setApolloTarget(Number(e.target.value))}
+                className={inputCls + " w-28"}
+              />
+            </label>
+            <SubmitButton loading={loading} />
+          </div>
+
+          <label className={labelCls + " w-full"}>
+            {t.newSearchForm.apolloTitles}
+            <input
+              placeholder={t.newSearchForm.apolloTitlesPlaceholder}
+              value={personTitles}
+              onChange={(e) => setPersonTitles(e.target.value)}
+              className={inputCls}
+            />
+          </label>
+
+          <div>
+            <span className="text-sm font-medium text-soft">{t.newSearchForm.apolloCountries}</span>
+            <div className="mt-1.5 flex flex-wrap gap-1.5">
+              {COUNTRY_CODES.map((code) => {
+                const active = apolloCountries.includes(code);
+                return (
+                  <button
+                    key={code}
+                    type="button"
+                    onClick={() =>
+                      setApolloCountries((prev) =>
+                        prev.includes(code) ? prev.filter((c) => c !== code) : [...prev, code]
+                      )
+                    }
+                    className={
+                      "rounded-lg border px-2.5 py-1 text-xs transition-colors " +
+                      (active
+                        ? "border-violet-500/60 bg-violet-500/10 text-violet-700 dark:text-violet-300"
+                        : "border-edge2 text-faint hover:border-edge3 hover:text-ink")
+                    }
+                  >
+                    {t.newSearchForm.countryLabels[code] ?? code}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <p className="text-xs text-mute">{t.newSearchForm.apolloHint(APOLLO_MAX_TARGET)}</p>
+        </>
       )}
     </form>
   );

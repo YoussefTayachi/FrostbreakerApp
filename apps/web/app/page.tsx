@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getCurrentWorkspace } from "@/lib/workspace/server";
 import { getLangServer, formatDate } from "@/lib/i18n/lang";
 import { dict } from "@/lib/i18n/dict";
+import { searchSourceBadgeClass, searchSourceLabel } from "@/lib/search-source";
 import NewSearchForm from "./new-search-form";
 import AutoRefresh from "./auto-refresh";
 import ActivityChart from "./activity-chart";
@@ -382,8 +383,13 @@ export default async function Dashboard({
                   </Link>
                 </td>
                 <td className="px-5 py-2.5">
-                  <span className="rounded-md border border-edge2 bg-chip px-1.5 py-0.5 text-[11px] text-soft">
-                    {s.source === "corporate" ? "Corporate" : "Maps"}
+                  <span
+                    className={
+                      "rounded-md border px-1.5 py-0.5 text-[11px] " +
+                      searchSourceBadgeClass(s.source)
+                    }
+                  >
+                    {searchSourceLabel(s.source)}
                   </span>
                 </td>
                 <td className="px-5 py-2.5 text-soft">{s.location}</td>

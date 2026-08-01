@@ -12,7 +12,7 @@ import BillingSection from "./billing-section";
 // Bereich nicht mehr hier -- die anderen BYOK-Provider (reine Lookup-/
 // Anreicherungs-Keys ohne eigene Unterseiten) bleiben in den generischen
 // Einstellungen.
-const PROVIDER_IDS = ["google_maps", "openai", "hunter", "neverbounce"] as const;
+const PROVIDER_IDS = ["google_maps", "openai", "hunter", "apollo", "neverbounce"] as const;
 
 const inputCls =
   "rounded-lg border border-edge2 bg-field px-3.5 py-2.5 text-sm text-ink " +
@@ -139,7 +139,8 @@ export default function SettingsPage() {
   }
 
   const providerLabels: Record<string, string> = {
-    google_maps: "Google Maps", openai: "OpenAI", hunter: "Hunter.io", neverbounce: "NeverBounce",
+    google_maps: "Google Maps", openai: "OpenAI", hunter: "Hunter.io", apollo: "Apollo.io",
+    neverbounce: "NeverBounce",
   };
 
   return (

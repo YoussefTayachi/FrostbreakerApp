@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getCurrentWorkspace } from "@/lib/workspace/server";
 import { fernetEncrypt } from "@/lib/fernet";
 
-const PROVIDERS = ["google_maps", "openai", "hunter", "neverbounce", "instantly"];
+const PROVIDERS = ["google_maps", "openai", "hunter", "apollo", "neverbounce", "instantly"];
 
 /**
  * Kurzer, nicht-sensibler Hinweis auf den Key (z.B. "sk-a1b2...9xZ3"), damit

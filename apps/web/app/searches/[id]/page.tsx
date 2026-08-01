@@ -4,6 +4,7 @@ import { getCurrentWorkspace } from "@/lib/workspace/server";
 import { filterSuppressed } from "@/lib/suppression";
 import { getLangServer, formatDate } from "@/lib/i18n/lang";
 import { dict } from "@/lib/i18n/dict";
+import { searchSourceBadgeClass, searchSourceLabel } from "@/lib/search-source";
 import LeadsTable from "../../leads/leads-table";
 import SearchSettings from "./search-settings";
 import CampaignLinkCard from "./campaign-link-card";
@@ -67,8 +68,12 @@ export default async function SearchDetailPage({
             initialSchedule={search.schedule ?? "none"}
             initialInstantlyCampaignId={search.instantly_campaign_id ?? null}
           />
-          <span className="rounded-full border border-edge2 bg-chip px-2 py-0.5 text-[11px] text-soft">
-            {search.source === "corporate" ? "Corporate" : "Maps"}
+          <span
+            className={
+              "rounded-full border px-2 py-0.5 text-[11px] " + searchSourceBadgeClass(search.source)
+            }
+          >
+            {searchSourceLabel(search.source)}
           </span>
         </div>
         <p className="text-sm text-faint">

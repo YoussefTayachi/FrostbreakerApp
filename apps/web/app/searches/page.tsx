@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getCurrentWorkspace } from "@/lib/workspace/server";
 import { getLangServer, formatDate } from "@/lib/i18n/lang";
 import { dict } from "@/lib/i18n/dict";
+import { searchSourceBadgeClass, searchSourceLabel } from "@/lib/search-source";
 import AutoRefresh from "../auto-refresh";
 import { HardDeleteButton, RestoreButton, TrashButton } from "./search-actions";
 
@@ -106,8 +107,13 @@ export default async function SearchesPage() {
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2.5">
                     <span className="truncate font-medium text-ink">{s.name}</span>
-                    <span className="rounded-full border border-edge2 bg-chip px-2 py-0.5 text-[11px] text-soft">
-                      {s.source === "corporate" ? "Corporate" : "Maps"}
+                    <span
+                      className={
+                        "rounded-full border px-2 py-0.5 text-[11px] " +
+                        searchSourceBadgeClass(s.source)
+                      }
+                    >
+                      {searchSourceLabel(s.source)}
                     </span>
                     {s.schedule !== "none" && (
                       <span className="inline-flex items-center gap-1 rounded-full border border-sky-500/30 bg-sky-500/10 px-2 py-0.5 text-[11px] text-sky-600 dark:text-sky-300">
