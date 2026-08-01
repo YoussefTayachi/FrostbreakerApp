@@ -9,6 +9,8 @@ from worker.pipelines.apollo import (
     PER_PAGE,
     _employee_range,
     build_people_search_body,
+    candidate_ids,
+    enrich_people,
     is_masked_email,
     parse_apollo_person,
 )
@@ -39,7 +41,7 @@ def test_build_body_maps_all_filters():
     assert body["organization_locations"] == ["Germany", "Austria"]
     assert body["q_organization_keyword_tags"] == ["supplements", "nutrition"]
     assert body["organization_num_employees_ranges"] == ["11,20"]
-    assert body["q_organization_domains"] == "example.com"
+    assert body["q_organization_domains_list"] == ["example.com"]
     assert body["page"] == 3
 
 
@@ -101,6 +103,76 @@ def test_all_apollo_employee_ranges_translate():
         assert translated is not None, value
         low, _, high = translated.partition(",")
         assert low.isdigit() and high.isdigit(), value
+
+
+SEARCH_PREVIEW_PERSON = {
+    # So sieht eine Person in der Antwort von mixed_people/api_search
+    # tatsaechlich aus: anonymisiert, ohne name, ohne email, und die
+    # organization enthaelt ausser dem Namen nur has_*-Flags.
+    "id": "apollo-1",
+    "first_name": "Anna",
+    "last_name_obfuscated": "B.",
+    "title": "Head of Marketing",
+    "has_email": True,
+    "organization": {"name": "Example GmbH", "has_industry": True, "has_phone": True},
+}
+
+
+def test_search_preview_is_not_parseable_into_a_lead():
+    """Der urspruengliche Fehler: der Parser wurde auf die Suchantwort
+    angewendet statt auf die Anreicherung. Er verwarf dann jede Person, die
+    Suche endete ohne Fehler mit null Treffern -- und niemand sah warum."""
+    assert parse_apollo_person(SEARCH_PREVIEW_PERSON) is None
+
+
+def test_candidate_ids_keeps_only_people_with_an_email():
+    people = [
+        SEARCH_PREVIEW_PERSON,
+        {"id": "apollo-2", "has_email": False},
+        {"id": "apollo-3", "has_email": True},
+        {"has_email": True},  # ohne id nicht anreicherbar
+        dict(SEARCH_PREVIEW_PERSON),  # Dublette aus ueberlappenden Seiten
+    ]
+    assert candidate_ids(people) == ["apollo-1", "apollo-3"]
+
+
+def _match(pid: str) -> dict:
+    return {
+        "id": pid,
+        "name": f"Person {pid}",
+        "email": f"{pid}@example.com",
+        "organization": {"name": "Shop", "primary_domain": "shop.example"},
+    }
+
+
+def test_enrich_stops_at_the_requested_number(monkeypatch):
+    """Credit-Schutz: wer fuenf Leads will, darf nicht zehn bezahlen. Die
+    Paketgroesse richtet sich nach dem Rest, nicht nach BULK_MATCH_CHUNK."""
+    billed: list[int] = []
+
+    def fake_chunk(ids, api_key):
+        billed.append(len(ids))
+        return [_match(i) for i in ids]
+
+    monkeypatch.setattr("worker.pipelines.apollo._bulk_match_chunk", fake_chunk)
+    out = enrich_people([f"id-{i}" for i in range(30)], "key", wanted=5)
+    assert len(out) == 5
+    assert billed == [5], "Es darf genau ein Paket mit genau 5 Personen angefragt werden"
+
+
+def test_enrich_refills_when_a_match_is_unusable(monkeypatch):
+    """Ein Treffer ohne Firmendomain ist kein Lead -- dann muss nachgeladen
+    werden, sonst liefert die Suche weniger als bestellt."""
+    def fake_chunk(ids, api_key):
+        return [
+            _match(i) if i != "id-0" else {"id": "id-0", "name": "X", "organization": {}}
+            for i in ids
+        ]
+
+    monkeypatch.setattr("worker.pipelines.apollo._bulk_match_chunk", fake_chunk)
+    monkeypatch.setattr("worker.pipelines.apollo.time.sleep", lambda _s: None)
+    out = enrich_people(["id-0", "id-1", "id-2"], "key", wanted=2)
+    assert len(out) == 2
 
 
 def test_masked_email_detection():

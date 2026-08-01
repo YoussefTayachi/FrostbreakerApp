@@ -171,10 +171,17 @@ def apollo_leads_today(ws: str) -> int:
 
 
 def run_apollo(search: dict, ws: str) -> None:
-    """Apollo-Modus: Personen samt Firma holen, danach fehlende Adressen
-    freischalten. Reihenfolge ist bewusst so -- Entdopplung und Blockliste
-    laufen VOR dem Freischalten, damit kein Credit fuer einen Kontakt
-    ausgegeben wird, den wir anschliessend verwerfen."""
+    """Apollo-Modus: fertig angereicherte Personen samt Firma holen und
+    speichern.
+
+    Entdopplung und Blockliste laufen hier zwangslaeufig NACH der Anreicherung,
+    anders als im Corporate-Modus. Grund ist Apollos API: die kostenlose Suche
+    liefert keine Firmendomain, und ohne Domain gibt es keinen Schluessel, gegen
+    den sich vorher entdoppeln liesse. Ein bereits bekannter Lead kann also
+    einen Credit kosten und danach verworfen werden. Begrenzt wird das ueber
+    max_results (die Anreicherung stoppt exakt bei dieser Zahl) statt ueber eine
+    Vorfilterung, die technisch nicht moeglich ist.
+    """
     api_key = get_api_key(ws, "apollo")
     already_today = apollo_leads_today(ws)
     remaining_today = apollo.APOLLO_MAX_PER_DAY - already_today
@@ -216,22 +223,10 @@ def run_apollo(search: dict, ws: str) -> None:
     if not by_website:
         return
 
-    # Adressen freischalten, die Apollo maskiert geliefert hat. Erst jetzt --
-    # nach allen Filtern -- und nur fuer die Kontakte, die tatsaechlich
-    # gespeichert werden.
-    to_reveal = [
-        c["apollo_id"]
-        for cs in contacts_by_website.values()
-        for c in cs
-        if not c.get("email") and c.get("apollo_id")
-    ]
-    if to_reveal:
-        revealed = apollo.reveal_emails(to_reveal, api_key)
-        for cs in contacts_by_website.values():
-            for c in cs:
-                if not c.get("email"):
-                    c["email"] = revealed.get(c.get("apollo_id"))
-
+    # Kein zweiter Freischalt-Durchlauf mehr: collect_people() liefert bereits
+    # angereicherte Datensaetze, weil Apollos Suche allein weder Adresse noch
+    # Firmendomain hergibt (siehe pipelines/apollo.py). Ein erneutes bulk_match
+    # an dieser Stelle wuerde dieselben Personen ein zweites Mal abrechnen.
     websites = list(by_website)
     rows = [
         by_website[w]

@@ -304,7 +304,11 @@ function parseList(value: string): string[] {
 // 1000 = 10 Apollo-Seiten a 100 Treffern, muss zu APOLLO_MAX_PER_SEARCH im
 // Worker passen; das Tageskontingent (5000/Workspace) prueft der Worker.
 const APOLLO_MAX_TARGET = 1000;
-const APOLLO_DEFAULT_TARGET = 250;
+// Bewusst klein voreingestellt: bei Apollo entspricht jeder gelieferte Lead
+// einem Credit (die Suche selbst ist gratis, das Anreichern nicht). Eine
+// versehentlich abgeschickte Standardsuche soll deshalb ein paar Cent kosten
+// und nicht ein paar hundert. Wer mehr will, tippt die Zahl bewusst hoch.
+const APOLLO_DEFAULT_TARGET = 5;
 
 // Apollos organization_locations erwartet ausgeschriebene englische Namen, nicht
 // ISO-Codes -- deshalb eine eigene Zuordnung statt der lokalisierten Labels aus

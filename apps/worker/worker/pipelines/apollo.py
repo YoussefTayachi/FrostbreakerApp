@@ -62,6 +62,11 @@ APOLLO_MAX_PER_DAY = 5000
 PAGE_PAUSE_S = 1.5
 # bulk_match nimmt laut Doku maximal 10 Personen pro Aufruf.
 BULK_MATCH_CHUNK = 10
+# Wie viele Such-Kandidaten pro gewuenschtem Lead gesammelt werden. Die Suche
+# ist kostenlos, das Anreichern nicht -- ein Puffer kostet also nichts und
+# faengt Kandidaten ab, die beim bulk_match doch keine Domain oder Adresse
+# liefern. Zu gross waere trotzdem unsinnig: es verlaengert nur die Laufzeit.
+CANDIDATE_OVERFETCH = 3
 
 log = logging.getLogger(__name__)
 
@@ -212,7 +217,10 @@ def build_people_search_body(filters: dict, page: int) -> dict:
         body["organization_num_employees_ranges"] = [employee_range]
     domains = [d.strip() for d in str(filters.get("domains") or "").split(",") if d.strip()]
     if domains:
-        body["q_organization_domains"] = "\n".join(domains)
+        # Der Parameter heisst q_organization_domains_LIST und nimmt ein Array.
+        # Vorher stand hier q_organization_domains mit newline-getrenntem String
+        # -- den kennt die People-Search nicht, er wurde stillschweigend ignoriert.
+        body["q_organization_domains_list"] = domains
     # Eingesetzte Technik der Firma -- damit laesst sich ein Shopify-Shop direkt
     # ansprechen, statt ihn ueber das Keyword "ecommerce" zu erraten. "any_of"
     # ist Absicht: mehrere Shopsysteme sind ein ODER (Shopify ODER Shopware),
@@ -236,7 +244,17 @@ def is_masked_email(email: str | None) -> bool:
 
 
 def parse_apollo_person(person: dict) -> dict | None:
-    """Eine Apollo-Person in unser {business, contact}-Paar uebersetzen.
+    """Einen ANGEREICHERTEN Apollo-Datensatz (ein Eintrag aus matches[] von
+    people/bulk_match) in unser {business, contact}-Paar uebersetzen.
+
+    Wichtig: Das funktioniert NUR mit der Antwort von bulk_match, nicht mit der
+    von mixed_people/api_search. Die Suche liefert bewusst nur eine
+    anonymisierte Vorschau -- first_name, last_name_obfuscated, has_email und
+    ein organization-Objekt, das ausser dem Namen ausschliesslich has_*-Flags
+    enthaelt. Weder name noch email noch primary_domain stehen darin. Genau
+    daran ist die Integration anfangs gescheitert: der Parser wurde auf die
+    Suchantwort angewendet, fand nie einen vollen Namen, verwarf jede Person --
+    und die Suche endete ohne Fehler mit null Treffern (siehe collect_people).
 
     Gibt None zurueck, wenn die Firma nicht identifizierbar ist: ohne Domain
     laesst sich weder entdoppeln noch spaeter personalisieren (die
@@ -308,6 +326,9 @@ def _raise_for_plan(exc: httpx.HTTPStatusError) -> None:
     reraise=True,
 )
 def search_people(filters: dict, api_key: str, page: int) -> list[dict]:
+    """Eine Seite der People-Search. Kostet keine Credits und liefert nur die
+    anonymisierte Vorschau -- brauchbar ist daraus praktisch nur die id und das
+    has_email-Flag (siehe candidate_ids)."""
     body = build_people_search_body(filters, page)
     try:
         r = httpx.post(SEARCH_URL, json=body, headers=_headers(api_key), timeout=60)
@@ -318,15 +339,37 @@ def search_people(filters: dict, api_key: str, page: int) -> list[dict]:
     return r.json().get("people") or []
 
 
+def candidate_ids(people: list[dict]) -> list[str]:
+    """Aus der Suchvorschau die Personen herausziehen, fuer die sich das
+    Anreichern ueberhaupt lohnt.
+
+    has_email ist das einzige belastbare Signal der Vorschau: Apollo sagt damit
+    zu, dass eine Adresse hinterlegt ist. Wer das Flag nicht hat, wuerde beim
+    bulk_match ohne E-Mail zurueckkommen -- der Aufruf waere zwar gratis (Apollo
+    berechnet nichts, wenn nichts geliefert wird), aber er verbraucht ein
+    Kontingent im Zehnerpaket und damit am Ende echte Credits fuer weniger
+    Leads. Reihenfolge bleibt stabil, Duplikate fallen raus."""
+    out: list[str] = []
+    for person in people:
+        pid = person.get("id")
+        if pid and person.get("has_email") and pid not in out:
+            out.append(pid)
+    return out
+
+
 @retry(
     stop=stop_after_attempt(3),
     wait=wait_exponential(min=2, max=30),
     retry=retry_if_exception(_is_retryable),
     reraise=True,
 )
-def _bulk_match_chunk(apollo_ids: list[str], api_key: str) -> dict[str, str]:
-    """Freischalten der Adressen fuer eine Handvoll Personen. Rueckgabe:
-    apollo_id -> E-Mail (nur echte, freigeschaltete Adressen)."""
+def _bulk_match_chunk(apollo_ids: list[str], api_key: str) -> list[dict]:
+    """Anreicherung fuer maximal BULK_MATCH_CHUNK Personen. Liefert die vollen
+    Datensaetze aus matches[] -- erst hier gibt es Name, E-Mail und die
+    Firmendomain (die Suche liefert davon nichts, siehe parse_apollo_person).
+
+    reveal_phone_number bleibt bewusst aus: Telefonnummern kosten 8 Credits
+    statt 1 und Apollo liefert sie ohnehin nur asynchron per Webhook."""
     body = {
         "details": [{"id": pid} for pid in apollo_ids],
         "reveal_personal_emails": True,
@@ -337,66 +380,88 @@ def _bulk_match_chunk(apollo_ids: list[str], api_key: str) -> dict[str, str]:
     except httpx.HTTPStatusError as exc:
         _raise_for_plan(exc)
         raise
-    out: dict[str, str] = {}
-    for matched in r.json().get("matches") or []:
-        if not matched:
-            continue
-        email = matched.get("email")
-        pid = matched.get("id")
-        if pid and email and not is_masked_email(email):
-            out[pid] = email
-    return out
+    return [m for m in (r.json().get("matches") or []) if m]
 
 
-def reveal_emails(apollo_ids: list[str], api_key: str) -> dict[str, str]:
-    """bulk_match in Haeppchen von BULK_MATCH_CHUNK. Ein fehlgeschlagenes
-    Haeppchen darf die uebrigen nicht mitnehmen -- die bereits freigeschalteten
-    Adressen sind bezahlt und sollen nicht verfallen. Ein ApolloPlanError
-    dagegen betrifft jeden weiteren Aufruf gleichermassen und bricht ab."""
-    revealed: dict[str, str] = {}
-    for i in range(0, len(apollo_ids), BULK_MATCH_CHUNK):
-        chunk = apollo_ids[i : i + BULK_MATCH_CHUNK]
+def enrich_people(apollo_ids: list[str], api_key: str, wanted: int) -> list[dict]:
+    """Kandidaten anreichern, bis wanted verwertbare Leads zusammen sind.
+
+    Die Paketgroesse richtet sich nach dem, was noch fehlt -- nicht stur nach
+    BULK_MATCH_CHUNK. Wer fuenf Leads will, reichert fuenf Personen an und zahlt
+    fuenf Credits, nicht zehn. Sobald das Ziel erreicht ist, wird abgebrochen;
+    die restlichen Kandidaten aus der (kostenlosen) Suche bleiben ungenutzt.
+
+    Ein fehlgeschlagenes Paket darf die uebrigen nicht mitnehmen -- schon
+    bezahlte Adressen sollen nicht verfallen. Ein ApolloPlanError betrifft
+    dagegen jeden weiteren Aufruf gleichermassen und bricht sofort ab.
+    """
+    out: list[dict] = []
+    idx = 0
+    while idx < len(apollo_ids) and len(out) < wanted:
+        need = wanted - len(out)
+        chunk = apollo_ids[idx : idx + min(BULK_MATCH_CHUNK, need)]
+        idx += len(chunk)
         try:
-            revealed.update(_bulk_match_chunk(chunk, api_key))
+            for match in _bulk_match_chunk(chunk, api_key):
+                parsed = parse_apollo_person(match)
+                if parsed:
+                    out.append(parsed)
         except ApolloPlanError:
             raise
         except Exception as exc:  # noqa: BLE001 -- absichtlich breit, s. Docstring
             log.warning("Apollo bulk_match fuer %s Personen fehlgeschlagen: %s", len(chunk), exc)
-        if i + BULK_MATCH_CHUNK < len(apollo_ids):
+        if idx < len(apollo_ids) and len(out) < wanted:
             time.sleep(PAGE_PAUSE_S)
-    return revealed
+    return out[:wanted]
 
 
 def collect_people(filters: dict, api_key: str, limit: int) -> list[dict]:
-    """Blaettert People-Search bis limit erreicht ist oder Apollo nichts mehr
-    liefert. Entdoppelt innerhalb des Laufs anhand der Apollo-Personen-ID:
-    ueberlappende Seiten sind bei sich aendernden Ergebnismengen normal und
-    wuerden sonst dieselbe Person mehrfach anlegen."""
+    """Zweistufig, weil Apollo es so vorgibt: erst kostenlos suchen, dann
+    gezielt anreichern.
+
+    1. mixed_people/api_search kostet nichts und liefert nur eine anonymisierte
+       Vorschau. Daraus werden ausschliesslich die IDs der Personen gesammelt,
+       die laut has_email eine Adresse haben.
+    2. people/bulk_match macht daraus die vollen Datensaetze -- und kostet
+       1 Credit pro gelieferter Adresse.
+
+    Deshalb wird in Stufe 1 bewusst mehr gesammelt als gebraucht
+    (CANDIDATE_OVERFETCH): das ist gratis und schafft Ersatz fuer Kandidaten,
+    die beim Anreichern doch keine Domain oder Adresse liefern. Stufe 2 stoppt
+    exakt beim Ziel, sodass die Credit-Kosten der Zahl der gelieferten Leads
+    entsprechen und nicht der Zahl der Suchtreffer.
+    """
     capped = min(limit, APOLLO_MAX_PER_SEARCH)
-    out: list[dict] = []
-    seen_ids: set[str] = set()
+    if capped <= 0:
+        return []
+    target_candidates = capped * CANDIDATE_OVERFETCH
+    ids: list[str] = []
+    seen: set[str] = set()
     page = 1
-    while len(out) < capped and page <= (APOLLO_MAX_PER_SEARCH // PER_PAGE):
+    while len(ids) < target_candidates and page <= (APOLLO_MAX_PER_SEARCH // PER_PAGE):
         people = search_people(filters, api_key, page)
         if not people:
             break
-        for person in people:
-            pid = person.get("id")
-            if pid and pid in seen_ids:
-                continue
-            if pid:
-                seen_ids.add(pid)
-            parsed = parse_apollo_person(person)
-            if parsed:
-                out.append(parsed)
-            if len(out) >= capped:
-                break
+        for pid in candidate_ids(people):
+            if pid not in seen:
+                seen.add(pid)
+                ids.append(pid)
         if len(people) < PER_PAGE:
             break  # letzte Seite
         page += 1
-        if len(out) < capped:
+        if len(ids) < target_candidates:
             time.sleep(PAGE_PAUSE_S)
-    return out
+
+    if not ids:
+        # Kein Fehler, aber die haeufigste Ursache fuer "Suche fertig, null
+        # Leads" -- ohne diese Zeile bliebe voellig offen, ob Apollo nichts
+        # fand oder die Anreicherung scheiterte.
+        log.warning(
+            "Apollo People-Search lieferte keine Person mit hinterlegter E-Mail "
+            "(Filter zu eng oder Zielgruppe in Apollo nicht vorhanden)."
+        )
+        return []
+    return enrich_people(ids, api_key, capped)
 
 
 def check_key(api_key: str) -> dict:
