@@ -145,7 +145,7 @@ function SearchMultiSelect({
                 onChange={() => toggle(s.id)}
                 className="h-4 w-4 rounded accent-sky-500"
               />
-              <span className="truncate">{s.query} — {s.location}</span>
+              <span className="truncate">{s.query} · {s.location}</span>
             </label>
           ))}
         </div>
@@ -1035,11 +1035,26 @@ export default function LeadsTable({
                 state={statusToState(drawer.decisionmaker_status)}
                 detail={drawer.decisionmaker_status === "found" ? L.pipelineDecisionmakerFound : drawer.decisionmaker_status === "not_found" ? L.pipelineDecisionmakerNotFound : undefined}
               />
-              <PipelineStep
-                label={L.pipelineHunter}
-                state={drawer.website ? statusToState(drawer.hunter_status) : "empty"}
-                detail={!drawer.website ? L.pipelineHunterSkipped : drawer.hunter_status === "not_found" ? L.pipelineHunterNotFound : undefined}
-              />
+              {/* Bei Apollo laeuft Hunter bewusst nie: Apollo liefert die
+                  Adresse bereits verifiziert mit, ein Hunter-Aufruf waere
+                  bezahlte Doppelarbeit. Der Worker setzt dafuer
+                  hunter_status='not_found' -- ohne Sonderfall stuende hier
+                  "Keine Datenbank-Treffer" mit gelbem Punkt, als haette Hunter
+                  gesucht und versagt. Das liess einen guten Lead schlechter
+                  aussehen als er ist. */}
+              {drawer.contacts.some((c) => c.sources.includes("apollo")) ? (
+                <PipelineStep
+                  label={L.pipelineEmailVerification}
+                  state="done"
+                  detail={L.pipelineVerifiedByApollo}
+                />
+              ) : (
+                <PipelineStep
+                  label={L.pipelineHunter}
+                  state={drawer.website ? statusToState(drawer.hunter_status) : "empty"}
+                  detail={!drawer.website ? L.pipelineHunterSkipped : drawer.hunter_status === "not_found" ? L.pipelineHunterNotFound : undefined}
+                />
+              )}
               <PipelineStep
                 label={L.pipelinePersonalize}
                 state={drawer.personalization ? "done" : drawer.website ? "pending" : "empty"}

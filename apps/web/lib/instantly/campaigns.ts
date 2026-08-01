@@ -41,9 +41,9 @@ export type CampaignScheduleInput = {
  * Sicherheitsnetz fuer irgendwo frei eingetippte/importierte Werte.
  */
 export const INSTANTLY_TIMEZONE_OPTIONS: { value: string; label: string }[] = [
-  { value: "Europe/Belgrade", label: "Mitteleuropa – Berlin, Wien, Zürich, Paris, Rom, Madrid (MEZ/MESZ)" },
+  { value: "Europe/Belgrade", label: "Mitteleuropa: Berlin, Wien, Zürich, Paris, Rom, Madrid (MEZ/MESZ)" },
   { value: "Europe/Isle_of_Man", label: "Großbritannien, Irland, Portugal (GMT/BST)" },
-  { value: "Europe/Helsinki", label: "Osteuropa – Helsinki, Athen, Kiew, Riga (OEZ/OESZ)" },
+  { value: "Europe/Helsinki", label: "Osteuropa: Helsinki, Athen, Kiew, Riga (OEZ/OESZ)" },
   { value: "Europe/Istanbul", label: "Istanbul / Türkei" },
   { value: "Europe/Kaliningrad", label: "Kaliningrad" },
   { value: "Africa/Casablanca", label: "Marokko" },
@@ -59,10 +59,10 @@ export const INSTANTLY_TIMEZONE_OPTIONS: { value: string; label: string }[] = [
   { value: "Australia/Perth", label: "Perth (Westaustralien)" },
   { value: "Australia/Melbourne", label: "Sydney / Melbourne (Ostaustralien)" },
   { value: "Pacific/Auckland", label: "Auckland / Neuseeland" },
-  { value: "America/Detroit", label: "US-Ostküste – New York, Miami, Boston (Eastern)" },
-  { value: "America/Chicago", label: "US Zentral – Chicago, Dallas (Central)" },
-  { value: "America/Boise", label: "US Mountain – Denver-nah (Mountain)" },
-  { value: "America/Creston", label: "US/Kanada Westküste-nah – ganzjährig UTC-7, keine Sommerzeit" },
+  { value: "America/Detroit", label: "US-Ostküste: New York, Miami, Boston (Eastern)" },
+  { value: "America/Chicago", label: "US Zentral: Chicago, Dallas (Central)" },
+  { value: "America/Boise", label: "US Mountain: Denver-nah (Mountain)" },
+  { value: "America/Creston", label: "US/Kanada Westküste-nah: ganzjährig UTC-7, keine Sommerzeit" },
   { value: "America/Sao_Paulo", label: "São Paulo / Brasilien" },
   { value: "America/Bogota", label: "Bogotá / Kolumbien" },
   { value: "America/Santiago", label: "Santiago / Chile" },

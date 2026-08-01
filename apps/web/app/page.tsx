@@ -289,7 +289,7 @@ export default async function Dashboard({
           </p>
           <p className="text-sm text-soft">
             · {t.dashboard.roiEquals} <span className="font-medium text-emerald-600 dark:text-emerald-400">~{roi.value} €</span> {t.dashboard.roiLaborCost}
-            {" — "}{t.dashboard.roiAt} <span className="font-medium text-ink">${costs.usd.toFixed(2)}</span> {t.dashboard.roiApiCosts}
+            {", "}{t.dashboard.roiAt} <span className="font-medium text-ink">${costs.usd.toFixed(2)}</span> {t.dashboard.roiApiCosts}
           </p>
         </div>
       )}
