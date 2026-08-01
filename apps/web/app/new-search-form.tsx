@@ -992,7 +992,13 @@ export default function NewSearchForm({ workspaceId }: { workspaceId: string }) 
                 type="number"
                 min={1}
                 max={APOLLO_MAX_TARGET}
-                step={50}
+                // step=50 hat einen echten Absende-Bug erzeugt: das Browser-
+                // Constraint "stepMismatch" lehnt jeden getippten Wert ab, der
+                // nicht exakt auf 1, 51, 101, ... faellt -- eine ganz normale
+                // kleine Testsuche mit z.B. 10 liess sich dadurch gar nicht
+                // erst abschicken (stiller Fehltritt: kein Request, keine
+                // Fehlermeldung im Formular, nur der native Browser-Tooltip).
+                step={1}
                 value={apolloTarget}
                 onChange={(e) => setApolloTarget(Number(e.target.value))}
                 className={inputCls + " w-28"}
