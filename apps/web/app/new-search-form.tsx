@@ -336,7 +336,31 @@ const APOLLO_SENIORITIES = [
 
 // Vorauswahl: die Stufen, die ueblicherweise entscheiden. "senior"/"entry"/
 // "intern" bleiben abwaehlbar dabei, kosten aber Credits ohne Entscheidungsmacht.
-const APOLLO_DEFAULT_SENIORITIES = ["owner", "founder", "c_suite", "vp", "head", "director"];
+const APOLLO_DEFAULT_SENIORITIES = [
+  "owner", "founder", "c_suite", "partner", "vp", "head", "director",
+];
+
+// Apollos eigene elf Stufen aus dem "# Employees"-Filter. Muss mit
+// APOLLO_EMPLOYEE_RANGES in worker/pipelines/apollo.py uebereinstimmen -- die
+// bisher verwendeten Stufen (11-50, 51-200) sind bei Apollo keine Option, und
+// eine eigene Stufung waere ein stiller Unterschied zu dem, was der Kunde in
+// Apollo selbst sieht.
+const APOLLO_EMPLOYEE_RANGES = [
+  "1-10", "11-20", "21-50", "51-100", "101-200", "201-500",
+  "501-1000", "1001-2000", "2001-5000", "5001-10000", "10001+",
+];
+
+// Branchen laufen bei Apollo NICHT ueber unsere Industry-Liste: Apollos
+// Industry-Filter arbeitet intern mit Mongo-IDs
+// (organization_industry_tag_ids), die nicht oeffentlich abrufbar sind. Apollos
+// eigene Such-URL nutzt stattdessen qOrganizationKeywordTags -- also einfache
+// Strings, genau das Feld, das wir schon fuellen. Diese Vorschlaege sind
+// Apollos eigene Schreibweise (klein).
+const APOLLO_KEYWORD_SUGGESTIONS = [
+  "ecommerce", "supplements", "nutrition", "health & wellness", "cosmetics",
+  "retail", "computer software", "information technology & services", "internet",
+  "marketing & advertising", "construction", "real estate", "financial services",
+];
 
 function loadPresets(workspaceId: string): Preset[] {
   try {
@@ -817,9 +841,11 @@ export default function NewSearchForm({ workspaceId }: { workspaceId: string }) 
             </label>
             <label className={labelCls}>
               {t.newSearchForm.headcount}
+              {/* Apollos eigene Stufen, nicht unsere aus dem Corporate-Modus --
+                  siehe APOLLO_EMPLOYEE_RANGES. */}
               <select value={headcount} onChange={(e) => setHeadcount(e.target.value)} className={inputCls + " w-32"}>
                 <option value="">{t.newSearchForm.allHeadcounts}</option>
-                {HEADCOUNTS.map((h) => <option key={h} value={h}>{h}</option>)}
+                {APOLLO_EMPLOYEE_RANGES.map((h) => <option key={h} value={h}>{h}</option>)}
               </select>
             </label>
             <label className={labelCls}>
@@ -846,6 +872,36 @@ export default function NewSearchForm({ workspaceId }: { workspaceId: string }) 
               className={inputCls}
             />
           </label>
+          <div className="-mt-1 flex flex-wrap gap-1.5">
+            {APOLLO_KEYWORD_SUGGESTIONS.map((kw) => {
+              const active = parseList(keywords).some((v) => v.toLowerCase() === kw);
+              return (
+                <button
+                  key={kw}
+                  type="button"
+                  onClick={() =>
+                    setKeywords((prev) => {
+                      const list = parseList(prev);
+                      const next = active
+                        ? list.filter((v) => v.toLowerCase() !== kw)
+                        : [...list, kw];
+                      return next.join(", ");
+                    })
+                  }
+                  className={
+                    "rounded-lg border px-2 py-0.5 text-[11px] transition-colors " +
+                    (active
+                      ? "border-violet-500/60 bg-violet-500/10 text-violet-700 dark:text-violet-300"
+                      : "border-edge2 text-faint hover:border-edge3 hover:text-ink")
+                  }
+                >
+                  {active ? "✓ " : "+ "}
+                  {kw}
+                </button>
+              );
+            })}
+          </div>
+
           {/* Anklicken statt abtippen: Apollo gleicht Titel unscharf ab, ein
               gesperrtes Dropdown waere hier also falsch -- ein Tippfehler
               kostet aber trotzdem eine ganze Suche. */}

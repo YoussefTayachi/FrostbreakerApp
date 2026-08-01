@@ -10,17 +10,24 @@ E-Mail (siehe Kommentar in get_businesses.py), Apollo liefert per
 contact_email_status-Filter ausschliesslich Personen, fuer die bereits eine
 verifizierte Adresse vorliegt.
 
-Kosten/Limits, die das Design bestimmen (Apollo-Doku, Stand 2026-08):
-  * Ein Master-API-Key existiert erst ab Apollos Organization-Plan. Ein Key
-    aus einem kleineren Plan bekommt 403 -- das wird als klare Meldung
-    weitergegeben, nicht als "keine Ergebnisse" verschluckt.
+Kosten/Limits, die das Design bestimmen (aus dem eingeloggten Apollo-Account
+abgelesen, Stand 2026-08):
+  * Der Free-Plan sperrt mixed_people/api_search UND people/bulk_match, also
+    genau die zwei Endpunkte dieser Pipeline. API-Zugang beginnt bei Apollos
+    Basic-Plan. Ein Master-Key hebt die Plan-Sperre NICHT auf -- er erweitert
+    nur den Umfang innerhalb dessen, was der Plan hergibt. Der 403 wird
+    deshalb als erklaerende Meldung weitergegeben (ApolloPlanError), nicht als
+    "keine Ergebnisse" verschluckt.
   * People-Search kostet 1 Credit pro Seite (bis 100 Treffer), nicht pro
     Person. Grosse Suchen sind dadurch guenstig; teuer ist erst das
-    Freischalten persoenlicher Adressen (bulk_match).
+    Freischalten persoenlicher Adressen (bulk_match: 1 Credit pro E-Mail,
+    8 pro Telefonnummer -- Telefonnummern fragen wir bewusst nicht ab).
   * Harte Anzeigegrenze bei Apollo: 100 Treffer/Seite, max. 500 Seiten.
     Unsere Grenzen liegen bewusst weit darunter (siehe Konstanten).
-  * Rate Limit rund 50 Anfragen/Minute, planabhaengig. PAGE_PAUSE_S haelt
+  * Rate Limits (Free): 50/Minute, 200/Stunde, 600/Tag. PAGE_PAUSE_S haelt
     Abstand, statt in den 429 zu laufen und sich auf Retries zu verlassen.
+  * Der Key gehoert in den x-api-key-Header: Apollo hat das Mitgeben als
+    URL-Parameter als "deprecated soon" angekuendigt.
 
 Docs: https://docs.apollo.io/reference/people-api-search
 """
@@ -32,8 +39,14 @@ from tenacity import retry, retry_if_exception, stop_after_attempt, wait_exponen
 
 from worker.http_safety import raise_for_status_safe
 
-SEARCH_URL = "https://api.apollo.io/api/v1/mixed_people/search"
+# api_search, NICHT mixed_people/search: letzteres ist der Endpunkt hinter
+# Apollos eigener Oberflaeche, dokumentiert und fuer API-Keys freigegeben ist
+# ausschliesslich api_search.
+SEARCH_URL = "https://api.apollo.io/api/v1/mixed_people/api_search"
 BULK_MATCH_URL = "https://api.apollo.io/api/v1/people/bulk_match"
+# Kostet keine Credits und beruehrt keine Suchdaten -- reiner Lebenszeichen-Test
+# fuer einen Key (siehe apps/web/app/api/apollo/health).
+HEALTH_URL = "https://api.apollo.io/api/v1/auth/health"
 
 PER_PAGE = 100
 # 1000 Leads pro Suche = 10 Seiten. Bewusst grosszuegig (Apollo erlaubt
@@ -54,10 +67,10 @@ log = logging.getLogger(__name__)
 
 
 class ApolloPlanError(Exception):
-    """Apollo verweigert den Zugriff auf Key-Ebene (403) -- praktisch immer ein
-    Key ohne Master-API-Recht (nur im Organization-Plan enthalten). Eigene
-    Klasse, damit get_businesses daraus eine erklaerende Fehlermeldung machen
-    kann statt eines rohen HTTP-Fehlers."""
+    """Apollo verweigert den Zugriff (401/403) -- praktisch immer ein Key aus
+    einem Plan, der den Endpunkt nicht enthaelt (Free sperrt Personensuche und
+    bulk_match). Eigene Klasse, damit get_businesses daraus eine erklaerende
+    Fehlermeldung machen kann statt eines rohen HTTP-Fehlers."""
 
 
 class ApolloDailyCapReached(Exception):
@@ -83,6 +96,11 @@ APOLLO_SENIORITIES = [
     "owner",
     "founder",
     "c_suite",
+    # In einer frueheren Fassung hier faelschlich entfernt: eine Websuche hatte
+    # "partner" nicht gelistet. Apollos eigene Oberflaeche fuehrt es sehr wohl
+    # (in einer Beispielsuche Germany+ecommerce mit 2.300 Treffern), es ist
+    # gueltig und fuer Kanzleien/Beratungen sogar die wichtigste Stufe.
+    "partner",
     "vp",
     "head",
     "director",
@@ -96,7 +114,7 @@ APOLLO_SENIORITIES = [
 # Entscheider gelten. Ohne diese Einschraenkung liefert Apollo auch
 # Praktikanten und Sachbearbeiter -- fuer Cold Outreach wertlos, aber sie
 # wuerden Credits und das Tageskontingent verbrauchen.
-DECISIONMAKER_SENIORITIES = ["owner", "founder", "c_suite", "vp", "head", "director"]
+DECISIONMAKER_SENIORITIES = ["owner", "founder", "c_suite", "partner", "vp", "head", "director"]
 
 
 def _valid_seniorities(raw: object) -> list[str]:
@@ -110,18 +128,31 @@ def _valid_seniorities(raw: object) -> list[str]:
     return picked or list(DECISIONMAKER_SENIORITIES)
 
 
+# Apollos eigene elf Stufen aus dem "# Employees"-Filter. Apollo akzeptiert
+# technisch beliebige untere,obere Grenzen -- eine eigene Stufung waere aber ein
+# stiller Unterschied zu dem, was der Kunde in Apollo selbst sieht ("11-50" ist
+# dort keine Option). Muss mit APOLLO_EMPLOYEE_RANGES in
+# apps/web/app/new-search-form.tsx uebereinstimmen.
+APOLLO_EMPLOYEE_RANGES = [
+    "1-10", "11-20", "21-50", "51-100", "101-200", "201-500",
+    "501-1000", "1001-2000", "2001-5000", "5001-10000", "10001+",
+]
+
+
 def _employee_range(headcount: str | None) -> str | None:
-    """Unsere Formularwerte ("11-50", "10001+") in Apollos Range-Schreibweise
-    ("11,50", "10001,1000000") uebersetzen."""
+    """Formularwert ("11-20", "10001+") in Apollos Range-Schreibweise
+    ("11,20", "10001,1000000"). Unbekannte Stufen werden verworfen statt
+    umgerechnet -- ein Wert, den Apollos Oberflaeche nicht kennt, waere eine
+    stille Abweichung von dem, was der Kunde dort sieht."""
     if not headcount:
         return None
     value = headcount.strip()
+    if value not in APOLLO_EMPLOYEE_RANGES:
+        return None
     if value.endswith("+"):
         return f"{value[:-1]},1000000"
-    if "-" in value:
-        low, _, high = value.partition("-")
-        return f"{low},{high}"
-    return None
+    low, _, high = value.partition("-")
+    return f"{low},{high}"
 
 
 def build_people_search_body(filters: dict, page: int) -> dict:
@@ -232,9 +263,11 @@ def _headers(api_key: str) -> dict:
 def _raise_for_plan(exc: httpx.HTTPStatusError) -> None:
     if exc.response.status_code in (401, 403):
         raise ApolloPlanError(
-            "Apollo hat den Key abgelehnt (403). Der programmatische API-Zugriff "
-            "(Master-API-Key) ist bei Apollo erst im Organization-Plan enthalten -- "
-            "ein Key aus Free/Basic/Professional funktioniert hier nicht."
+            "Apollo hat den Key abgelehnt (403). Der Free-Plan gibt die Personensuche "
+            "und das E-Mail-Anreichern ueber die API nicht frei (mixed_people/api_search "
+            "und people/bulk_match sind dort gesperrt) -- dafuer braucht es mindestens "
+            "Apollos Basic-Plan. Ein Master-Key hebt die Plan-Sperre nicht auf. "
+            "Firmensuche (organizations/search) waere im Free-Plan erlaubt."
         ) from exc
 
 
@@ -334,3 +367,20 @@ def collect_people(filters: dict, api_key: str, limit: int) -> list[dict]:
         if len(out) < capped:
             time.sleep(PAGE_PAUSE_S)
     return out
+
+
+def check_key(api_key: str) -> dict:
+    """Lebenszeichen-Test fuer einen Apollo-Key.
+
+    /auth/health kostet keine Credits und ist in jedem Plan erlaubt -- damit
+    laesst sich "ist der Key gueltig?" beantworten, ohne eine Suche zu starten
+    und Kontingent zu verbrennen. Beantwortet ausdruecklich NICHT, ob der Plan
+    die Personensuche freigibt; das zeigt sich erst beim ersten echten Lauf
+    (dann als ApolloPlanError).
+    """
+    r = httpx.get(HEALTH_URL, headers=_headers(api_key), timeout=20)
+    if r.status_code in (401, 403):
+        return {"ok": False, "status": r.status_code}
+    raise_for_status_safe(r)
+    body = r.json()
+    return {"ok": bool(body.get("is_logged_in")), "status": r.status_code}

@@ -2,6 +2,7 @@
 import pytest
 
 from worker.pipelines.apollo import (
+    APOLLO_EMPLOYEE_RANGES,
     APOLLO_MAX_PER_SEARCH,
     APOLLO_SENIORITIES,
     DECISIONMAKER_SENIORITIES,
@@ -29,7 +30,7 @@ def test_build_body_maps_all_filters():
             "person_titles": "Founder, CEO , ",
             "apollo_locations": ["Germany", " Austria "],
             "keywords": "supplements, nutrition",
-            "headcount": "11-50",
+            "headcount": "11-20",
             "domains": "example.com",
         },
         page=3,
@@ -37,7 +38,7 @@ def test_build_body_maps_all_filters():
     assert body["person_titles"] == ["Founder", "CEO"]
     assert body["organization_locations"] == ["Germany", "Austria"]
     assert body["q_organization_keyword_tags"] == ["supplements", "nutrition"]
-    assert body["organization_num_employees_ranges"] == ["11,50"]
+    assert body["organization_num_employees_ranges"] == ["11,20"]
     assert body["q_organization_domains"] == "example.com"
     assert body["page"] == 3
 
@@ -50,10 +51,26 @@ def test_build_body_rejects_filterless_search():
 
 
 def test_employee_range_translation():
-    assert _employee_range("11-50") == "11,50"
+    assert _employee_range("11-20") == "11,20"
     assert _employee_range("10001+") == "10001,1000000"
     assert _employee_range(None) is None
     assert _employee_range("") is None
+
+
+def test_employee_range_rejects_stufen_die_apollo_nicht_kennt():
+    """"11-50" war unsere eigene Erfindung -- Apollo akzeptiert sie technisch,
+    zeigt sie in der Oberflaeche aber nicht an. Eine stille Abweichung von dem,
+    was der Kunde dort sieht, ist schlechter als kein Filter."""
+    assert _employee_range("11-50") is None
+    assert _employee_range("51-200") is None
+
+
+def test_all_apollo_employee_ranges_translate():
+    for value in APOLLO_EMPLOYEE_RANGES:
+        translated = _employee_range(value)
+        assert translated is not None, value
+        low, _, high = translated.partition(",")
+        assert low.isdigit() and high.isdigit(), value
 
 
 def test_masked_email_detection():
@@ -143,14 +160,24 @@ def test_search_cap_is_a_whole_number_of_pages():
 
 
 def test_default_seniorities_are_all_valid_apollo_values():
-    """Ein Wert ausserhalb von Apollos Enum ist eine ungueltige Anfrage, kein
-    Geschmacksfehler -- "partner" stand hier faelschlich drin."""
     assert set(DECISIONMAKER_SENIORITIES) <= set(APOLLO_SENIORITIES)
+
+
+def test_partner_is_a_valid_seniority():
+    """Regressionsschutz: "partner" wurde einmal aufgrund einer unvollstaendigen
+    Websuche entfernt, obwohl Apollos eigene Oberflaeche es fuehrt -- fuer
+    Kanzleien und Beratungen ist es die wichtigste Stufe ueberhaupt."""
+    assert "partner" in APOLLO_SENIORITIES
+    assert "partner" in DECISIONMAKER_SENIORITIES
+    body = build_people_search_body(
+        {"keywords": "law", "apollo_seniorities": ["partner"]}, page=1
+    )
+    assert body["person_seniorities"] == ["partner"]
 
 
 def test_seniorities_from_form_are_filtered_against_apollo_enum():
     body = build_people_search_body(
-        {"keywords": "supplements", "apollo_seniorities": ["owner", "partner", "bogus", "manager"]},
+        {"keywords": "supplements", "apollo_seniorities": ["owner", "bogus", "manager"]},
         page=1,
     )
     assert body["person_seniorities"] == ["owner", "manager"]

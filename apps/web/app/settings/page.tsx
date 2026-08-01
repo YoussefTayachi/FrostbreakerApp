@@ -31,6 +31,10 @@ export default function SettingsPage() {
   const [values, setValues] = useState<Record<string, string>>({});
   const [status, setStatus] = useState<Record<string, string>>({});
   const [removing, setRemoving] = useState<string | null>(null);
+  // Apollo hat einen kostenlosen Health-Endpunkt -- damit laesst sich ein Key
+  // pruefen, ohne eine Suche zu starten und Credits zu verbrennen. Die anderen
+  // Provider bieten kein Gegenstueck, deshalb bewusst nur hier.
+  const [apolloTest, setApolloTest] = useState<"idle" | "testing" | "ok" | "fail">("idle");
 
   useEffect(() => {
     const supabase = createClient();
@@ -138,6 +142,20 @@ export default function SettingsPage() {
     }
   }
 
+  async function testApollo() {
+    setApolloTest("testing");
+    try {
+      const res = await fetch("/api/apollo/health", { method: "POST" });
+      const body = await res.json().catch(() => ({}));
+      const ok = res.ok && body.ok === true;
+      setApolloTest(ok ? "ok" : "fail");
+      push(ok ? t.settings.apolloTestOk : t.settings.apolloTestFail, ok ? "success" : "error");
+    } catch {
+      setApolloTest("fail");
+      push(t.settings.apolloTestFail, "error");
+    }
+  }
+
   const providerLabels: Record<string, string> = {
     google_maps: "Google Maps", openai: "OpenAI", hunter: "Hunter.io", apollo: "Apollo.io",
     neverbounce: "NeverBounce",
@@ -185,6 +203,23 @@ export default function SettingsPage() {
                   className={inputCls + " flex-1"}
                 />
                 <button onClick={() => save(p)} className={btnCls}>{t.settings.save}</button>
+                {p === "apollo" && saved.includes(p) && (
+                  <button
+                    onClick={testApollo}
+                    disabled={apolloTest === "testing"}
+                    title={t.settings.apolloTestTitle}
+                    className={
+                      "rounded-lg border px-4 py-2.5 text-sm font-medium transition-colors disabled:opacity-50 " +
+                      (apolloTest === "ok"
+                        ? "border-emerald-500/40 text-emerald-600 dark:text-emerald-400"
+                        : apolloTest === "fail"
+                          ? "border-red-300 text-red-600 dark:border-red-500/30 dark:text-red-400"
+                          : "border-edge2 text-soft hover:border-edge3 hover:text-ink")
+                    }
+                  >
+                    {apolloTest === "testing" ? t.settings.apolloTesting : t.settings.apolloTest}
+                  </button>
+                )}
                 {saved.includes(p) && (
                   <button
                     onClick={() => remove(p)}
