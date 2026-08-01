@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { requireInstantlyContext, instantlyRequest, InstantlyApiError } from "@/lib/instantly";
 import { loadOwnedCampaign } from "@/lib/instantly/campaigns";
+import { splitBySendability } from "@/lib/contacts";
 
 /**
  * Fuegt Kontakte hinzu, die seit dem Erstellen (oder dem letzten Aufruf hier)
@@ -35,7 +36,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   const [{ data: contacts }, { data: alreadyAdded }] = await Promise.all([
     supabase
       .from("contacts")
-      .select("id, email, first_name, last_name, businesses!inner(name, personalization, search_id)")
+      .select("id, email, first_name, last_name, email_verification_status, businesses!inner(name, personalization, search_id)")
       .eq("workspace_id", ctx.workspace.id)
       .in("businesses.search_id", searchIds)
       .not("email", "is", null)
@@ -48,14 +49,18 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     email: string | null;
     first_name: string | null;
     last_name: string | null;
+    email_verification_status: string | null;
     businesses: { name: string | null; personalization: string | null } | null;
   };
 
   const addedIds = new Set((alreadyAdded ?? []).map((r) => r.contact_id));
-  const newRows = ((contacts ?? []) as unknown as ContactRow[]).filter((c) => !!c.email && !addedIds.has(c.id));
+  const fresh = ((contacts ?? []) as unknown as ContactRow[]).filter((c) => !!c.email && !addedIds.has(c.id));
+  // Gleiche Regel wie beim Anlegen der Kampagne: ungueltige Adressen duerfen
+  // auch beim Nachreichen nicht in den Versand rutschen.
+  const { sendable: newRows, unsendable } = splitBySendability(fresh);
 
   if (newRows.length === 0) {
-    return NextResponse.json({ ok: true, added: 0 });
+    return NextResponse.json({ ok: true, added: 0, skipped_unverified: unsendable.length });
   }
 
   const leads = newRows.map((c) => ({
@@ -84,5 +89,5 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     { onConflict: "campaign_id,contact_id", ignoreDuplicates: true }
   );
 
-  return NextResponse.json({ ok: true, added: newRows.length });
+  return NextResponse.json({ ok: true, added: newRows.length, skipped_unverified: unsendable.length });
 }

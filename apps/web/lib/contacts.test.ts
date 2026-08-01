@@ -1,5 +1,40 @@
 import { describe, expect, it } from "vitest";
-import { pickPrimaryContactPerBusiness, rankContactTitle } from "./contacts";
+import { pickPrimaryContactPerBusiness, rankContactTitle, isSendableEmail, splitBySendability } from "./contacts";
+
+describe("isSendableEmail", () => {
+  it("sperrt nur Status, die garantiert bouncen", () => {
+    expect(isSendableEmail("invalid")).toBe(false);
+    expect(isSendableEmail("disposable")).toBe(false);
+  });
+
+  it("laesst zustellbare und unklare Status durch", () => {
+    expect(isSendableEmail("valid")).toBe(true);
+    expect(isSendableEmail("catchall")).toBe(true);
+    expect(isSendableEmail("accept_all")).toBe(true);
+    // Unklar heisst nicht ungueltig -- ein Ausschluss waere eine Wette, keine Aussage.
+    expect(isSendableEmail("unknown")).toBe(true);
+  });
+
+  it("laesst noch nicht gepruefte Kontakte durch", () => {
+    expect(isSendableEmail(null)).toBe(true);
+    expect(isSendableEmail(undefined)).toBe(true);
+  });
+});
+
+describe("splitBySendability", () => {
+  it("trennt ungueltige Adressen ab, ohne sie zu verlieren", () => {
+    const contacts = [
+      { email: "a@x.com", email_verification_status: "valid" },
+      { email: "b@x.com", email_verification_status: "invalid" },
+      { email: "c@x.com", email_verification_status: "catchall" },
+      { email: "d@x.com", email_verification_status: null },
+      { email: "e@x.com", email_verification_status: "disposable" },
+    ];
+    const { sendable, unsendable } = splitBySendability(contacts);
+    expect(sendable.map((c) => c.email)).toEqual(["a@x.com", "c@x.com", "d@x.com"]);
+    expect(unsendable.map((c) => c.email)).toEqual(["b@x.com", "e@x.com"]);
+  });
+});
 
 describe("rankContactTitle", () => {
   it("stuft Owner/CEO/President am hoechsten ein", () => {

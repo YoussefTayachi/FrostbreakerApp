@@ -24,6 +24,44 @@ const TITLE_RANK: { pattern: RegExp; rank: number }[] = [
   { pattern: /\bmanager\b/i, rank: 3 },
 ];
 
+/**
+ * Verifizierungs-Status, bei denen ein Versand der Absender-Reputation aktiv
+ * schadet -- unabhaengig davon, ob Hunter oder NeverBounce ihn gesetzt hat:
+ *
+ *   invalid    Postfach existiert nachweislich nicht -> garantierter Bounce
+ *   disposable Wegwerf-Adresse -> haeufig Spamtrap, nie ein echter Empfaenger
+ *
+ * Bewusst NICHT gefiltert:
+ *   catchall/accept_all  Domain nimmt alles an, zaehlt nicht als Bounce
+ *   unknown              Server hat nicht eindeutig geantwortet (oft nur ein
+ *                        Timeout) -- ein Ausschluss waere hier eine Wette
+ *                        gegen den Lead, keine belegte Aussage
+ *   null                 noch nicht geprueft; wer nie verifiziert, soll nicht
+ *                        stillschweigend eine leere Kampagne bekommen
+ *
+ * Bis hierhin filterte die Kampagnen-Erstellung nur Sperrliste und "kein
+ * Interesse" -- das Verifizierungsergebnis blieb ungenutzt, obwohl es genau
+ * dafuer erhoben wird.
+ */
+const UNSENDABLE_STATUS = new Set(["invalid", "disposable"]);
+
+export function isSendableEmail(status: string | null | undefined): boolean {
+  return !status || !UNSENDABLE_STATUS.has(status);
+}
+
+/** Trennt in versendbar und "wuerde bouncen", damit der Aufrufer die
+ *  aussortierte Menge benennen kann statt sie stillschweigend zu schlucken. */
+export function splitBySendability<T extends { email_verification_status: string | null }>(
+  contacts: T[]
+): { sendable: T[]; unsendable: T[] } {
+  const sendable: T[] = [];
+  const unsendable: T[] = [];
+  for (const c of contacts) {
+    (isSendableEmail(c.email_verification_status) ? sendable : unsendable).push(c);
+  }
+  return { sendable, unsendable };
+}
+
 export function rankContactTitle(title: string | null | undefined): number {
   if (!title) return 5;
   for (const { pattern, rank } of TITLE_RANK) {

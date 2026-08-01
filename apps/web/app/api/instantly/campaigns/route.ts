@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { requireInstantlyContext, instantlyRequest, InstantlyApiError } from "@/lib/instantly";
 import { getBillingStatus } from "@/lib/billing";
 import { filterSuppressed } from "@/lib/suppression";
-import { pickPrimaryContactPerBusiness } from "@/lib/contacts";
+import { pickPrimaryContactPerBusiness, splitBySendability } from "@/lib/contacts";
 import {
   buildCampaignSchedule,
   buildCampaignSequence,
@@ -77,7 +77,7 @@ export async function POST(req: Request) {
     supabase
       .from("contacts")
       .select(
-        "id, email, first_name, last_name, title, business_id, is_primary, outreach_status, businesses!inner(name, website, personalization, search_id)"
+        "id, email, first_name, last_name, title, business_id, is_primary, outreach_status, email_verification_status, businesses!inner(name, website, personalization, search_id)"
       )
       .eq("workspace_id", workspaceId)
       .in("businesses.search_id", searchIds)
@@ -95,6 +95,7 @@ export async function POST(req: Request) {
     business_id: string | null;
     is_primary: boolean;
     outreach_status: string;
+    email_verification_status: string | null;
     businesses: { name: string | null; website: string | null; personalization: string | null } | null;
   };
 
@@ -106,7 +107,11 @@ export async function POST(req: Request) {
   // uebernommen, auch bereits blockierte/abgelehnte.
   const withEmail = ((contacts ?? []) as unknown as ContactRow[]).filter((c) => !!c.email);
   const notDeclined = withEmail.filter((c) => c.outreach_status !== "not_interested");
-  const contactable = filterSuppressed(notDeclined, suppression ?? []);
+  // Als ungueltig erkannte Adressen nie versenden: sie bouncen garantiert und
+  // beschaedigen die Absender-Reputation der ganzen Domain, nicht nur diese
+  // eine Kampagne. Genau dafuer wird vorher verifiziert.
+  const { sendable, unsendable } = splitBySendability(filterSuppressed(notDeclined, suppression ?? []));
+  const contactable = sendable;
   // KI-Recherche und Hunter finden bewusst mehrere moegliche Ansprechpartner
   // pro Firma (siehe lib/contacts.ts) -- fuer den tatsaechlichen Versand aber
   // nur die ranghoechste Person je Firma, sonst wuerde jede Mitarbeiterin/jeder
@@ -115,7 +120,12 @@ export async function POST(req: Request) {
 
   if (rows.length === 0) {
     return NextResponse.json(
-      { error: "Keine kontaktierbaren Leads in dieser Suche gefunden (alle bereits blockiert oder ohne Interesse)." },
+      {
+        error:
+          unsendable.length > 0
+            ? `Keine versendbaren Leads: alle ${unsendable.length} Adressen sind als ungueltig erkannt, blockiert oder ohne Interesse.`
+            : "Keine kontaktierbaren Leads in dieser Suche gefunden (alle bereits blockiert oder ohne Interesse).",
+      },
       { status: 400 }
     );
   }
@@ -224,6 +234,9 @@ export async function POST(req: Request) {
     ok: true,
     campaign_id: localCampaign.id,
     instantly_campaign_id: instantlyCampaign.id,
+    // Aussortierte ungueltige Adressen mitgeben statt sie stillschweigend zu
+    // schlucken -- der Nutzer soll sehen, dass die Verifizierung gewirkt hat.
+    skipped_unverified: unsendable.length,
     leads_added: leads.length,
   });
 }
