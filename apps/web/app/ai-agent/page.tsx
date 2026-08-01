@@ -9,6 +9,7 @@ import {
 import { useT } from "../language-provider";
 import { useToast } from "../toast-provider";
 import { useWorkspace } from "../workspace-provider";
+import HelpLink from "../help-link";
 
 type BusinessOption = { id: string; name: string; company_summary: string | null; website: string | null };
 type TestResult = { text: string; problems: string[]; wordCount: number; corrected: boolean };
@@ -235,7 +236,10 @@ export default function AiAgentPage() {
     <div className="fade-up max-w-3xl space-y-6">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight text-ink">{t.aiAgent.title}</h1>
-        <p className="text-sm text-faint">{t.aiAgent.subtitle}</p>
+        <p className="text-sm text-faint">
+          {t.aiAgent.subtitle}{" "}
+          <HelpLink section="agent" label={t.guide.helpLink} />
+        </p>
       </div>
 
       <div className="rounded-lg border border-edge/60 bg-panel p-6">

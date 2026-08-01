@@ -65,6 +65,13 @@ export default function WelcomeModal({ openSteps }: { openSteps: string[] }) {
           >
             {t.welcome.primaryCta}
           </Link>
+          <Link
+            href="/guide"
+            onClick={dismiss}
+            className="rounded-lg border border-edge2 px-4 py-2.5 text-sm font-medium text-soft transition-colors hover:border-edge3 hover:text-ink"
+          >
+            {t.welcome.guideCta}
+          </Link>
           <button
             onClick={dismiss}
             className="rounded-lg px-3 py-2.5 text-sm text-faint transition-colors hover:text-ink"

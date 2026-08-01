@@ -3,6 +3,7 @@ import { getCurrentWorkspace } from "@/lib/workspace/server";
 import { getLangServer } from "@/lib/i18n/lang";
 import { dict } from "@/lib/i18n/dict";
 import CallList, { type CallTask } from "./call-list";
+import HelpLink from "../help-link";
 
 /**
  * Die Anrufliste: alle offenen, terminierten Anrufe ueber ALLE Leads hinweg.
@@ -61,7 +62,10 @@ export default async function CallsPage() {
     <div className="fade-up space-y-6">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight text-ink">{t.calls.title}</h1>
-        <p className="text-sm text-faint">{t.calls.subtitle}</p>
+        <p className="text-sm text-faint">
+          {t.calls.subtitle}{" "}
+          <HelpLink section="calls" label={t.guide.helpLink} />
+        </p>
       </div>
       <CallList tasks={tasks} />
     </div>

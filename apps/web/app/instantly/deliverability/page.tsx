@@ -3,6 +3,7 @@ import { getCurrentWorkspace } from "@/lib/workspace/server";
 import { dict } from "@/lib/i18n/dict";
 import { getLangServer } from "@/lib/i18n/lang";
 import DeliverabilityPanel from "./deliverability-panel";
+import HelpLink from "../../help-link";
 
 export default async function InstantlyDeliverabilityPage() {
   const lang = await getLangServer();
@@ -22,7 +23,10 @@ export default async function InstantlyDeliverabilityPage() {
     <div className="fade-up max-w-2xl space-y-6">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight text-ink">{t.deliverability.title}</h1>
-        <p className="text-sm text-faint">{t.deliverability.subtitle}</p>
+        <p className="text-sm text-faint">
+          {t.deliverability.subtitle}{" "}
+          <HelpLink section="deliverability" label={t.guide.helpLink} />
+        </p>
       </div>
       <DeliverabilityPanel hasInstantlyKey={!!key} />
     </div>

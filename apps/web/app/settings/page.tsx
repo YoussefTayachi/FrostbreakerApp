@@ -7,6 +7,7 @@ import { useT } from "../language-provider";
 import { useToast } from "../toast-provider";
 import { useWorkspace } from "../workspace-provider";
 import BillingSection from "./billing-section";
+import HelpLink from "../help-link";
 
 // Instantly (Mailboxen, Kampagnen, API-Key) lebt seit dem eigenen /instantly-
 // Bereich nicht mehr hier -- die anderen BYOK-Provider (reine Lookup-/
@@ -165,7 +166,10 @@ export default function SettingsPage() {
     <div className="fade-up max-w-2xl space-y-6">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight text-ink">{t.settings.title}</h1>
-        <p className="text-sm text-faint">{t.settings.subtitle}</p>
+        <p className="text-sm text-faint">
+          {t.settings.subtitle}{" "}
+          <HelpLink section="keys" label={t.guide.helpLink} />
+        </p>
       </div>
 
       <BillingSection />

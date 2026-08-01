@@ -1,5 +1,5 @@
 "use client";
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
@@ -11,6 +11,8 @@ import {
   type ActivityType,
 } from "@/lib/crm/activities";
 import { formatDay } from "@/lib/format-time";
+import type { Dictionary } from "@/lib/i18n/dict";
+import type { Lang } from "@/lib/i18n/lang";
 import CompanyLogo from "../company-logo";
 import { IconPhone } from "../icons";
 import { useT } from "../language-provider";
@@ -73,6 +75,223 @@ function startOfToday(): number {
   return d.getTime();
 }
 
+const chipBtn =
+  "rounded-lg border border-edge2 px-2.5 py-1.5 text-xs text-soft transition-colors " +
+  "hover:border-edge3 hover:text-ink disabled:opacity-40";
+
+/**
+ * Eine Zeile der Anrufliste.
+ *
+ * WICHTIG: bewusst auf Modulebene, nicht innerhalb von CallList. Eine hier
+ * verschachtelte Komponente bekommt bei jedem Render der Liste eine neue
+ * Funktions-Identitaet; React sieht dann einen anderen Komponententyp und baut
+ * den Teilbaum neu auf statt ihn zu aktualisieren. Genau das ist vorher
+ * passiert und hat das Notizfeld nach jedem getippten Zeichen den Fokus
+ * verlieren lassen -- die Gespraechsnotiz war praktisch nicht benutzbar.
+ */
+function CallRow({
+  task,
+  overdue,
+  expanded,
+  busy,
+  note,
+  outcome,
+  lang,
+  t,
+  onToggle,
+  onNoteChange,
+  onOutcomeChange,
+  onComplete,
+  onReschedule,
+  onDelete,
+}: {
+  task: CallTask;
+  overdue: boolean;
+  expanded: boolean;
+  busy: boolean;
+  note: string;
+  outcome: ActivityOutcome | "";
+  lang: Lang;
+  t: Dictionary;
+  onToggle: () => void;
+  onNoteChange: (value: string) => void;
+  onOutcomeChange: (value: ActivityOutcome | "") => void;
+  onComplete: () => void;
+  onReschedule: (days: number) => void;
+  onDelete: () => void;
+}) {
+  const C = t.calls;
+  const { company, phone, name, title } = resolve(task);
+  const searchTarget = company?.name ?? name ?? "";
+
+  return (
+    <div className="border-b border-edge/60 last:border-0">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3">
+        <CompanyLogo name={company?.name ?? "?"} website={company?.website ?? null} size={28} />
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <span className="truncate text-sm font-medium text-ink">
+              {name ?? company?.name ?? "—"}
+            </span>
+            {task.type !== "call" && (
+              <span className="rounded-full border border-edge2 bg-chip px-2 py-0.5 text-[10px] text-soft">
+                {t.crm.activityTypeLabels[task.type] ?? task.type}
+              </span>
+            )}
+            {overdue && (
+              <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[10px] font-medium text-amber-700 dark:text-amber-300">
+                {C.overdueBadge}
+              </span>
+            )}
+          </div>
+          <p className="truncate text-xs text-faint">
+            {[title, company?.name].filter(Boolean).join(" · ") || "—"}
+          </p>
+        </div>
+
+        {/* tel:-Link, kein App-Dialer: gewaehlt wird mit dem Firmentelefon,
+            die App liefert nur die Nummer klickbar mit. */}
+        {phone ? (
+          <a
+            href={"tel:" + phone.replace(/\s/g, "")}
+            className="flex items-center gap-1.5 rounded-lg border border-edge2 bg-field px-2.5 py-1.5 font-mono text-xs text-ink transition-colors hover:border-sky-500"
+            title={C.phoneTitle}
+          >
+            <IconPhone className="h-3.5 w-3.5 text-mute" />
+            {phone}
+          </a>
+        ) : (
+          <span className="text-xs text-mute">{C.noPhone}</span>
+        )}
+
+        <span className="w-24 text-right text-xs text-faint">{formatDay(task.due_at, lang)}</span>
+
+        <button onClick={onToggle} className={chipBtn}>
+          {expanded ? C.collapse : C.prepare}
+        </button>
+      </div>
+
+      {expanded && (
+        <div className="space-y-3 border-t border-edge/60 bg-surface/60 px-4 py-3">
+          {task.subject && <p className="text-sm font-medium text-ink">{task.subject}</p>}
+          {task.note && (
+            <div>
+              <p className="mb-1 text-[10px] font-medium uppercase tracking-wider text-faint">
+                {C.plannedNote}
+              </p>
+              <p className="whitespace-pre-wrap rounded-lg border border-edge/60 bg-panel p-2.5 text-xs leading-relaxed text-soft">
+                {task.note}
+              </p>
+            </div>
+          )}
+          {company?.company_summary && (
+            <div>
+              <p className="mb-1 text-[10px] font-medium uppercase tracking-wider text-faint">
+                {C.companySummary}
+              </p>
+              <p className="rounded-lg border border-edge/60 bg-panel p-2.5 text-xs leading-relaxed text-soft">
+                {company.company_summary}
+              </p>
+            </div>
+          )}
+
+          <div>
+            <p className="mb-1 text-[10px] font-medium uppercase tracking-wider text-faint">
+              {C.callNote}
+            </p>
+            <textarea
+              rows={2}
+              value={note}
+              onChange={(e) => onNoteChange(e.target.value)}
+              placeholder={C.callNotePlaceholder}
+              className="w-full rounded-lg border border-edge2 bg-field px-2.5 py-1.5 text-xs text-ink placeholder-mute outline-none transition-colors focus:border-sky-500"
+            />
+          </div>
+
+          <div className="flex flex-wrap items-end justify-between gap-3">
+            <div className="flex flex-wrap items-end gap-2">
+              {supportsOutcome(task.type) && (
+                <label className="text-[10px] font-medium text-faint">
+                  {C.outcomeLabel}
+                  <select
+                    value={outcome}
+                    onChange={(e) => onOutcomeChange(e.target.value as ActivityOutcome | "")}
+                    className="mt-0.5 block rounded-lg border border-edge2 bg-field px-2.5 py-1.5 text-xs text-ink outline-none focus:border-sky-500"
+                  >
+                    <option value="">{C.outcomeNone}</option>
+                    {ACTIVITY_OUTCOMES.map((option) => (
+                      <option key={option} value={option}>
+                        {t.crm.activityOutcomeLabels[option] ?? option}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              )}
+              <button
+                onClick={onComplete}
+                disabled={busy}
+                className="rounded-lg bg-sky-600 px-3.5 py-1.5 text-xs font-medium text-white transition-all hover:brightness-110 active:scale-[0.98] disabled:opacity-40"
+              >
+                {busy ? C.saving : C.markDone}
+              </button>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-[10px] text-mute">{C.rescheduleLabel}</span>
+              <button onClick={() => onReschedule(1)} disabled={busy} className={chipBtn}>
+                {C.tomorrow}
+              </button>
+              <button onClick={() => onReschedule(7)} disabled={busy} className={chipBtn}>
+                {C.nextWeek}
+              </button>
+              {searchTarget && (
+                <Link href={"/leads?q=" + encodeURIComponent(searchTarget)} className={chipBtn}>
+                  {C.openLead}
+                </Link>
+              )}
+              {/* Verwerfen statt "erledigt": ein falsch eingetragener oder
+                  hinfaelliger Termin soll nicht als absolvierter Anruf im
+                  Verlauf des Kontakts stehen -- das wuerde die Statistik
+                  verfaelschen und spaeter niemand mehr auseinanderhalten. */}
+              <button
+                onClick={onDelete}
+                disabled={busy}
+                title={C.deleteTitle}
+                className="rounded-lg border border-red-300 px-2.5 py-1.5 text-xs text-red-600 transition-colors hover:bg-red-50 disabled:opacity-40 dark:border-red-500/30 dark:text-red-400 dark:hover:bg-red-500/10"
+              >
+                {C.delete}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function CallSection({
+  label,
+  count,
+  tone,
+  children,
+}: {
+  label: string;
+  count: number;
+  tone?: string;
+  children: React.ReactNode;
+}) {
+  if (count === 0) return null;
+  return (
+    <section className="overflow-hidden rounded-lg border border-edge/60 bg-panel">
+      <div className="flex items-center justify-between border-b border-edge/60 px-4 py-2.5">
+        <h2 className={"text-sm font-medium " + (tone || "text-ink")}>{label}</h2>
+        <span className="text-xs text-faint">{count}</span>
+      </div>
+      {children}
+    </section>
+  );
+}
+
 export default function CallList({ tasks }: { tasks: CallTask[] }) {
   const { t, lang } = useT();
   const { push } = useToast();
@@ -84,14 +303,14 @@ export default function CallList({ tasks }: { tasks: CallTask[] }) {
   const [openId, setOpenId] = useState<string | null>(null);
   const [outcomes, setOutcomes] = useState<Record<string, ActivityOutcome | "">>({});
   const [notes, setNotes] = useState<Record<string, string>>({});
-  // Lokal abgehakte Aufgaben sofort ausblenden, statt auf den Reload zu warten --
-  // sonst steht ein erledigter Anruf noch sichtbar in der Liste.
-  const [done, setDone] = useState<Set<string>>(new Set());
+  // Lokal abgehakte/verworfene Aufgaben sofort ausblenden, statt auf den Reload
+  // zu warten -- sonst steht ein erledigter Anruf noch sichtbar in der Liste.
+  const [removed, setRemoved] = useState<Set<string>>(new Set());
 
   const groups = useMemo(() => {
     const dayStart = startOfToday();
     const dayEnd = endOfToday();
-    const open = tasks.filter((task) => !done.has(task.id));
+    const open = tasks.filter((task) => !removed.has(task.id));
     return {
       overdue: open.filter((task) => new Date(task.due_at).getTime() < dayStart),
       today: open.filter((task) => {
@@ -100,256 +319,126 @@ export default function CallList({ tasks }: { tasks: CallTask[] }) {
       }),
       later: open.filter((task) => new Date(task.due_at).getTime() > dayEnd),
     };
-  }, [tasks, done]);
+  }, [tasks, removed]);
 
-  async function complete(task: CallTask) {
-    if (busyId) return;
-    setBusyId(task.id);
-    const outcome = supportsOutcome(task.type) ? outcomes[task.id] || null : null;
-    const extraNote = notes[task.id]?.trim();
-    const now = new Date().toISOString();
-    const supabase = createClient();
+  const complete = useCallback(
+    async (task: CallTask) => {
+      if (busyId) return;
+      setBusyId(task.id);
+      const outcome = supportsOutcome(task.type) ? outcomes[task.id] || null : null;
+      const extraNote = notes[task.id]?.trim();
+      const now = new Date().toISOString();
+      const supabase = createClient();
 
-    const { error } = await supabase
-      .from("activities")
-      .update({
-        completed_at: now,
-        occurred_at: now,
-        outcome: outcome || null,
-        // Gespraechsnotiz an die bestehende Notiz anhaengen, statt die
-        // Vorbereitungsnotiz ("nochmal Donnerstag versuchen") zu ueberschreiben.
-        ...(extraNote ? { note: [task.note, extraNote].filter(Boolean).join("\n\n") } : {}),
-      })
-      .eq("id", task.id)
-      .eq("workspace_id", workspaceId);
-
-    if (error) {
-      setBusyId(null);
-      push(t.common.error + error.message, "error");
-      return;
-    }
-
-    // Gleiche Regel wie im Kontakt-Verlauf: ein Ergebnis mit klarer Aussage
-    // zieht den Kontaktstatus nach (lib/crm/activities.ts). Der Trigger aus
-    // 0032 schreibt die Bewegung selbst in den Verlauf.
-    const nextStage = outcome ? OUTCOME_TO_STAGE[outcome] : undefined;
-    if (nextStage && task.contact_id) {
-      await supabase
-        .from("contacts")
-        .update({ outreach_status: nextStage })
-        .eq("id", task.contact_id)
+      const { error } = await supabase
+        .from("activities")
+        .update({
+          completed_at: now,
+          occurred_at: now,
+          outcome: outcome || null,
+          // Gespraechsnotiz an die bestehende Notiz anhaengen, statt die
+          // Vorbereitungsnotiz ("nochmal Donnerstag versuchen") zu ueberschreiben.
+          ...(extraNote ? { note: [task.note, extraNote].filter(Boolean).join("\n\n") } : {}),
+        })
+        .eq("id", task.id)
         .eq("workspace_id", workspaceId);
-    }
 
-    setDone((prev) => new Set(prev).add(task.id));
-    setBusyId(null);
-    setOpenId(null);
-    push(C.completed, "success");
-    router.refresh();
-  }
+      if (error) {
+        setBusyId(null);
+        push(t.common.error + error.message, "error");
+        return;
+      }
 
-  async function reschedule(task: CallTask, days: number) {
-    if (busyId) return;
-    setBusyId(task.id);
-    const next = new Date();
-    next.setDate(next.getDate() + days);
-    next.setHours(23, 59, 59, 0);
-    const { error } = await createClient()
-      .from("activities")
-      .update({ due_at: next.toISOString() })
-      .eq("id", task.id)
-      .eq("workspace_id", workspaceId);
-    setBusyId(null);
-    if (error) {
-      push(t.common.error + error.message, "error");
-      return;
-    }
-    push(C.rescheduled(formatDay(next.toISOString(), lang)), "success");
-    router.refresh();
-  }
+      // Gleiche Regel wie im Kontakt-Verlauf: ein Ergebnis mit klarer Aussage
+      // zieht den Kontaktstatus nach (lib/crm/activities.ts). Der Trigger aus
+      // 0032 schreibt die Bewegung selbst in den Verlauf.
+      const nextStage = outcome ? OUTCOME_TO_STAGE[outcome] : undefined;
+      if (nextStage && task.contact_id) {
+        await supabase
+          .from("contacts")
+          .update({ outreach_status: nextStage })
+          .eq("id", task.contact_id)
+          .eq("workspace_id", workspaceId);
+      }
 
-  function Row({ task, overdue }: { task: CallTask; overdue: boolean }) {
-    const { company, phone, name, title } = resolve(task);
-    const expanded = openId === task.id;
-    const searchTarget = company?.name ?? name ?? "";
+      setRemoved((prev) => new Set(prev).add(task.id));
+      setBusyId(null);
+      setOpenId(null);
+      push(C.completed, "success");
+      router.refresh();
+    },
+    [busyId, outcomes, notes, workspaceId, push, t, C, router]
+  );
 
-    return (
-      <div className="border-b border-edge/60 last:border-0">
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3">
-          <CompanyLogo name={company?.name ?? "?"} website={company?.website ?? null} size={28} />
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2">
-              <span className="truncate text-sm font-medium text-ink">
-                {name ?? company?.name ?? "—"}
-              </span>
-              {task.type !== "call" && (
-                <span className="rounded-full border border-edge2 bg-chip px-2 py-0.5 text-[10px] text-soft">
-                  {t.crm.activityTypeLabels[task.type] ?? task.type}
-                </span>
-              )}
-              {overdue && (
-                <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[10px] font-medium text-amber-700 dark:text-amber-300">
-                  {C.overdueBadge}
-                </span>
-              )}
-            </div>
-            <p className="truncate text-xs text-faint">
-              {[title, company?.name].filter(Boolean).join(" · ") || "—"}
-            </p>
-          </div>
+  const reschedule = useCallback(
+    async (task: CallTask, days: number) => {
+      if (busyId) return;
+      setBusyId(task.id);
+      const next = new Date();
+      next.setDate(next.getDate() + days);
+      next.setHours(23, 59, 59, 0);
+      const { error } = await createClient()
+        .from("activities")
+        .update({ due_at: next.toISOString() })
+        .eq("id", task.id)
+        .eq("workspace_id", workspaceId);
+      setBusyId(null);
+      if (error) {
+        push(t.common.error + error.message, "error");
+        return;
+      }
+      push(C.rescheduled(formatDay(next.toISOString(), lang)), "success");
+      router.refresh();
+    },
+    [busyId, workspaceId, push, t, C, lang, router]
+  );
 
-          {/* tel:-Link, kein App-Dialer: gewaehlt wird mit dem Firmentelefon,
-              die App liefert nur die Nummer klickbar mit. */}
-          {phone ? (
-            <a
-              href={"tel:" + phone.replace(/\s/g, "")}
-              className="flex items-center gap-1.5 rounded-lg border border-edge2 bg-field px-2.5 py-1.5 font-mono text-xs text-ink transition-colors hover:border-sky-500"
-              title={C.phoneTitle}
-            >
-              <IconPhone className="h-3.5 w-3.5 text-mute" />
-              {phone}
-            </a>
-          ) : (
-            <span className="text-xs text-mute">{C.noPhone}</span>
-          )}
+  /** Termin ganz verwerfen. Bewusst ein echtes DELETE und nicht
+   *  "completed_at setzen": ein Tippfehler oder ein hinfaelliger Rueckruf ist
+   *  kein absolvierter Anruf und hat im Verlauf des Kontakts nichts verloren. */
+  const remove = useCallback(
+    async (task: CallTask) => {
+      if (busyId) return;
+      if (!confirm(C.deleteConfirm)) return;
+      setBusyId(task.id);
+      const { error } = await createClient()
+        .from("activities")
+        .delete()
+        .eq("id", task.id)
+        .eq("workspace_id", workspaceId);
+      setBusyId(null);
+      if (error) {
+        push(t.common.error + error.message, "error");
+        return;
+      }
+      setRemoved((prev) => new Set(prev).add(task.id));
+      setOpenId(null);
+      push(C.deleted, "success");
+      router.refresh();
+    },
+    [busyId, workspaceId, push, t, C, router]
+  );
 
-          <span className="w-24 text-right text-xs text-faint">{formatDay(task.due_at, lang)}</span>
-
-          <button
-            onClick={() => setOpenId(expanded ? null : task.id)}
-            className="rounded-lg border border-edge2 px-2.5 py-1.5 text-xs text-soft transition-colors hover:border-edge3 hover:text-ink"
-          >
-            {expanded ? C.collapse : C.prepare}
-          </button>
-        </div>
-
-        {expanded && (
-          <div className="space-y-3 border-t border-edge/60 bg-surface/60 px-4 py-3">
-            {task.subject && (
-              <p className="text-sm font-medium text-ink">{task.subject}</p>
-            )}
-            {task.note && (
-              <div>
-                <p className="mb-1 text-[10px] font-medium uppercase tracking-wider text-faint">
-                  {C.plannedNote}
-                </p>
-                <p className="whitespace-pre-wrap rounded-lg border border-edge/60 bg-panel p-2.5 text-xs leading-relaxed text-soft">
-                  {task.note}
-                </p>
-              </div>
-            )}
-            {company?.company_summary && (
-              <div>
-                <p className="mb-1 text-[10px] font-medium uppercase tracking-wider text-faint">
-                  {C.companySummary}
-                </p>
-                <p className="rounded-lg border border-edge/60 bg-panel p-2.5 text-xs leading-relaxed text-soft">
-                  {company.company_summary}
-                </p>
-              </div>
-            )}
-
-            <div>
-              <p className="mb-1 text-[10px] font-medium uppercase tracking-wider text-faint">
-                {C.callNote}
-              </p>
-              <textarea
-                rows={2}
-                value={notes[task.id] ?? ""}
-                onChange={(e) => setNotes((prev) => ({ ...prev, [task.id]: e.target.value }))}
-                placeholder={C.callNotePlaceholder}
-                className="w-full rounded-lg border border-edge2 bg-field px-2.5 py-1.5 text-xs text-ink placeholder-mute outline-none transition-colors focus:border-sky-500"
-              />
-            </div>
-
-            <div className="flex flex-wrap items-end justify-between gap-3">
-              <div className="flex flex-wrap items-end gap-2">
-                {supportsOutcome(task.type) && (
-                <label className="text-[10px] font-medium text-faint">
-                  {C.outcomeLabel}
-                  <select
-                    value={outcomes[task.id] ?? ""}
-                    onChange={(e) =>
-                      setOutcomes((prev) => ({
-                        ...prev,
-                        [task.id]: e.target.value as ActivityOutcome | "",
-                      }))
-                    }
-                    className="mt-0.5 block rounded-lg border border-edge2 bg-field px-2.5 py-1.5 text-xs text-ink outline-none focus:border-sky-500"
-                  >
-                    <option value="">{C.outcomeNone}</option>
-                    {ACTIVITY_OUTCOMES.map((option) => (
-                      <option key={option} value={option}>
-                        {t.crm.activityOutcomeLabels[option] ?? option}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                )}
-                <button
-                  onClick={() => complete(task)}
-                  disabled={busyId === task.id}
-                  className="rounded-lg bg-sky-600 px-3.5 py-1.5 text-xs font-medium text-white transition-all hover:brightness-110 active:scale-[0.98] disabled:opacity-40"
-                >
-                  {busyId === task.id ? C.saving : C.markDone}
-                </button>
-              </div>
-
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="text-[10px] text-mute">{C.rescheduleLabel}</span>
-                <button
-                  onClick={() => reschedule(task, 1)}
-                  disabled={busyId === task.id}
-                  className="rounded-lg border border-edge2 px-2.5 py-1.5 text-xs text-soft transition-colors hover:border-edge3 hover:text-ink disabled:opacity-40"
-                >
-                  {C.tomorrow}
-                </button>
-                <button
-                  onClick={() => reschedule(task, 7)}
-                  disabled={busyId === task.id}
-                  className="rounded-lg border border-edge2 px-2.5 py-1.5 text-xs text-soft transition-colors hover:border-edge3 hover:text-ink disabled:opacity-40"
-                >
-                  {C.nextWeek}
-                </button>
-                {searchTarget && (
-                  <Link
-                    href={"/leads?q=" + encodeURIComponent(searchTarget)}
-                    className="rounded-lg border border-edge2 px-2.5 py-1.5 text-xs text-soft transition-colors hover:border-edge3 hover:text-ink"
-                  >
-                    {C.openLead}
-                  </Link>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-    );
-  }
-
-  function Section({
-    label,
-    items,
-    overdue = false,
-    tone = "",
-  }: {
-    label: string;
-    items: CallTask[];
-    overdue?: boolean;
-    tone?: string;
-  }) {
-    if (items.length === 0) return null;
-    return (
-      <section className="overflow-hidden rounded-lg border border-edge/60 bg-panel">
-        <div className="flex items-center justify-between border-b border-edge/60 px-4 py-2.5">
-          <h2 className={"text-sm font-medium " + (tone || "text-ink")}>{label}</h2>
-          <span className="text-xs text-faint">{items.length}</span>
-        </div>
-        {items.map((task) => (
-          <Row key={task.id} task={task} overdue={overdue} />
-        ))}
-      </section>
-    );
+  function renderRows(items: CallTask[], overdue: boolean) {
+    return items.map((task) => (
+      <CallRow
+        key={task.id}
+        task={task}
+        overdue={overdue}
+        expanded={openId === task.id}
+        busy={busyId === task.id}
+        note={notes[task.id] ?? ""}
+        outcome={outcomes[task.id] ?? ""}
+        lang={lang}
+        t={t}
+        onToggle={() => setOpenId(openId === task.id ? null : task.id)}
+        onNoteChange={(value) => setNotes((prev) => ({ ...prev, [task.id]: value }))}
+        onOutcomeChange={(value) => setOutcomes((prev) => ({ ...prev, [task.id]: value }))}
+        onComplete={() => complete(task)}
+        onReschedule={(days) => reschedule(task, days)}
+        onDelete={() => remove(task)}
+      />
+    ));
   }
 
   const total = groups.overdue.length + groups.today.length + groups.later.length;
@@ -364,14 +453,19 @@ export default function CallList({ tasks }: { tasks: CallTask[] }) {
 
   return (
     <div className="space-y-4">
-      <Section
+      <CallSection
         label={C.sectionOverdue}
-        items={groups.overdue}
-        overdue
+        count={groups.overdue.length}
         tone="text-amber-700 dark:text-amber-300"
-      />
-      <Section label={C.sectionToday} items={groups.today} />
-      <Section label={C.sectionLater} items={groups.later} />
+      >
+        {renderRows(groups.overdue, true)}
+      </CallSection>
+      <CallSection label={C.sectionToday} count={groups.today.length}>
+        {renderRows(groups.today, false)}
+      </CallSection>
+      <CallSection label={C.sectionLater} count={groups.later.length}>
+        {renderRows(groups.later, false)}
+      </CallSection>
     </div>
   );
 }

@@ -7,6 +7,7 @@ import { UNREAD_CHANGED_EVENT } from "@/lib/unread";
 import {
   IconAgent,
   IconDashboard,
+  IconGuide,
   IconInbox,
   IconLeads,
   IconPhone,
@@ -69,6 +70,7 @@ export default function Nav() {
     { href: "/instantly", label: t.nav.instantly, icon: IconSend, badge: 0 },
     { href: "/blocklist", label: t.nav.blocklist, icon: IconShield, badge: 0 },
     { href: "/settings", label: t.nav.settings, icon: IconSettings, badge: 0 },
+    { href: "/guide", label: t.nav.guide, icon: IconGuide, badge: 0 },
   ];
 
   return (

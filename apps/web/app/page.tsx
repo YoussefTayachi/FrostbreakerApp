@@ -104,11 +104,43 @@ export default async function Dashboard({
   // "mindestens eine Kampagne mit Mailboxen angelegt" approximiert statt live
   // bei Instantly nachzufragen.
   const apiKeyProviders = (apiKeysRes.data ?? []).map((k) => k.provider as string);
+  // Titel, Text, Ziel und Erledigt-Kriterium stehen bewusst zusammen in EINER
+  // Liste: vorher lagen die Texte im JSX und wurden per Array-Index
+  // (onboardingSteps[2]) mit dem Kriterium verheiratet -- beim Einfuegen eines
+  // Schritts verschieben sich dann stillschweigend alle Zuordnungen.
   const onboardingSteps = [
-    { done: apiKeyProviders.length > 0, href: "/settings" },
-    { done: apiKeyProviders.includes("instantly"), href: "/instantly/connection" },
-    { done: (stats.searches_total ?? 0) > 0, href: "/searches" },
-    { done: (campaignsCountRes.count ?? 0) > 0, href: "/instantly/campaigns/new" },
+    {
+      icon: IconLock,
+      title: t.onboarding.step1Title,
+      body: t.onboarding.step1Body,
+      cta: t.onboarding.step1Cta,
+      href: "/settings",
+      done: apiKeyProviders.length > 0,
+    },
+    {
+      icon: IconSend,
+      title: t.onboarding.step2Title,
+      body: t.onboarding.step2Body,
+      cta: t.onboarding.step2Cta,
+      href: "/instantly/connection",
+      done: apiKeyProviders.includes("instantly"),
+    },
+    {
+      icon: IconSearch,
+      title: t.onboarding.step3Title,
+      body: t.onboarding.step3Body,
+      cta: t.onboarding.step3Cta,
+      href: "/searches",
+      done: (stats.searches_total ?? 0) > 0,
+    },
+    {
+      icon: IconMail,
+      title: t.onboarding.step4Title,
+      body: t.onboarding.step4Body,
+      cta: t.onboarding.step4Cta,
+      href: "/instantly/campaigns/new",
+      done: (campaignsCountRes.count ?? 0) > 0,
+    },
   ];
   const onboardingDone = onboardingSteps.every((s) => s.done);
   const costs = estimateCosts(stats);
@@ -162,7 +194,12 @@ export default async function Dashboard({
           <div className="mb-4 flex items-center justify-between">
             <div>
               <h2 className="font-medium text-ink">{t.onboarding.heading}</h2>
-              <p className="mt-1 text-sm text-faint">{t.onboarding.subtitle}</p>
+              <p className="mt-1 text-sm text-faint">
+                {t.onboarding.subtitle}{" "}
+                <Link href="/guide" className="font-medium text-sky-600 hover:text-sky-500 dark:text-sky-400">
+                  {t.onboarding.guideLink}
+                </Link>
+              </p>
             </div>
             <div className="relative h-11 w-11 shrink-0">
               <svg viewBox="0 0 36 36" className="h-11 w-11 -rotate-90">
@@ -177,23 +214,35 @@ export default async function Dashboard({
               </span>
             </div>
           </div>
+          {/* Warmup ist kein Haken, den man setzen kann: es dauert Wochen und
+              laesst sich lokal nicht messen (nur ueber einen Live-Call zu
+              Instantly, den das Dashboard bewusst nicht macht). Als Checklisten-
+              Punkt waere er also entweder dauerhaft offen oder eine Luege --
+              deshalb ein Hinweis, der genau an der Stelle steht, an der jemand
+              sonst am ersten Tag die erste Kampagne startet und seine Domain
+              verbrennt. */}
+          <Link
+            href="/guide#warmup"
+            className="mb-3 flex items-start gap-2.5 rounded-lg border-l-2 border-amber-500/60 bg-amber-500/5 px-3.5 py-2.5 transition-colors hover:bg-amber-500/10"
+          >
+            <span aria-hidden className="text-sm leading-tight">🔥</span>
+            <span className="text-xs leading-relaxed text-amber-900 dark:text-amber-200">
+              <span className="font-medium">{t.onboarding.warmupTitle}</span>{" "}
+              {t.onboarding.warmupBody}
+            </span>
+          </Link>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            {[
-              { icon: IconLock, title: t.onboarding.step1Title, body: t.onboarding.step1Body, cta: t.onboarding.step1Cta, step: onboardingSteps[0] },
-              { icon: IconSend, title: t.onboarding.step2Title, body: t.onboarding.step2Body, cta: t.onboarding.step2Cta, step: onboardingSteps[1] },
-              { icon: IconSearch, title: t.onboarding.step3Title, body: t.onboarding.step3Body, cta: t.onboarding.step3Cta, step: onboardingSteps[2] },
-              { icon: IconMail, title: t.onboarding.step4Title, body: t.onboarding.step4Body, cta: t.onboarding.step4Cta, step: onboardingSteps[3] },
-            ].map(({ icon: Icon, title, body, cta, step }) => (
+            {onboardingSteps.map(({ icon: Icon, title, body, cta, href, done }) => (
               <div
                 key={title}
                 className={
                   "rounded-lg border p-4 " +
-                  (step.done ? "border-emerald-500/25 bg-emerald-500/5" : "border-edge/60 bg-surface/60")
+                  (done ? "border-emerald-500/25 bg-emerald-500/5" : "border-edge/60 bg-surface/60")
                 }
               >
                 <div className="mb-2 flex items-center justify-between">
-                  <Icon className={"h-4 w-4 " + (step.done ? "text-emerald-500" : "text-faint")} />
-                  {step.done && (
+                  <Icon className={"h-4 w-4 " + (done ? "text-emerald-500" : "text-faint")} />
+                  {done && (
                     <span className="flex items-center gap-1 text-[10px] font-medium text-emerald-600 dark:text-emerald-300">
                       ✓ {t.onboarding.doneLabel}
                     </span>
@@ -201,8 +250,8 @@ export default async function Dashboard({
                 </div>
                 <h3 className="text-sm font-medium text-ink">{title}</h3>
                 <p className="mt-1 text-xs text-faint">{body}</p>
-                {!step.done && (
-                  <Link href={step.href} className="mt-2.5 inline-block text-xs font-medium text-sky-600 hover:text-sky-500 dark:text-sky-400">
+                {!done && (
+                  <Link href={href} className="mt-2.5 inline-block text-xs font-medium text-sky-600 hover:text-sky-500 dark:text-sky-400">
                     {cta} →
                   </Link>
                 )}
