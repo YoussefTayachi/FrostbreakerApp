@@ -155,6 +155,29 @@ def _employee_range(headcount: str | None) -> str | None:
     return f"{low},{high}"
 
 
+def _technology_uids(raw: object) -> list[str]:
+    """Technologie-Slugs aus dem Formular saeubern.
+
+    Die Auswahl entsteht in apps/web/lib/technologies.ts und kommt hier bereits
+    in Apollos Schreibweise an (dort aufgeloest, weil eine Suche fest zu einer
+    Quelle gehoert). Gegengeprueft wird nicht: Apollos Katalog hat ueber 10.000
+    Eintraege, den im Worker zu spiegeln hiesse, ihn doppelt zu pflegen und bei
+    jeder Apollo-Erweiterung gueltige Werte auszusperren. Ein unbekannter Slug
+    schadet bei Apollo auch nicht -- er grenzt die Suche nur weiter ein.
+    Entdoppelt bei stabiler Reihenfolge, damit der Body testbar bleibt.
+    """
+    if not isinstance(raw, list):
+        return []
+    out: list[str] = []
+    for value in raw:
+        if not isinstance(value, str):
+            continue
+        slug = value.strip()
+        if slug and slug not in out:
+            out.append(slug)
+    return out
+
+
 def build_people_search_body(filters: dict, page: int) -> dict:
     """Erzeugt den People-Search-Body aus unseren Such-Filtern (pure, testbar).
 
@@ -190,7 +213,14 @@ def build_people_search_body(filters: dict, page: int) -> dict:
     domains = [d.strip() for d in str(filters.get("domains") or "").split(",") if d.strip()]
     if domains:
         body["q_organization_domains"] = "\n".join(domains)
-    if not (titles or locations or keywords or employee_range or domains):
+    # Eingesetzte Technik der Firma -- damit laesst sich ein Shopify-Shop direkt
+    # ansprechen, statt ihn ueber das Keyword "ecommerce" zu erraten. "any_of"
+    # ist Absicht: mehrere Shopsysteme sind ein ODER (Shopify ODER Shopware),
+    # ein UND haette bei Shopsystemen praktisch nie einen Treffer.
+    technologies = _technology_uids(filters.get("technologies"))
+    if technologies:
+        body["currently_using_any_of_technology_uids"] = technologies
+    if not (titles or locations or keywords or employee_range or domains or technologies):
         raise ValueError("Apollo-Suche braucht mindestens einen Filter")
     return body
 

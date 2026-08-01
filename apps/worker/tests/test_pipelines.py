@@ -349,6 +349,58 @@ def test_build_discover_body_ignores_state_outside_us():
     assert body["headquarters_location"]["include"] == [{"country": "DE", "city": "Berlin"}]
 
 
+def test_build_discover_body_maps_technologies():
+    """match=any ist entscheidend: Hunters Default ist "all", was bei mehreren
+    Shopsystemen (Shopify UND Shopware zugleich) nie einen Treffer haette."""
+    from worker.pipelines.discover import build_discover_body
+
+    body = build_discover_body(
+        {"country": "DE", "technologies": ["shopify", " shopware ", "shopify"]}
+    )
+    assert body["technology"] == {"include": ["shopify", "shopware"], "match": "any"}
+
+
+def test_build_discover_body_technology_alone_is_enough():
+    from worker.pipelines.discover import build_discover_body
+
+    body = build_discover_body({"technologies": ["shopify"]})
+    assert body["technology"]["include"] == ["shopify"]
+
+
+def test_build_discover_body_ignores_unusable_technology_values():
+    from worker.pipelines.discover import build_discover_body
+
+    body = build_discover_body({"country": "DE", "technologies": ["", None, 7]})
+    assert "technology" not in body
+
+
+def test_discover_plan_error_only_when_technology_was_requested():
+    """Hunter nennt nicht, welcher Filter zu hoch gegriffen war. Ohne
+    Technologie-Filter darf deshalb keine Plan-Erklaerung erfunden werden --
+    eine falsche Erklaerung ist schlechter als keine."""
+    import httpx
+    import pytest
+
+    from worker.pipelines.discover import HunterPlanError, _raise_for_plan
+
+    request = httpx.Request("POST", "https://api.hunter.io/v2/discover")
+    client_error = httpx.HTTPStatusError(
+        "400", request=request, response=httpx.Response(400, request=request)
+    )
+
+    with pytest.raises(HunterPlanError):
+        _raise_for_plan(client_error, {"technologies": ["shopify"]})
+
+    # Ohne Technologie-Filter bleibt der urspruengliche Fehler stehen.
+    _raise_for_plan(client_error, {"country": "DE"})
+
+    # Ein 429 ist transient, kein Plan-Problem.
+    rate_limited = httpx.HTTPStatusError(
+        "429", request=request, response=httpx.Response(429, request=request)
+    )
+    _raise_for_plan(rate_limited, {"technologies": ["shopify"]})
+
+
 def test_parse_discover_company():
     from worker.pipelines.discover import parse_discover_company
 

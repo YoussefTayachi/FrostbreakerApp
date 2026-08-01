@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { citySuggestionsFor, usStateForCity } from "@/lib/locations";
+import { resolveTechnologies, technologiesFor } from "@/lib/technologies";
 import { useT } from "./language-provider";
 import { useToast } from "./toast-provider";
 
@@ -266,6 +267,9 @@ type Preset = {
   personTitles?: string;
   apolloCountries?: string[];
   apolloSeniorities?: string[];
+  // Interne Technologie-IDs (nicht die Anbieter-Slugs), damit eine Vorlage
+  // beim Wechsel zwischen Corporate und Apollo gueltig bleibt.
+  technologies?: string[];
 };
 
 const presetsKey = (workspaceId: string) => `fb_search_presets_${workspaceId}`;
@@ -330,8 +334,13 @@ const APOLLO_TITLE_SUGGESTIONS = [
 // APOLLO_SENIORITIES in worker/pipelines/apollo.py uebereinstimmen -- ein Wert
 // ausserhalb dieser Liste ist bei Apollo eine ungueltige Anfrage, keine
 // Geschmacksfrage (der Worker prueft zusaetzlich gegen dieselbe Liste).
+// "partner" stand hier nicht, obwohl es in APOLLO_DEFAULT_SENIORITIES und im
+// Worker steht: die Stufe war damit dauerhaft vorausgewaehlt, aber es gab
+// keinen Knopf, um sie wieder abzuwaehlen. Fuer Kanzleien und Beratungen ist
+// sie die wichtigste Stufe ueberhaupt.
 const APOLLO_SENIORITIES = [
-  "owner", "founder", "c_suite", "vp", "head", "director", "manager", "senior", "entry", "intern",
+  "owner", "founder", "c_suite", "partner", "vp", "head", "director",
+  "manager", "senior", "entry", "intern",
 ] as const;
 
 // Vorauswahl: die Stufen, die ueblicherweise entscheiden. "senior"/"entry"/
@@ -376,6 +385,96 @@ const inputCls =
   "placeholder-mute outline-none transition-colors focus:border-sky-500";
 const labelCls = "flex flex-col text-sm font-medium text-soft";
 
+const chipCls = (active: boolean) =>
+  "rounded-lg border px-2 py-0.5 text-[11px] transition-colors " +
+  (active
+    ? "border-violet-500/60 bg-violet-500/10 text-violet-700 dark:text-violet-300"
+    : "border-edge2 text-faint hover:border-edge3 hover:text-ink");
+
+/* Bewusst auf Modulebene und NICHT innerhalb von NewSearchForm definiert: eine
+   im Rumpf der Elternkomponente deklarierte Funktion ist bei jedem Render ein
+   neuer Komponententyp. React haengt den Teilbaum dann jedes Mal ab und neu an
+   -- das <details> klappte dadurch sofort wieder zu, und die 42 Knoepfe wuerden
+   bei jedem Tastendruck in einem beliebigen Feld neu aufgebaut.
+
+   Eingeklappt wie die Pain-Point-Filter: so viele Auswahlknoepfe wuerden die
+   Maske sonst erschlagen. Angeboten wird nur, was der jeweilige Anbieter kennt
+   (technologiesFor) -- ein waehlbarer, aber wirkungsloser Filter waere
+   schlimmer als gar keiner. */
+function TechnologyPicker({
+  provider,
+  selected,
+  onToggleTech,
+  open,
+  onOpenChange,
+}: {
+  provider: "apollo" | "hunter";
+  selected: string[];
+  onToggleTech: (id: string) => void;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const { t } = useT();
+  const available = technologiesFor(provider);
+  const groups: { key: "shop" | "tools"; label: string }[] = [
+    { key: "shop", label: t.newSearchForm.techGroupShop },
+    { key: "tools", label: t.newSearchForm.techGroupTools },
+  ];
+  return (
+    <details
+      open={open}
+      onToggle={(e) => onOpenChange((e.currentTarget as HTMLDetailsElement).open)}
+      className="rounded-lg border border-edge/60 bg-surface/60"
+    >
+      <summary className="flex cursor-pointer list-none items-center gap-2 px-3.5 py-2.5 text-xs font-medium text-faint transition-colors hover:text-soft">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden className="h-4 w-4">
+          <path
+            d="M9 18l-5-6 5-6m6 12l5-6-5-6"
+            stroke="currentColor"
+            strokeWidth="1.6"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+        {t.newSearchForm.techHeading}
+        {selected.length > 0 && (
+          <span className="rounded-full bg-sky-500/15 px-1.5 py-0.5 text-[10px] font-semibold text-sky-600 dark:text-sky-300">
+            {selected.length}
+          </span>
+        )}
+      </summary>
+      <div className="space-y-3 border-t border-edge/60 px-3.5 py-3">
+        {groups.map((group) => (
+          <div key={group.key}>
+            <span className="text-xs font-medium text-faint">{group.label}</span>
+            <div className="mt-1.5 flex flex-wrap gap-1.5">
+              {available
+                .filter((tech) => tech.group === group.key)
+                .map((tech) => {
+                  const active = selected.includes(tech.id);
+                  return (
+                    <button
+                      key={tech.id}
+                      type="button"
+                      onClick={() => onToggleTech(tech.id)}
+                      className={chipCls(active)}
+                    >
+                      {active ? "✓ " : "+ "}
+                      {tech.label}
+                    </button>
+                  );
+                })}
+            </div>
+          </div>
+        ))}
+        <p className="text-xs text-mute">
+          {provider === "apollo" ? t.newSearchForm.techHintApollo : t.newSearchForm.techHintHunter}
+        </p>
+      </div>
+    </details>
+  );
+}
+
 export default function NewSearchForm({ workspaceId }: { workspaceId: string }) {
   const router = useRouter();
   const { t } = useT();
@@ -397,6 +496,10 @@ export default function NewSearchForm({ workspaceId }: { workspaceId: string }) 
   const [apolloCountries, setApolloCountries] = useState<string[]>(["AT", "DE"]);
   const [apolloTarget, setApolloTarget] = useState(APOLLO_DEFAULT_TARGET);
   const [apolloSeniorities, setApolloSeniorities] = useState<string[]>(APOLLO_DEFAULT_SENIORITIES);
+  // Interne IDs aus lib/technologies.ts, erst beim Absenden in die Slugs des
+  // jeweiligen Anbieters uebersetzt.
+  const [technologies, setTechnologies] = useState<string[]>([]);
+  const [techOpen, setTechOpen] = useState(false);
   const [painPointNoWebsite, setPainPointNoWebsite] = useState(false);
   const [painPointMaxRating, setPainPointMaxRating] = useState<number | "">("");
   const [selectedPlaybook, setSelectedPlaybook] = useState("");
@@ -405,6 +508,12 @@ export default function NewSearchForm({ workspaceId }: { workspaceId: string }) 
   const [loading, setLoading] = useState(false);
 
   useEffect(() => setPresets(loadPresets(workspaceId)), [workspaceId]);
+
+  function toggleTechnology(id: string) {
+    setTechnologies((prev) =>
+      prev.includes(id) ? prev.filter((v) => v !== id) : [...prev, id]
+    );
+  }
 
   const activeFilterCount = (painPointNoWebsite ? 1 : 0) + (painPointMaxRating !== "" ? 1 : 0);
   const isUs = country === "US";
@@ -439,7 +548,14 @@ export default function NewSearchForm({ workspaceId }: { workspaceId: string }) 
       );
     } else if (mode === "apollo") {
       const titleList = parseList(personTitles);
-      if (apolloCountries.length === 0 && titleList.length === 0 && !keywords.trim() && !headcount) {
+      const apolloTech = resolveTechnologies(technologies, "apollo");
+      if (
+        apolloCountries.length === 0 &&
+        titleList.length === 0 &&
+        !keywords.trim() &&
+        !headcount &&
+        apolloTech.length === 0
+      ) {
         push(t.newSearchForm.apolloNeedsFilter, "error");
         return;
       }
@@ -460,10 +576,15 @@ export default function NewSearchForm({ workspaceId }: { workspaceId: string }) 
             apollo_seniorities: apolloSeniorities,
             headcount: headcount || null,
             keywords: keywords || null,
+            // Nur setzen, wenn etwas gewaehlt ist: ein leeres Array wuerde die
+            // Filter-Gleichheitspruefung in matching_prior_search_ids gegen
+            // aeltere Suchen unnoetig scheitern lassen.
+            ...(apolloTech.length > 0 ? { technologies: apolloTech } : {}),
           },
         },
       ];
     } else {
+      const hunterTech = resolveTechnologies(technologies, "hunter");
       rows = [
         {
           name: listName.trim() || null,
@@ -480,6 +601,9 @@ export default function NewSearchForm({ workspaceId }: { workspaceId: string }) 
             country,
             headcount: headcount || null,
             keywords: keywords || null,
+            // Siehe Apollo-Zweig: leeres Array wuerde den Discover-Offset-
+            // Abgleich gegen aeltere Suchen brechen.
+            ...(hunterTech.length > 0 ? { technologies: hunterTech } : {}),
           },
         },
       ];
@@ -528,7 +652,12 @@ export default function NewSearchForm({ workspaceId }: { workspaceId: string }) 
       setApolloSeniorities(preset.apolloSeniorities ?? APOLLO_DEFAULT_SENIORITIES);
       setHeadcount(preset.headcount);
       setKeywords(preset.keywords);
+      const techIds = preset.technologies ?? [];
+      setTechnologies(techIds);
       if (preset.noWebsite || preset.maxRating !== "") setAdvancedOpen(true);
+      // Sichtbar machen, was die Vorlage still mitgesetzt hat -- der
+      // Technologie-Block ist sonst zugeklappt.
+      if (techIds.length > 0) setTechOpen(true);
       return;
     }
     const pb = PLAYBOOKS.find((p) => p.id === id);
@@ -548,7 +677,7 @@ export default function NewSearchForm({ workspaceId }: { workspaceId: string }) 
       name, mode, query, location, radius, targetEmails,
       noWebsite: painPointNoWebsite, maxRating: painPointMaxRating,
       industry, city, state: usState, country, headcount, keywords,
-      personTitles, apolloCountries, apolloSeniorities,
+      personTitles, apolloCountries, apolloSeniorities, technologies,
     };
     const next = [...presets.filter((p) => p.name !== name), preset];
     localStorage.setItem(presetsKey(workspaceId), JSON.stringify(next));
@@ -822,6 +951,15 @@ export default function NewSearchForm({ workspaceId }: { workspaceId: string }) 
         </div>
       ) : null}
       {mode === "corporate" && (
+        <TechnologyPicker
+          provider="hunter"
+          selected={technologies}
+          onToggleTech={toggleTechnology}
+          open={techOpen}
+          onOpenChange={setTechOpen}
+        />
+      )}
+      {mode === "corporate" && (
         <p className="text-xs text-mute">
           {t.newSearchForm.corporateHint} {t.newSearchForm.targetEmailCountHint(estimateRawResults(targetEmails))}
         </p>
@@ -994,6 +1132,14 @@ export default function NewSearchForm({ workspaceId }: { workspaceId: string }) 
             </div>
           </div>
 
+          <TechnologyPicker
+            provider="apollo"
+            selected={technologies}
+            onToggleTech={toggleTechnology}
+            open={techOpen}
+            onOpenChange={setTechOpen}
+          />
+
           <p className="text-xs text-mute">{t.newSearchForm.apolloHint(APOLLO_MAX_TARGET)}</p>
         </>
       )}
@@ -1010,4 +1156,5 @@ export default function NewSearchForm({ workspaceId }: { workspaceId: string }) 
       </button>
     );
   }
+
 }

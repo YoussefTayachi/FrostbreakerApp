@@ -1,0 +1,115 @@
+// Technologie-Filter fuer Corporate (Hunter) und Apollo.
+//
+// Beide Anbieter koennen nach der eingesetzten Technik einer Firma filtern --
+// damit lassen sich z.B. gezielt Shopify-Shops finden, statt "ecommerce" als
+// Keyword zu raten. Die Slugs sind aber NICHT dieselben:
+//
+//   Apollo  currently_using_any_of_technology_uids[]  -> "woo_commerce"
+//   Hunter  technology.include[]                      -> "woocommerce"
+//
+// Apollo bildet die UID aus dem Anzeigenamen (klein, Leerzeichen und Punkte zu
+// Unterstrichen), Hunter nutzt eigene Bindestrich-Slugs. Deshalb haelt jeder
+// Eintrag beide Schreibweisen -- geraten wird nichts.
+//
+// Quellen, beide oeffentlich und ohne Key abrufbar (abgerufen 2026-08-01):
+//   Apollo: https://api.apollo.io/v1/auth/supported_technologies_csv  (10.718 Eintraege)
+//   Hunter: https://hunter.io/files/technologies.json                 (1.980 Eintraege)
+//
+// Jede Zuordnung unten wurde gegen diese beiden Dateien geprueft. Die Kataloge
+// decken sich nicht vollstaendig: Gorgias/Yotpo/Trusted Shops kennt nur Apollo,
+// ActiveCampaign nur Hunter, und Brevo laeuft bei Hunter noch unter dem alten
+// Namen "sendinblue". Fehlt ein Slug, bleibt das Feld leer und der Eintrag wird
+// im jeweiligen Modus gar nicht erst angeboten (siehe technologiesFor) --
+// sonst waehlte man einen Filter, der stillschweigend wirkungslos bliebe.
+//
+// Bewusst kuratiert statt vollstaendig: die Rohlisten haben zusammen ueber
+// 12.000 Eintraege. Hier stehen die Shopsysteme und die Tools, an denen sich
+// ein E-Commerce-Lead tatsaechlich erkennen und ansprechen laesst.
+
+export type TechGroup = "shop" | "tools";
+
+export type Technology = {
+  /** Stabile interne ID. Sie -- nicht der Anbieter-Slug -- landet im
+   *  Formular-State und in gespeicherten Vorlagen, damit eine Vorlage beim
+   *  Wechsel zwischen Corporate und Apollo gueltig bleibt. */
+  id: string;
+  label: string;
+  group: TechGroup;
+  /** currently_using_any_of_technology_uids[] */
+  apollo?: string;
+  /** technology.include[] */
+  hunter?: string;
+};
+
+export const TECHNOLOGIES: Technology[] = [
+  // --- Shopsysteme ---------------------------------------------------------
+  { id: "shopify", label: "Shopify", group: "shop", apollo: "shopify", hunter: "shopify" },
+  { id: "shopware", label: "Shopware", group: "shop", apollo: "shopware", hunter: "shopware" },
+  { id: "woocommerce", label: "WooCommerce", group: "shop", apollo: "woo_commerce", hunter: "woocommerce" },
+  { id: "magento", label: "Magento", group: "shop", apollo: "magento", hunter: "magento" },
+  { id: "prestashop", label: "PrestaShop", group: "shop", apollo: "prestashop", hunter: "prestashop" },
+  { id: "bigcommerce", label: "BigCommerce", group: "shop", apollo: "bigcommerce", hunter: "bigcommerce" },
+  { id: "jtl", label: "JTL-Shop", group: "shop", apollo: "jtl-shop", hunter: "jtl-shop" },
+  { id: "oxid", label: "Oxid eShop", group: "shop", apollo: "oxid_eshop", hunter: "oxid-eshop" },
+  { id: "plentymarkets", label: "PlentyMarkets", group: "shop", apollo: "plentymarkets", hunter: "plentymarkets" },
+  { id: "ecwid", label: "Ecwid", group: "shop", apollo: "ecwid", hunter: "ecwid" },
+  { id: "epages", label: "ePages", group: "shop", apollo: "epages", hunter: "epages" },
+  { id: "squarespace", label: "Squarespace Commerce", group: "shop", apollo: "squarespace_ecommerce", hunter: "squarespace" },
+  { id: "wix", label: "Wix eCommerce", group: "shop", apollo: "wix_ecommerce", hunter: "wix" },
+  { id: "sfcc", label: "Salesforce Commerce Cloud", group: "shop", apollo: "salesforce_commerce_cloud", hunter: "salesforce-commerce-cloud" },
+  { id: "lightspeed", label: "Lightspeed eCom", group: "shop", apollo: "lightspeed_ecom", hunter: "lightspeed-ecom" },
+  { id: "opencart", label: "OpenCart", group: "shop", apollo: "opencart", hunter: "opencart" },
+  { id: "afterbuy", label: "Afterbuy", group: "shop", apollo: "afterbuy", hunter: "afterbuy" },
+  // Nur bei Apollo gelistet -- im Corporate-Modus deshalb ausgeblendet.
+  { id: "shopgate", label: "Shopgate", group: "shop", apollo: "shopgate" },
+  { id: "commercetools", label: "commercetools", group: "shop", apollo: "commercetools" },
+  { id: "spryker", label: "Spryker", group: "shop", apollo: "spryker_cloud_commerce_os" },
+
+  // --- Tools, CMS, Zahlung -------------------------------------------------
+  { id: "klaviyo", label: "Klaviyo", group: "tools", apollo: "klaviyo", hunter: "klaviyo" },
+  { id: "mailchimp", label: "Mailchimp", group: "tools", apollo: "mailchimp", hunter: "mailchimp" },
+  { id: "hubspot", label: "HubSpot", group: "tools", apollo: "hubspot", hunter: "hubspot" },
+  { id: "salesforce", label: "Salesforce", group: "tools", apollo: "salesforce", hunter: "salesforce" },
+  { id: "google_analytics", label: "Google Analytics", group: "tools", apollo: "google_analytics", hunter: "google-analytics" },
+  { id: "meta_pixel", label: "Meta Pixel", group: "tools", apollo: "facebook_pixel", hunter: "facebook-pixel" },
+  { id: "stripe", label: "Stripe", group: "tools", apollo: "stripe", hunter: "stripe" },
+  { id: "paypal", label: "PayPal", group: "tools", apollo: "paypal", hunter: "paypal" },
+  // Hunter kennt nur den Checkout, nicht Klarna allgemein.
+  { id: "klarna", label: "Klarna", group: "tools", apollo: "klarna", hunter: "klarna-checkout" },
+  { id: "recharge", label: "Recharge", group: "tools", apollo: "recharge_payments", hunter: "recharge" },
+  { id: "zendesk", label: "Zendesk", group: "tools", apollo: "zendesk", hunter: "zendesk" },
+  { id: "intercom", label: "Intercom", group: "tools", apollo: "intercom", hunter: "intercom" },
+  { id: "trustpilot", label: "Trustpilot", group: "tools", apollo: "trustpilot", hunter: "trustpilot" },
+  // Bei Hunter noch unter dem alten Markennamen gefuehrt.
+  { id: "brevo", label: "Brevo", group: "tools", apollo: "brevo", hunter: "sendinblue" },
+  { id: "activecampaign", label: "ActiveCampaign", group: "tools", hunter: "activecampaign" },
+  { id: "gorgias", label: "Gorgias", group: "tools", apollo: "gorgias" },
+  { id: "yotpo", label: "Yotpo", group: "tools", apollo: "yotpo" },
+  { id: "trustedshops", label: "Trusted Shops", group: "tools", apollo: "trustedshops" },
+  { id: "cleverreach", label: "CleverReach", group: "tools", apollo: "cleverreach" },
+  { id: "wordpress", label: "WordPress", group: "tools", apollo: "wordpress_org", hunter: "wordpress" },
+  { id: "webflow", label: "Webflow", group: "tools", apollo: "webflow", hunter: "webflow" },
+  { id: "typo3", label: "TYPO3", group: "tools", apollo: "typo3", hunter: "typo3-cms" },
+  { id: "contentful", label: "Contentful", group: "tools", apollo: "contentful", hunter: "contentful" },
+];
+
+export type TechProvider = "apollo" | "hunter";
+
+/** Nur die Technologien, die der jeweilige Anbieter ueberhaupt kennt. Ein
+ *  Eintrag, den man auswaehlen kann, muss auch wirken -- sonst liefe die Suche
+ *  scheinbar gefiltert, tatsaechlich aber ungefiltert. */
+export function technologiesFor(provider: TechProvider): Technology[] {
+  return TECHNOLOGIES.filter((tech) => Boolean(tech[provider]));
+}
+
+/** Interne IDs in die Slugs des Anbieters uebersetzen. Unbekannte IDs und
+ *  solche ohne Slug fallen weg -- Vorlagen aus dem jeweils anderen Modus
+ *  koennen IDs enthalten, die hier nicht gelten. */
+export function resolveTechnologies(ids: string[], provider: TechProvider): string[] {
+  const bySlug = new Set<string>();
+  for (const id of ids) {
+    const slug = TECHNOLOGIES.find((tech) => tech.id === id)?.[provider];
+    if (slug) bySlug.add(slug);
+  }
+  return [...bySlug];
+}

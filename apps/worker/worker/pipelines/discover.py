@@ -1,8 +1,14 @@
 """Corporate-Modus — Firmen per Hunter Discover API finden.
 
 Filter: Branche (industry), Standort (Stadt + Land), Firmengröße (headcount),
-Keywords. Der Discover-Call selbst ist bei Hunter kostenlos; Credits fallen
-erst bei der anschließenden Domain-Search (hunt_persons) an.
+Keywords, eingesetzte Technik (technology). Der Discover-Call selbst ist bei
+Hunter kostenlos; Credits fallen erst bei der anschließenden Domain-Search
+(hunt_persons) an.
+
+Achtung beim technology-Filter: Hunter zählt ihn zu den "Advanced Discover
+filters" und gibt ihn erst ab dem Starter-Plan frei (Free hat nur "Basic
+filters"). Ein Free-Key bekommt darauf einen 4xx — deshalb HunterPlanError,
+damit die Suche nicht als anonymer HTTP-Fehler endet.
 Docs: https://hunter.io/api-documentation/v2#discover
 """
 import logging
@@ -15,6 +21,13 @@ from worker.http_safety import raise_for_status_safe
 DISCOVER_URL = "https://api.hunter.io/v2/discover"
 
 log = logging.getLogger(__name__)
+
+
+class HunterPlanError(Exception):
+    """Hunter lehnt einen Filter ab, den der Plan nicht enthaelt. Praktisch
+    immer der Technologie-Filter: den gibt Hunter erst ab dem Starter-Plan
+    frei. Eigene Klasse, damit daraus eine erklaerende Meldung wird statt
+    "Suche fehlgeschlagen (400)"."""
 
 
 def _is_retryable(exc: BaseException) -> bool:
@@ -35,6 +48,22 @@ def _is_client_error(exc: BaseException) -> bool:
         and 400 <= exc.response.status_code < 500
         and exc.response.status_code != 429
     )
+
+
+def _clean_slugs(raw: object) -> list[str]:
+    """Technologie-Slugs aus dem Formular saeubern (entdoppelt, Reihenfolge
+    stabil). Nicht gegen Hunters Katalog geprueft: der haelt rund 2.000
+    Eintraege, die im Worker zu spiegeln hiesse, sie doppelt zu pflegen."""
+    if not isinstance(raw, list):
+        return []
+    out: list[str] = []
+    for value in raw:
+        if not isinstance(value, str):
+            continue
+        slug = value.strip()
+        if slug and slug not in out:
+            out.append(slug)
+    return out
 
 
 def build_discover_body(filters: dict) -> dict:
@@ -62,9 +91,39 @@ def build_discover_body(filters: dict) -> dict:
         kw = [k.strip() for k in str(filters["keywords"]).split(",") if k.strip()]
         if kw:
             body["keywords"] = {"include": kw, "match": "any"}
+    # Eingesetzte Technik der Firma -- so lassen sich z.B. gezielt Shopify-Shops
+    # finden, statt sie ueber Branche/Keywords zu erraten. Die Slugs kommen
+    # bereits in Hunters Schreibweise an (aufgeloest in
+    # apps/web/lib/technologies.ts, weil eine Suche fest zu einer Quelle
+    # gehoert). "match": "any" ist wichtig: Hunters Default ist "all", was bei
+    # mehreren Shopsystemen (Shopify UND Shopware) nie einen Treffer haette.
+    tech = _clean_slugs(filters.get("technologies"))
+    if tech:
+        body["technology"] = {"include": tech, "match": "any"}
     if not body:
         raise ValueError("Corporate-Suche braucht mindestens einen Filter")
     return body
+
+
+def _raise_for_plan(exc: BaseException, filters: dict) -> None:
+    """Einen 4xx in eine erklaerende Meldung uebersetzen, wenn die Suche einen
+    Technologie-Filter enthielt.
+
+    Hunter nennt in der Antwort nicht, welcher Filter zu hoch gegriffen war,
+    deshalb wird hier nicht geraten: die Meldung sagt, dass der
+    Technologie-Filter der wahrscheinliche Grund ist, ohne die anderen
+    auszuschliessen. Ohne Technologie-Filter bleibt der urspruengliche Fehler
+    unveraendert -- eine falsche Erklaerung waere schlechter als keine.
+    """
+    if not _is_client_error(exc) or not _clean_slugs(filters.get("technologies")):
+        return
+    raise HunterPlanError(
+        "Hunter hat die Suche abgelehnt. Wahrscheinlichster Grund: der "
+        "Technologie-Filter (z.B. Shopify) zaehlt bei Hunter zu den "
+        "\"Advanced Discover filters\" und ist erst ab dem Starter-Plan "
+        "enthalten -- der Free-Plan hat nur die Basisfilter. Entweder den "
+        "Technologie-Filter abwaehlen oder den Hunter-Plan erweitern."
+    ) from exc
 
 
 def parse_discover_company(c: dict) -> dict:
@@ -114,19 +173,25 @@ def discover_companies(filters: dict, api_key: str, offset: int = 0) -> list[dic
     anders gelagerten 4xx die richtige Reaktion -- schlaegt der zweite Versuch
     aus demselben Grund fehl, kommt der Fehler ohnehin unveraendert hoch.
     """
-    if not offset:
-        return _discover_request(filters, api_key, 0)
     try:
-        return _discover_request(filters, api_key, offset)
+        if not offset:
+            return _discover_request(filters, api_key, 0)
+        try:
+            return _discover_request(filters, api_key, offset)
+        except Exception as exc:
+            if not _is_client_error(exc):
+                raise
+            log.warning(
+                "Hunter lehnte offset=%s ab (%s) -- faellt auf die erste Ergebnisseite "
+                "zurueck. Fuer echtes Blaettern braucht es einen Hunter-Plan mit "
+                "Pagination; ohne den liefert eine Wiederholung derselben Filter "
+                "kaum neue Firmen.",
+                offset,
+                exc,
+            )
+            return _discover_request(filters, api_key, 0)
     except Exception as exc:
-        if not _is_client_error(exc):
-            raise
-        log.warning(
-            "Hunter lehnte offset=%s ab (%s) -- faellt auf die erste Ergebnisseite "
-            "zurueck. Fuer echtes Blaettern braucht es einen Hunter-Plan mit "
-            "Pagination; ohne den liefert eine Wiederholung derselben Filter "
-            "kaum neue Firmen.",
-            offset,
-            exc,
-        )
-        return _discover_request(filters, api_key, 0)
+        # Bewusst erst hier, nach dem Offset-Fallback: sonst wuerde eine
+        # abgelehnte Pagination dem Technologie-Filter angelastet.
+        _raise_for_plan(exc, filters)
+        raise

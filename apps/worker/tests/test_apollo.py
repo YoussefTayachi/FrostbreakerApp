@@ -43,6 +43,36 @@ def test_build_body_maps_all_filters():
     assert body["page"] == 3
 
 
+def test_build_body_maps_technologies():
+    """Der Technologie-Filter ist der Grund, warum sich ein Shopify-Shop
+    gezielt finden laesst statt ueber das Keyword "ecommerce" geraten."""
+    body = build_people_search_body(
+        {"keywords": "ecommerce", "technologies": ["shopify", " shopware ", "shopify"]},
+        page=1,
+    )
+    assert body["currently_using_any_of_technology_uids"] == ["shopify", "shopware"]
+
+
+def test_technologies_alone_are_a_sufficient_filter():
+    """"Alle Shopify-Shops" ist eine vollwertige Zielgruppe -- ohne diesen
+    Zweig haette build_body sie als filterlos abgelehnt."""
+    body = build_people_search_body({"technologies": ["shopify"]}, page=1)
+    assert body["currently_using_any_of_technology_uids"] == ["shopify"]
+
+
+def test_build_body_ignores_unusable_technology_values():
+    body = build_people_search_body(
+        {"keywords": "ecommerce", "technologies": ["", "  ", None, 42]},
+        page=1,
+    )
+    assert "currently_using_any_of_technology_uids" not in body
+
+
+def test_build_body_ignores_technologies_that_are_not_a_list():
+    body = build_people_search_body({"keywords": "ecommerce", "technologies": "shopify"}, page=1)
+    assert "currently_using_any_of_technology_uids" not in body
+
+
 def test_build_body_rejects_filterless_search():
     """Ohne inhaltlichen Filter wuerde Apollo einen beliebigen Querschnitt
     seiner Datenbank liefern -- teuer und wertlos."""

@@ -198,13 +198,21 @@ const de = {
     apolloSeniorities: "Hierarchiestufe (Apollos eigene Werte)",
     apolloSenioritiesHint: "Nur diese Stufen werden angefragt. Je niedriger die Stufe, desto mehr Treffer — aber auch mehr Credits für Leute ohne Entscheidungsbefugnis.",
     apolloSeniorityLabels: {
-      owner: "Inhaber", founder: "Gründer", c_suite: "C-Level", vp: "VP", head: "Head of",
-      director: "Director", manager: "Manager", senior: "Senior", entry: "Einstieg", intern: "Praktikum",
+      owner: "Inhaber", founder: "Gründer", c_suite: "C-Level", partner: "Partner", vp: "VP",
+      head: "Head of", director: "Director", manager: "Manager", senior: "Senior",
+      entry: "Einstieg", intern: "Praktikum",
     } as Record<string, string>,
+    techHeading: "Eingesetzte Technik (z.B. Shopify)",
+    techGroupShop: "Shopsysteme",
+    techGroupTools: "Tools, Zahlung & CMS",
+    techHintApollo:
+      "Findet Firmen anhand ihrer tatsächlich eingesetzten Technik statt über geratene Keywords — mehrere Auswahlen gelten als ODER. Apollo gibt diesen Filter erst ab dem Basic-Plan frei; im Free-Plan schlägt die Suche mit einer entsprechenden Meldung fehl.",
+    techHintHunter:
+      "Findet Firmen anhand ihrer tatsächlich eingesetzten Technik statt über geratene Keywords — mehrere Auswahlen gelten als ODER. Hunter zählt das zu den „Advanced Discover filters“ und gibt es erst ab dem Starter-Plan frei; im Free-Plan schlägt die Suche mit einer entsprechenden Meldung fehl.",
     apolloTarget: "Leads mit E-Mail",
-    apolloNeedsFilter: "Für eine Apollo-Suche braucht es mindestens ein Land, eine Position, ein Keyword oder eine Firmengröße.",
+    apolloNeedsFilter: "Für eine Apollo-Suche braucht es mindestens ein Land, eine Position, ein Keyword, eine Firmengröße oder eine Technologie.",
     apolloHint: (max: number) =>
-      `Apollo liefert Firma und Entscheider samt verifizierter E-Mail in einem Schritt — die angefragte Zahl ist also die Zahl der Leads, keine Schätzung. Max. ${max} pro Suche, 5.000 pro Tag. Braucht einen Apollo-API-Key in den Einstellungen (Master-Key, erst im Organization-Plan enthalten).`,
+      `Apollo liefert Firma und Entscheider samt verifizierter E-Mail in einem Schritt — die angefragte Zahl ist also die Zahl der Leads, keine Schätzung. Max. ${max} pro Suche, 5.000 pro Tag. Braucht einen Apollo-API-Key in den Einstellungen; API-Zugang beginnt bei Apollos Basic-Plan.`,
     listName: "Listen-Name (optional)",
     listNamePlaceholder: 'z.B. "Makler Wien Q3"',
     subscription: "Lead-Abo",
@@ -1221,13 +1229,21 @@ const en: Dictionary = {
     apolloSeniorities: "Seniority (Apollo's own values)",
     apolloSenioritiesHint: "Only these levels are requested. The lower the level, the more hits — but also more credits spent on people without buying authority.",
     apolloSeniorityLabels: {
-      owner: "Owner", founder: "Founder", c_suite: "C-suite", vp: "VP", head: "Head of",
-      director: "Director", manager: "Manager", senior: "Senior", entry: "Entry", intern: "Intern",
+      owner: "Owner", founder: "Founder", c_suite: "C-suite", partner: "Partner", vp: "VP",
+      head: "Head of", director: "Director", manager: "Manager", senior: "Senior",
+      entry: "Entry", intern: "Intern",
     } as Record<string, string>,
+    techHeading: "Technology used (e.g. Shopify)",
+    techGroupShop: "E-commerce platforms",
+    techGroupTools: "Tools, payment & CMS",
+    techHintApollo:
+      "Finds companies by the technology they actually run instead of guessing keywords — several selections are treated as OR. Apollo only unlocks this filter from the Basic plan; on the free plan the search fails with a matching message.",
+    techHintHunter:
+      "Finds companies by the technology they actually run instead of guessing keywords — several selections are treated as OR. Hunter counts this among its “Advanced Discover filters” and only unlocks it from the Starter plan; on the free plan the search fails with a matching message.",
     apolloTarget: "Leads with email",
-    apolloNeedsFilter: "An Apollo search needs at least a country, a title, a keyword, or a company size.",
+    apolloNeedsFilter: "An Apollo search needs at least a country, a title, a keyword, a company size, or a technology.",
     apolloHint: (max: number) =>
-      `Apollo returns the company and the decision maker with a verified email in one step, so the number you ask for is the number of leads, not an estimate. Max. ${max} per search, 5,000 per day. Requires an Apollo API key in settings (master key, only included from the Organization plan).`,
+      `Apollo returns the company and the decision maker with a verified email in one step, so the number you ask for is the number of leads, not an estimate. Max. ${max} per search, 5,000 per day. Requires an Apollo API key in settings; API access starts at Apollo's Basic plan.`,
     listName: "List name (optional)",
     listNamePlaceholder: 'e.g. "Brokers Vienna Q3"',
     subscription: "Lead subscription",
