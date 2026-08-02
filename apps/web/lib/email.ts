@@ -11,11 +11,22 @@
 
 const RESEND_URL = "https://api.resend.com/emails";
 
-/** Absender. Muss eine in Resend verifizierte Domain sein, sonst lehnt Resend
- *  den Versand ab. Ueber die Env-Variable ueberschreibbar, damit ein Wechsel
- *  der Domain kein Deploy des Codes braucht. */
+/**
+ * Absender.
+ *
+ * Voreingestellt ist Resends geteilte Testadresse, weil sie OHNE verifizierte
+ * Domain funktioniert -- im Konto ist aktuell keine hinterlegt, und mit einem
+ * eigenen Absender wuerde Resend jeden Versand ablehnen.
+ *
+ * Der Preis dafuer: onboarding@resend.dev darf ausschliesslich an die Adresse
+ * zustellen, mit der das Resend-Konto angelegt wurde. Fuer diese
+ * Benachrichtigung ist das kein Problem -- sie geht ohnehin an den Betreiber
+ * selbst. Sobald sie an ein Team- oder Kundenpostfach gehen soll, muss die
+ * eigene Domain in Resend verifiziert und RESEND_FROM gesetzt werden; deshalb
+ * ist der Wert ueber die Umgebung ueberschreibbar und braucht keinen Deploy.
+ */
 function fromAddress(): string {
-  return process.env.RESEND_FROM ?? "Frostbreaker <notifications@frostbreaker.app>";
+  return process.env.RESEND_FROM ?? "Frostbreaker <onboarding@resend.dev>";
 }
 
 export type SendResult = { ok: true } | { ok: false; reason: string };

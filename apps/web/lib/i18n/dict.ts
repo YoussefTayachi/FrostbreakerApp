@@ -164,6 +164,11 @@ const de = {
     saved: "Benachrichtigung aktiv.",
     disabled: "Benachrichtigung abgeschaltet.",
     invalid: "Das sieht nicht nach einer E-Mail-Adresse aus.",
+    test: "Testmail senden",
+    testSending: "Sende...",
+    testSent: (to: string) => `Testmail an ${to} verschickt.`,
+    testNoAddress: "Erst eine Adresse speichern.",
+    testFailed: "Versand fehlgeschlagen: ",
   },
   searchActions: {
     trashTitle: "In den Papierkorb",
@@ -1254,6 +1259,11 @@ const en: Dictionary = {
     saved: "Notifications on.",
     disabled: "Notifications off.",
     invalid: "That does not look like an email address.",
+    test: "Send test email",
+    testSending: "Sending...",
+    testSent: (to: string) => `Test email sent to ${to}.`,
+    testNoAddress: "Save an address first.",
+    testFailed: "Sending failed: ",
   },
   searchActions: {
     trashTitle: "Move to trash",

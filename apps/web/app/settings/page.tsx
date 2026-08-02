@@ -56,6 +56,7 @@ export default function SettingsPage() {
   const [linkCopied, setLinkCopied] = useState(false);
   const [replyNotifyEmail, setReplyNotifyEmail] = useState("");
   const [replyNotifySaving, setReplyNotifySaving] = useState(false);
+  const [replyTest, setReplyTest] = useState<"idle" | "sending">("idle");
   const reportOrigin = typeof window !== "undefined" ? window.location.origin : "";
 
   useEffect(() => {
@@ -111,6 +112,26 @@ export default function SettingsPage() {
       return;
     }
     push(wert ? t.replyNotify.saved : t.replyNotify.disabled, "success");
+  }
+
+  /** Schickt eine echte Mail an die gespeicherte Adresse. Der Fehlertext von
+   *  Resend wird woertlich angezeigt -- "Domain nicht verifiziert" und
+   *  "Schluessel fehlt" sehen sonst identisch aus. */
+  async function testReplyNotify() {
+    setReplyTest("sending");
+    const res = await fetch("/api/notify-test", { method: "POST" });
+    const body = await res.json().catch(() => ({}));
+    setReplyTest("idle");
+    if (body?.ok) {
+      push(t.replyNotify.testSent(body.to as string), "success");
+      return;
+    }
+    push(
+      body?.reason === "no_address"
+        ? t.replyNotify.testNoAddress
+        : t.replyNotify.testFailed + (body?.reason ?? ""),
+      "error"
+    );
   }
 
   function copyReportLink() {
@@ -322,6 +343,13 @@ export default function SettingsPage() {
             className="rounded-lg border border-edge2 px-4 py-2 text-sm text-soft transition-colors hover:border-sky-500/50 hover:text-sky-600 disabled:opacity-50 dark:hover:text-sky-400"
           >
             {replyNotifySaving ? t.common.saving : t.common.save}
+          </button>
+          <button
+            onClick={testReplyNotify}
+            disabled={replyTest === "sending"}
+            className="rounded-lg border border-edge2 px-4 py-2 text-sm text-faint transition-colors hover:border-sky-500/50 hover:text-sky-600 disabled:opacity-50 dark:hover:text-sky-400"
+          >
+            {replyTest === "sending" ? t.replyNotify.testSending : t.replyNotify.test}
           </button>
         </div>
         <p className="mt-3 text-xs leading-relaxed text-mute">{t.replyNotify.hint}</p>
