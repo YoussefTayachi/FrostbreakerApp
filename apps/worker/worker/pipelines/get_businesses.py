@@ -255,6 +255,17 @@ def run_apollo(search: dict, ws: str) -> None:
     # Firmendomain hergibt (siehe pipelines/apollo.py). Ein erneutes bulk_match
     # an dieser Stelle wuerde dieselben Personen ein zweites Mal abrechnen.
     websites = list(by_website)
+
+    # Firmenbeschreibungen gleich mitnehmen. Ohne sie faellt personalize auf
+    # den Website-Text zurueck, und den geben die wenigsten Shops her: bei
+    # einer echten Supplement-Suche antworteten alle geprueften Seiten mit
+    # HTTP 429 auf unseren Crawler, am Ende hatten 10 von 45 Firmen eine
+    # Zeile. Ueber Apollos Firmen-Endpunkt waren es 35 von 35 -- und er
+    # kostet keine Credits, weil Apollo nur Exporte abrechnet.
+    summaries = apollo.fetch_company_summaries(
+        [domain_of(w) or "" for w in websites], api_key
+    )
+
     rows = [
         by_website[w]
         | {
@@ -268,6 +279,9 @@ def run_apollo(search: dict, ws: str) -> None:
             # hunt_persons laeuft fuer Apollo grundsaetzlich nicht (Hunter-
             # Credits fuer Daten, die Apollo schon geliefert hat).
             "hunter_status": "not_found",
+            # Leer lassen, wenn Apollo nichts hergibt: personalize hat dann
+            # weiterhin den Website-Fallback.
+            "company_summary": summaries.get(domain_of(w) or ""),
         }
         for w in websites
     ]

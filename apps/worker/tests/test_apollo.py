@@ -13,6 +13,9 @@ from worker.pipelines.apollo import (
     candidate_ids,
     enrich_people,
     explain_empty_result,
+    build_company_summary,
+    fetch_company_summaries,
+    MAX_SUMMARY_CHARS,
     is_masked_email,
     parse_apollo_person,
 )
@@ -400,3 +403,73 @@ def test_body_accepts_a_smaller_page_size_for_counting():
     assert {k: v for k, v in counting.items() if k != "per_page"} == {
         k: v for k, v in full.items() if k != "per_page"
     }
+
+
+# --- Firmenbeschreibung aus Apollo -----------------------------------------
+# Apollos Personensuche liefert im organization-Objekt nur den Namen und
+# has_*-Flags. Ohne die Beschreibung aus organizations/bulk_enrich faellt
+# personalize auf den Website-Text zurueck -- und den blocken die meisten
+# Shops (gemessen: 12 von 12 Seiten mit HTTP 429).
+
+def test_summary_combines_description_keywords_and_industry():
+    """Beschreibung UND Stichwoerter: die eine liefert den Selbstanspruch,
+    die anderen die konkreten Aufhaenger fuer eine Eroeffnungszeile."""
+    text = build_company_summary({
+        "short_description": "We make clean sports nutrition for athletes who read labels." * 2,
+        "keywords": ["dietary supplements", "d2c", "collagen peptides"],
+        "industry": "health, wellness & fitness",
+    })
+    assert "clean sports nutrition" in text
+    assert "collagen peptides" in text
+    assert "health, wellness & fitness" in text
+
+
+def test_summary_is_dropped_when_too_thin():
+    """Aus zwei Worten soll die KI keinen Satz erfinden -- lieber nichts
+    liefern und personalize den Website-Fallback ueberlassen."""
+    assert build_company_summary({"short_description": "Supplements."}) is None
+    assert build_company_summary({"keywords": ["d2c"]}) is None
+    assert build_company_summary({}) is None
+    assert build_company_summary(None) is None
+
+
+def test_summary_is_capped():
+    """Lange Texte kosten bei jedem einzelnen Lead OpenAI-Tokens."""
+    text = build_company_summary({"short_description": "x" * 9000})
+    assert len(text) <= MAX_SUMMARY_CHARS + 100
+
+
+def test_company_summaries_are_keyed_by_domain(monkeypatch):
+    def fake(domains, api_key):
+        return {d: {"short_description": f"Beschreibung fuer {d}. " * 6} for d in domains}
+
+    monkeypatch.setattr("worker.pipelines.apollo._bulk_enrich_chunk", fake)
+    monkeypatch.setattr("worker.pipelines.apollo.time.sleep", lambda _s: None)
+    out = fetch_company_summaries(["A.com", " b.com "], "key")
+    assert set(out) == {"a.com", "b.com"}, "Domains muessen normalisiert sein"
+
+
+def test_company_summaries_survive_a_failing_chunk(monkeypatch):
+    """Eine fehlende Beschreibung ist eine Zusatzinfo, kein Arbeitsschritt --
+    sie darf die Suche nicht kippen."""
+    calls = {"n": 0}
+
+    def fake(domains, api_key):
+        calls["n"] += 1
+        if calls["n"] == 1:
+            raise RuntimeError("Apollo weg")
+        return {d: {"short_description": "Beschreibung. " * 10} for d in domains}
+
+    monkeypatch.setattr("worker.pipelines.apollo._bulk_enrich_chunk", fake)
+    monkeypatch.setattr("worker.pipelines.apollo.time.sleep", lambda _s: None)
+    out = fetch_company_summaries([f"shop{i}.com" for i in range(15)], "key")
+    assert len(out) == 5, "Das zweite Paket muss trotz Fehler im ersten ankommen"
+
+
+def test_company_summaries_pass_a_plan_error_through(monkeypatch):
+    def blocked(domains, api_key):
+        raise ApolloPlanError("Free-Plan")
+
+    monkeypatch.setattr("worker.pipelines.apollo._bulk_enrich_chunk", blocked)
+    with pytest.raises(ApolloPlanError):
+        fetch_company_summaries(["a.com"], "key")

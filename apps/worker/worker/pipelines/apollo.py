@@ -44,6 +44,11 @@ from worker.http_safety import raise_for_status_safe
 # ausschliesslich api_search.
 SEARCH_URL = "https://api.apollo.io/api/v1/mixed_people/api_search"
 BULK_MATCH_URL = "https://api.apollo.io/api/v1/people/bulk_match"
+# Firmendaten zu einer Domain. Kostet keine Credits (Apollos
+# Verbrauchsuebersicht kennt nur "Exports", also das Freischalten von
+# Adressen) und liefert das, was die Personensuche gerade nicht mitgibt:
+# short_description, keywords und Branche.
+BULK_ORG_URL = "https://api.apollo.io/api/v1/organizations/bulk_enrich"
 # Kostet keine Credits und beruehrt keine Suchdaten -- reiner Lebenszeichen-Test
 # fuer einen Key (siehe apps/web/app/api/apollo/health).
 HEALTH_URL = "https://api.apollo.io/api/v1/auth/health"
@@ -62,6 +67,12 @@ APOLLO_MAX_PER_DAY = 5000
 PAGE_PAUSE_S = 1.5
 # bulk_match nimmt laut Doku maximal 10 Personen pro Aufruf.
 BULK_MATCH_CHUNK = 10
+# organizations/bulk_enrich ebenfalls 10 Domains pro Aufruf.
+BULK_ORG_CHUNK = 10
+# Obergrenze fuer die Firmenbeschreibung. Der Personalisierungs-Prompt
+# braucht Anhaltspunkte, keinen kompletten Unternehmensauftritt -- und lange
+# Texte kosten bei jedem Lead OpenAI-Tokens.
+MAX_SUMMARY_CHARS = 2000
 # Wie viele Such-Kandidaten pro gewuenschtem Lead gesammelt werden. Die Suche
 # ist kostenlos, das Anreichern nicht -- ein Puffer kostet also nichts und
 # faengt Kandidaten ab, die beim bulk_match doch keine Domain oder Adresse
@@ -307,6 +318,95 @@ def parse_apollo_person(person: dict) -> dict | None:
         "source": "apollo",
     }
     return {"business": business, "contact": contact}
+
+
+def build_company_summary(org: dict) -> str | None:
+    """Aus Apollos Firmendatensatz die Textgrundlage fuer die Personalisierung.
+
+    Beschreibung UND Stichwoerter, weil beide etwas anderes leisten: die
+    Beschreibung liefert den Selbstanspruch der Firma, die Stichwoerter die
+    konkreten Aufhaenger ("collagen peptides", "nsf certified for sport"), an
+    denen eine Eroeffnungszeile festmachen kann. Nur eines von beidem waere
+    entweder blumig oder eine Schlagwortwolke.
+    """
+    if not isinstance(org, dict):
+        return None
+    parts: list[str] = []
+    desc = (org.get("short_description") or "").strip()
+    if desc:
+        parts.append(desc[:MAX_SUMMARY_CHARS])
+    keywords = [k for k in (org.get("keywords") or []) if isinstance(k, str) and k.strip()]
+    if keywords:
+        parts.append("Stichwoerter: " + ", ".join(keywords[:25]))
+    industry = (org.get("industry") or "").strip()
+    if industry:
+        parts.append("Branche: " + industry)
+    text = "\n\n".join(parts).strip()
+    # Zu duenn ist schlechter als nichts: personalize faellt dann auf den
+    # Website-Text zurueck, statt aus zwei Worten einen Satz zu erfinden.
+    return text if len(text) >= 80 else None
+
+
+@retry(
+    stop=stop_after_attempt(3),
+    wait=wait_exponential(min=2, max=30),
+    retry=retry_if_exception(_is_retryable),
+    reraise=True,
+)
+def _bulk_enrich_chunk(domains: list[str], api_key: str) -> dict[str, dict]:
+    r = httpx.post(
+        BULK_ORG_URL, json={"domains": domains}, headers=_headers(api_key), timeout=60
+    )
+    try:
+        raise_for_status_safe(r)
+    except httpx.HTTPStatusError as exc:
+        _raise_for_plan(exc)
+        raise
+    out: dict[str, dict] = {}
+    for org in r.json().get("organizations") or []:
+        if not isinstance(org, dict):
+            continue
+        key = (org.get("primary_domain") or "").strip().lower()
+        if key:
+            out[key] = org
+    return out
+
+
+def fetch_company_summaries(domains: list[str], api_key: str) -> dict[str, str]:
+    """Firmenbeschreibungen zu Domains holen, Domain -> Text.
+
+    Warum das ueberhaupt gebraucht wird: Apollos Personensuche liefert im
+    organization-Objekt ausschliesslich den Namen und ein paar has_*-Flags,
+    also nichts, woraus sich eine Eroeffnungszeile schreiben liesse. Ohne
+    diesen Schritt faellt personalize auf den Website-Text zurueck -- und den
+    holen die meisten Shops nicht heraus: gemessen an einer echten Suche
+    antworteten 12 von 12 Seiten mit HTTP 429 auf unseren Crawler, am Ende
+    hatten nur 10 von 45 Firmen eine Zeile. Ueber diesen Endpunkt waren es
+    35 von 35.
+
+    Kostet keine Credits: Apollo rechnet nur Exporte ab (Freischalten von
+    Adressen), Firmendaten stehen nicht in der Verbrauchsuebersicht. Deshalb
+    ist der Aufruf hier unkritisch, auch fuer jede Firma einzeln.
+
+    Wirft nicht bei einzelnen Fehlschlaegen: eine fehlende Beschreibung soll
+    die Suche nicht kippen, personalize hat weiterhin den Website-Fallback.
+    """
+    out: dict[str, str] = {}
+    clean = [d.strip().lower() for d in domains if d and d.strip()]
+    for i in range(0, len(clean), BULK_ORG_CHUNK):
+        chunk = clean[i : i + BULK_ORG_CHUNK]
+        try:
+            for domain, org in _bulk_enrich_chunk(chunk, api_key).items():
+                summary = build_company_summary(org)
+                if summary:
+                    out[domain] = summary
+        except ApolloPlanError:
+            raise
+        except Exception as exc:  # noqa: BLE001 -- Zusatzdaten, kein Arbeitsschritt
+            log.warning("Apollo-Firmendaten fuer %s Domains fehlgeschlagen: %s", len(chunk), exc)
+        if i + BULK_ORG_CHUNK < len(clean):
+            time.sleep(PAGE_PAUSE_S)
+    return out
 
 
 def _headers(api_key: str) -> dict:
