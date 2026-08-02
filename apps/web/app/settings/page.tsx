@@ -54,13 +54,15 @@ export default function SettingsPage() {
   const [brandLogoUrl, setBrandLogoUrl] = useState("");
   const [brandSaving, setBrandSaving] = useState(false);
   const [linkCopied, setLinkCopied] = useState(false);
+  const [replyNotifyEmail, setReplyNotifyEmail] = useState("");
+  const [replyNotifySaving, setReplyNotifySaving] = useState(false);
   const reportOrigin = typeof window !== "undefined" ? window.location.origin : "";
 
   useEffect(() => {
     const supabase = createClient();
     supabase
       .from("workspaces")
-      .select("brand_name, brand_color, brand_logo_url")
+      .select("brand_name, brand_color, brand_logo_url, reply_notify_email")
       .eq("id", workspaceId)
       .single()
       .then(({ data }) => {
@@ -68,6 +70,7 @@ export default function SettingsPage() {
         setBrandName(data.brand_name ?? "");
         setBrandColor(data.brand_color ?? "");
         setBrandLogoUrl(data.brand_logo_url ?? "");
+        setReplyNotifyEmail(data.reply_notify_email ?? "");
       });
   }, [workspaceId]);
 
@@ -87,6 +90,27 @@ export default function SettingsPage() {
       return;
     }
     push(t.branding.saved, "success");
+  }
+
+  /** Leeres Feld heisst bewusst "aus": lieber keine Benachrichtigung als eine
+   *  an eine Adresse, die niemand mehr liest. */
+  async function saveReplyNotify() {
+    const wert = replyNotifyEmail.trim();
+    if (wert && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(wert)) {
+      push(t.replyNotify.invalid, "error");
+      return;
+    }
+    setReplyNotifySaving(true);
+    const { error } = await createClient()
+      .from("workspaces")
+      .update({ reply_notify_email: wert || null })
+      .eq("id", workspaceId);
+    setReplyNotifySaving(false);
+    if (error) {
+      push(t.common.error + error.message, "error");
+      return;
+    }
+    push(wert ? t.replyNotify.saved : t.replyNotify.disabled, "success");
   }
 
   function copyReportLink() {
@@ -275,6 +299,33 @@ export default function SettingsPage() {
         </span>
         <span className="text-sm text-faint">→</span>
       </Link>
+
+      <div className="rounded-lg border border-edge/60 bg-panel p-6">
+        <h2 className="font-medium text-ink">{t.replyNotify.heading}</h2>
+        <p className="mb-4 mt-1 text-sm text-faint">{t.replyNotify.description}</p>
+        <div className="flex flex-wrap items-end gap-3">
+          <div className="min-w-[16rem] flex-1">
+            <label className="mb-1.5 block text-xs font-medium text-faint">
+              {t.replyNotify.label}
+            </label>
+            <input
+              type="email"
+              value={replyNotifyEmail}
+              onChange={(e) => setReplyNotifyEmail(e.target.value)}
+              placeholder={t.replyNotify.placeholder}
+              className={inputCls + " w-full"}
+            />
+          </div>
+          <button
+            onClick={saveReplyNotify}
+            disabled={replyNotifySaving}
+            className="rounded-lg border border-edge2 px-4 py-2 text-sm text-soft transition-colors hover:border-sky-500/50 hover:text-sky-600 disabled:opacity-50 dark:hover:text-sky-400"
+          >
+            {replyNotifySaving ? t.common.saving : t.common.save}
+          </button>
+        </div>
+        <p className="mt-3 text-xs leading-relaxed text-mute">{t.replyNotify.hint}</p>
+      </div>
 
       <div className="rounded-lg border border-edge/60 bg-panel p-6">
         <h2 className="font-medium text-ink">{t.branding.heading}</h2>

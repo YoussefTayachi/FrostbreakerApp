@@ -150,6 +150,16 @@ const de = {
     methodNote:
       "Jeder kostenpflichtige Aufruf schreibt beim Ausführen eine Zeile mit der tatsächlich verbrauchten Menge. Bei OpenAI sind das die von der API gemeldeten Tokens, ein Korrektur-Versuch zählt also doppelt. Bei Apollo zählt jede freigeschaltete Adresse, auch wenn der Datensatz danach verworfen wurde.",
   },
+  replyNotify: {
+    heading: "Benachrichtigung bei Antworten",
+    description: "E-Mail an diese Adresse, sobald ein Lead zum ersten Mal auf eine Kampagne antwortet.",
+    label: "E-Mail-Adresse",
+    placeholder: "z.B. du@deinefirma.at",
+    hint: "Nur die erste Antwort je Kontakt löst eine Meldung aus, ein Hin und Her im selben Thread nicht erneut. Leer lassen schaltet die Benachrichtigung ab.",
+    saved: "Benachrichtigung aktiv.",
+    disabled: "Benachrichtigung abgeschaltet.",
+    invalid: "Das sieht nicht nach einer E-Mail-Adresse aus.",
+  },
   searchActions: {
     trashTitle: "In den Papierkorb",
     delete: "Löschen",
@@ -1224,6 +1234,16 @@ const en: Dictionary = {
     tariffDependent: "depends on plan",
     methodNote:
       "Every paid call writes a row with the amount actually consumed as it runs. For OpenAI those are the tokens the API itself reports, so a correction attempt counts twice. For Apollo every revealed address counts, even when the record was discarded afterwards.",
+  },
+  replyNotify: {
+    heading: "Reply notifications",
+    description: "Email this address as soon as a lead replies to a campaign for the first time.",
+    label: "Email address",
+    placeholder: "e.g. you@yourcompany.com",
+    hint: "Only the first reply per contact triggers a notification, not further messages in the same thread. Leave empty to switch notifications off.",
+    saved: "Notifications on.",
+    disabled: "Notifications off.",
+    invalid: "That does not look like an email address.",
   },
   searchActions: {
     trashTitle: "Move to trash",

@@ -5,6 +5,7 @@ import { createServiceClient } from "@/lib/supabase/service";
 import { instantlyRequest } from "@/lib/instantly";
 import { getApiKey } from "@/lib/api-keys";
 import { extractOutputText } from "@/lib/openai";
+import { sendEmail } from "@/lib/email";
 
 // Ersetzt den frueheren Python-Worker-Job "poll_instantly" (kampagnen-scoped
 // Analytics/Antworten) UND "poll_instantly_inbox" (mailbox-weiter Sync) in einer
@@ -139,9 +140,64 @@ async function processEmail(
       .update({ outreach_status: "replied" })
       .eq("id", contact.id);
     if (error) return `contact status update ${contact.id}: ${error.message}`;
+
+    // Nur bei der ERSTEN Antwort eines Kontakts benachrichtigen: der
+    // Statuswechsel oben passiert genau einmal, jede Folgemail laeuft nicht
+    // mehr in diesen Zweig. Ohne diese Bedingung meldete ein Hin und Her im
+    // selben Thread jedes Mal erneut.
+    await notifyReply(supabase, workspaceId, leadEmail, email.subject ?? "", bodyText);
   }
 
   return null;
+}
+
+/**
+ * Mail an den Betreiber, sobald ein Lead antwortet.
+ *
+ * Bisher landete eine Antwort still im Posteingang der App -- wer nicht selbst
+ * nachsah, merkte tagelang nichts. Bei Kaltakquise ist das genau das
+ * Zeitfenster, in dem eine Antwort noch warm ist.
+ *
+ * Schluckt jeden Fehler: der Sync verarbeitet gerade Antworten, und die
+ * duerfen nicht verlorengehen, weil ein Mailversand klemmt.
+ */
+async function notifyReply(
+  supabase: SupabaseClient,
+  workspaceId: string,
+  leadEmail: string,
+  subject: string,
+  bodyText: string
+): Promise<void> {
+  try {
+    const { data: ws } = await supabase
+      .from("workspaces")
+      .select("reply_notify_email")
+      .eq("id", workspaceId)
+      .single();
+    const to = (ws?.reply_notify_email ?? "").trim();
+    if (!to) return; // nicht eingerichtet
+
+    const auszug = bodyText.trim().slice(0, 600);
+    const result = await sendEmail(
+      to,
+      `Antwort von ${leadEmail}`,
+      [
+        `${leadEmail} hat auf deine Kampagne geantwortet.`,
+        subject ? `Betreff: ${subject}` : null,
+        "",
+        auszug || "(kein Textinhalt)",
+        "",
+        "Im Posteingang öffnen: https://app.frostbreaker.app/inbox",
+      ]
+        .filter((z) => z !== null)
+        .join("\n")
+    );
+    if (!result.ok) {
+      console.warn("Antwort-Benachrichtigung nicht zugestellt:", result.reason);
+    }
+  } catch (e) {
+    console.warn("Antwort-Benachrichtigung fehlgeschlagen:", (e as Error).message);
+  }
 }
 
 async function fetchEmails(
