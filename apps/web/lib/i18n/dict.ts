@@ -192,6 +192,9 @@ const de = {
     // informiert, darf hier drinnen nicht "Massen-Leads" vorfinden.
     // "Corporate" sagte nichts, und "Massen-Leads" klang billig, obwohl es der
     // hochwertigste Weg ist (Person samt bereits geprüfter Adresse).
+    // "Vor Ort" statt "Umkreis": in derselben Maske heisst bereits ein FELD
+    // "Umkreis" (Radius in Metern). Zwei gleiche Woerter fuer verschiedene
+    // Dinge auf einem Bildschirm sind eine vermeidbare Stolperstelle.
     tabMaps: "Vor Ort (Google Maps)",
     tabCorporate: "Firmen (Hunter)",
     tabApollo: "Entscheider (Apollo)",
@@ -210,6 +213,7 @@ const de = {
     techHeading: "Eingesetzte Technik (z.B. Shopify)",
     techGroupShop: "Shopsysteme",
     techGroupTools: "Tools, Zahlung & CMS",
+    techGroupSales: "Vertrieb & Lead-Gen",
     techHintApollo:
       "Findet Firmen anhand ihrer tatsächlich eingesetzten Technik statt über geratene Keywords: mehrere Auswahlen gelten als ODER. Apollo gibt diesen Filter erst ab dem Basic-Plan frei; im Free-Plan schlägt die Suche mit einer entsprechenden Meldung fehl.",
     techHintHunter:
@@ -1243,6 +1247,7 @@ const en: Dictionary = {
     techHeading: "Technology used (e.g. Shopify)",
     techGroupShop: "E-commerce platforms",
     techGroupTools: "Tools, payment & CMS",
+    techGroupSales: "Sales & lead gen",
     techHintApollo:
       "Finds companies by the technology they actually run instead of guessing keywords: several selections are treated as OR. Apollo only unlocks this filter from the Basic plan; on the free plan the search fails with a matching message.",
     techHintHunter:

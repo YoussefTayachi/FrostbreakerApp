@@ -26,7 +26,7 @@
 // 12.000 Eintraege. Hier stehen die Shopsysteme und die Tools, an denen sich
 // ein E-Commerce-Lead tatsaechlich erkennen und ansprechen laesst.
 
-export type TechGroup = "shop" | "tools";
+export type TechGroup = "shop" | "tools" | "sales";
 
 export type Technology = {
   /** Stabile interne ID. Sie -- nicht der Anbieter-Slug -- landet im
@@ -91,6 +91,31 @@ export const TECHNOLOGIES: Technology[] = [
   { id: "webflow", label: "Webflow", group: "tools", apollo: "webflow", hunter: "webflow" },
   { id: "typo3", label: "TYPO3", group: "tools", apollo: "typo3", hunter: "typo3-cms" },
   { id: "contentful", label: "Contentful", group: "tools", apollo: "contentful", hunter: "contentful" },
+
+  // --- Vertrieb & Lead-Gen -------------------------------------------------
+  // Firmen, die selbst Outbound betreiben. Fuer den Verkauf dieser App die
+  // interessanteste Zielgruppe ueberhaupt: wer Apollo oder Outreach einsetzt,
+  // hat das Problem bereits erkannt und ein Budget dafuer.
+  //
+  // Was hier NICHT steht und warum:
+  //   Hunter.io, Instantly.ai, Smartlead, Clay, Lusha, Cognism -- in KEINEM
+  //   der beiden Kataloge enthalten (geprueft am 2026-08-02 gegen beide
+  //   Rohlisten). Sie liessen sich zwar als Kachel anbieten, wuerden bei der
+  //   Suche aber wirkungslos durchlaufen, und der Nutzer haette scheinbar
+  //   gefiltert.
+  //
+  //   Bei Hunter fehlt hier ausserdem "apollo": Hunters Liste kennt nur den
+  //   mehrdeutigen Eintrag "apollo", und Apollos eigener Katalog trennt
+  //   ausdruecklich "Apollo.io" (CRM) von "Apollo" (Frameworks and Programming
+  //   Languages, also Apollo GraphQL). Ein Filter darauf wuerde
+  //   Webentwickler-Teams liefern statt Apollo-Nutzer.
+  { id: "apollo_io", label: "Apollo.io", group: "sales", apollo: "apollo_io" },
+  { id: "outreach", label: "Outreach.io", group: "sales", apollo: "outreach_io" },
+  { id: "salesloft", label: "SalesLoft", group: "sales", apollo: "salesloft", hunter: "salesloft" },
+  { id: "lemlist_tool", label: "lemlist", group: "sales", apollo: "lemlist" },
+  { id: "mailshake", label: "Mailshake", group: "sales", apollo: "mailshake" },
+  { id: "snovio", label: "Snov.io", group: "sales", apollo: "snovio" },
+  { id: "zoominfo", label: "ZoomInfo", group: "sales", apollo: "zoominfo", hunter: "zoominfo" },
 ];
 
 export type TechProvider = "apollo" | "hunter";

@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { citySuggestionsFor, usStateForCity } from "@/lib/locations";
-import { resolveTechnologies, technologiesFor } from "@/lib/technologies";
+import { resolveTechnologies, technologiesFor, type TechGroup } from "@/lib/technologies";
 import { useT } from "./language-provider";
 import { useToast } from "./toast-provider";
 
@@ -420,9 +420,14 @@ function TechnologyPicker({
 }) {
   const { t } = useT();
   const available = technologiesFor(provider);
-  const groups: { key: "shop" | "tools"; label: string }[] = [
+  // "sales" steht bewusst zuletzt: es ist die schmalste Gruppe und die
+  // speziellste Zielgruppe (Firmen, die selbst Outbound betreiben). Leere
+  // Gruppen werden unten uebersprungen -- bei Hunter sind von den
+  // Vertriebs-Tools nur zwei ueberhaupt bekannt.
+  const groups: { key: TechGroup; label: string }[] = [
     { key: "shop", label: t.newSearchForm.techGroupShop },
     { key: "tools", label: t.newSearchForm.techGroupTools },
+    { key: "sales", label: t.newSearchForm.techGroupSales },
   ];
   return (
     <details
@@ -448,12 +453,17 @@ function TechnologyPicker({
         )}
       </summary>
       <div className="space-y-3 border-t border-edge/60 px-3.5 py-3">
-        {groups.map((group) => (
+        {groups.map((group) => {
+          const items = available.filter((tech) => tech.group === group.key);
+          // Eine Ueberschrift ohne Kacheln darunter waere eine leere
+          // Versprechung -- bei Hunter kennt der Katalog z.B. die meisten
+          // Vertriebs-Tools gar nicht.
+          if (items.length === 0) return null;
+          return (
           <div key={group.key}>
             <span className="text-xs font-medium text-faint">{group.label}</span>
             <div className="mt-1.5 flex flex-wrap gap-1.5">
-              {available
-                .filter((tech) => tech.group === group.key)
+              {items
                 .map((tech) => {
                   const active = selected.includes(tech.id);
                   return (
@@ -470,7 +480,8 @@ function TechnologyPicker({
                 })}
             </div>
           </div>
-        ))}
+          );
+        })}
         <p className="text-xs text-mute">
           {provider === "apollo" ? t.newSearchForm.techHintApollo : t.newSearchForm.techHintHunter}
         </p>
