@@ -33,6 +33,7 @@ Docs: https://docs.apollo.io/reference/people-api-search
 """
 import logging
 import time
+from typing import Callable
 
 import httpx
 from tenacity import retry, retry_if_exception, stop_after_attempt, wait_exponential
@@ -501,7 +502,12 @@ def _bulk_match_chunk(apollo_ids: list[str], api_key: str) -> list[dict]:
     return [m for m in (r.json().get("matches") or []) if m]
 
 
-def enrich_people(apollo_ids: list[str], api_key: str, wanted: int) -> list[dict]:
+def enrich_people(
+    apollo_ids: list[str],
+    api_key: str,
+    wanted: int,
+    on_charge: "Callable[[int], None] | None" = None,
+) -> list[dict]:
     """Kandidaten anreichern, bis wanted verwertbare Leads zusammen sind.
 
     Die Paketgroesse richtet sich nach dem, was noch fehlt -- nicht stur nach
@@ -512,6 +518,12 @@ def enrich_people(apollo_ids: list[str], api_key: str, wanted: int) -> list[dict
     Ein fehlgeschlagenes Paket darf die uebrigen nicht mitnehmen -- schon
     bezahlte Adressen sollen nicht verfallen. Ein ApolloPlanError betrifft
     dagegen jeden weiteren Aufruf gleichermassen und bricht sofort ab.
+
+    on_charge meldet die Zahl der TATSAECHLICH freigeschalteten Adressen pro
+    Paket -- das ist die Groesse, die Apollo abrechnet. Bewusst nicht die Zahl
+    der zurueckgegebenen Leads: ein Treffer ohne Firmendomain faellt bei uns
+    raus, kostet aber trotzdem einen Credit. Wer nur die Rueckgabe zaehlt,
+    unterschaetzt die Rechnung.
     """
     out: list[dict] = []
     idx = 0
@@ -520,7 +532,10 @@ def enrich_people(apollo_ids: list[str], api_key: str, wanted: int) -> list[dict
         chunk = apollo_ids[idx : idx + min(BULK_MATCH_CHUNK, need)]
         idx += len(chunk)
         try:
-            for match in _bulk_match_chunk(chunk, api_key):
+            matches = _bulk_match_chunk(chunk, api_key)
+            if on_charge:
+                on_charge(sum(1 for m in matches if not is_masked_email(m.get("email"))))
+            for match in matches:
                 parsed = parse_apollo_person(match)
                 if parsed:
                     out.append(parsed)
@@ -533,7 +548,12 @@ def enrich_people(apollo_ids: list[str], api_key: str, wanted: int) -> list[dict
     return out[:wanted]
 
 
-def collect_people(filters: dict, api_key: str, limit: int) -> list[dict]:
+def collect_people(
+    filters: dict,
+    api_key: str,
+    limit: int,
+    on_charge: "Callable[[int], None] | None" = None,
+) -> list[dict]:
     """Zweistufig, weil Apollo es so vorgibt: erst kostenlos suchen, dann
     gezielt anreichern.
 
@@ -579,7 +599,7 @@ def collect_people(filters: dict, api_key: str, limit: int) -> list[dict]:
             "(Filter zu eng oder Zielgruppe in Apollo nicht vorhanden)."
         )
         return []
-    return enrich_people(ids, api_key, capped)
+    return enrich_people(ids, api_key, capped, on_charge=on_charge)
 
 
 # Welcher Filter wird bei der Ursachensuche versuchsweise weggelassen, und wie

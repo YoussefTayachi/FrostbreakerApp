@@ -15,6 +15,10 @@ const CONFIDENCE_BY_RESULT: Record<string, number> = {
 
 const MAX_BATCH = 200;
 
+// Listenpreis, Stand 2026-08-02. Muss mit NEVERBOUNCE_USD_PER_CHECK in
+// apps/worker/worker/usage.py uebereinstimmen.
+const NEVERBOUNCE_USD_PER_CHECK = 0.008;
+
 async function checkOne(apiKey: string, email: string): Promise<string> {
   const url =
     "https://api.neverbounce.com/v4/single/check?" +
@@ -72,6 +76,20 @@ export async function POST(req: Request) {
     } catch {
       summary.errors += 1;
     }
+  }
+
+  // Gezaehlt wird, was NeverBounce tatsaechlich geprueft hat -- fehlgeschlagene
+  // Aufrufe berechnet der Anbieter nicht. Vorher tauchte NeverBounce in der
+  // Kostenrechnung ueberhaupt nicht auf.
+  if (summary.checked > 0) {
+    await supabase.from("api_usage").insert({
+      workspace_id: ws.workspace.id,
+      provider: "neverbounce",
+      operation: "verify",
+      units: summary.checked,
+      unit_kind: "checks",
+      cost_usd: summary.checked * NEVERBOUNCE_USD_PER_CHECK,
+    });
   }
 
   return NextResponse.json(summary);

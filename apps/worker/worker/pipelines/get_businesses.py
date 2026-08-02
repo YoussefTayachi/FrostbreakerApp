@@ -24,6 +24,7 @@ from worker.keys import get_api_key
 from worker.pipelines import apollo
 from worker.pipelines.discover import discover_companies, parse_discover_company
 from worker.queue import enqueue
+from worker import usage
 from worker.suppression import domain_of, is_suppressed, load_suppression
 
 GEOCODE_URL = "https://maps.googleapis.com/maps/api/geocode/json"
@@ -205,7 +206,17 @@ def run_apollo(search: dict, ws: str) -> None:
     wanted = min(search["max_results"], remaining_today)
 
     filters = search.get("filters") or {}
-    pairs = apollo.collect_people(filters, api_key, wanted)
+    # Apollo rechnet pro freigeschalteter Adresse ab. Der Betrag bleibt leer:
+    # was ein Credit in Euro wert ist, haengt am gebuchten Tarif und liesse
+    # sich hier nur unterstellen (siehe worker/usage.py).
+    pairs = apollo.collect_people(
+        filters,
+        api_key,
+        wanted,
+        on_charge=lambda n: usage.record(
+            ws, "apollo", "bulk_match", n, "credits", search_id=search["id"]
+        ),
+    )
     if not pairs:
         # "Fertig, 0 Leads" ohne Begruendung ist die frustrierendste Auskunft,
         # die diese Suche geben kann -- der Nutzer sieht sechs Filter und weiss

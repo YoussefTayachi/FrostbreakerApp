@@ -10,6 +10,7 @@ from openai import OpenAI
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 from worker.db import sb
+from worker import usage
 from worker.email_classify import classify_email
 from worker.keys import get_api_key
 from worker.search_state import BUSINESS_WITH_SEARCH, search_is_deleted
@@ -136,7 +137,12 @@ def parse_persons(data: dict) -> list[dict]:
 
 
 @retry(stop=stop_after_attempt(3), wait=wait_exponential(min=5, max=60), reraise=True)
-def research(business: dict, api_key: str) -> dict:
+def research(
+    business: dict,
+    api_key: str,
+    workspace_id: str | None = None,
+    search_id: str | None = None,
+) -> dict:
     client = OpenAI(api_key=api_key)
     resp = client.responses.create(
         model=MODEL,
@@ -161,6 +167,11 @@ def research(business: dict, api_key: str) -> dict:
             }
         },
     )
+    # Web-Suche als Werkzeug macht diesen Aufruf deutlich teurer als eine
+    # reine Textgenerierung -- umso wichtiger, ihn echt zu zaehlen statt
+    # pauschal pro Job zu schaetzen.
+    if workspace_id:
+        usage.record_openai(workspace_id, "find_decisionmaker", resp, search_id=search_id)
     return json.loads(resp.output_text)
 
 
@@ -178,7 +189,9 @@ def run(job: dict) -> None:
 
     set_status("running")
     try:
-        data = research(biz, get_api_key(ws, "openai"))
+        data = research(
+            biz, get_api_key(ws, "openai"), workspace_id=ws, search_id=biz.get("search_id")
+        )
         summary = _clean(data.get("company_summary"))
         if summary:
             sb().table("businesses").update({"company_summary": summary}).eq(

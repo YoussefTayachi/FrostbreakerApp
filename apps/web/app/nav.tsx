@@ -69,6 +69,7 @@ export default function Nav() {
     { href: "/ai-agent", label: t.nav.aiAgent, icon: IconAgent, badge: 0 },
     { href: "/instantly", label: t.nav.instantly, icon: IconSend, badge: 0 },
     { href: "/blocklist", label: t.nav.blocklist, icon: IconShield, badge: 0 },
+    { href: "/costs", label: t.nav.costs, icon: IconSettings, badge: 0 },
     { href: "/settings", label: t.nav.settings, icon: IconSettings, badge: 0 },
     { href: "/guide", label: t.nav.guide, icon: IconGuide, badge: 0 },
   ];

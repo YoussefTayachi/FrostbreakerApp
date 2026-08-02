@@ -19,6 +19,7 @@ from openai import OpenAI
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 from worker.db import sb
+from worker import usage
 from worker.search_state import BUSINESS_WITH_SEARCH, search_is_deleted
 
 MODEL = "gpt-4.1-mini"
@@ -254,6 +255,8 @@ def generate(
     api_key: str,
     system_prompt: str,
     correction: str | None = None,
+    workspace_id: str | None = None,
+    search_id: str | None = None,
 ) -> str:
     client = OpenAI(api_key=api_key)
     user_content = f"Unternehmen: {company_name}\n\n{context}"
@@ -269,6 +272,11 @@ def generate(
             {"role": "user", "content": user_content},
         ],
     )
+    # Direkt hier festhalten statt beim Aufrufer: ein Korrektur-Versuch ist ein
+    # zweiter, echter Aufruf und muss auch zweimal zaehlen. Frueher wurde pro
+    # JOB gerechnet, der Nachschlag war damit unsichtbar.
+    if workspace_id:
+        usage.record_openai(workspace_id, "personalize", resp, search_id=search_id)
     return resp.output_text.strip().strip('"')
 
 
@@ -320,12 +328,19 @@ def run(job: dict) -> None:
         return  # keine Datenbasis vorhanden und Recherche bereits abgeschlossen -> kein Retry-Spam
 
     api_key = get_api_key(ws, "openai")
-    line = generate(biz["name"], context, api_key, cfg["system_prompt"])
+    # Direkt vom Datensatz: das eingebettete searches(...) liefert nur
+    # deleted_at, keine id (siehe BUSINESS_WITH_SEARCH).
+    search_id = biz.get("search_id")
+    line = generate(
+        biz["name"], context, api_key, cfg["system_prompt"],
+        workspace_id=ws, search_id=search_id,
+    )
     problems = validate(line, cfg["max_words"], cfg["banned_words"])
     needs_review = False
     if problems:
         line = generate(
-            biz["name"], context, api_key, cfg["system_prompt"], correction="; ".join(problems)
+            biz["name"], context, api_key, cfg["system_prompt"],
+            correction="; ".join(problems), workspace_id=ws, search_id=search_id,
         )
         line = sanitize_banned_punctuation(line, cfg["banned_words"])
         needs_review = bool(validate(line, cfg["max_words"], cfg["banned_words"]))

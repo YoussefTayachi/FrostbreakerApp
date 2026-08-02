@@ -9,6 +9,7 @@ import httpx
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 from worker.db import sb
+from worker import usage
 from worker.email_classify import classify_email
 from worker.http_safety import raise_for_status_safe
 from worker.keys import get_api_key
@@ -97,6 +98,13 @@ def run(job: dict) -> None:
     set_status("running")
     try:
         payload = domain_search(extract_domain(biz["website"]), get_api_key(ws, "hunter"))
+        # Hunter rechnet pro Domain-Suche ab, unabhaengig davon, wie viele
+        # Adressen dabei herauskommen -- deshalb hier zaehlen und nicht erst
+        # nach der Sperrlisten-Filterung. Der Eurowert eines Credits haengt am
+        # Tarif und bleibt offen (siehe worker/usage.py).
+        usage.record(
+            ws, "hunter", "domain_search", 1, "credits", search_id=biz.get("search_id")
+        )
         emails, domains = load_suppression(ws)
         contacts = [
             c | {"workspace_id": ws, "business_id": business_id}

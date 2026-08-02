@@ -15,7 +15,7 @@ const de = {
   nav: {
     dashboard: "Dashboard", searches: "Suchen", leads: "Alle Leads",
     pipeline: "Pipeline", calls: "Anrufliste", inbox: "Posteingang",
-    aiAgent: "AI Agent", instantly: "Instantly", blocklist: "Blockliste", settings: "Einstellungen", guide: "Anleitung",
+    aiAgent: "AI Agent", instantly: "Instantly", blocklist: "Blockliste", costs: "API-Kosten", settings: "Einstellungen", guide: "Anleitung",
   },
   commandPalette: {
     placeholder: "Seiten oder Firmen suchen...",
@@ -133,6 +133,22 @@ const de = {
     done: "Fertig",
     emptyState: "Noch keine Suchen: starte deine erste im Dashboard.",
     trash: "Papierkorb",
+  },
+  costs: {
+    title: "API-Kosten",
+    subtitle: "Was die Anbieter tatsächlich verbraucht haben, nicht hochgerechnet.",
+    rangeLabel: (d: number) => (d === 365 ? "1 Jahr" : `${d} Tage`),
+    totalLabel: "Bezifferbare Kosten im Zeitraum",
+    totalHint:
+      "Enthält nur Anbieter mit tarifunabhängigem Stückpreis. Apollo- und Hunter-Credits sind mengenmäßig erfasst, ihr Eurowert hängt aber am gebuchten Paket und fließt deshalb nicht in diese Summe ein.",
+    empty: "Für diesen Zeitraum ist noch kein Verbrauch erfasst.",
+    colProvider: "Anbieter",
+    colUnits: "Verbrauch",
+    colCalls: "Aufrufe",
+    colCost: "Kosten",
+    tariffDependent: "tarifabhängig",
+    methodNote:
+      "Jeder kostenpflichtige Aufruf schreibt beim Ausführen eine Zeile mit der tatsächlich verbrauchten Menge. Bei OpenAI sind das die von der API gemeldeten Tokens, ein Korrektur-Versuch zählt also doppelt. Bei Apollo zählt jede freigeschaltete Adresse, auch wenn der Datensatz danach verworfen wurde.",
   },
   searchActions: {
     trashTitle: "In den Papierkorb",
@@ -1074,7 +1090,7 @@ const en: Dictionary = {
   nav: {
     dashboard: "Dashboard", searches: "Searches", leads: "All Leads",
     pipeline: "Pipeline", calls: "Call list", inbox: "Inbox",
-    aiAgent: "AI Agent", instantly: "Instantly", blocklist: "Blocklist", settings: "Settings", guide: "Guide",
+    aiAgent: "AI Agent", instantly: "Instantly", blocklist: "Blocklist", costs: "API costs", settings: "Settings", guide: "Guide",
   },
   commandPalette: {
     placeholder: "Search pages or companies...",
@@ -1192,6 +1208,22 @@ const en: Dictionary = {
     done: "Done",
     emptyState: "No searches yet: start your first one from the dashboard.",
     trash: "Trash",
+  },
+  costs: {
+    title: "API costs",
+    subtitle: "What the providers actually consumed, not extrapolated.",
+    rangeLabel: (d: number) => (d === 365 ? "1 year" : `${d} days`),
+    totalLabel: "Quantifiable cost in range",
+    totalHint:
+      "Covers only providers with a tariff-independent unit price. Apollo and Hunter credits are tracked by volume, but what one is worth depends on your plan, so they stay out of this total.",
+    empty: "No usage recorded for this range yet.",
+    colProvider: "Provider",
+    colUnits: "Usage",
+    colCalls: "Calls",
+    colCost: "Cost",
+    tariffDependent: "depends on plan",
+    methodNote:
+      "Every paid call writes a row with the amount actually consumed as it runs. For OpenAI those are the tokens the API itself reports, so a correction attempt counts twice. For Apollo every revealed address counts, even when the record was discarded afterwards.",
   },
   searchActions: {
     trashTitle: "Move to trash",
