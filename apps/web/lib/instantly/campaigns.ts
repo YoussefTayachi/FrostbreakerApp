@@ -176,6 +176,20 @@ export function plainTextToInstantlyHtml(text: string): string {
  *
  * Kampagnen, die vor dieser Umstellung angelegt wurden, enthalten reinen Text
  * -- der bleibt unangetastet.
+ *
+ * ACHTUNG: Instantly gibt NICHT zurueck, was wir geschickt haben. Wir senden
+ * <p>-Absaetze, ihr Editor speichert sie beim ersten Oeffnen als <div> um
+ * (gemessen an einer echten Kampagne, 2026-08-02):
+ *
+ *   gesendet:    <p>Hi</p><p>Welt</p>
+ *   gespeichert: <div>Hi</div><div><br /></div><div>Welt</div>
+ *
+ * Eine Leerzeile steht dort also als <div><br /></div>. Ohne eine Regel fuer
+ * die <div>-Grenze fielen die Tags ersatzlos weg und zwei Zeilen klebten ohne
+ * jedes Leerzeichen aneinander ("...the more you sell.On the platform..." /
+ * "Hi {{firstName}},Last one from me"). Das war nicht nur ein Anzeigefehler:
+ * wer die Kampagne bei uns oeffnete und speicherte, schrieb den zerstoerten
+ * Text zurueck nach Instantly und verschickte ihn so.
  */
 export function instantlyHtmlToPlainText(body: string): string {
   if (!body) return "";
@@ -184,6 +198,10 @@ export function instantlyHtmlToPlainText(body: string): string {
     body
       .replace(/<br\s*\/?>/gi, "\n")
       .replace(/<\/p>\s*<p[^>]*>/gi, "\n\n")
+      // Jede <div>-Grenze ist ein Zeilenumbruch. Zusammen mit dem <br /> aus
+      // einem leeren Absatz-<div> ergibt das drei Umbrueche -- die weiter
+      // unten wieder auf eine Leerzeile zusammengefasst werden.
+      .replace(/<\/div>\s*<div[^>]*>/gi, "\n")
       .replace(/<\/?(p|div)[^>]*>/gi, "")
       .replace(/&lt;/g, "<")
       .replace(/&gt;/g, ">")
@@ -191,6 +209,10 @@ export function instantlyHtmlToPlainText(body: string): string {
       .replace(/&quot;/g, '"')
       // &amp; zuletzt, sonst wuerde aus "&amp;lt;" faelschlich "<"
       .replace(/&amp;/g, "&")
+      // Aus <div>A</div><div><br /></div><div>B</div> werden sonst drei
+      // Umbrueche und damit beim naechsten Speichern eine zusaetzliche
+      // Leerzeile, die mit jedem Durchgang weiter waechst.
+      .replace(/\n{3,}/g, "\n\n")
       .trim()
   );
 }

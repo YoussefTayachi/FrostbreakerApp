@@ -162,3 +162,44 @@ describe("sequenceFromInstantly", () => {
     expect(steps[0].delayDays).toBe(0);
   });
 });
+
+// --- Instantlys eigenes <div>-HTML -----------------------------------------
+// Der Rueckweg wurde bisher nur gegen unser EIGENES <p>-Format getestet.
+// Instantlys Editor speichert aber in <div> um, und genau dieser Fall
+// zerstoerte den Text. Die Vorlagen unten sind woertlich aus einer echten
+// Kampagne kopiert (GET /api/v2/campaigns, 2026-08-02).
+describe("instantlyHtmlToPlainText mit Instantlys <div>-HTML", () => {
+  it("macht aus <div><br /></div> wieder eine Leerzeile", () => {
+    expect(instantlyHtmlToPlainText("<div>A</div><div><br /></div><div>B</div>")).toBe("A\n\nB");
+  });
+
+  it("klebt aufeinanderfolgende <div> nicht ohne Leerzeichen zusammen", () => {
+    // Der eigentliche Schaden: ohne Regel fuer die <div>-Grenze wurde daraus
+    // "Hi Max,Last one from me." -- und genau so waere es rausgegangen.
+    expect(instantlyHtmlToPlainText("<div>Hi Max,</div><div>Last one from me.</div>")).toBe(
+      "Hi Max,\nLast one from me."
+    );
+  });
+
+  it("behaelt <br /> innerhalb eines <div> als einfachen Umbruch", () => {
+    // Signaturbloecke stehen bei Instantly so drin.
+    expect(
+      instantlyHtmlToPlainText("<div>Best,<br />Youssef<br />Founder</div>")
+    ).toBe("Best,\nYoussef\nFounder");
+  });
+
+  it("laesst Variablen unangetastet", () => {
+    expect(
+      instantlyHtmlToPlainText("<div>Hi {{firstName}},</div><div><br /></div><div>{{personalization}}</div>")
+    ).toBe("Hi {{firstName}},\n\n{{personalization}}");
+  });
+
+  it("waechst bei mehrfachem Oeffnen und Speichern nicht um Leerzeilen", () => {
+    // Ohne das Zusammenfassen auf maximal eine Leerzeile haette jeder
+    // Durchgang eine weitere eingefuegt.
+    const html = "<div>A</div><div><br /></div><div>B</div>";
+    const einmal = instantlyHtmlToPlainText(html);
+    const zweimal = instantlyHtmlToPlainText(plainTextToInstantlyHtml(einmal));
+    expect(zweimal).toBe(einmal);
+  });
+});
