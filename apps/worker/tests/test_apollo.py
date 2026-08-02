@@ -329,6 +329,10 @@ def test_explain_names_the_filter_that_costs_the_hits(monkeypatch):
     )
     assert "Technologie-Filter" in msg
     assert "4.711" in msg, "Die Zahl belegt die Aussage, ohne sie ist es eine Behauptung"
+    # Die Tausenderpunkte duerfen nur die Zahl treffen. Ein .replace(",", ".")
+    # ueber die ganze Meldung machte aus dem Satzkomma einen Punkt mitten im
+    # Satz ("zur restlichen Auswahl. oder Apollo kennt ...").
+    assert "Auswahl, oder" in msg, "Satzkommata muessen Kommata bleiben"
 
 
 def test_explain_reports_people_without_email_separately(monkeypatch):

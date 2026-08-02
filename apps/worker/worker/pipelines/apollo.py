@@ -497,6 +497,11 @@ _DIAGNOSABLE_FILTERS = [
 ]
 
 
+def _thousands(n: int) -> str:
+    """168561 -> "168.561". Deutsche Schreibweise, weil die Meldung deutsch ist."""
+    return f"{n:,}".replace(",", ".")
+
+
 def _total(body: dict, api_key: str) -> int:
     """Gesamttreffer fuer einen Body. per_page=1, weil nur die Zahl zaehlt."""
     data = post_search(body | {"page": 1, "per_page": 1}, api_key)
@@ -551,11 +556,14 @@ def explain_empty_result(filters: dict, api_key: str) -> str:
             time.sleep(PAGE_PAUSE_S)
             found = _total(reduced, api_key)
             if found > 0:
+                # Tausenderpunkte nur auf der ZAHL bilden, nicht auf dem Satz:
+                # ein .replace(",", ".") ueber die ganze Meldung erwischt auch
+                # die Satzkommata und macht Punkte daraus.
                 return (
                     f"Keine Treffer. Verantwortlich ist {label}: ohne diesen einen Filter "
-                    f"findet Apollo {found:,} Personen. Entweder passt der Wert nicht zur "
-                    "restlichen Auswahl, oder Apollo kennt für diese Zielgruppe schlicht "
-                    "niemanden.".replace(",", ".")
+                    f"findet Apollo {_thousands(found)} Personen. Entweder passt der Wert "
+                    "nicht zur restlichen Auswahl, oder Apollo kennt für diese Zielgruppe "
+                    "schlicht niemanden."
                 )
 
         return (
