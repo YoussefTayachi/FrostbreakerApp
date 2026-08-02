@@ -180,9 +180,29 @@ that depends on it ("As I mentioned about your brand…"), and keep at least one
 other concrete, filter-backed detail in the first email so it still proves
 something when the line is missing.
 
-**Include an opt-out link.** Required for US recipients under CAN-SPAM, and for
-EU recipients under GDPR. Frostbreaker generates one via the "Opt-out link"
-button in the sequence editor.
+**Close every email with this exact signature block.** It carries the two things
+CAN-SPAM requires of commercial email — a working opt-out and a physical postal
+address — so it is not decoration and must not be trimmed to save space:
+
+```
+Youssef
+Founder | frostbreaker.app
+---
+Bernoullistraße 4, 1220 Vienna, Austria
+Reply "stop" to be removed from future emails.
+```
+
+Use it on all four emails, including the breakup. It replaces the older
+approach of inserting an unsubscribe URL via the sequence editor's "Opt-out
+link" button — a bare link in a cold email is also a deliverability liability,
+while a reply-based opt-out reads like a person wrote it.
+
+One thing to keep true: nothing in Frostbreaker currently watches for "stop"
+replies and adds them to the blocklist. The inbox sync classifies replies and
+marks the contact as replied, but the removal itself is not automatic. If the
+promise in that last line is going to hold, either Instantly's own unsubscribe
+keyword handling has to be switched on, or the reply has to be actioned by
+hand.
 
 **Germany, Austria and Switzerland are off-limits** for this outreach — the user
 is not permitted to send cold email there. Default to US targeting and write in
