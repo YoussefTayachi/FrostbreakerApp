@@ -4,6 +4,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { OUTREACH_STAGES, stageRank } from "@/lib/crm/stages";
 import { pickPrimaryContactPerBusiness } from "@/lib/contacts";
+import { contactSourceBadgeClass } from "@/lib/search-source";
 import CompanyLogo from "../company-logo";
 import ContactTimeline from "../crm/contact-timeline";
 import DealsPanel from "../crm/deals-panel";
@@ -903,7 +904,12 @@ export default function LeadsTable({
                               <td className="py-2 pr-4">
                                 <span className="flex gap-1">
                                   {c.sources.map((s) => (
-                                    <span key={s} className="rounded-full border border-edge2 bg-chip px-2 py-0.5 text-[11px] text-soft">
+                                    <span
+                                      key={s}
+                                      className={
+                                        "rounded-full border px-2 py-0.5 text-[11px] " + contactSourceBadgeClass(s)
+                                      }
+                                    >
                                       {t.common.sourceLabels[s] ?? s}
                                     </span>
                                   ))}
@@ -1130,7 +1136,10 @@ export default function LeadsTable({
                           </button>
                         ))}
                       {c.sources.map((s) => (
-                        <span key={s} className="rounded-full border border-edge2 bg-chip px-1.5 py-0.5 text-[10px] text-soft">
+                        <span
+                          key={s}
+                          className={"rounded-full border px-1.5 py-0.5 text-[10px] " + contactSourceBadgeClass(s)}
+                        >
                           {t.common.sourceLabels[s] ?? s}
                         </span>
                       ))}

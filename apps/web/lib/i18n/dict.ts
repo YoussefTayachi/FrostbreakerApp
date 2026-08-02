@@ -187,9 +187,14 @@ const de = {
     },
   },
   newSearchForm: {
-    tabMaps: "Lokal (Google Maps)",
-    tabCorporate: "Corporate (Datenbank)",
-    tabApollo: "Apollo (Massen-Leads)",
+    // Benannt nach dem, WAS gesucht wird, mit dem Anbieter dahinter. Muss mit
+    // der Website uebereinstimmen: wer sich dort ueber "Entscheider (Apollo)"
+    // informiert, darf hier drinnen nicht "Massen-Leads" vorfinden.
+    // "Corporate" sagte nichts, und "Massen-Leads" klang billig, obwohl es der
+    // hochwertigste Weg ist (Person samt bereits geprüfter Adresse).
+    tabMaps: "Vor Ort (Google Maps)",
+    tabCorporate: "Firmen (Hunter)",
+    tabApollo: "Entscheider (Apollo)",
     apolloKeywords: "Zielgruppe / Keywords",
     apolloKeywordsPlaceholder: "z.B. supplements, nutrition, ecommerce",
     apolloTitles: "Entscheider-Positionen (mit Komma trennen)",
@@ -1220,9 +1225,9 @@ const en: Dictionary = {
     },
   },
   newSearchForm: {
-    tabMaps: "Local (Google Maps)",
-    tabCorporate: "Corporate (database)",
-    tabApollo: "Apollo (bulk leads)",
+    tabMaps: "On location (Google Maps)",
+    tabCorporate: "Companies (Hunter)",
+    tabApollo: "Decision-makers (Apollo)",
     apolloKeywords: "Target audience / keywords",
     apolloKeywordsPlaceholder: "e.g. supplements, nutrition, ecommerce",
     apolloTitles: "Decision-maker titles (comma-separated)",
