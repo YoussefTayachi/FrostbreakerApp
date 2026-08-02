@@ -81,7 +81,15 @@ def run(job: dict) -> None:
         return  # Suche im Papierkorb -- keine Hunter-Credits fuer unsichtbare Leads
 
     def set_status(status: str) -> None:
-        sb().table("businesses").update({"hunter_status": status}).eq("id", business_id).execute()
+        # decisionmaker_status wandert bewusst mit: seit jeder Suchweg genau
+        # eine Adressquelle hat, ist hunt_persons im Corporate-Modus der
+        # einzige Schritt, der Ansprechpartner findet -- find_decisionmaker
+        # laeuft dort nicht mehr. Bliebe das Feld auf "pending", wuerde
+        # personalize dauerhaft mit NotReadyYet zurueckgestellt und nie eine
+        # Eroeffnungszeile schreiben (siehe personalize.build_context).
+        sb().table("businesses").update(
+            {"hunter_status": status, "decisionmaker_status": status}
+        ).eq("id", business_id).execute()
 
     if not biz.get("website"):
         set_status("not_found")

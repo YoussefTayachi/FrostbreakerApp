@@ -376,22 +376,27 @@ def _finish(search_id: str, ws: str, auto_enrich: bool, source: str) -> None:
         ):
             enqueue(ws, "personalize", {"business_id": b["id"]})
         return
-    # Hunter-Domain-Search laeuft in BEIDEN firmenbasierten Modi.
+    # Genau EINE Adressquelle pro Suchweg. Vorher liefen bei Maps beide
+    # (KI-Websuche UND Hunter), was denselben Kontakt zweimal bezahlte: einmal
+    # mit OpenAI-Kosten, einmal mit einem Hunter-Credit.
     #
-    # Vorher lief er nur bei Maps: im Corporate-Modus sollten die Adressen
-    # allein aus der KI-Websuche kommen, damit keine Hunter-Credits anfallen.
-    # Das war zwar billiger, aber gemessen hatten nur rund 22% der so
-    # gefundenen Kontakte ueberhaupt eine E-Mail -- vier von fuenf Firmen waren
-    # damit fuer Outreach unbrauchbar. Der Corporate-Modus verhaelt sich jetzt
-    # wie Apollo: der Kunde bezahlt die Abfrage beim Anbieter und bekommt dafuer
-    # eine echte, von Hunter gepruefte Adresse statt einer erratenen.
+    #   maps       Google Places hat keine Adressen -> KI-Websuche
+    #              (find_decisionmaker). Kein Hunter, keine Credits.
+    #   corporate  Die Firma kam aus Hunters Discover -> die Adresse holt
+    #              derselbe Anbieter (hunt_persons). Kostet einen Credit pro
+    #              gefundener Adresse, dafuer ist sie geprueft statt geraten.
     #
-    # find_decisionmaker (OpenAI) laeuft weiterhin mit, aber NICHT mehr als
-    # Adressquelle: es schreibt businesses.company_summary, und genau daraus
-    # baut personalize die Eroeffnungszeile (DEFAULT_SOURCE = "company_summary").
-    # Ohne diesen Schritt haette jede Corporate-Suche keine Personalisierung
-    # mehr -- der Kern des Produkts.
-    run_hunt_persons = source in ("maps", "corporate")
+    # Folge fuer Corporate, die man kennen muss: ohne find_decisionmaker gibt es
+    # dort keine company_summary. personalize faellt dann auf den Website-Text
+    # zurueck -- genauso wie im Apollo-Modus, siehe oben. Corporate-Firmen haben
+    # immer eine Website (sie stammt aus Hunters Domain, siehe run_corporate),
+    # der Fallback greift also verlaesslich.
+    #
+    # Weil hunt_persons dadurch der einzige Schritt in seinem Modus ist, setzt
+    # es dort auch decisionmaker_status (siehe pipelines/hunt_persons.py). Wer
+    # hunt_persons je wieder fuer Maps aktiviert, muss das mitbedenken: dann
+    # schreiben zwei Jobs dasselbe Feld.
+    use_hunter = source == "corporate"
     for b in (
         sb()
         .table("businesses")
@@ -401,10 +406,12 @@ def _finish(search_id: str, ws: str, auto_enrich: bool, source: str) -> None:
         .execute()
         .data
     ):
-        enqueue(ws, "find_decisionmaker", {"business_id": b["id"]})
-        if run_hunt_persons and b.get("website"):
-            enqueue(ws, "hunt_persons", {"business_id": b["id"]})
-        # personalize funktioniert jetzt auch ohne Website (Basis: company_summary aus
+        if use_hunter:
+            if b.get("website"):
+                enqueue(ws, "hunt_persons", {"business_id": b["id"]})
+        else:
+            enqueue(ws, "find_decisionmaker", {"business_id": b["id"]})
+        # personalize funktioniert auch ohne Website (Basis: company_summary aus
         # find_decisionmaker); wartet ueber NotReadyYet + Queue-Retry, falls die
         # Recherche noch laeuft.
         enqueue(ws, "personalize", {"business_id": b["id"]})

@@ -1048,19 +1048,33 @@ export default function LeadsTable({
                   "Keine Datenbank-Treffer" mit gelbem Punkt, als haette Hunter
                   gesucht und versagt. Das liess einen guten Lead schlechter
                   aussehen als er ist. */}
-              {drawer.contacts.some((c) => c.sources.includes("apollo")) ? (
-                <PipelineStep
-                  label={L.pipelineEmailVerification}
-                  state="done"
-                  detail={L.pipelineVerifiedByApollo}
-                />
-              ) : (
-                <PipelineStep
-                  label={L.pipelineHunter}
-                  state={drawer.website ? statusToState(drawer.hunter_status) : "empty"}
-                  detail={!drawer.website ? L.pipelineHunterSkipped : drawer.hunter_status === "not_found" ? L.pipelineHunterNotFound : undefined}
-                />
-              )}
+              {(() => {
+                if (drawer.contacts.some((c) => c.sources.includes("apollo"))) {
+                  return (
+                    <PipelineStep
+                      label={L.pipelineEmailVerification}
+                      state="done"
+                      detail={L.pipelineVerifiedByApollo}
+                    />
+                  );
+                }
+                // Seit jeder Suchweg genau eine Adressquelle hat, laeuft Hunter
+                // im Umkreis-Modus gar nicht mehr -- dort kommt die Adresse aus
+                // der KI-Recherche, die als eigener Schritt darueber steht.
+                // hunter_status bleibt deshalb dauerhaft "pending". Diesen
+                // Schritt trotzdem anzuzeigen waere ein Versprechen auf etwas,
+                // das nie kommt, also entfaellt er ganz.
+                const hunterRan = Boolean(drawer.hunter_status) && drawer.hunter_status !== "pending";
+                const hunterFoundContact = drawer.contacts.some((c) => c.sources.includes("hunter"));
+                if (!hunterRan && !hunterFoundContact) return null;
+                return (
+                  <PipelineStep
+                    label={L.pipelineHunter}
+                    state={drawer.website ? statusToState(drawer.hunter_status) : "empty"}
+                    detail={!drawer.website ? L.pipelineHunterSkipped : drawer.hunter_status === "not_found" ? L.pipelineHunterNotFound : undefined}
+                  />
+                );
+              })()}
               <PipelineStep
                 label={L.pipelinePersonalize}
                 state={drawer.personalization ? "done" : drawer.website ? "pending" : "empty"}
