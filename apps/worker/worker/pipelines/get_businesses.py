@@ -7,7 +7,7 @@
 
 Drei Quellen, die sich in Schritt 1-3 unterscheiden und in Schritt 4 fast:
   maps       Google Places -> Firmen, Anreicherung per KI-Websuche + Hunter
-  corporate  Hunter Discover -> Firmen, Anreicherung nur per KI-Websuche
+  corporate  Hunter Discover -> Firmen, Anreicherung per KI-Websuche + Hunter
   apollo     Apollo People-Search -> Firmen UND Kontakte in einem Schritt,
              deshalb keine Anreicherung noetig (siehe pipelines/apollo.py)
 """
@@ -376,20 +376,22 @@ def _finish(search_id: str, ws: str, auto_enrich: bool, source: str) -> None:
         ):
             enqueue(ws, "personalize", {"business_id": b["id"]})
         return
-    # Hunter-Domain-Search (hunt_persons) kostet pro Firma Credits und laeuft
-    # deshalb bewusst NUR im Maps-Modus. Im Corporate-Modus kam die Firma schon
-    # aus Hunters kostenloser Discover-Suche; die E-Mail soll dort allein ueber
-    # find_decisionmaker (OpenAI-Websuche) kommen, damit fuer Adressen keine
-    # Hunter-Credits anfallen. Das ist eine bewusste Kostenentscheidung.
+    # Hunter-Domain-Search laeuft in BEIDEN firmenbasierten Modi.
     #
-    # Preis dieser Entscheidung, damit ihn niemand neu herleiten muss: die
-    # KI-Websuche findet nur, was oeffentlich im Netz steht. Ueber den
-    # gemessenen Bestand hatten dadurch nur rund 22% der so gefundenen Kontakte
-    # ueberhaupt eine E-Mail -- der Rest ist fuer Outreach nicht verwendbar.
-    # Wer das aendern will, zahlt Hunter-Credits; einen kostenlosen dritten Weg
-    # gibt es nicht (Adressen aus Namensmustern zu raten erzeugt Bounces und
-    # ruiniert die Zustellbarkeit).
-    run_hunt_persons = source == "maps"
+    # Vorher lief er nur bei Maps: im Corporate-Modus sollten die Adressen
+    # allein aus der KI-Websuche kommen, damit keine Hunter-Credits anfallen.
+    # Das war zwar billiger, aber gemessen hatten nur rund 22% der so
+    # gefundenen Kontakte ueberhaupt eine E-Mail -- vier von fuenf Firmen waren
+    # damit fuer Outreach unbrauchbar. Der Corporate-Modus verhaelt sich jetzt
+    # wie Apollo: der Kunde bezahlt die Abfrage beim Anbieter und bekommt dafuer
+    # eine echte, von Hunter gepruefte Adresse statt einer erratenen.
+    #
+    # find_decisionmaker (OpenAI) laeuft weiterhin mit, aber NICHT mehr als
+    # Adressquelle: es schreibt businesses.company_summary, und genau daraus
+    # baut personalize die Eroeffnungszeile (DEFAULT_SOURCE = "company_summary").
+    # Ohne diesen Schritt haette jede Corporate-Suche keine Personalisierung
+    # mehr -- der Kern des Produkts.
+    run_hunt_persons = source in ("maps", "corporate")
     for b in (
         sb()
         .table("businesses")
