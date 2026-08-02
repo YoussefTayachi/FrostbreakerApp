@@ -31,12 +31,26 @@ function fromAddress(): string {
 
 export type SendResult = { ok: true } | { ok: false; reason: string };
 
+/**
+ * Der Schluessel aus der Umgebung.
+ *
+ * Auch "Resend_API_KEY" wird akzeptiert: in Vercel ist er unter genau dieser
+ * Schreibweise angelegt, und process.env unterscheidet Gross- und
+ * Kleinschreibung. Ein Umbenennen haette bedeutet, den Wert neu einzutippen --
+ * dafuer ist der Fehler zu klein und der Schluessel zu heikel. Der Kommentar
+ * steht hier, damit die zweite Zeile spaeter nicht als ueberfluessig
+ * weggeraeumt wird.
+ */
+function apiKey(): string | undefined {
+  return process.env.RESEND_API_KEY ?? process.env.Resend_API_KEY;
+}
+
 export async function sendEmail(
   to: string,
   subject: string,
   text: string
 ): Promise<SendResult> {
-  const key = process.env.RESEND_API_KEY;
+  const key = apiKey();
   // Kein Schluessel hinterlegt ist kein Fehler, sondern "Funktion nicht
   // eingerichtet" -- der Aufrufer soll das unterscheiden koennen.
   if (!key) return { ok: false, reason: "no_api_key" };
