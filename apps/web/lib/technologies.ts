@@ -7,20 +7,38 @@
 //   Apollo  currently_using_any_of_technology_uids[]  -> "woo_commerce"
 //   Hunter  technology.include[]                      -> "woocommerce"
 //
-// Apollo bildet die UID aus dem Anzeigenamen (klein, Leerzeichen und Punkte zu
-// Unterstrichen), Hunter nutzt eigene Bindestrich-Slugs. Deshalb haelt jeder
-// Eintrag beide Schreibweisen -- geraten wird nichts.
-//
 // Quellen, beide oeffentlich und ohne Key abrufbar (abgerufen 2026-08-01):
 //   Apollo: https://api.apollo.io/v1/auth/supported_technologies_csv  (10.718 Eintraege)
 //   Hunter: https://hunter.io/files/technologies.json                 (1.980 Eintraege)
 //
-// Jede Zuordnung unten wurde gegen diese beiden Dateien geprueft. Die Kataloge
-// decken sich nicht vollstaendig: Gorgias/Yotpo/Trusted Shops kennt nur Apollo,
-// ActiveCampaign nur Hunter, und Brevo laeuft bei Hunter noch unter dem alten
-// Namen "sendinblue". Fehlt ein Slug, bleibt das Feld leer und der Eintrag wird
-// im jeweiligen Modus gar nicht erst angeboten (siehe technologiesFor) --
-// sonst waehlte man einen Filter, der stillschweigend wirkungslos bliebe.
+// ACHTUNG, teuer gelernt: Apollos CSV enthaelt ANZEIGENAMEN, nicht die UIDs.
+// Eine UID laesst sich daraus NICHT zuverlaessig ableiten. Frueher stand hier
+// die Regel "klein, Leerzeichen und Punkte zu Unterstrichen" -- die stimmt fuer
+// "Woo Commerce" -> woo_commerce, aber genau drei Eintraege weichen ab:
+//
+//   Apollo.io   -> apolloio    (NICHT apollo_io; "apollo" ist Apollo GraphQL,
+//                               belegt durch Microsoft/Razorpay statt Agenturen)
+//   Outreach.io -> outreach    (NICHT outreach_io oder outreachio)
+//   JTL-Shop    -> jtlshop     (NICHT jtl-shop oder jtl_shop)
+//
+// Das ist keine Kosmetik: ein unbekannter UID wird von Apollo nicht als Fehler
+// abgewiesen, sondern liefert stillschweigend NULL Treffer. Die Suche laeuft
+// dann sauber durch und endet mit "fertig, 0 Leads" -- ohne jeden Hinweis
+// darauf, dass der Filter gar nicht existiert. Genau so ist am 2026-08-02 eine
+// 300-Lead-Suche auf Apollo.io-Nutzer leer ausgegangen.
+//
+// Deshalb gilt: JEDER neue Apollo-Slug wird vor dem Einbauen einmal echt gegen
+// mixed_people/api_search abgefragt (per_page=1, kostet keine Credits) und muss
+// mindestens eine Person zuruecklieferern. Alle 49 Eintraege unten sind so
+// geprueft (2026-08-02). Die Werte sind zusaetzlich in technologies.test.ts
+// festgenagelt, damit niemand sie "logisch" zurueckkorrigiert.
+//
+// Die Kataloge decken sich nicht vollstaendig: Gorgias/Yotpo/Trusted Shops
+// kennt nur Apollo, ActiveCampaign nur Hunter, und Brevo laeuft bei Hunter noch
+// unter dem alten Namen "sendinblue". Fehlt ein Slug, bleibt das Feld leer und
+// der Eintrag wird im jeweiligen Modus gar nicht erst angeboten (siehe
+// technologiesFor) -- sonst waehlte man einen Filter, der stillschweigend
+// wirkungslos bliebe.
 //
 // Bewusst kuratiert statt vollstaendig: die Rohlisten haben zusammen ueber
 // 12.000 Eintraege. Hier stehen die Shopsysteme und die Tools, an denen sich
@@ -49,7 +67,7 @@ export const TECHNOLOGIES: Technology[] = [
   { id: "magento", label: "Magento", group: "shop", apollo: "magento", hunter: "magento" },
   { id: "prestashop", label: "PrestaShop", group: "shop", apollo: "prestashop", hunter: "prestashop" },
   { id: "bigcommerce", label: "BigCommerce", group: "shop", apollo: "bigcommerce", hunter: "bigcommerce" },
-  { id: "jtl", label: "JTL-Shop", group: "shop", apollo: "jtl-shop", hunter: "jtl-shop" },
+  { id: "jtl", label: "JTL-Shop", group: "shop", apollo: "jtlshop", hunter: "jtl-shop" },
   { id: "oxid", label: "Oxid eShop", group: "shop", apollo: "oxid_eshop", hunter: "oxid-eshop" },
   { id: "plentymarkets", label: "PlentyMarkets", group: "shop", apollo: "plentymarkets", hunter: "plentymarkets" },
   { id: "ecwid", label: "Ecwid", group: "shop", apollo: "ecwid", hunter: "ecwid" },
@@ -109,8 +127,15 @@ export const TECHNOLOGIES: Technology[] = [
   //   ausdruecklich "Apollo.io" (CRM) von "Apollo" (Frameworks and Programming
   //   Languages, also Apollo GraphQL). Ein Filter darauf wuerde
   //   Webentwickler-Teams liefern statt Apollo-Nutzer.
-  { id: "apollo_io", label: "Apollo.io", group: "sales", apollo: "apollo_io" },
-  { id: "outreach", label: "Outreach.io", group: "sales", apollo: "outreach_io" },
+  //
+  //   Genau diese Trennung bildet Apollo in den UIDs ab, aber anders als
+  //   erwartet: "apollo" IST das GraphQL-Framework (Stichprobe: Microsoft,
+  //   Razorpay, EXL), das CRM liegt auf "apolloio" (Stichprobe: The Retail
+  //   Doctor, Tibicle, APEX Consulting -- Agenturen und Beratungen). Der
+  //   naheliegende Zwischenweg "apollo_io" existiert bei Apollo NICHT und
+  //   lieferte deshalb null Treffer, siehe Kopf dieser Datei.
+  { id: "apollo_io", label: "Apollo.io", group: "sales", apollo: "apolloio" },
+  { id: "outreach", label: "Outreach.io", group: "sales", apollo: "outreach" },
   { id: "salesloft", label: "SalesLoft", group: "sales", apollo: "salesloft", hunter: "salesloft" },
   { id: "lemlist_tool", label: "lemlist", group: "sales", apollo: "lemlist" },
   { id: "mailshake", label: "Mailshake", group: "sales", apollo: "mailshake" },

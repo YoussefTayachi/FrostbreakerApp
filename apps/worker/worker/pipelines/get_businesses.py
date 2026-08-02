@@ -170,6 +170,17 @@ def apollo_leads_today(ws: str) -> int:
     return res.count or 0
 
 
+def _note(search_id: str, text: str) -> None:
+    """Erklaerung zu einer durchgelaufenen Suche hinterlegen.
+
+    Bewusst getrennt von searches.error: error heisst "fehlgeschlagen" und wird
+    im Frontend rot als Fehlschlag gezeigt. Diese Suche ist aber nicht
+    fehlgeschlagen, sie hat nur nichts gefunden -- und der Unterschied ist fuer
+    den Nutzer wesentlich.
+    """
+    sb().table("searches").update({"note": text[:1000]}).eq("id", search_id).execute()
+
+
 def run_apollo(search: dict, ws: str) -> None:
     """Apollo-Modus: fertig angereicherte Personen samt Firma holen und
     speichern.
@@ -193,8 +204,14 @@ def run_apollo(search: dict, ws: str) -> None:
         )
     wanted = min(search["max_results"], remaining_today)
 
-    pairs = apollo.collect_people(search.get("filters") or {}, api_key, wanted)
+    filters = search.get("filters") or {}
+    pairs = apollo.collect_people(filters, api_key, wanted)
     if not pairs:
+        # "Fertig, 0 Leads" ohne Begruendung ist die frustrierendste Auskunft,
+        # die diese Suche geben kann -- der Nutzer sieht sechs Filter und weiss
+        # nicht, welcher schuld war. Die Ursachensuche kostet keine Credits und
+        # laeuft nur hier, auf dem Null-Pfad.
+        _note(search["id"], apollo.explain_empty_result(filters, api_key))
         return
 
     # Gegen bereits bekannte Firmen sperren (gleiche Regel wie im Corporate-
@@ -221,6 +238,16 @@ def run_apollo(search: dict, ws: str) -> None:
         by_website.setdefault(website, biz)
         contacts_by_website.setdefault(website, []).append(contact)
     if not by_website:
+        # Hier ist die Ursache bekannt und die Filter sind unschuldig: Apollo
+        # hat geliefert, aber alles war schon bekannt oder gesperrt. Das ist
+        # eine ganz andere Auskunft als "Filter zu eng" -- und ein Hinweis, dass
+        # hier Credits fuer Leads ausgegeben wurden, die danach wegfielen.
+        _note(
+            search["id"],
+            f"Apollo hat {len(pairs)} Personen geliefert, aber alle gehören zu Firmen, die "
+            "bereits in deiner Liste stehen oder auf der Sperrliste sind. Für neue Leads "
+            "hilft nur ein anderer Filter, etwa ein weiteres Land oder andere Positionen.",
+        )
         return
 
     # Kein zweiter Freischalt-Durchlauf mehr: collect_people() liefert bereits
@@ -292,7 +319,13 @@ def run(job: dict) -> None:
     # eine erfolgreich abgeschlossene Suche mit einer Fehlermeldung in der
     # Datenbank -- irrefuehrend fuer jeden, der sie liest, und eine Zeitbombe
     # fuer jede Oberflaeche, die error unabhaengig vom Status anzeigt.
-    sb().table("searches").update({"status": "running", "error": None}).eq("id", search_id).execute()
+    # note wird aus demselben Grund zurueckgesetzt wie error: sonst stuende
+    # nach einem erfolgreichen zweiten Versuch noch die Erklaerung des ersten
+    # ("keine Treffer, Technologie-Filter schuld") an einer Suche, die gerade
+    # Leads geliefert hat.
+    sb().table("searches").update({"status": "running", "error": None, "note": None}).eq(
+        "id", search_id
+    ).execute()
     source = search.get("source", "maps")
     try:
         if source == "corporate":

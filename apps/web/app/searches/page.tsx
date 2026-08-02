@@ -16,6 +16,9 @@ type SearchRow = {
   source: string;
   status: string;
   error: string | null;
+  /** Durchgelaufen, aber es gibt etwas zu sagen -- typisch: null Treffer samt
+   *  Grund. Kein Fehlschlag, deshalb getrennt von error (siehe 0053). */
+  note: string | null;
   max_results: number;
   target_email_count: number | null;
   created_at: string;
@@ -198,6 +201,15 @@ export default async function SearchesPage() {
                 <p className="mt-3 rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-xs leading-relaxed text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-300">
                   <span className="font-medium">{t.searches.failureReason}</span>{" "}
                   {errorBySearch.get(s.id)}
+                </p>
+              )}
+              {/* Bernstein statt rot: die Suche ist nicht fehlgeschlagen, sie
+                  hat nur nichts gefunden. Nur zeigen, wenn nicht ohnehin schon
+                  ein echter Fehler dasteht -- zwei Kaesten uebereinander
+                  waeren mehr Laerm als Auskunft. */}
+              {s.note && !errorBySearch.has(s.id) && (
+                <p className="mt-3 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs leading-relaxed text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
+                  <span className="font-medium">{t.searches.noResultReason}</span> {s.note}
                 </p>
               )}
             </Link>

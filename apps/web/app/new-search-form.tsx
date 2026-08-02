@@ -1,9 +1,16 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { citySuggestionsFor, usStateForCity } from "@/lib/locations";
 import { resolveTechnologies, technologiesFor, type TechGroup } from "@/lib/technologies";
+import {
+  APOLLO_DEFAULT_SENIORITIES,
+  APOLLO_EMPLOYEE_RANGES,
+  APOLLO_SENIORITIES,
+  hasAnyApolloFilter,
+  type ApolloFilters,
+} from "@/lib/apollo-query";
 import { useT } from "./language-provider";
 import { useToast } from "./toast-provider";
 
@@ -334,34 +341,12 @@ const APOLLO_TITLE_SUGGESTIONS = [
   "E-Commerce Manager", "Head of E-Commerce", "Head of Growth", "Head of Sales",
 ];
 
-// Apollos vollstaendige, gueltige Werte fuer person_seniorities. MUSS mit
-// APOLLO_SENIORITIES in worker/pipelines/apollo.py uebereinstimmen -- ein Wert
-// ausserhalb dieser Liste ist bei Apollo eine ungueltige Anfrage, keine
-// Geschmacksfrage (der Worker prueft zusaetzlich gegen dieselbe Liste).
-// "partner" stand hier nicht, obwohl es in APOLLO_DEFAULT_SENIORITIES und im
-// Worker steht: die Stufe war damit dauerhaft vorausgewaehlt, aber es gab
-// keinen Knopf, um sie wieder abzuwaehlen. Fuer Kanzleien und Beratungen ist
-// sie die wichtigste Stufe ueberhaupt.
-const APOLLO_SENIORITIES = [
-  "owner", "founder", "c_suite", "partner", "vp", "head", "director",
-  "manager", "senior", "entry", "intern",
-] as const;
-
-// Vorauswahl: die Stufen, die ueblicherweise entscheiden. "senior"/"entry"/
-// "intern" bleiben abwaehlbar dabei, kosten aber Credits ohne Entscheidungsmacht.
-const APOLLO_DEFAULT_SENIORITIES = [
-  "owner", "founder", "c_suite", "partner", "vp", "head", "director",
-];
-
-// Apollos eigene elf Stufen aus dem "# Employees"-Filter. Muss mit
-// APOLLO_EMPLOYEE_RANGES in worker/pipelines/apollo.py uebereinstimmen -- die
-// bisher verwendeten Stufen (11-50, 51-200) sind bei Apollo keine Option, und
-// eine eigene Stufung waere ein stiller Unterschied zu dem, was der Kunde in
-// Apollo selbst sieht.
-const APOLLO_EMPLOYEE_RANGES = [
-  "1-10", "11-20", "21-50", "51-100", "101-200", "201-500",
-  "501-1000", "1001-2000", "2001-5000", "5001-10000", "10001+",
-];
+// APOLLO_SENIORITIES, APOLLO_DEFAULT_SENIORITIES und APOLLO_EMPLOYEE_RANGES
+// stehen jetzt in lib/apollo-query.ts (oben importiert): der Trefferzaehler
+// braucht dieselben Werte, und eine zweite Kopie hier waere genau die stille
+// Abweichung, an der die Suche schon einmal gescheitert ist. Beide muessen
+// weiterhin mit worker/pipelines/apollo.py uebereinstimmen -- ein Wert
+// ausserhalb der Liste ist bei Apollo eine ungueltige Anfrage.
 
 // Branchen laufen bei Apollo NICHT ueber unsere Industry-Liste: Apollos
 // Industry-Filter arbeitet intern mit Mongo-IDs
@@ -514,6 +499,9 @@ export default function NewSearchForm({ workspaceId }: { workspaceId: string }) 
   // Interne IDs aus lib/technologies.ts, erst beim Absenden in die Slugs des
   // jeweiligen Anbieters uebersetzt.
   const [technologies, setTechnologies] = useState<string[]>([]);
+  const [apolloCount, setApolloCount] = useState<
+    { state: "idle" | "loading" } | { state: "ok"; total: number } | { state: "error"; reason: string }
+  >({ state: "idle" });
   const [techOpen, setTechOpen] = useState(false);
   const [painPointNoWebsite, setPainPointNoWebsite] = useState(false);
   const [painPointMaxRating, setPainPointMaxRating] = useState<number | "">("");
@@ -523,6 +511,63 @@ export default function NewSearchForm({ workspaceId }: { workspaceId: string }) 
   const [loading, setLoading] = useState(false);
 
   useEffect(() => setPresets(loadPresets(workspaceId)), [workspaceId]);
+
+  // Genau das Objekt, das beim Absenden in searches.filters landet. Der
+  // Trefferzaehler schickt dieses Objekt -- so zaehlt er zwangslaeufig
+  // dieselbe Anfrage, die der Worker spaeter stellt. Wuerde die Vorschau ihre
+  // Filter selbst zusammenbauen, koennten beide auseinanderlaufen und die
+  // angezeigte Zahl waere eine Zusage, die die Suche nicht einloest.
+  const apolloFilters: ApolloFilters = useMemo(() => {
+    const apolloTech = resolveTechnologies(technologies, "apollo");
+    return {
+      person_titles: personTitles.trim() || null,
+      apollo_locations: apolloCountries.map((c) => APOLLO_COUNTRY_NAMES[c]).filter(Boolean),
+      apollo_seniorities: apolloSeniorities,
+      headcount: headcount || null,
+      keywords: keywords || null,
+      // Nur setzen, wenn etwas gewaehlt ist: ein leeres Array wuerde die
+      // Filter-Gleichheitspruefung in matching_prior_search_ids gegen aeltere
+      // Suchen unnoetig scheitern lassen.
+      ...(apolloTech.length > 0 ? { technologies: apolloTech } : {}),
+    };
+  }, [personTitles, apolloCountries, apolloSeniorities, headcount, keywords, technologies]);
+
+  // Trefferzahl vor dem Absenden. Der Aufruf kostet keine Credits (nur das
+  // Anreichern kostet, und das passiert hier nicht), darf also bei jeder
+  // Aenderung laufen. Entprellt, damit Tippen im Keyword-Feld nicht pro
+  // Anschlag eine Anfrage ausloest und in Apollos Rate Limit laeuft.
+  useEffect(() => {
+    if (mode !== "apollo" || !hasAnyApolloFilter(apolloFilters)) {
+      setApolloCount({ state: "idle" });
+      return;
+    }
+    const ctrl = new AbortController();
+    setApolloCount({ state: "loading" });
+    const timer = setTimeout(async () => {
+      try {
+        const res = await fetch("/api/apollo/count", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(apolloFilters),
+          signal: ctrl.signal,
+        });
+        const body = await res.json();
+        setApolloCount(
+          body?.ok
+            ? { state: "ok", total: body.total as number }
+            : { state: "error", reason: String(body?.reason ?? "failed") }
+        );
+      } catch {
+        // Ein Abbruch durch die naechste Eingabe ist kein Fehler -- sonst
+        // blitzte beim Tippen dauernd eine Fehlermeldung auf.
+        if (!ctrl.signal.aborted) setApolloCount({ state: "error", reason: "unreachable" });
+      }
+    }, 600);
+    return () => {
+      clearTimeout(timer);
+      ctrl.abort();
+    };
+  }, [mode, apolloFilters]);
 
   function toggleTechnology(id: string) {
     setTechnologies((prev) =>
@@ -563,39 +608,23 @@ export default function NewSearchForm({ workspaceId }: { workspaceId: string }) 
       );
     } else if (mode === "apollo") {
       const titleList = parseList(personTitles);
-      const apolloTech = resolveTechnologies(technologies, "apollo");
-      if (
-        apolloCountries.length === 0 &&
-        titleList.length === 0 &&
-        !keywords.trim() &&
-        !headcount &&
-        apolloTech.length === 0
-      ) {
+      if (!hasAnyApolloFilter(apolloFilters)) {
         push(t.newSearchForm.apolloNeedsFilter, "error");
         return;
       }
-      const locations = apolloCountries.map((c) => APOLLO_COUNTRY_NAMES[c]).filter(Boolean);
       rows = [
         {
           name: listName.trim() || null,
           schedule,
           workspace_id: workspaceId, source: "apollo",
           query: [keywords, titleList[0]].filter(Boolean).join(" · ") || "Apollo-Suche",
-          location: locations.join(", "),
+          location: (apolloFilters.apollo_locations ?? []).join(", "),
           // Kein Trefferquoten-Aufschlag: bei Apollo ist die angefragte Zahl
           // die Zahl der Leads mit E-Mail (contact_email_status=verified).
           max_results: apolloTarget, target_email_count: apolloTarget,
-          filters: {
-            person_titles: personTitles.trim() || null,
-            apollo_locations: locations,
-            apollo_seniorities: apolloSeniorities,
-            headcount: headcount || null,
-            keywords: keywords || null,
-            // Nur setzen, wenn etwas gewaehlt ist: ein leeres Array wuerde die
-            // Filter-Gleichheitspruefung in matching_prior_search_ids gegen
-            // aeltere Suchen unnoetig scheitern lassen.
-            ...(apolloTech.length > 0 ? { technologies: apolloTech } : {}),
-          },
+          // Dasselbe Objekt, das der Trefferzaehler gezaehlt hat -- die
+          // angezeigte Zahl gilt damit fuer genau diese Suche.
+          filters: apolloFilters,
         },
       ];
     } else {
@@ -1160,6 +1189,44 @@ export default function NewSearchForm({ workspaceId }: { workspaceId: string }) 
             open={techOpen}
             onOpenChange={setTechOpen}
           />
+
+          {/* Trefferzahl vor dem Absenden. Bewusst hier unten, direkt vor dem
+              Absende-Knopf: das ist der Moment, in dem die Zahl noch etwas
+              aendern kann. Null Treffer werden als Warnung gezeigt, nicht als
+              beilaeufiger Hinweis -- eine leer laufende Suche war bisher erst
+              hinterher zu erkennen. */}
+          {apolloCount.state !== "idle" && (
+            <div
+              className={
+                "rounded-lg border px-3 py-2 text-xs leading-relaxed " +
+                (apolloCount.state === "ok" && apolloCount.total === 0
+                  ? "border-amber-300 bg-amber-50 text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200"
+                  : "border-edge/60 bg-panel text-soft")
+              }
+              aria-live="polite"
+            >
+              {apolloCount.state === "loading" && (
+                <span className="text-mute">{t.newSearchForm.apolloCountLoading}</span>
+              )}
+              {apolloCount.state === "ok" && (
+                <>
+                  <span className={apolloCount.total === 0 ? "font-medium" : "font-medium text-strong"}>
+                    {t.newSearchForm.apolloCountResult(apolloCount.total, apolloTarget)}
+                  </span>{" "}
+                  <span className="text-mute">{t.newSearchForm.apolloCountFree}</span>
+                </>
+              )}
+              {apolloCount.state === "error" && (
+                <span className="text-mute">
+                  {apolloCount.reason === "no_key"
+                    ? t.newSearchForm.apolloCountNoKey
+                    : apolloCount.reason === "plan"
+                      ? t.newSearchForm.apolloCountPlan
+                      : t.newSearchForm.apolloCountFailed}
+                </span>
+              )}
+            </div>
+          )}
 
           <p className="text-xs text-mute">{t.newSearchForm.apolloHint(APOLLO_MAX_TARGET)}</p>
         </>

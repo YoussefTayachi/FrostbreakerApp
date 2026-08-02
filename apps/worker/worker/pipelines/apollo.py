@@ -183,17 +183,25 @@ def _technology_uids(raw: object) -> list[str]:
     return out
 
 
-def build_people_search_body(filters: dict, page: int) -> dict:
+def build_people_search_body(filters: dict, page: int, per_page: int = PER_PAGE) -> dict:
     """Erzeugt den People-Search-Body aus unseren Such-Filtern (pure, testbar).
 
     contact_email_status=verified ist der Kern der Integration: Apollo gibt so
     ausschliesslich Personen zurueck, fuer die eine verifizierte E-Mail
     vorliegt. Ohne diesen Filter kaeme derselbe Trefferquoten-Verlust zurueck,
     den Apollo gerade loesen soll.
+
+    per_page ist einstellbar, weil die Diagnose und der Trefferzaehler nur die
+    Gesamtzahl brauchen: mit per_page=1 kostet die Antwort einen Bruchteil der
+    Uebertragung und liefert total_entries genauso.
+
+    MUSS mit buildApolloSearchBody() in apps/web/lib/apollo-query.ts
+    uebereinstimmen -- die Oberflaeche zaehlt damit die Treffer vor dem Start,
+    und eine Abweichung waere eine Zusage, die die Suche nicht einloest.
     """
     body: dict = {
         "page": page,
-        "per_page": PER_PAGE,
+        "per_page": per_page,
         "contact_email_status": ["verified"],
         "person_seniorities": _valid_seniorities(filters.get("apollo_seniorities")),
     }
@@ -325,18 +333,28 @@ def _raise_for_plan(exc: httpx.HTTPStatusError) -> None:
     retry=retry_if_exception(_is_retryable),
     reraise=True,
 )
-def search_people(filters: dict, api_key: str, page: int) -> list[dict]:
-    """Eine Seite der People-Search. Kostet keine Credits und liefert nur die
-    anonymisierte Vorschau -- brauchbar ist daraus praktisch nur die id und das
-    has_email-Flag (siehe candidate_ids)."""
-    body = build_people_search_body(filters, page)
+def post_search(body: dict, api_key: str) -> dict:
+    """Eine People-Search-Anfrage. Kostet keine Credits.
+
+    Gibt die ganze Antwort zurueck, nicht nur people[]: total_entries wird fuer
+    den Trefferzaehler und die Fehlerdiagnose gebraucht. Achtung, total_entries
+    steht auf OBERSTER Ebene -- pagination ist bei diesem Endpunkt durchgaengig
+    null, anders als bei Apollos uebrigen Such-Endpunkten.
+    """
     try:
         r = httpx.post(SEARCH_URL, json=body, headers=_headers(api_key), timeout=60)
         raise_for_status_safe(r)
     except httpx.HTTPStatusError as exc:
         _raise_for_plan(exc)
         raise
-    return r.json().get("people") or []
+    return r.json()
+
+
+def search_people(filters: dict, api_key: str, page: int) -> list[dict]:
+    """Eine Seite der People-Search. Liefert nur die anonymisierte Vorschau --
+    brauchbar ist daraus praktisch nur die id und das has_email-Flag (siehe
+    candidate_ids)."""
+    return post_search(build_people_search_body(filters, page), api_key).get("people") or []
 
 
 def candidate_ids(people: list[dict]) -> list[str]:
@@ -462,6 +480,97 @@ def collect_people(filters: dict, api_key: str, limit: int) -> list[dict]:
         )
         return []
     return enrich_people(ids, api_key, capped)
+
+
+# Welcher Filter wird bei der Ursachensuche versuchsweise weggelassen, und wie
+# heisst er fuer den Nutzer. Reihenfolge = Verdachtsreihenfolge: der
+# Technologie-Filter steht vorn, weil er der schaerfste ist (in einer echten
+# Suche schnitt er 170.000 Treffer auf unter 1.000) und weil ein Slug, den
+# Apollo nicht kennt, kommentarlos null liefert statt einen Fehler zu melden.
+_DIAGNOSABLE_FILTERS = [
+    ("currently_using_any_of_technology_uids", "der Technologie-Filter"),
+    ("q_organization_keyword_tags", "die Stichwörter"),
+    ("person_titles", "die Positionen"),
+    ("organization_locations", "die Länderauswahl"),
+    ("organization_num_employees_ranges", "die Firmengröße"),
+    ("person_seniorities", "die Senioritäts-Stufen"),
+]
+
+
+def _total(body: dict, api_key: str) -> int:
+    """Gesamttreffer fuer einen Body. per_page=1, weil nur die Zahl zaehlt."""
+    data = post_search(body | {"page": 1, "per_page": 1}, api_key)
+    total = data.get("total_entries")
+    return total if isinstance(total, int) else 0
+
+
+def explain_empty_result(filters: dict, api_key: str) -> str:
+    """Warum hat diese Suche nichts geliefert? Fuer den Nutzer lesbar.
+
+    Ohne diese Erklaerung endet eine leere Suche mit "fertig, 0 Leads" und der
+    Nutzer hat keinen Anhaltspunkt, welcher der sechs Filter schuld war. Genau
+    das ist am 2026-08-02 passiert: ein Technologie-Slug existierte bei Apollo
+    nicht, Apollo meldete das nicht als Fehler, und die Suche lief sauber leer
+    durch.
+
+    Vorgehen ist dieselbe Bisektion, die man sonst von Hand macht: jeden Filter
+    einmal weglassen und schauen, ob dann Treffer kommen. Das kostet nichts
+    (die Suche ist gratis) und passiert nur auf dem Null-Pfad, also hoechstens
+    einmal pro leerer Suche. PAGE_PAUSE_S haelt dabei Abstand zum Rate Limit.
+
+    Wirft nicht: eine fehlgeschlagene Diagnose darf die Suche nicht nachtraeglich
+    zum Fehler machen -- sie ist eine Zusatzauskunft, kein Arbeitsschritt.
+    """
+    try:
+        full = build_people_search_body(filters, 1, per_page=1)
+        data = post_search(full, api_key)
+        people = data.get("people") or []
+        total = data.get("total_entries")
+
+        if people and not any(p.get("has_email") for p in people):
+            # Passende Personen gibt es, aber Apollo hat fuer keine davon eine
+            # Adresse hinterlegt. Ein anderer Filter hilft hier nicht.
+            return (
+                f"Apollo kennt {total or len(people)} passende Personen, aber für keine davon "
+                "eine hinterlegte E-Mail-Adresse. Die Suche verlangt eine verifizierte Adresse, "
+                "deshalb bleibt die Liste leer. Meist hilft es, die Positionen weiter zu fassen."
+            )
+        if people:
+            # Kandidaten mit Adresse waren da, trotzdem kam nichts an: das
+            # Freischalten (bulk_match) hat nichts Verwertbares geliefert.
+            return (
+                "Apollo hat passende Personen mit E-Mail gefunden, beim Freischalten kam aber "
+                "kein vollständiger Datensatz zurück (es fehlten Firmenname oder Domain). "
+                "Ein erneuter Lauf liefert oft ein anderes Ergebnis."
+            )
+
+        for key, label in _DIAGNOSABLE_FILTERS:
+            if key not in full:
+                continue
+            reduced = {k: v for k, v in full.items() if k != key}
+            time.sleep(PAGE_PAUSE_S)
+            found = _total(reduced, api_key)
+            if found > 0:
+                return (
+                    f"Keine Treffer. Verantwortlich ist {label}: ohne diesen einen Filter "
+                    f"findet Apollo {found:,} Personen. Entweder passt der Wert nicht zur "
+                    "restlichen Auswahl, oder Apollo kennt für diese Zielgruppe schlicht "
+                    "niemanden.".replace(",", ".")
+                )
+
+        return (
+            "Keine Treffer. Kein einzelner Filter ist allein schuld: auch wenn man je einen "
+            "weglässt, findet Apollo nichts. Die Kombination ist insgesamt zu eng, am besten "
+            "zwei Filter gleichzeitig lockern."
+        )
+    except ApolloPlanError:
+        raise
+    except Exception as exc:  # noqa: BLE001 -- Diagnose darf nie die Suche kippen
+        log.warning("Apollo-Ursachensuche fehlgeschlagen: %s", exc)
+        return (
+            "Keine Treffer. Die Ursache ließ sich nicht ermitteln, weil Apollo bei der "
+            "Nachfrage nicht erreichbar war."
+        )
 
 
 def check_key(api_key: str) -> dict:

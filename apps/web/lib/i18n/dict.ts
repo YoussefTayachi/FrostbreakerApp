@@ -127,6 +127,7 @@ const de = {
     instantlyBadge: (sent: number, bounceRate: number) => `${sent} versendet · ${bounceRate.toFixed(1)}% Bounce`,
     failed: "Fehlgeschlagen",
     failureReason: "Grund:",
+    noResultReason: "Warum leer:",
     searchingBusinesses: "Firmen werden gesucht",
     enriching: "Anreicherung",
     done: "Fertig",
@@ -220,6 +221,17 @@ const de = {
       "Findet Firmen anhand ihrer tatsächlich eingesetzten Technik statt über geratene Keywords: mehrere Auswahlen gelten als ODER. Hunter zählt das zu den „Advanced Discover filters“ und gibt es erst ab dem Starter-Plan frei; im Free-Plan schlägt die Suche mit einer entsprechenden Meldung fehl.",
     apolloTarget: "Leads mit E-Mail",
     apolloNeedsFilter: "Für eine Apollo-Suche braucht es mindestens ein Land, eine Position, ein Keyword, eine Firmengröße oder eine Technologie.",
+    apolloCountLoading: "Zähle verfügbare Leads …",
+    apolloCountResult: (total: number, target: number) =>
+      total === 0
+        ? "Diese Filter treffen aktuell auf niemanden zu. Die Suche würde leer ausgehen, am ehesten ist ein Filter zu eng."
+        : total < target
+          ? `Nur ${total.toLocaleString("de-DE")} Leads verfügbar, du hast ${target.toLocaleString("de-DE")} angefragt. Mehr gibt Apollo für diese Filter nicht her.`
+          : `${total.toLocaleString("de-DE")} Leads verfügbar für diese Filter.`,
+    apolloCountFree: "Die Zählung kostet keine Credits.",
+    apolloCountNoKey: "Für die Vorschau fehlt ein Apollo-API-Key in den Einstellungen.",
+    apolloCountPlan: "Apollo gibt die Personensuche für diesen Key nicht frei (Free-Plan). Die Vorschau bleibt deshalb leer.",
+    apolloCountFailed: "Trefferzahl gerade nicht abrufbar.",
     apolloHint: (max: number) =>
       `Apollo liefert Firma und Entscheider samt verifizierter E-Mail in einem Schritt. Die angefragte Zahl ist also die Zahl der Leads, keine Schätzung. Max. ${max} pro Suche, 5.000 pro Tag. Braucht einen Apollo-API-Key in den Einstellungen; API-Zugang beginnt bei Apollos Basic-Plan.`,
     listName: "Listen-Name (optional)",
@@ -1169,6 +1181,7 @@ const en: Dictionary = {
     instantlyBadge: (sent: number, bounceRate: number) => `${sent} sent · ${bounceRate.toFixed(1)}% bounce`,
     failed: "Failed",
     failureReason: "Reason:",
+    noResultReason: "Why empty:",
     searchingBusinesses: "Searching for companies",
     enriching: "Enriching",
     done: "Done",
@@ -1254,6 +1267,17 @@ const en: Dictionary = {
       "Finds companies by the technology they actually run instead of guessing keywords: several selections are treated as OR. Hunter counts this among its “Advanced Discover filters” and only unlocks it from the Starter plan; on the free plan the search fails with a matching message.",
     apolloTarget: "Leads with email",
     apolloNeedsFilter: "An Apollo search needs at least a country, a title, a keyword, a company size, or a technology.",
+    apolloCountLoading: "Counting available leads …",
+    apolloCountResult: (total: number, target: number) =>
+      total === 0
+        ? "These filters currently match nobody. The search would come back empty, most likely one filter is too narrow."
+        : total < target
+          ? `Only ${total.toLocaleString("en-US")} leads available, you asked for ${target.toLocaleString("en-US")}. Apollo has no more for these filters.`
+          : `${total.toLocaleString("en-US")} leads available for these filters.`,
+    apolloCountFree: "Counting costs no credits.",
+    apolloCountNoKey: "The preview needs an Apollo API key in settings.",
+    apolloCountPlan: "Apollo does not grant people search for this key (free plan). The preview stays empty.",
+    apolloCountFailed: "Result count unavailable right now.",
     apolloHint: (max: number) =>
       `Apollo returns the company and the decision maker with a verified email in one step, so the number you ask for is the number of leads, not an estimate. Max. ${max} per search, 5,000 per day. Requires an Apollo API key in settings; API access starts at Apollo's Basic plan.`,
     listName: "List name (optional)",

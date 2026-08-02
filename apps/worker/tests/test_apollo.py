@@ -7,10 +7,12 @@ from worker.pipelines.apollo import (
     APOLLO_SENIORITIES,
     DECISIONMAKER_SENIORITIES,
     PER_PAGE,
+    ApolloPlanError,
     _employee_range,
     build_people_search_body,
     candidate_ids,
     enrich_people,
+    explain_empty_result,
     is_masked_email,
     parse_apollo_person,
 )
@@ -293,3 +295,104 @@ def test_seniorities_fall_back_when_selection_is_empty_or_invalid():
             {"keywords": "supplements", "apollo_seniorities": raw}, page=1
         )
         assert body["person_seniorities"] == DECISIONMAKER_SENIORITIES
+
+
+# --- Ursachensuche bei null Treffern ---------------------------------------
+# Eine leere Suche meldete bisher nur "fertig, 0 Leads". Diese Tests halten
+# fest, dass sie stattdessen benennt, WORAN es lag -- ohne dabei je selbst zur
+# Fehlerquelle zu werden.
+
+def _stub_search(monkeypatch, handler):
+    """post_search durch eine Attrappe ersetzen; zaehlt die Aufrufe mit."""
+    calls: list[dict] = []
+
+    def fake(body, api_key):
+        calls.append(body)
+        return handler(body)
+
+    monkeypatch.setattr("worker.pipelines.apollo.post_search", fake)
+    monkeypatch.setattr("worker.pipelines.apollo.time.sleep", lambda _s: None)
+    return calls
+
+
+def test_explain_names_the_filter_that_costs_the_hits(monkeypatch):
+    """Der Fall vom 2026-08-02: ein Technologie-Slug, den Apollo nicht kennt.
+    Ohne diesen Filter gibt es Treffer -- genau das muss die Meldung sagen."""
+    def handler(body):
+        if "currently_using_any_of_technology_uids" in body:
+            return {"people": [], "total_entries": 0}
+        return {"people": [], "total_entries": 4711}
+
+    _stub_search(monkeypatch, handler)
+    msg = explain_empty_result(
+        {"keywords": "marketing agency", "technologies": ["gibt-es-nicht"]}, "key"
+    )
+    assert "Technologie-Filter" in msg
+    assert "4.711" in msg, "Die Zahl belegt die Aussage, ohne sie ist es eine Behauptung"
+
+
+def test_explain_reports_people_without_email_separately(monkeypatch):
+    """Passende Personen ohne hinterlegte Adresse sind ein anderes Problem als
+    ein zu enger Filter -- ein anderer Filter wuerde hier nicht helfen."""
+    _stub_search(
+        monkeypatch,
+        lambda body: {"people": [{"id": "a", "has_email": False}], "total_entries": 12},
+    )
+    msg = explain_empty_result({"keywords": "supplements"}, "key")
+    assert "E-Mail" in msg
+    assert "Technologie" not in msg
+
+
+def test_explain_reports_enrichment_gap(monkeypatch):
+    """Kandidaten mit Adresse waren da, es kam trotzdem nichts an: dann liegt
+    es am Freischalten, nicht an den Filtern."""
+    _stub_search(
+        monkeypatch,
+        lambda body: {"people": [{"id": "a", "has_email": True}], "total_entries": 9},
+    )
+    msg = explain_empty_result({"keywords": "supplements"}, "key")
+    assert "Freischalten" in msg
+
+
+def test_explain_says_so_when_no_single_filter_is_to_blame(monkeypatch):
+    """Wenn auch das Weglassen jedes einzelnen Filters nichts bringt, ist die
+    Kombination schuld -- dann darf die Meldung keinen Suendenbock erfinden."""
+    _stub_search(monkeypatch, lambda body: {"people": [], "total_entries": 0})
+    msg = explain_empty_result(
+        {"keywords": "x", "technologies": ["shopify"], "person_titles": "CEO"}, "key"
+    )
+    assert "Kombination" in msg
+
+
+def test_explain_never_raises_and_never_costs_the_search(monkeypatch):
+    """Die Diagnose ist eine Zusatzauskunft. Faellt sie aus, darf die Suche
+    nicht nachtraeglich zum Fehler werden."""
+    def boom(body, api_key):
+        raise RuntimeError("Apollo weg")
+
+    monkeypatch.setattr("worker.pipelines.apollo.post_search", boom)
+    msg = explain_empty_result({"keywords": "x"}, "key")
+    assert "nicht ermitteln" in msg
+
+
+def test_explain_passes_a_plan_error_through(monkeypatch):
+    """Ein gesperrter Plan ist keine "zu enge Suche" -- diese Unterscheidung
+    darf die Diagnose nicht verschlucken."""
+    def blocked(body, api_key):
+        raise ApolloPlanError("Free-Plan")
+
+    monkeypatch.setattr("worker.pipelines.apollo.post_search", blocked)
+    with pytest.raises(ApolloPlanError):
+        explain_empty_result({"keywords": "x"}, "key")
+
+
+def test_body_accepts_a_smaller_page_size_for_counting():
+    """Zaehlen und Diagnose brauchen nur total_entries -- per_page=1 spart die
+    ganze Uebertragung, muss aber sonst denselben Body ergeben."""
+    counting = build_people_search_body({"keywords": "x"}, page=1, per_page=1)
+    full = build_people_search_body({"keywords": "x"}, page=1)
+    assert counting["per_page"] == 1
+    assert full["per_page"] == PER_PAGE
+    assert {k: v for k, v in counting.items() if k != "per_page"} == {
+        k: v for k, v in full.items() if k != "per_page"
+    }
