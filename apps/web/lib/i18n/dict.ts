@@ -144,6 +144,10 @@ const de = {
     trashed: "In den Papierkorb verschoben.",
     restored: "Wiederhergestellt.",
     hardDeleted: "Endgültig gelöscht.",
+    emptyTrash: (n: number) => `Alle ${n} endgültig löschen`,
+    emptyTrashConfirm: (n: number) =>
+      `${n} Listen und alle zugehörigen Leads endgültig löschen? Das kann nicht rückgängig gemacht werden.`,
+    emptyTrashDone: (n: number) => `${n} Listen endgültig gelöscht.`,
   },
   searchSettings: {
     save: "Speichern",
@@ -771,6 +775,7 @@ const de = {
         variableEmail: "E-Mail",
         variablePersonalization: "Icebreaker",
         variableOptOut: "Abmelde-Link",
+        previewToggle: "Vorschau: so kommt die Mail an",
         scheduleLabel: "Sende-Fenster",
         until: "bis",
         dailyLimitPlaceholder: "Tageslimit",
@@ -1198,6 +1203,10 @@ const en: Dictionary = {
     trashed: "Moved to trash.",
     restored: "Restored.",
     hardDeleted: "Permanently deleted.",
+    emptyTrash: (n: number) => `Delete all ${n} permanently`,
+    emptyTrashConfirm: (n: number) =>
+      `Permanently delete ${n} lists and all their leads? This cannot be undone.`,
+    emptyTrashDone: (n: number) => `${n} lists permanently deleted.`,
   },
   searchSettings: {
     save: "Save",
@@ -1810,6 +1819,7 @@ const en: Dictionary = {
         variableEmail: "Email",
         variablePersonalization: "Icebreaker",
         variableOptOut: "Opt-out link",
+        previewToggle: "Preview: how the email arrives",
         scheduleLabel: "Sending window",
         until: "to",
         dailyLimitPlaceholder: "Daily limit",

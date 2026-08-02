@@ -3,6 +3,7 @@ import { useRef, useState } from "react";
 import { useT } from "../../language-provider";
 import { useWorkspace } from "../../workspace-provider";
 import { inputCls } from "@/lib/ui";
+import { plainTextToInstantlyHtml } from "@/lib/instantly/campaigns";
 import EmailQualityPanel from "./email-quality-panel";
 import HighlightedTextarea from "./highlighted-textarea";
 import type { Highlights } from "@/lib/email-quality";
@@ -139,6 +140,27 @@ export default function CampaignStepCard({
         rows={4}
         highlights={highlights}
       />
+      {/* Vorschau auf das, was tatsaechlich rausgeht.
+          Das Textfeld zeigt Klartext, versendet wird aber HTML -- und wie die
+          Absaetze dort ankommen, sah man bisher erst NACH dem Versand. Hier
+          wird genau derselbe Aufruf gerendert, der auch an Instantly geht
+          (plainTextToInstantlyHtml), inklusive der Merge-Tags: die bleiben
+          bewusst als {{firstName}} stehen, weil pro Empfaenger etwas anderes
+          eingesetzt wird und eine erfundene Beispielperson hier mehr
+          verspraeche, als die Vorschau halten kann.
+          dangerouslySetInnerHTML ist unkritisch: plainTextToInstantlyHtml
+          maskiert &, < und > und setzt danach ausschliesslich eigene Tags. */}
+      {step.body.trim().length > 0 && (
+        <details className="mt-2 rounded-lg border border-edge2/70">
+          <summary className="cursor-pointer px-3 py-1.5 text-[11px] text-faint hover:text-soft">
+            {F.previewToggle}
+          </summary>
+          <div
+            className="border-t border-edge2/70 px-3 py-2.5 text-sm leading-relaxed text-soft [&_div]:min-h-[1em]"
+            dangerouslySetInnerHTML={{ __html: plainTextToInstantlyHtml(step.body) }}
+          />
+        </details>
+      )}
       <EmailQualityPanel subject={step.subject} body={step.body} onHighlightsChange={setHighlights} />
     </div>
   );

@@ -89,3 +89,58 @@ export function HardDeleteButton({ searchId }: { searchId: string }) {
     </button>
   );
 }
+
+/**
+ * Papierkorb in einem Zug leeren.
+ *
+ * Der Einzelknopf pro Zeile ist bei einem gewachsenen Papierkorb unbenutzbar --
+ * bei 45 Eintraegen sind das 45 Klicks samt 45 Rueckfragen. Hier laeuft das
+ * ueber zwei Abfragen fuer alle Eintraege gleichzeitig.
+ *
+ * Die IDs kommen vom Server (die Seite kennt den Papierkorb ohnehin schon),
+ * statt sie hier erneut zu laden: so loescht der Knopf garantiert genau das,
+ * was der Nutzer in der Liste gesehen hat, und nicht etwas, das in der
+ * Zwischenzeit dazugekommen ist.
+ */
+export function EmptyTrashButton({ searchIds }: { searchIds: string[] }) {
+  const router = useRouter();
+  const { t } = useT();
+  const { push } = useToast();
+  const { workspaceId } = useWorkspace();
+  if (searchIds.length === 0) return null;
+  return (
+    <button
+      onClick={async () => {
+        // Anzahl in die Rueckfrage: unwiderruflich, und der Unterschied
+        // zwischen 3 und 45 Suchen sollte vor dem Klick klar sein.
+        if (!confirm(t.searchActions.emptyTrashConfirm(searchIds.length))) return;
+        const supabase = createClient();
+        // businesses zuerst: haengt an search_id, und ein Abbruch nach dem
+        // Loeschen der Suche wuerde sie als Waisen zuruecklassen.
+        const { error: bizError } = await supabase
+          .from("businesses")
+          .delete()
+          .in("search_id", searchIds)
+          .eq("workspace_id", workspaceId);
+        if (bizError) {
+          push(t.common.error + bizError.message, "error");
+          return;
+        }
+        const { error } = await supabase
+          .from("searches")
+          .delete()
+          .in("id", searchIds)
+          .eq("workspace_id", workspaceId);
+        if (error) {
+          push(t.common.error + error.message, "error");
+          return;
+        }
+        router.refresh();
+        push(t.searchActions.emptyTrashDone(searchIds.length), "success");
+      }}
+      className="rounded-lg border border-red-300 px-3 py-1.5 text-xs text-red-600 transition-colors hover:border-red-500 hover:text-red-500 dark:border-red-900/60 dark:text-red-400 dark:hover:text-red-500"
+    >
+      {t.searchActions.emptyTrash(searchIds.length)}
+    </button>
+  );
+}

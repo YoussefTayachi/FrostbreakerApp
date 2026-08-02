@@ -5,7 +5,7 @@ import { getLangServer, formatDate } from "@/lib/i18n/lang";
 import { dict } from "@/lib/i18n/dict";
 import { searchSourceBadgeClass, searchSourceLabel } from "@/lib/search-source";
 import AutoRefresh from "../auto-refresh";
-import { HardDeleteButton, RestoreButton, TrashButton } from "./search-actions";
+import { EmptyTrashButton, HardDeleteButton, RestoreButton, TrashButton } from "./search-actions";
 
 type SearchRow = {
   id: string;
@@ -227,6 +227,11 @@ export default async function SearchesPage() {
           <summary className="cursor-pointer px-5 py-3 text-sm text-faint hover:text-soft">
             {t.searches.trash} ({trash.length})
           </summary>
+          {/* Sammelaktion oben, damit sie bei langem Papierkorb nicht erst
+              hinter allen Eintraegen auftaucht. */}
+          <div className="flex justify-end border-t border-edge/60 px-5 py-2.5">
+            <EmptyTrashButton searchIds={trash.map((tr) => tr.id)} />
+          </div>
           <div className="divide-y divide-edge/60 border-t border-edge/60">
             {trash.map((tr) => (
               <div key={tr.id} className="flex items-center gap-3 px-5 py-3">
