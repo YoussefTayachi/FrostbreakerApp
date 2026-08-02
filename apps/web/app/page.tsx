@@ -8,6 +8,7 @@ import NewSearchForm from "./new-search-form";
 import AutoRefresh from "./auto-refresh";
 import ActivityChart from "./activity-chart";
 import CountUp from "./count-up";
+import DateRangePicker from "./date-range-picker";
 import ForecastCards, { type PipelineStats } from "./crm/forecast-cards";
 import WelcomeModal from "./welcome-modal";
 import { IconLock, IconSend, IconSearch, IconMail } from "./icons";
@@ -28,6 +29,8 @@ type Stats = {
   jobs_hunter: number;
   meetings_booked: number;
   customers: number;
+  /** Gemessene API-Kosten im gewaehlten Zeitraum (api_usage, Migration 0054). */
+  api_cost_usd?: number;
   instantly: {
     emails_sent: number;
     replies_unique: number;
@@ -61,21 +64,44 @@ function parseRangeDays(raw: string | undefined): number {
   return RANGE_OPTIONS.includes(n as (typeof RANGE_OPTIONS)[number]) ? n : DEFAULT_RANGE_DAYS;
 }
 
+/** Kalendereingabe aus der URL. Ungueltiges wird verworfen statt korrigiert --
+ *  ein stillschweigend verschobenes Datum waere schlimmer als keines. */
+function parseDate(raw: string | undefined): string | null {
+  if (!raw || !/^\d{4}-\d{2}-\d{2}$/.test(raw)) return null;
+  return Number.isNaN(new Date(raw).getTime()) ? null : raw;
+}
+
 export default async function Dashboard({
   searchParams,
 }: {
-  searchParams: Promise<{ range?: string }>;
+  searchParams: Promise<{ range?: string; from?: string; to?: string }>;
 }) {
   const lang = await getLangServer();
   const t = dict[lang];
-  const rangeDays = parseRangeDays((await searchParams).range);
+  const params = await searchParams;
+  const rangeDays = parseRangeDays(params.range);
+  const fromDate = parseDate(params.from);
+  const toDate = parseDate(params.to);
+  // Nur wenn BEIDE Enden gesetzt sind, gilt die Kalenderauswahl -- ein halb
+  // ausgefuelltes Feld soll die Anzeige nicht schon umstellen.
+  const useDateRange = Boolean(fromDate && toDate);
+  // p_to ist exklusiv, deshalb einen Tag weiter: sonst fehlte der gewaehlte
+  // Endtag komplett.
+  const toExclusive = toDate
+    ? new Date(new Date(toDate).getTime() + 24 * 60 * 60 * 1000).toISOString()
+    : null;
   const supabase = await createClient();
   const ws = await getCurrentWorkspace(supabase);
   if (!ws) return <p className="text-faint">Kein Workspace gefunden.</p>;
   const workspaceId = ws.workspace.id;
 
   const [statsRes, searchesRes, recentRes, apiKeysRes, campaignsCountRes, pipelineRes] = await Promise.all([
-    supabase.rpc("dashboard_stats", { p_workspace_id: workspaceId, p_days: rangeDays }),
+    supabase.rpc("dashboard_stats", {
+      p_workspace_id: workspaceId,
+      p_days: rangeDays,
+      p_from: useDateRange ? new Date(fromDate as string).toISOString() : null,
+      p_to: useDateRange ? toExclusive : null,
+    }),
     supabase
       .from("searches")
       .select("*")
@@ -143,17 +169,24 @@ export default async function Dashboard({
     },
   ];
   const onboardingDone = onboardingSteps.every((s) => s.done);
-  const costs = estimateCosts(stats);
+  // Gemessene Kosten aus api_usage (Migration 0054) statt der Hochrechnung
+  // aus Job-Zaehlern. estimateCosts bleibt als Rueckfall fuer Workspaces, in
+  // denen noch nichts erfasst wurde -- sonst stuende dort ploetzlich $0.00,
+  // obwohl vorher Geld geflossen ist.
+  const gemessen = Number(stats.api_cost_usd ?? 0);
+  const costs = gemessen > 0
+    ? { usd: gemessen, hunterCredits: stats.jobs_hunter ?? 0 }
+    : estimateCosts(stats);
   const roi = estimateRoi(stats);
   const hasActive = (stats.jobs_active ?? 0) > 0;
 
-  const kpis: { label: string; value: number | string; sub?: string; hero?: boolean }[] = [
+  const kpis: { label: string; value: number | string; sub?: string; hero?: boolean; href?: string }[] = [
     { label: t.dashboard.kpis.searches, value: stats.searches_total ?? 0 },
     { label: t.dashboard.kpis.businesses, value: stats.businesses_total ?? 0 },
     { label: t.dashboard.kpis.contacts, value: stats.contacts_total ?? 0 },
     { label: t.dashboard.kpis.withEmail, value: stats.contacts_with_email ?? 0 },
     { label: t.dashboard.kpis.personalized, value: stats.personalized ?? 0, hero: true },
-    { label: t.dashboard.kpis.apiCosts, value: "$" + costs.usd.toFixed(2), sub: costs.hunterCredits + " " + t.dashboard.hunterCredits },
+    { label: t.dashboard.kpis.apiCosts, value: "$" + costs.usd.toFixed(2), sub: gemessen > 0 ? t.dashboard.costsMeasured : t.dashboard.costsEstimated, href: "/costs" },
   ];
   const onboardingDoneCount = onboardingSteps.filter((s) => s.done).length;
 
@@ -263,15 +296,26 @@ export default async function Dashboard({
 
       {/* KPI-Leiste */}
       <div className="grid grid-cols-3 divide-edge overflow-hidden rounded-lg border border-edge/60 bg-panel shadow-sm md:grid-cols-6 md:divide-x">
-        {kpis.map((k) => (
-          <div key={k.label} className="px-4 py-3.5">
-            <p className="text-[11px] font-medium uppercase tracking-wide text-mute">{k.label}</p>
-            <p className={"mt-0.5 text-2xl font-semibold tracking-tight " + (k.hero ? "text-sky-600 dark:text-sky-400" : "text-ink")}>
-              {typeof k.value === "number" ? <CountUp value={k.value} /> : k.value}
-            </p>
-            {k.sub && <p className="text-[11px] text-mute">{k.sub}</p>}
-          </div>
-        ))}
+        {kpis.map((k) => {
+          const inhalt = (
+            <>
+              <p className="text-[11px] font-medium uppercase tracking-wide text-mute">{k.label}</p>
+              <p className={"mt-0.5 text-2xl font-semibold tracking-tight " + (k.hero ? "text-sky-600 dark:text-sky-400" : "text-ink")}>
+                {typeof k.value === "number" ? <CountUp value={k.value} /> : k.value}
+              </p>
+              {k.sub && <p className="text-[11px] text-mute">{k.sub}</p>}
+            </>
+          );
+          // Die Kostenkachel fuehrt zur Aufschluesselung -- die Frage "wie
+          // kommt die Zahl zustande" stellt sich genau dort.
+          return k.href ? (
+            <Link key={k.label} href={k.href} className="block px-4 py-3.5 transition-colors hover:bg-edge/30">
+              {inhalt}
+            </Link>
+          ) : (
+            <div key={k.label} className="px-4 py-3.5">{inhalt}</div>
+          );
+        })}
       </div>
 
       {/* Forecast + faellige Aufgaben (CRM Phase 4/5) -- blendet sich selbst aus,
@@ -356,7 +400,9 @@ export default async function Dashboard({
                     href={days === DEFAULT_RANGE_DAYS ? "/" : `/?range=${days}`}
                     className={
                       "px-2.5 py-1 text-xs font-medium transition-colors " +
-                      (days === rangeDays
+                      // Bei aktiver Kalenderauswahl ist keiner der festen
+                      // Bereiche gemeint -- sonst saehe es aus, als gaelten beide.
+                      (!useDateRange && days === rangeDays
                         ? "bg-sky-600 text-white"
                         : "text-soft hover:bg-chip hover:text-ink")
                     }
@@ -365,6 +411,7 @@ export default async function Dashboard({
                   </Link>
                 ))}
               </div>
+              <DateRangePicker />
             </div>
           </div>
           <ActivityChart data={stats.activity ?? []} />
