@@ -7,6 +7,7 @@ Regeln für den Icebreaker:
 - Tonalität: direkt, selbstbewusst, geschäftsmäßig. Eine gewisse Schärfe ist völlig in Ordnung. Kein Slang, kein Hype.
 - Erwähne NICHT LinkedIn, Google, „Ich habe gesehen", „Mir ist aufgefallen", „Ich habe gefunden" oder andere Verweise auf deinen Rechercheprozess. Nenne einfach direkt den Fakt.
 - Baue KEINEN Namen des potenziellen Kunden, deinen eigenen Namen, Begrüßungen oder Verabschiedungen in den Icebreaker ein.
+- Schreibe NIEMALS "—, --,-", also etwa "— dachte ich melde mich mal".
 - Du darfst kommerzielle Interessen, Dynamiken oder Hebelwirkung andeuten (z. B. Mitbewerber überdauern, maßgeschneiderte Lösungen statt Masse wählen, eine Nische verdoppeln, Kapazitäten schützen), aber du darfst deine eigene Dienstleistung oder Lösung NICHT beschreiben oder pitchen.
 - Der Satz sollte sich wie eine scharfe Beobachtung anfühlen, die du direkt vor einer ernsthaften Vertriebsfrage äußern würdest.
 - Werde konkret. Vermeide vages Lob. Verankere die Aussage in etwas Zeitgebundenem, Ortsgebundenem oder Modellgebundenem (z. B. was sich verändert hat, worauf sie doppelt gesetzt haben, was sie weitergeführt haben, während andere damit aufhörten).
@@ -22,6 +23,7 @@ Rules for the icebreaker:
 - Tone: direct, confident, business-like. A bit of edge is completely fine. No slang, no hype.
 - Do NOT mention LinkedIn, Google, "I saw", "I noticed", "I found", or any other reference to your research process. Just state the fact directly.
 - Do NOT include the prospect's name, your own name, greetings, or sign-offs.
+- Do NOT ever type:"—, --,-" like: "— thought I'd reach out".
 - You may hint at commercial interest, dynamics, or leverage (e.g. outlasting competitors, choosing tailored solutions over mass-market ones, doubling down on a niche, protecting capacity), but you must NOT describe or pitch your own service or solution.
 - The sentence should feel like a sharp observation you'd make right before a serious sales question.
 - Be specific. Avoid vague praise. Anchor the statement in something time-bound, location-bound, or model-bound (e.g. what changed, what they doubled down on, what they kept going while others stopped).
@@ -40,15 +42,49 @@ export const DEFAULT_PROMPT = DEFAULT_PROMPT_DE;
 
 export const DEFAULT_MAX_WORDS = 22;
 
-export const DEFAULT_BANNED_WORDS = [
-  "Respekt", "bewundern", "stolz", "Lob", "begeistert",
-  "aufgeregt", "inspiriert", "beeindruckt", "geehrt",
-];
+// Gedankenstriche statt der frueheren Lob-Woerter ("Respekt", "bewundern",
+// "stolz", ...). Der Grund ist derselbe wie beim Prompt-Zusatz oben: ein
+// Gedankenstrich mitten im Satz ist inzwischen das deutlichste Erkennungs-
+// zeichen fuer einen KI-geschriebenen Text und faellt Empfaengern sofort auf.
+// Die Lob-Woerter fing der Prompt ohnehin schon ueber "Vermeide vages Lob" ab.
+//
+// Uebernommen aus dem Template, mit dem in der Praxis gearbeitet wird -- damit
+// die Voreinstellung das ist, was tatsaechlich funktioniert, statt etwas, das
+// jeder Nutzer erst haendisch ersetzen muss.
+export const DEFAULT_BANNED_WORDS = ["—", "–", "--", "-"];
 
 export const SOURCE_VALUES = ["company_summary", "website_text", "both"] as const;
 
 export function wordCount(text: string): number {
   return text.trim().split(/\s+/).filter(Boolean).length;
+}
+
+/**
+ * Steht das verbotene Zeichen wirklich stoerend im Text?
+ *
+ * Fuer normale Woerter ein simpler Teilstring-Treffer. Fuer Satzzeichen gilt
+ * dieselbe Unterscheidung wie im Worker: ein Bindestrich INNERHALB eines
+ * Wortes ("third-party", "NSF-certified") verbindet ein zusammengesetztes Wort
+ * und ist kein Verstoss -- gemeint sind nur Striche, die Satzteile abtrennen.
+ *
+ * Ohne diese Unterscheidung meldete der Live-Test jede Zeile mit einem
+ * zusammengesetzten Wort als fehlerhaft, sobald "-" auf der Verbotsliste
+ * stand, und der Worker markierte sie als pruefbeduerftig: an zwei echten
+ * Suchen betraf das 66 von 69 Zeilen.
+ */
+function isBannedHit(text: string, banned: string): boolean {
+  if (!isPunctuationOnly(banned)) return text.toLowerCase().includes(banned.toLowerCase());
+  if (!DASHES_ALSO_VALID_INSIDE_WORDS.has(banned)) return text.includes(banned);
+  let from = 0;
+  for (;;) {
+    const at = text.indexOf(banned, from);
+    if (at === -1) return false;
+    const before = at > 0 ? text[at - 1] : " ";
+    const after = at + banned.length < text.length ? text[at + banned.length] : " ";
+    const inWord = /[\p{L}\p{N}]/u.test(before) && /[\p{L}\p{N}]/u.test(after);
+    if (!inWord) return true;
+    from = at + banned.length;
+  }
 }
 
 // Labels der Regelverstoesse folgen der UI-Sprache, damit der Live-Test im
@@ -68,8 +104,7 @@ export function validateIcebreaker(
         : `zu lang (${n} statt max. ${maxWords} Wörter)`
     );
   }
-  const lowered = text.toLowerCase();
-  const hits = bannedWords.filter((w) => w.trim() && lowered.includes(w.trim().toLowerCase()));
+  const hits = bannedWords.filter((w) => w.trim() && isBannedHit(text, w.trim()));
   if (hits.length) {
     problems.push(
       (lang === "en" ? "contains banned words: " : "enthält verbotene Wörter: ") + hits.join(", ")

@@ -252,12 +252,33 @@ export async function GET() {
   const ctx = await requireInstantlyContext(supabase);
   if ("error" in ctx) return ctx.error;
 
-  const { data: campaigns } = await supabase
+  // searches!campaigns_search_id_fkey statt nur searches: seit
+  // campaign_searches (Migration 0050) gibt es ZWEI Wege von campaigns zu
+  // searches -- die Spalte search_id und die neue Zwischentabelle. PostgREST
+  // kann den Einbettungspfad dann nicht mehr waehlen und antwortet mit
+  // HTTP 300 ("Multiple Choices"), die Abfrage liefert also gar nichts.
+  //
+  // Sichtbar wurde das als leere Kampagnenliste bei drei aktiven Kampagnen:
+  // der Fehler blieb unbemerkt, weil hier nur data ausgelesen und error
+  // verworfen wurde -- aus dem Abbruch wurde stillschweigend ein "[]".
+  // Deshalb wird der Fehler jetzt gemeldet statt als "keine Kampagnen"
+  // ausgegeben: eine leere Liste und eine kaputte Abfrage sehen im Frontend
+  // sonst identisch aus.
+  const { data: campaigns, error: campaignsError } = await supabase
     .from("campaigns")
-    .select("id, name, status, instantly_campaign_id, search_id, mailboxes, daily_limit, created_at, activated_at, searches(name, query, location)")
+    .select(
+      "id, name, status, instantly_campaign_id, search_id, mailboxes, daily_limit, created_at, activated_at, searches!campaigns_search_id_fkey(name, query, location)"
+    )
     .eq("workspace_id", ctx.workspace.id)
     .not("instantly_campaign_id", "is", null)
     .order("created_at", { ascending: false });
+
+  if (campaignsError) {
+    return NextResponse.json(
+      { error: "Kampagnen konnten nicht geladen werden: " + campaignsError.message },
+      { status: 500 }
+    );
+  }
 
   const rows = campaigns ?? [];
 

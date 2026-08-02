@@ -156,8 +156,21 @@ export function buildCampaignSchedule({ days, from, to, timezone }: CampaignSche
  * Genauso verhaelt sich Text zwischen blossen <br>: der Inhalt faellt raus,
  * nur die Tags bleiben. Der Inhalt muss in Blockelementen stehen.
  *
- * Deshalb wird beim Senden aus dem Klartext des Editors echtes HTML gebaut:
- * Sonderzeichen maskiert, Leerzeilen zu <p>, einfache Umbrueche zu <br />.
+ * Deshalb wird beim Senden aus dem Klartext des Editors echtes HTML gebaut.
+ *
+ * Erzeugt wird dabei bewusst GENAU das Format, das Instantlys eigener Editor
+ * speichert: eine Zeile pro <div>, eine Leerzeile als <div><br /></div>.
+ *
+ * Der Grund ist ein Fehler, der erst nach dem Versand auffiel: frueher wurden
+ * hier <p>-Absaetze gebaut. Instantlys Editor schreibt die beim ersten Oeffnen
+ * in <div> um, und beim Wechsel zwischen zwei Schritten sah der Text auf
+ * einmal ohne Absaetze aus. Wer die Kampagne dann bei uns oeffnete und
+ * speicherte, schrieb die zusammengefallene Fassung zurueck.
+ *
+ * Schicken wir von vornherein ihr eigenes Format, hat ihr Editor nichts
+ * umzuschreiben und der Text bleibt ueber beliebig viele Runden stabil.
+ * Die Bedingung von oben ist dabei weiterhin erfuellt: jede Zeile steht in
+ * einem Blockelement, auch die leeren.
  */
 export function plainTextToInstantlyHtml(text: string): string {
   const escaped = text
@@ -165,8 +178,8 @@ export function plainTextToInstantlyHtml(text: string): string {
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;");
   return escaped
-    .split(/\n[ \t]*\n/)
-    .map((paragraph) => `<p>${paragraph.replace(/\n/g, "<br />")}</p>`)
+    .split("\n")
+    .map((line) => (line.trim() === "" ? "<div><br /></div>" : `<div>${line}</div>`))
     .join("");
 }
 

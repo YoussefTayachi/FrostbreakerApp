@@ -21,15 +21,34 @@ describe("plainTextToInstantlyHtml", () => {
     expect(html).toContain("&gt;");
   });
 
-  it("macht aus Leerzeilen Absaetze und aus Umbruechen <br />", () => {
-    expect(plainTextToInstantlyHtml("Hallo\n\nWelt")).toBe("<p>Hallo</p><p>Welt</p>");
-    expect(plainTextToInstantlyHtml("Zeile1\nZeile2")).toBe("<p>Zeile1<br />Zeile2</p>");
+  it("baut genau Instantlys eigenes <div>-Format", () => {
+    // Nicht <p>: Instantlys Editor wuerde das beim ersten Oeffnen in <div>
+    // umschreiben, und der Text sah danach ohne Absaetze aus. Schicken wir
+    // ihr Format, gibt es nichts umzuschreiben.
+    expect(plainTextToInstantlyHtml("Hallo\n\nWelt")).toBe(
+      "<div>Hallo</div><div><br /></div><div>Welt</div>"
+    );
+    expect(plainTextToInstantlyHtml("Zeile1\nZeile2")).toBe(
+      "<div>Zeile1</div><div>Zeile2</div>"
+    );
   });
 
   it("packt Inhalt immer in Blockelemente", () => {
     // Text zwischen blossen <br> wird von Instantly verschluckt, nur die Tags
-    // bleiben stehen -- deshalb muss alles in <p>.
-    expect(plainTextToInstantlyHtml("nur eine Zeile")).toBe("<p>nur eine Zeile</p>");
+    // bleiben stehen -- deshalb steht jede Zeile in einem <div>, auch die
+    // leeren (dort als <div><br /></div>).
+    expect(plainTextToInstantlyHtml("nur eine Zeile")).toBe("<div>nur eine Zeile</div>");
+    expect(plainTextToInstantlyHtml("A\n\n\n\nB")).not.toMatch(/(^|>)\s*<br \/>\s*(<|$)(?!\/div)/);
+  });
+
+  it("ueberlebt beliebig viele Runden durch Instantlys Editor", () => {
+    // Der eigentliche Zweck der Umstellung: Text -> HTML -> Text -> HTML muss
+    // sich stabilisieren, sonst wandert die Formatierung bei jedem Oeffnen.
+    const original = "Hi {{firstName}},\n\n{{personalization}}\n\nBest,\nYoussef";
+    const einmal = plainTextToInstantlyHtml(original);
+    const zurueck = instantlyHtmlToPlainText(einmal);
+    expect(zurueck).toBe(original);
+    expect(plainTextToInstantlyHtml(zurueck)).toBe(einmal);
   });
 
   it("laesst Merge-Tags unangetastet", () => {
@@ -87,7 +106,7 @@ describe("Hin- und Rueckweg", () => {
 describe("buildCampaignSequence", () => {
   it("schickt den Body als HTML an Instantly", () => {
     const seq = buildCampaignSequence([{ subject: "Betreff", body: "A & B", delayDays: 0 }]);
-    expect(seq[0].steps[0].variants[0].body).toBe("<p>A &amp; B</p>");
+    expect(seq[0].steps[0].variants[0].body).toBe("<div>A &amp; B</div>");
     // Der Betreff bleibt Klartext -- den speichert Instantly problemlos.
     expect(seq[0].steps[0].variants[0].subject).toBe("Betreff");
   });

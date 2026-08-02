@@ -39,6 +39,7 @@ DEFAULT_PROMPT = (
     "einfach direkt den Fakt.\n"
     "- Baue KEINEN Namen des potenziellen Kunden, deinen eigenen Namen, Begrüßungen "
     "oder Verabschiedungen in den Icebreaker ein.\n"
+    "- Schreibe NIEMALS \"—, --,-\", also etwa \"— dachte ich melde mich mal\".\n"
     "- Du darfst kommerzielle Interessen, Dynamiken oder Hebelwirkung andeuten (z. B. "
     "Mitbewerber überdauern, maßgeschneiderte Lösungen statt Masse wählen, eine Nische "
     "verdoppeln, Kapazitäten schützen), aber du darfst deine eigene Dienstleistung oder "
@@ -60,10 +61,12 @@ DEFAULT_PROMPT = (
 )
 
 DEFAULT_MAX_WORDS = 22
-DEFAULT_BANNED_WORDS = [
-    "Respekt", "bewundern", "stolz", "Lob", "begeistert",
-    "aufgeregt", "inspiriert", "beeindruckt", "geehrt",
-]
+# Gedankenstriche statt der frueheren Lob-Woerter ("Respekt", "bewundern",
+# "stolz", ...): ein Gedankenstrich mitten im Satz ist inzwischen das
+# deutlichste Erkennungszeichen fuer KI-Text. Vages Lob faengt der Prompt
+# ohnehin ueber "Vermeide vages Lob" ab. Muss mit DEFAULT_BANNED_WORDS in
+# apps/web/lib/personalization-defaults.ts uebereinstimmen.
+DEFAULT_BANNED_WORDS = ["—", "–", "--", "-"]
 DEFAULT_SOURCE = "company_summary"
 VALID_SOURCES = {"company_summary", "website_text", "both"}
 
@@ -155,11 +158,37 @@ def validate(text: str, max_words: int, banned_words: list[str]) -> list[str]:
     n = word_count(text)
     if n > max_words:
         problems.append(f"zu lang ({n} statt max. {max_words} Wörter)")
-    lowered = text.lower()
-    hits = [w for w in banned_words if w.strip() and w.strip().lower() in lowered]
+    hits = [w.strip() for w in banned_words if w.strip() and _is_banned_hit(text, w.strip())]
     if hits:
         problems.append("enthält verbotene Wörter: " + ", ".join(hits))
     return problems
+
+
+def _is_banned_hit(text: str, banned: str) -> bool:
+    """Steht das verbotene Zeichen wirklich stoerend im Text?
+
+    Fuer normale Woerter ist das ein simpler Teilstring-Treffer. Fuer
+    Satzzeichen gilt dieselbe Unterscheidung wie in
+    sanitize_banned_punctuation: ein Bindestrich INNERHALB eines Wortes
+    ("third-party", "NSF-certified") verbindet ein zusammengesetztes Wort und
+    ist kein Verstoss -- gemeint sind nur Striche, die Satzteile abtrennen.
+
+    Ohne diese Unterscheidung galt jede Zeile mit einem zusammengesetzten Wort
+    als fehlerhaft, sobald "-" auf der Verbotsliste stand. Gemessen an zwei
+    echten Suchen: 66 von 69 Zeilen waren als pruefbeduerftig markiert, und
+    jede davon hatte einen zweiten, ueberfluessigen OpenAI-Aufruf ausgeloest.
+    """
+    if not _is_punctuation_only(banned):
+        return banned.lower() in text.lower()
+    if banned not in _DASHES_ALSO_VALID_INSIDE_WORDS:
+        return banned in text
+    for match in re.finditer(re.escape(banned), text):
+        start, end = match.span()
+        before = text[start - 1] if start > 0 else " "
+        after = text[end] if end < len(text) else " "
+        if not (before.isalnum() and after.isalnum()):
+            return True
+    return False
 
 
 def _is_punctuation_only(word: str) -> bool:

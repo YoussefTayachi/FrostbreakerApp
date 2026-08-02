@@ -522,3 +522,39 @@ def test_suppression_matching():
     assert not is_suppressed(emails, domains, email="jemand@anders.de")
     assert not is_suppressed(emails, domains, website="https://anders.de")
 
+
+
+def test_validate_ignores_hyphens_inside_words():
+    """Ein Bindestrich in einem zusammengesetzten Wort ist kein Verstoss.
+
+    Sonst gilt jede Zeile mit "third-party" oder "NSF-certified" als
+    fehlerhaft, sobald "-" auf der Verbotsliste steht -- gemessen an zwei
+    echten Suchen waren so 66 von 69 Zeilen als pruefbeduerftig markiert, und
+    jede loeste einen zweiten, ueberfluessigen OpenAI-Aufruf aus.
+    """
+    from worker.pipelines.personalize import validate
+
+    banned = ["—", "–", "--", "-"]
+    ok = "You run third-party tested, NSF-certified supplements out of Austin."
+    assert validate(ok, max_words=99, banned_words=banned) == []
+
+
+def test_validate_still_catches_separating_dashes():
+    """Genau die Striche, die Satzteile abtrennen, sollen weiterhin auffallen."""
+    from worker.pipelines.personalize import validate
+
+    banned = ["—", "–", "--", "-"]
+    for text in [
+        "You scaled fast — that's why I wanted to reach out.",
+        "You scaled fast -- that's why I wanted to reach out.",
+        "You scaled fast - that's why I wanted to reach out.",
+    ]:
+        assert validate(text, max_words=99, banned_words=banned) != [], text
+
+
+def test_validate_keeps_matching_normal_words():
+    """Die Sonderbehandlung gilt nur fuer Satzzeichen, nicht fuer Woerter."""
+    from worker.pipelines.personalize import validate
+
+    assert validate("Ich bin beeindruckt.", max_words=99, banned_words=["beeindruckt"]) != []
+    assert validate("Alles ruhig.", max_words=99, banned_words=["beeindruckt"]) == []
