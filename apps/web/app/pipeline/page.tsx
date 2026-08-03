@@ -4,6 +4,7 @@ import { getLangServer } from "@/lib/i18n/lang";
 import { dict } from "@/lib/i18n/dict";
 import PipelineView from "./pipeline-view";
 import type { PipelineRow } from "@/lib/crm/pipeline";
+import type { DealBoardRow } from "@/lib/crm/deal-board";
 
 /**
  * Pipeline ueber contacts.outreach_status -- bewusst ohne eigene Tabelle: die
@@ -33,10 +34,16 @@ export default async function PipelinePage() {
   const ws = await getCurrentWorkspace(supabase);
   if (!ws) return <p className="text-faint">Kein Workspace gefunden.</p>;
 
-  const { data, error } = await supabase.rpc("pipeline_rows", {
-    p_workspace_id: ws.workspace.id,
-    p_limit: 1000,
-  });
+  // Beide Bretter in einem Zug: der Nutzer schaltet zwischen ihnen um, ohne
+  // dass die Seite neu laedt. Zwei RPCs parallel kosten weniger als ein
+  // zweiter Seitenaufbau beim Umschalten.
+  const [{ data, error }, dealsRes] = await Promise.all([
+    supabase.rpc("pipeline_rows", {
+      p_workspace_id: ws.workspace.id,
+      p_limit: 1000,
+    }),
+    supabase.rpc("deal_board_rows", { p_workspace_id: ws.workspace.id }),
+  ]);
 
   // Fehler melden statt als leere Pipeline auszugeben -- eine kaputte Abfrage
   // und "noch keine Kontakte" sehen sonst identisch aus. Genau dieser
@@ -51,6 +58,7 @@ export default async function PipelinePage() {
   }
 
   const rows = (data ?? []) as PipelineRow[];
+  const deals = (dealsRes.data ?? []) as DealBoardRow[];
 
   // Bewusst ohne space-y-*: die Ansichten setzen ihre Abstaende selbst, damit
   // die Board-Hoehe (100vh minus Kopfbereich) verlaesslich aufgeht.
@@ -60,7 +68,7 @@ export default async function PipelinePage() {
         <h1 className="text-2xl font-semibold tracking-tight text-ink">{t.pipeline.title}</h1>
         <p className="text-sm text-faint">{t.pipeline.subtitle}</p>
       </div>
-      <PipelineView rows={rows} />
+      <PipelineView rows={rows} deals={deals} />
     </div>
   );
 }

@@ -12,6 +12,8 @@ import PipelineBoard from "./pipeline-board";
 import PipelineList from "./pipeline-list";
 import ContactChannels from "./contact-channels";
 import { displayName, type PipelineRow } from "@/lib/crm/pipeline";
+import type { DealBoardRow } from "@/lib/crm/deal-board";
+import DealBoard from "./deal-board";
 
 /**
  * Klammer um beide Pipeline-Ansichten.
@@ -27,10 +29,27 @@ import { displayName, type PipelineRow } from "@/lib/crm/pipeline";
  * eine im Board verschobene Karte waere in der Liste noch am alten Platz.
  */
 
-type ViewMode = "list" | "board";
+/**
+ * Drei Ansichten auf denselben Trichter, aus unterschiedlicher Hoehe:
+ *
+ *   list   die Arbeitsliste  -- wen mache ich als naechstes, wie erreiche ich ihn
+ *   board  der Kontakt-Trichter -- wo stehen meine Ansprachen
+ *   deals  die Deal-Pipeline -- was kommt an Geld zurueck
+ *
+ * Die dritte kam dazu, weil ein Pipedrive-Umsteiger unter "Pipeline" genau
+ * sie erwartet: Spalten mit Wertsummen und Abschlussdatum. Unsere ersten
+ * beiden fuehren Kontakte, nicht Deals.
+ */
+type ViewMode = "list" | "board" | "deals";
 const VIEW_KEY = "pipeline_view";
 
-export default function PipelineView({ rows: initialRows }: { rows: PipelineRow[] }) {
+export default function PipelineView({
+  rows: initialRows,
+  deals,
+}: {
+  rows: PipelineRow[];
+  deals: DealBoardRow[];
+}) {
   const { t } = useT();
   const { push } = useToast();
   const { workspaceId } = useWorkspace();
@@ -46,7 +65,7 @@ export default function PipelineView({ rows: initialRows }: { rows: PipelineRow[
   useEffect(() => {
     try {
       const saved = localStorage.getItem(VIEW_KEY);
-      if (saved === "board" || saved === "list") setView(saved);
+      if (saved === "board" || saved === "list" || saved === "deals") setView(saved);
     } catch {}
   }, []);
 
@@ -94,7 +113,7 @@ export default function PipelineView({ rows: initialRows }: { rows: PipelineRow[
     <>
       <div className="mb-3 flex justify-end">
         <div className="flex overflow-hidden rounded-lg border border-edge2">
-          {(["list", "board"] as const).map((mode) => (
+          {(["list", "board", "deals"] as const).map((mode) => (
             <button
               key={mode}
               onClick={() => chooseView(mode)}
@@ -103,7 +122,7 @@ export default function PipelineView({ rows: initialRows }: { rows: PipelineRow[
                 (view === mode ? "bg-sky-600 text-white" : "text-soft hover:bg-chip hover:text-ink")
               }
             >
-              {mode === "list" ? P.viewList : P.viewBoard}
+              {mode === "list" ? P.viewList : mode === "board" ? P.viewBoard : P.viewDeals}
             </button>
           ))}
         </div>
@@ -117,12 +136,28 @@ export default function PipelineView({ rows: initialRows }: { rows: PipelineRow[
           onOpen={setDetail}
           onRowsChanged={patchRows}
         />
-      ) : (
+      ) : view === "board" ? (
         <PipelineBoard
           rows={rows}
           overrides={overrides}
           onStageChange={moveTo}
           onOpen={setDetail}
+        />
+      ) : (
+        <DealBoard
+          rows={deals}
+          // Ein Deal hat keinen eigenen Drawer: Verlauf, Notizen und die
+          // Gewonnen/Verloren-Knoepfe haengen am Kontakt bzw. an der Firma und
+          // sind dort laengst da. Die Karte oeffnet deshalb denselben Drawer
+          // wie ueberall sonst -- eine zweite Detailansicht mit denselben
+          // Inhalten waere doppelte Pflege.
+          onOpenContact={(businessId, contactId) => {
+            const match = contactId
+              ? rows.find((r) => r.id === contactId)
+              : rows.find((r) => r.business_id === businessId);
+            if (match) setDetail(match);
+            else push(P.dealContactMissing, "info");
+          }}
         />
       )}
 
