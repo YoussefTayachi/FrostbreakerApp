@@ -1,5 +1,5 @@
 "use client";
-import { useMemo, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { OUTREACH_STAGES } from "@/lib/crm/stages";
@@ -57,7 +57,13 @@ export default function PipelineList({
   const [query, setQuery] = useState("");
   const [stageFilter, setStageFilter] = useState<string>("");
   const [listFilter, setListFilter] = useState<string>("");
-  const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
+  /**
+   * Welche Gruppen sind AUFgeklappt -- bewusst herum statt "welche sind zu".
+   * Vorher waren alle offen, und man musste bei 21 Lead-Listen erst zwanzigmal
+   * zuklappen, um ueberhaupt eine Uebersicht zu bekommen. Zugeklappt ist der
+   * nuetzlichere Ausgangspunkt: erst sehen, was es gibt, dann eines oeffnen.
+   */
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [busyId, setBusyId] = useState<string | null>(null);
   /**
    * Pipedrives zentraler Reflex als Filter.
@@ -115,13 +121,17 @@ export default function PipelineList({
   }, [filtered, P.noList]);
 
   function toggleGroup(id: string) {
-    setCollapsed((prev) => {
+    setExpanded((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
       else next.add(id);
       return next;
     });
   }
+
+  // Sucht oder filtert jemand, will er Treffer sehen und nicht Gruppenkoepfe.
+  // Dann sind alle offen, unabhaengig davon, was vorher aufgeklappt war.
+  const filtersActive = Boolean(query.trim() || stageFilter || focus);
 
   /**
    * Rueckruf planen. Legt genau die Aktivitaet an, die /calls anzeigt --
@@ -235,39 +245,73 @@ export default function PipelineList({
           {P.noResults}
         </p>
       ) : (
-        groups.map((group) => {
-          const isCollapsed = collapsed.has(group.id);
-          return (
-            <section key={group.id} className="overflow-hidden rounded-xl border border-edge/60 bg-panel">
-              <button
-                onClick={() => toggleGroup(group.id)}
-                className="flex w-full items-center gap-2 border-b border-edge2/60 px-4 py-2.5 text-left transition-colors hover:bg-chip/50"
-              >
-                <span className={"text-xs text-mute transition-transform " + (isCollapsed ? "" : "rotate-90")}>
-                  ▶
-                </span>
-                <span className="truncate text-sm font-medium text-ink">{group.name}</span>
-                {group.location && <span className="truncate text-xs text-faint">{group.location}</span>}
-                <span className="ml-auto text-xs tabular-nums text-faint">{group.rows.length}</span>
-              </button>
+        /*
+          EINE Tabelle ueber alle Gruppen, nicht eine je Gruppe. Nur so fluchten
+          die Spalten ueber Gruppengrenzen hinweg -- bei getrennten Tabellen
+          bestimmt jede ihre Spaltenbreiten selbst, und die Liste saehe bei
+          jedem Aufklappen anders aus. Die Gruppenkoepfe sind deshalb Zeilen
+          mit colSpan innerhalb derselben Tabelle.
 
-              {!isCollapsed && (
-                <div className="divide-y divide-edge2/50">
-                  {group.rows.map((row) => (
-                    <Row
-                      key={row.id}
-                      row={row}
-                      busy={busyId === row.id}
-                      onOpen={() => onOpen(row)}
-                      onStageChange={(stage) => onStageChange(row, stage)}
-                      onPlanCallback={(days) => planCallback(row, days)}
-                    />
-                  ))}
-                </div>
-              )}
-            </section>
-          );
-        })
+          Vorbild ist Pipedrives Listenansicht: Kopfzeile, feste Spalten, von
+          links nach rechts lesbar.
+        */
+        <div className="overflow-x-auto rounded-xl border border-edge/60 bg-panel">
+          <table className="w-full min-w-[52rem] border-collapse text-left">
+            <thead>
+              <tr className="border-b border-edge2/60 text-[11px] font-medium uppercase tracking-wide text-mute">
+                <th className="px-4 py-2">{P.colContact}</th>
+                <th className="w-32 px-3 py-2">{P.colChannels}</th>
+                <th className="w-44 px-3 py-2">{P.colLastTouch}</th>
+                <th className="w-40 px-3 py-2">{P.colNextStep}</th>
+                <th className="w-36 px-3 py-2">{P.colStage}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {groups.map((group) => {
+                const isOpen = filtersActive || expanded.has(group.id);
+                return (
+                  <Fragment key={group.id}>
+                    <tr
+                      onClick={() => toggleGroup(group.id)}
+                      className="cursor-pointer border-b border-edge2/60 bg-surface/40 transition-colors hover:bg-chip/50"
+                    >
+                      <td colSpan={5} className="px-4 py-2">
+                        <div className="flex items-center gap-2">
+                          <span
+                            className={
+                              "text-[10px] text-mute transition-transform " + (isOpen ? "rotate-90" : "")
+                            }
+                          >
+                            &#9654;
+                          </span>
+                          <span className="truncate text-sm font-medium text-ink">{group.name}</span>
+                          {group.location && (
+                            <span className="truncate text-xs text-faint">{group.location}</span>
+                          )}
+                          <span className="ml-auto text-xs tabular-nums text-faint">
+                            {group.rows.length}
+                          </span>
+                        </div>
+                      </td>
+                    </tr>
+
+                    {isOpen &&
+                      group.rows.map((row) => (
+                        <Row
+                          key={row.id}
+                          row={row}
+                          busy={busyId === row.id}
+                          onOpen={() => onOpen(row)}
+                          onStageChange={(stage) => onStageChange(row, stage)}
+                          onPlanCallback={(days) => planCallback(row, days)}
+                        />
+                      ))}
+                  </Fragment>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
       )}
 
       <p className="text-xs text-faint">{P.columnCount(filtered.length)}</p>
@@ -297,34 +341,39 @@ function Row({
   const days = daysInStage(row);
 
   return (
-    <div className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-2.5 transition-colors hover:bg-chip/40">
-      <button onClick={onOpen} className="flex min-w-0 flex-1 items-center gap-2.5 text-left">
-        <CompanyLogo name={row.company_name ?? displayName(row, "?")} website={row.company_website} size={26} />
-        <div className="min-w-0">
-          <p className="flex items-center gap-1.5 truncate text-sm text-ink">
-            {displayName(row, P.cardNoName)}
-            {/* Pipedrives "rotting deal": liegt zu lange auf derselben Stufe.
-                Nur der Punkt, kein Text -- die Zeile ist schon voll, und die
-                Erklaerung steht im Tooltip. */}
-            {stale && (
-              <span
-                title={P.staleTitle(days ?? 0)}
-                className="h-1.5 w-1.5 shrink-0 rounded-full bg-red-500"
-              />
-            )}
-          </p>
-          <p className="truncate text-[11px] text-faint">
-            {[row.company_name, row.title].filter(Boolean).join(" · ")}
-          </p>
-        </div>
-      </button>
+    <tr className="border-b border-edge2/40 transition-colors last:border-0 hover:bg-chip/40">
+      <td className="px-4 py-2">
+        <button onClick={onOpen} className="flex min-w-0 items-center gap-2.5 text-left">
+          <CompanyLogo
+            name={row.company_name ?? displayName(row, "?")}
+            website={row.company_website}
+            size={26}
+          />
+          <div className="min-w-0">
+            <p className="flex items-center gap-1.5 truncate text-sm text-ink">
+              {displayName(row, P.cardNoName)}
+              {/* Pipedrives "rotting deal": liegt zu lange auf derselben Stufe.
+                  Nur der Punkt, kein Text -- die Zeile ist schon voll, und die
+                  Erklaerung steht im Tooltip. */}
+              {stale && (
+                <span
+                  title={P.staleTitle(days ?? 0)}
+                  className="h-1.5 w-1.5 shrink-0 rounded-full bg-red-500"
+                />
+              )}
+            </p>
+            <p className="truncate text-[11px] text-faint">
+              {[row.company_name, row.title].filter(Boolean).join(" · ")}
+            </p>
+          </div>
+        </button>
+      </td>
 
-      {/* Kontaktwege: der eigentliche Zweck dieser Ansicht */}
-      <ContactChannels row={row} />
+      <td className="px-3 py-2">
+        <ContactChannels row={row} />
+      </td>
 
-      {/* Wie und wann zuletzt Kontakt bestand. Ohne diese Spalte musste man
-          jede Zeile aufklappen, um zu sehen, ob schon etwas passiert ist. */}
-      <div className="w-40 shrink-0 text-[11px] leading-tight">
+      <td className="px-3 py-2 text-[11px] leading-tight">
         {row.last_reply_at ? (
           <span className="text-sky-600 dark:text-sky-400">
             {P.repliedAgo(formatRelative(row.last_reply_at, lang))}
@@ -339,10 +388,9 @@ function Row({
         ) : (
           <span className="text-mute">{P.neverTouched}</span>
         )}
-      </div>
+      </td>
 
-      {/* Naechster Termin -- dieselbe Zeile, die unter /calls steht */}
-      <div className="w-36 shrink-0 text-[11px] leading-tight">
+      <td className="px-3 py-2 text-[11px] leading-tight">
         {row.next_due_at ? (
           <Link
             href="/calls"
@@ -352,7 +400,9 @@ function Row({
             }
             title={P.openInCallList}
           >
-            {overdue ? P.dueOverdue(formatDay(row.next_due_at, lang)) : P.dueOn(formatDay(row.next_due_at, lang))}
+            {overdue
+              ? P.dueOverdue(formatDay(row.next_due_at, lang))
+              : P.dueOn(formatDay(row.next_due_at, lang))}
           </Link>
         ) : callbackOpen ? (
           <div className="flex items-center gap-1">
@@ -378,13 +428,11 @@ function Row({
             + {P.planCallback}
           </button>
         )}
-      </div>
+      </td>
 
-      <StatusSelect
-        value={row.outreach_status}
-        onChange={onStageChange}
-        labels={t.leads.statusLabels}
-      />
-    </div>
+      <td className="px-3 py-2">
+        <StatusSelect value={row.outreach_status} onChange={onStageChange} labels={t.leads.statusLabels} />
+      </td>
+    </tr>
   );
 }
