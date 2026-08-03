@@ -145,176 +145,200 @@ function CallRow({
 }) {
   const C = t.calls;
   const { company, phone, name, title } = resolve(task);
+  const email = task.contacts?.email ?? null;
   const searchTarget = company?.name ?? name ?? "";
 
   return (
-    <div className="border-b border-edge/60 last:border-0">
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3">
-        <CompanyLogo name={company?.name ?? "?"} website={company?.website ?? null} size={28} />
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
-            <span className="truncate text-sm font-medium text-ink">
-              {name ?? company?.name ?? "—"}
-            </span>
-            {task.type !== "call" && (
-              <span className="rounded-full border border-edge2 bg-chip px-2 py-0.5 text-[10px] text-soft">
-                {t.crm.activityTypeLabels[task.type] ?? task.type}
-              </span>
-            )}
-            {overdue && (
-              <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[10px] font-medium text-amber-700 dark:text-amber-300">
-                {C.overdueBadge}
-              </span>
-            )}
-          </div>
-          <p className="truncate text-xs text-faint">
-            {[title, company?.name].filter(Boolean).join(" · ") || "—"}
-          </p>
-        </div>
-
-        {/* tel:-Link, kein App-Dialer: gewaehlt wird mit dem Firmentelefon,
-            die App liefert nur die Nummer klickbar mit. */}
-        {phone ? (
-          <a
-            href={"tel:" + phone.replace(/\s/g, "")}
-            className="flex items-center gap-1.5 rounded-lg border border-edge2 bg-field px-2.5 py-1.5 font-mono text-xs text-ink transition-colors hover:border-sky-500"
-            title={C.phoneTitle}
+    <>
+      <tr
+        className={
+          "border-b border-edge2/40 transition-colors hover:bg-chip/40 " +
+          (expanded ? "bg-chip/30" : "")
+        }
+      >
+        {/* Abhaken direkt in der Zeile, ohne Aufklappen. Bei Pipedrive sitzt
+            der Haken ganz links -- wer nur abarbeiten will, braucht weder
+            Notiz noch Ergebnis. Wer beides eintragen will, klappt auf. */}
+        <td className="py-2 pl-4 pr-1">
+          <button
+            onClick={onComplete}
+            disabled={busy}
+            title={C.markDone}
+            className="flex h-4 w-4 items-center justify-center rounded-full border border-edge3 text-[10px] text-transparent transition-colors hover:border-emerald-500 hover:text-emerald-500 disabled:opacity-40"
           >
-            <IconPhone className="h-3.5 w-3.5 text-mute" />
-            {phone}
-          </a>
-        ) : (
-          <span className="text-xs text-mute">{C.noPhone}</span>
-        )}
+            &#10003;
+          </button>
+        </td>
 
-        <span className="w-24 text-right text-xs text-faint">{formatDay(task.due_at, lang)}</span>
+        <td className="px-3 py-2">
+          <div className="flex items-center gap-2">
+            <span
+              className={"h-1.5 w-1.5 shrink-0 rounded-full bg-current " + ACTIVITY_TYPE_TONE[task.type]}
+              title={t.crm.activityTypeLabels[task.type] ?? task.type}
+            />
+            <span className="truncate text-sm text-ink">
+              {task.subject || (t.crm.activityTypeLabels[task.type] ?? task.type)}
+            </span>
+          </div>
+        </td>
 
-        <button onClick={onToggle} className={chipBtn}>
-          {expanded ? C.collapse : C.prepare}
-        </button>
-      </div>
+        <td className="px-3 py-2">
+          <div className="flex min-w-0 items-center gap-2">
+            <CompanyLogo name={company?.name ?? "?"} website={company?.website ?? null} size={22} />
+            <div className="min-w-0">
+              <p className="truncate text-sm text-ink">{name ?? "—"}</p>
+              {title && <p className="truncate text-[11px] text-faint">{title}</p>}
+            </div>
+          </div>
+        </td>
+
+        <td className="px-3 py-2">
+          <span className="truncate text-xs text-soft">{company?.name ?? "—"}</span>
+        </td>
+
+        {/* Nummer und Adresse ausgeschrieben statt als Symbol: der Sinn dieser
+            Ansicht ist, morgens ohne Nachschlagen loslegen zu koennen. */}
+        <td className="px-3 py-2">
+          {phone ? (
+            <a
+              href={"tel:" + phone.replace(/\s/g, "")}
+              title={C.phoneTitle}
+              className="font-mono text-xs text-sky-600 transition-colors hover:underline dark:text-sky-400"
+            >
+              {phone}
+            </a>
+          ) : (
+            <span className="text-xs text-mute">{C.noPhone}</span>
+          )}
+        </td>
+
+        <td className="px-3 py-2">
+          {email ? (
+            <a
+              href={"mailto:" + email}
+              className="block max-w-52 truncate text-xs text-sky-600 transition-colors hover:underline dark:text-sky-400"
+            >
+              {email}
+            </a>
+          ) : (
+            <span className="text-xs text-mute">{"—"}</span>
+          )}
+        </td>
+
+        <td className="px-3 py-2">
+          <span className={"text-xs " + (overdue ? "font-medium text-red-500" : "text-faint")}>
+            {formatDay(task.due_at, lang)}
+          </span>
+        </td>
+
+        <td className="py-2 pl-1 pr-4 text-right">
+          <button onClick={onToggle} className="text-xs text-faint transition-colors hover:text-ink">
+            {expanded ? C.collapse : C.prepare}
+          </button>
+        </td>
+      </tr>
 
       {expanded && (
-        <div className="space-y-3 border-t border-edge/60 bg-surface/60 px-4 py-3">
-          {task.subject && <p className="text-sm font-medium text-ink">{task.subject}</p>}
-          {task.note && (
-            <div>
-              <p className="mb-1 text-[10px] font-medium uppercase tracking-wider text-faint">
-                {C.plannedNote}
-              </p>
-              <p className="whitespace-pre-wrap rounded-lg border border-edge/60 bg-panel p-2.5 text-xs leading-relaxed text-soft">
-                {task.note}
-              </p>
-            </div>
-          )}
-          {company?.company_summary && (
-            <div>
-              <p className="mb-1 text-[10px] font-medium uppercase tracking-wider text-faint">
-                {C.companySummary}
-              </p>
-              <p className="rounded-lg border border-edge/60 bg-panel p-2.5 text-xs leading-relaxed text-soft">
-                {company.company_summary}
-              </p>
-            </div>
-          )}
+        <tr className="border-b border-edge2/40 bg-surface/60">
+          <td colSpan={8} className="px-4 py-3">
+            <div className="space-y-3">
+              {task.note && (
+                <div>
+                  <p className="mb-1 text-[10px] font-medium uppercase tracking-wider text-faint">
+                    {C.plannedNote}
+                  </p>
+                  <p className="whitespace-pre-wrap rounded-lg border border-edge/60 bg-panel p-2.5 text-xs leading-relaxed text-soft">
+                    {task.note}
+                  </p>
+                </div>
+              )}
+              {company?.company_summary && (
+                <div>
+                  <p className="mb-1 text-[10px] font-medium uppercase tracking-wider text-faint">
+                    {C.companySummary}
+                  </p>
+                  <p className="rounded-lg border border-edge/60 bg-panel p-2.5 text-xs leading-relaxed text-soft">
+                    {company.company_summary}
+                  </p>
+                </div>
+              )}
 
-          <div>
-            <p className="mb-1 text-[10px] font-medium uppercase tracking-wider text-faint">
-              {C.callNote}
-            </p>
-            <textarea
-              rows={2}
-              value={note}
-              onChange={(e) => onNoteChange(e.target.value)}
-              placeholder={C.callNotePlaceholder}
-              className="w-full rounded-lg border border-edge2 bg-field px-2.5 py-1.5 text-xs text-ink placeholder-mute outline-none transition-colors focus:border-sky-500"
-            />
-          </div>
+              <div>
+                <p className="mb-1 text-[10px] font-medium uppercase tracking-wider text-faint">
+                  {C.callNote}
+                </p>
+                <textarea
+                  rows={2}
+                  value={note}
+                  onChange={(e) => onNoteChange(e.target.value)}
+                  placeholder={C.callNotePlaceholder}
+                  className="w-full rounded-lg border border-edge2 bg-field px-2.5 py-1.5 text-xs text-ink placeholder-mute outline-none transition-colors focus:border-sky-500"
+                />
+              </div>
 
-          <div className="flex flex-wrap items-end justify-between gap-3">
-            <div className="flex flex-wrap items-end gap-2">
-              {supportsOutcome(task.type) && (
-                <label className="text-[10px] font-medium text-faint">
-                  {C.outcomeLabel}
-                  <select
-                    value={outcome}
-                    onChange={(e) => onOutcomeChange(e.target.value as ActivityOutcome | "")}
-                    className="mt-0.5 block rounded-lg border border-edge2 bg-field px-2.5 py-1.5 text-xs text-ink outline-none focus:border-sky-500"
+              <div className="flex flex-wrap items-end justify-between gap-3">
+                <div className="flex flex-wrap items-end gap-2">
+                  {supportsOutcome(task.type) && (
+                    <label className="text-[10px] font-medium text-faint">
+                      {C.outcomeLabel}
+                      <select
+                        value={outcome}
+                        onChange={(e) => onOutcomeChange(e.target.value as ActivityOutcome | "")}
+                        className="mt-0.5 block rounded-lg border border-edge2 bg-field px-2.5 py-1.5 text-xs text-ink outline-none focus:border-sky-500"
+                      >
+                        <option value="">{C.outcomeNone}</option>
+                        {/* Typabhaengig statt pauschal alle: seit Migration 0057
+                            kann hier auch eine geplante Nachricht stehen, und
+                            "Mailbox" waere bei einer LinkedIn-DM Unsinn. */}
+                        {outcomesFor(task.type).map((option) => (
+                          <option key={option} value={option}>
+                            {t.crm.activityOutcomeLabels[option] ?? option}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  )}
+                  <button
+                    onClick={onComplete}
+                    disabled={busy}
+                    className="rounded-lg bg-sky-600 px-3.5 py-1.5 text-xs font-medium text-white transition-all hover:brightness-110 active:scale-[0.98] disabled:opacity-40"
                   >
-                    <option value="">{C.outcomeNone}</option>
-                    {/* Typabhaengig statt pauschal alle: seit Migration 0057
-                        kann hier auch eine geplante Nachricht stehen, und
-                        "Mailbox" waere bei einer LinkedIn-DM Unsinn. */}
-                    {outcomesFor(task.type).map((option) => (
-                      <option key={option} value={option}>
-                        {t.crm.activityOutcomeLabels[option] ?? option}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              )}
-              <button
-                onClick={onComplete}
-                disabled={busy}
-                className="rounded-lg bg-sky-600 px-3.5 py-1.5 text-xs font-medium text-white transition-all hover:brightness-110 active:scale-[0.98] disabled:opacity-40"
-              >
-                {busy ? C.saving : C.markDone}
-              </button>
-            </div>
+                    {busy ? C.saving : C.markDone}
+                  </button>
+                </div>
 
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="text-[10px] text-mute">{C.rescheduleLabel}</span>
-              <button onClick={() => onReschedule(1)} disabled={busy} className={chipBtn}>
-                {C.tomorrow}
-              </button>
-              <button onClick={() => onReschedule(7)} disabled={busy} className={chipBtn}>
-                {C.nextWeek}
-              </button>
-              {searchTarget && (
-                <Link href={"/leads?q=" + encodeURIComponent(searchTarget)} className={chipBtn}>
-                  {C.openLead}
-                </Link>
-              )}
-              {/* Verwerfen statt "erledigt": ein falsch eingetragener oder
-                  hinfaelliger Termin soll nicht als absolvierter Anruf im
-                  Verlauf des Kontakts stehen -- das wuerde die Statistik
-                  verfaelschen und spaeter niemand mehr auseinanderhalten. */}
-              <button
-                onClick={onDelete}
-                disabled={busy}
-                title={C.deleteTitle}
-                className="rounded-lg border border-red-300 px-2.5 py-1.5 text-xs text-red-600 transition-colors hover:bg-red-50 disabled:opacity-40 dark:border-red-500/30 dark:text-red-400 dark:hover:bg-red-500/10"
-              >
-                {C.delete}
-              </button>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-[10px] text-mute">{C.rescheduleLabel}</span>
+                  <button onClick={() => onReschedule(1)} disabled={busy} className={chipBtn}>
+                    {C.tomorrow}
+                  </button>
+                  <button onClick={() => onReschedule(7)} disabled={busy} className={chipBtn}>
+                    {C.nextWeek}
+                  </button>
+                  {searchTarget && (
+                    <Link href={"/leads?q=" + encodeURIComponent(searchTarget)} className={chipBtn}>
+                      {C.openLead}
+                    </Link>
+                  )}
+                  {/* Verwerfen statt "erledigt": ein falsch eingetragener oder
+                      hinfaelliger Termin soll nicht als absolvierter Anruf im
+                      Verlauf des Kontakts stehen -- das wuerde die Statistik
+                      verfaelschen und spaeter niemand mehr auseinanderhalten. */}
+                  <button
+                    onClick={onDelete}
+                    disabled={busy}
+                    title={C.deleteTitle}
+                    className="rounded-lg border border-red-300 px-2.5 py-1.5 text-xs text-red-600 transition-colors hover:bg-red-50 disabled:opacity-40 dark:border-red-500/30 dark:text-red-400 dark:hover:bg-red-500/10"
+                  >
+                    {C.delete}
+                  </button>
+                </div>
+              </div>
             </div>
-          </div>
-        </div>
+          </td>
+        </tr>
       )}
-    </div>
-  );
-}
-
-function CallSection({
-  label,
-  count,
-  tone,
-  children,
-}: {
-  label: string;
-  count: number;
-  tone?: string;
-  children: React.ReactNode;
-}) {
-  if (count === 0) return null;
-  return (
-    <section className="overflow-hidden rounded-lg border border-edge/60 bg-panel">
-      <div className="flex items-center justify-between border-b border-edge/60 px-4 py-2.5">
-        <h2 className={"text-sm font-medium " + (tone || "text-ink")}>{label}</h2>
-        <span className="text-xs text-faint">{count}</span>
-      </div>
-      {children}
-    </section>
+    </>
   );
 }
 
@@ -335,8 +359,23 @@ export default function CallList({ tasks }: { tasks: CallTask[] }) {
   /** Pipedrive stellt seinen Aktivitaeten eine Typleiste voran (Anruf, Meeting,
    *  Aufgabe, Frist, E-Mail). Gleiche Idee, mit unseren vier Typen. */
   const [typeFilter, setTypeFilter] = useState<ActivityType | "">("");
+  /**
+   * Das Zeitfenster -- und der Grund fuer diese ganze Ansicht.
+   *
+   * Ein Pipedrive-Nutzer hat es so beschrieben: man wacht auf und will ohne
+   * Nachdenken sehen, wen man heute anrufen muss. Genau dafuer steht dort
+   * "To-Do" vorne und ist beim Oeffnen aktiv -- ueberfaellig plus heute,
+   * sonst nichts. Alles Spaetere ist morgens Rauschen.
+   *
+   * Vorher zeigte diese Seite immer alles, aufgeteilt in fuenf Abschnitte.
+   * Wer heute zwoelf Anrufe hat und naechsten Monat vierzig Termine, sah
+   * zweiundfuenfzig Zeilen und musste selbst heraussuchen, was jetzt dran ist.
+   */
+  const [range, setRange] = useState<"todo" | "overdue" | "today" | "tomorrow" | "week" | "all">("todo");
 
-  const groups = useMemo(() => {
+  /** Aufgaben je Zeitfenster. Zaehler an den Reitern und Inhalt der Tabelle
+   *  kommen aus derselben Quelle, damit sie nie auseinanderlaufen. */
+  const buckets = useMemo(() => {
     const dayStart = startOfToday();
     const dayEnd = endOfToday();
     const tomorrowEnd = endOfTomorrow();
@@ -345,14 +384,22 @@ export default function CallList({ tasks }: { tasks: CallTask[] }) {
       (task) => !removed.has(task.id) && (typeFilter === "" || task.type === typeFilter)
     );
     const at = (task: CallTask) => new Date(task.due_at).getTime();
+    const overdue = open.filter((task) => at(task) < dayStart);
+    const today = open.filter((task) => at(task) >= dayStart && at(task) <= dayEnd);
     return {
-      overdue: open.filter((task) => at(task) < dayStart),
-      today: open.filter((task) => at(task) >= dayStart && at(task) <= dayEnd),
+      // To-Do ist ueberfaellig UND heute: was liegengeblieben ist, gehoert
+      // genauso in den heutigen Tag wie das, was fuer heute geplant war.
+      todo: [...overdue, ...today],
+      overdue,
+      today,
       tomorrow: open.filter((task) => at(task) > dayEnd && at(task) <= tomorrowEnd),
-      thisWeek: open.filter((task) => at(task) > tomorrowEnd && at(task) <= weekEnd),
-      later: open.filter((task) => at(task) > weekEnd),
+      week: open.filter((task) => at(task) > dayEnd && at(task) <= weekEnd),
+      all: open,
     };
   }, [tasks, removed, typeFilter]);
+
+  const visible = buckets[range];
+  const dayStartMs = startOfToday();
 
   /** Wie viele Aufgaben es je Typ ueberhaupt gibt -- ein Filter, der auf eine
    *  leere Liste fuehrt, ist eine Sackgasse. */
@@ -463,105 +510,124 @@ export default function CallList({ tasks }: { tasks: CallTask[] }) {
     [busyId, workspaceId, push, t, C, router]
   );
 
-  function renderRows(items: CallTask[], overdue: boolean) {
-    return items.map((task) => (
-      <CallRow
-        key={task.id}
-        task={task}
-        overdue={overdue}
-        expanded={openId === task.id}
-        busy={busyId === task.id}
-        note={notes[task.id] ?? ""}
-        outcome={outcomes[task.id] ?? ""}
-        lang={lang}
-        t={t}
-        onToggle={() => setOpenId(openId === task.id ? null : task.id)}
-        onNoteChange={(value) => setNotes((prev) => ({ ...prev, [task.id]: value }))}
-        onOutcomeChange={(value) => setOutcomes((prev) => ({ ...prev, [task.id]: value }))}
-        onComplete={() => complete(task)}
-        onReschedule={(days) => reschedule(task, days)}
-        onDelete={() => remove(task)}
-      />
-    ));
-  }
-
-  const total =
-    groups.overdue.length +
-    groups.today.length +
-    groups.tomorrow.length +
-    groups.thisWeek.length +
-    groups.later.length;
-
-  // Die Typleiste bleibt auch bei leerem Ergebnis stehen: sonst haette man
-  // nach einem Filter, der nichts trifft, keine Moeglichkeit mehr, ihn wieder
-  // zu loesen.
-  const typeBar = (
-    <div className="flex flex-wrap items-center gap-1.5">
-      <button
-        onClick={() => setTypeFilter("")}
-        className={
-          "rounded-full border px-3 py-1 text-xs font-medium transition-colors " +
-          (typeFilter === ""
-            ? "border-sky-500/60 bg-sky-500/10 text-sky-600 dark:text-sky-300"
-            : "border-edge2 bg-chip text-soft hover:border-edge3 hover:text-ink")
-        }
-      >
-        {C.typeAll}
-      </button>
-      {ACTIVITY_TYPES.map((type) => (
-        <button
-          key={type}
-          onClick={() => setTypeFilter(type)}
-          disabled={!typeCounts[type]}
-          className={
-            "flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition-colors disabled:opacity-40 " +
-            (typeFilter === type
-              ? "border-sky-500/60 bg-sky-500/10 text-sky-600 dark:text-sky-300"
-              : "border-edge2 bg-chip text-soft hover:border-edge3 hover:text-ink")
-          }
-        >
-          <span className={"h-1.5 w-1.5 rounded-full bg-current " + ACTIVITY_TYPE_TONE[type]} />
-          {t.crm.activityTypeLabels[type] ?? type}
-          {typeCounts[type] > 0 && <span className="tabular-nums text-mute">{typeCounts[type]}</span>}
-        </button>
-      ))}
-    </div>
-  );
-
-  if (total === 0) {
-    return (
-      <div className="space-y-4">
-        {typeBar}
-        <div className="rounded-lg border border-edge/60 bg-panel p-10 text-center">
-          <p className="text-faint">{typeFilter ? C.noneOfType : C.emptyState}</p>
-          <p className="mt-1 text-xs text-mute">{C.emptyHint}</p>
-        </div>
-      </div>
-    );
-  }
+  const rangeTabs: { key: typeof range; label: string; count: number; tone?: string }[] = [
+    { key: "todo", label: C.rangeTodo, count: buckets.todo.length },
+    { key: "overdue", label: C.rangeOverdue, count: buckets.overdue.length, tone: "text-red-500" },
+    { key: "today", label: C.rangeToday, count: buckets.today.length },
+    { key: "tomorrow", label: C.rangeTomorrow, count: buckets.tomorrow.length },
+    { key: "week", label: C.rangeWeek, count: buckets.week.length },
+    { key: "all", label: C.rangeAll, count: buckets.all.length },
+  ];
 
   return (
     <div className="space-y-4">
-      {typeBar}
-      <CallSection
-        label={C.sectionOverdue}
-        count={groups.overdue.length}
-        tone="text-amber-700 dark:text-amber-300"
-      >
-        {renderRows(groups.overdue, true)}
-      </CallSection>
-      <CallSection label={C.sectionToday} count={groups.today.length}>
-        {renderRows(groups.today, false)}
-      </CallSection>
-      <CallSection label={C.sectionTomorrow} count={groups.tomorrow.length}>
-        {renderRows(groups.tomorrow, false)}
-      </CallSection>
-      <CallSection label={C.sectionThisWeek} count={groups.thisWeek.length}>
-        {renderRows(groups.thisWeek, false)}
-      </CallSection>
-      <CallSection label={C.sectionLater} count={groups.later.length}>
-        {renderRows(groups.later, false)}
-      </CallSection>
+      {/* Links die Typen, rechts der Zeitraum -- genau die Aufteilung aus
+          Pipedrives Aktivitaetenansicht. Die Leiste bleibt auch bei leerem
+          Ergebnis stehen: sonst haette man nach einem Filter, der nichts
+          trifft, keine Moeglichkeit mehr, ihn wieder zu loesen. */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-1.5">
+          <button
+            onClick={() => setTypeFilter("")}
+            className={
+              "rounded-full border px-3 py-1 text-xs font-medium transition-colors " +
+              (typeFilter === ""
+                ? "border-sky-500/60 bg-sky-500/10 text-sky-600 dark:text-sky-300"
+                : "border-edge2 bg-chip text-soft hover:border-edge3 hover:text-ink")
+            }
+          >
+            {C.typeAll}
+          </button>
+          {ACTIVITY_TYPES.map((type) => (
+            <button
+              key={type}
+              onClick={() => setTypeFilter(type)}
+              disabled={!typeCounts[type]}
+              className={
+                "flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition-colors disabled:opacity-40 " +
+                (typeFilter === type
+                  ? "border-sky-500/60 bg-sky-500/10 text-sky-600 dark:text-sky-300"
+                  : "border-edge2 bg-chip text-soft hover:border-edge3 hover:text-ink")
+              }
+            >
+              <span className={"h-1.5 w-1.5 rounded-full bg-current " + ACTIVITY_TYPE_TONE[type]} />
+              {t.crm.activityTypeLabels[type] ?? type}
+              {typeCounts[type] > 0 && (
+                <span className="tabular-nums text-mute">{typeCounts[type]}</span>
+              )}
+            </button>
+          ))}
+        </div>
+
+        <div className="flex flex-wrap items-center gap-0.5 rounded-lg border border-edge2 p-0.5">
+          {rangeTabs.map((tab) => (
+            <button
+              key={tab.key}
+              onClick={() => setRange(tab.key)}
+              className={
+                "flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition-colors " +
+                (range === tab.key ? "bg-sky-600 text-white" : "text-soft hover:bg-chip hover:text-ink")
+              }
+            >
+              {tab.label}
+              {tab.count > 0 && (
+                <span
+                  className={"tabular-nums " + (range === tab.key ? "" : (tab.tone ?? "text-mute"))}
+                >
+                  {tab.count}
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {visible.length === 0 ? (
+        <div className="rounded-xl border border-edge/60 bg-panel p-10 text-center">
+          {/* Ein leeres To-Do ist eine gute Nachricht und kein Mangel an Daten
+              -- es soll auch so klingen. */}
+          <p className="text-faint">{range === "todo" ? C.todoClear : C.emptyForRange}</p>
+          <p className="mt-1 text-xs text-mute">{C.emptyHint}</p>
+        </div>
+      ) : (
+        <div className="overflow-x-auto rounded-xl border border-edge/60 bg-panel">
+          <table className="w-full min-w-[64rem] border-collapse text-left">
+            <thead>
+              <tr className="border-b border-edge2/60 text-[11px] font-medium uppercase tracking-wide text-mute">
+                <th className="w-8 py-2 pl-4 pr-1" />
+                <th className="px-3 py-2">{C.colTask}</th>
+                <th className="px-3 py-2">{C.colContact}</th>
+                <th className="px-3 py-2">{C.colCompany}</th>
+                <th className="px-3 py-2">{C.colPhone}</th>
+                <th className="px-3 py-2">{C.colEmail}</th>
+                <th className="w-28 px-3 py-2">{C.colDue}</th>
+                <th className="w-24 py-2 pl-1 pr-4" />
+              </tr>
+            </thead>
+            <tbody>
+              {visible.map((task) => (
+                <CallRow
+                  key={task.id}
+                  task={task}
+                  overdue={new Date(task.due_at).getTime() < dayStartMs}
+                  expanded={openId === task.id}
+                  busy={busyId === task.id}
+                  note={notes[task.id] ?? ""}
+                  outcome={outcomes[task.id] ?? ""}
+                  lang={lang}
+                  t={t}
+                  onToggle={() => setOpenId(openId === task.id ? null : task.id)}
+                  onNoteChange={(value) => setNotes((prev) => ({ ...prev, [task.id]: value }))}
+                  onOutcomeChange={(value) => setOutcomes((prev) => ({ ...prev, [task.id]: value }))}
+                  onComplete={() => complete(task)}
+                  onReschedule={(days) => reschedule(task, days)}
+                  onDelete={() => remove(task)}
+                />
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }
