@@ -3,11 +3,15 @@
 claim_job() nutzt die DB-Funktion claim_job(p_worker) mit FOR UPDATE SKIP LOCKED,
 damit mehrere Worker-Instanzen konfliktfrei parallel laufen können.
 """
+import logging
 import os
 import socket
 from datetime import datetime, timedelta, timezone
 
 from worker.db import sb
+from worker.provider_errors import classify_error, provider_from_error
+
+log = logging.getLogger("worker.queue")
 
 WORKER_ID = socket.gethostname()
 
@@ -43,8 +47,58 @@ def complete_job(job_id: str) -> None:
     sb().table("jobs").update({"status": "completed"}).eq("id", job_id).execute()
 
 
+# Wie lange ein Job zurueckgestellt wird, wenn beim Anbieter das Guthaben alle
+# ist. Eine Stunde, weil niemand ein Konto binnen Minuten auflaedt -- und weil
+# der Job bis dahin nichts anderes tut, als denselben Fehler zu erzeugen.
+OUT_OF_CREDIT_DELAY_S = 3600
+
+
 def fail_job(job: dict, error: str) -> None:
-    """Retry mit quadratischem Backoff bis max_attempts, danach endgültig failed."""
+    """Retry mit quadratischem Backoff bis max_attempts, danach endgültig failed.
+
+    Sonderfall aufgebrauchtes Guthaben: Wiederholen ist zwecklos, bis ein
+    Mensch das Konto auflaedt. Der Job wird deshalb lange zurueckgestellt und
+    der verbrauchte Versuch zurueckgegeben -- sonst faellt er in den Zustand
+    'failed', obwohl an ihm selbst nichts falsch war.
+
+    Genau das ist am 2026-08-03 passiert: 128 Jobs (88 personalize, 40
+    find_decisionmaker) haben ihre Versuche gegen ein leeres OpenAI-Konto
+    aufgebraucht und galten danach als endgueltig gescheitert. Nach dem
+    Auffuellen haette man sie von Hand neu einreihen muessen -- wenn man
+    ueberhaupt gemerkt haette, dass es sie gibt.
+    """
+    kind = classify_error(error)
+
+    if kind == "out_of_credit":
+        provider = provider_from_error(error, job.get("type"))
+        if provider:
+            try:
+                sb().rpc(
+                    "record_provider_alert",
+                    {
+                        "p_workspace_id": job["workspace_id"],
+                        "p_provider": provider,
+                        "p_message": error[:2000],
+                    },
+                ).execute()
+            except Exception:
+                # Der Alarm ist wichtig, aber nicht wichtiger als das saubere
+                # Zurueckstellen des Jobs darunter.
+                log.warning("Anbieter-Alarm konnte nicht gesetzt werden", exc_info=True)
+
+        run_at = datetime.now(timezone.utc) + timedelta(seconds=OUT_OF_CREDIT_DELAY_S)
+        sb().table("jobs").update(
+            {
+                "status": "pending",
+                "last_error": error[:2000],
+                "run_at": run_at.isoformat(),
+                # Versuch zurueckgeben: claim_job() zaehlt beim Abholen hoch,
+                # und dieser Abruf war kein Fehlversuch des Jobs.
+                "attempts": max(job["attempts"] - 1, 0),
+            }
+        ).eq("id", job["id"]).execute()
+        return
+
     if job["attempts"] >= job["max_attempts"]:
         patch = {"status": "failed", "last_error": error[:2000]}
     else:
@@ -52,6 +106,19 @@ def fail_job(job: dict, error: str) -> None:
         run_at = datetime.now(timezone.utc) + timedelta(seconds=delay_s)
         patch = {"status": "pending", "last_error": error[:2000], "run_at": run_at.isoformat()}
     sb().table("jobs").update(patch).eq("id", job["id"]).execute()
+
+
+def clear_provider_alert(workspace_id: str, provider: str) -> None:
+    """Alarm aufloesen, wenn dieser Anbieter wieder antwortet.
+
+    Damit muss niemand eine Warnung wegklicken, nachdem er das Guthaben
+    aufgeladen hat -- sie verschwindet beim naechsten geglueckten Job von
+    selbst. Eine Meldung, die man von Hand wegraeumen muss, steht sonst
+    wochenlang herum und wird genauso ignoriert wie eine, die nie kam.
+    """
+    sb().rpc(
+        "resolve_provider_alert", {"p_workspace_id": workspace_id, "p_provider": provider}
+    ).execute()
 
 
 def enqueue(workspace_id: str, job_type: str, payload: dict | None = None) -> None:

@@ -329,6 +329,11 @@ const de = {
     starting: "Wird gestartet...",
     start: "Suche starten",
     billingBlocked: "Du hast dein monatliches Lead-Limit erreicht oder deine Testphase ist abgelaufen. Bitte pruefe deinen Plan, um weiterhin Suchen anzulegen.",
+    missingKeysTitle: (providers: string) => `Für diesen Suchweg fehlt noch: ${providers}`,
+    missingKeysBody:
+      "Ohne diesen Schlüssel würde die Suche zwar starten, aber ohne Ergebnis bleiben. Ein anderer Suchweg braucht andere Anbieter.",
+    missingKeysCta: "Schlüssel eintragen",
+    missingKeysError: (providers: string) => `Suche nicht gestartet: Es fehlt der Schlüssel für ${providers}.`,
     billingBlockedCta: "Zu den Preisen",
     countryLabels: {
       AT: "Österreich", DE: "Deutschland", CH: "Schweiz", GB: "UK", US: "USA",
@@ -1106,6 +1111,12 @@ const de = {
     noteLabel: "Wichtig:",
     helpLink: "Wie funktioniert das?",
   },
+  providerAlerts: {
+    title: (provider: string) => `${provider}: Guthaben aufgebraucht`,
+    body:
+      "Die Lead-Suche kommt deshalb nicht weiter. Die betroffenen Jobs sind nicht verloren — sie sind zurückgestellt und laufen von allein weiter, sobald du aufgeladen hast.",
+    since: (when: string) => `Seit ${when}`,
+  },
   workerStatus: {
     downTitle: "Die Lead-Maschine läuft gerade nicht",
     downBody:
@@ -1504,6 +1515,11 @@ const en: Dictionary = {
     starting: "Starting...",
     start: "Start search",
     billingBlocked: "You've reached your monthly lead limit, or your trial has expired. Please check your plan to keep creating searches.",
+    missingKeysTitle: (providers: string) => `This search mode still needs: ${providers}`,
+    missingKeysBody:
+      "Without that key the search would start but never produce results. A different search mode needs different providers.",
+    missingKeysCta: "Add keys",
+    missingKeysError: (providers: string) => `Search not started: the key for ${providers} is missing.`,
     billingBlockedCta: "View pricing",
     countryLabels: {
       AT: "Austria", DE: "Germany", CH: "Switzerland", GB: "UK", US: "USA",
@@ -2265,6 +2281,12 @@ const en: Dictionary = {
     subtitle: "How cold outreach actually works, and how to set frostbreaker up for it. Read top to bottom if you're new.",
     noteLabel: "Important:",
     helpLink: "How does this work?",
+  },
+  providerAlerts: {
+    title: (provider: string) => `${provider}: out of credit`,
+    body:
+      "The lead search cannot continue. The affected jobs are not lost — they are on hold and will resume on their own once you top up.",
+    since: (when: string) => `Since ${when}`,
   },
   workerStatus: {
     downTitle: "The lead engine is not running",

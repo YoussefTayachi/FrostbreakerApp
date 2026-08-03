@@ -11,7 +11,7 @@ import CountUp from "./count-up";
 import DateRangePicker from "./date-range-picker";
 import ForecastCards, { type PipelineStats } from "./crm/forecast-cards";
 import WelcomeModal from "./welcome-modal";
-import WorkerStatus, { type WorkerHealth } from "./worker-status";
+import WorkerStatus, { ProviderAlerts, type ProviderAlert, type WorkerHealth } from "./worker-status";
 import { IconLock, IconSend, IconSearch, IconMail } from "./icons";
 
 type Stats = {
@@ -96,7 +96,7 @@ export default async function Dashboard({
   if (!ws) return <p className="text-faint">Kein Workspace gefunden.</p>;
   const workspaceId = ws.workspace.id;
 
-  const [statsRes, searchesRes, recentRes, apiKeysRes, campaignsCountRes, pipelineRes, workerRes] = await Promise.all([
+  const [statsRes, searchesRes, recentRes, apiKeysRes, campaignsCountRes, pipelineRes, workerRes, alertsRes] = await Promise.all([
     supabase.rpc("dashboard_stats", {
       p_workspace_id: workspaceId,
       p_days: rangeDays,
@@ -123,9 +123,18 @@ export default async function Dashboard({
     // der Worker bedient alle. Kostet eine winzige Abfrage und beantwortet die
     // Frage, die sonst niemand stellen kann: laeuft die Maschine ueberhaupt?
     supabase.rpc("worker_health"),
+    // Offene Guthaben-Alarme (Migration 0059). Die konkretere Ursache als ein
+    // toter Worker: er kann tadellos laufen und trotzdem nichts zustandebringen.
+    supabase
+      .from("provider_alerts")
+      .select("provider, message, first_seen_at")
+      .eq("workspace_id", workspaceId)
+      .is("resolved_at", null)
+      .order("first_seen_at", { ascending: true }),
   ]);
   const stats = (statsRes.data ?? {}) as Stats;
   const workerHealth = (workerRes.data ?? null) as WorkerHealth | null;
+  const providerAlerts = (alertsRes.data ?? []) as ProviderAlert[];
   const pipelineStats = (pipelineRes.data ?? null) as PipelineStats | null;
   const searches = searchesRes.data ?? [];
   const recent = recentRes.data ?? [];
@@ -202,6 +211,7 @@ export default async function Dashboard({
       {/* Ganz oben und vor allem anderen: wenn die Maschine steht, ist jede
           andere Zahl auf dieser Seite veraltet. Zeigt sich im Normalfall gar
           nicht, siehe worker-status.tsx. */}
+      <ProviderAlerts alerts={providerAlerts} t={t} lang={lang} />
       <WorkerStatus health={workerHealth} t={t} lang={lang} />
       <div className="flex items-end justify-between">
         <div>
@@ -460,7 +470,7 @@ export default async function Dashboard({
       <section className="rounded-lg border border-edge/60 bg-panel p-5 shadow-sm">
         <h2 className="mb-1 text-sm font-medium text-ink">{t.dashboard.newSearch}</h2>
         <p className="mb-4 text-sm text-faint">{t.dashboard.newSearchHint}</p>
-        <NewSearchForm workspaceId={workspaceId} />
+        <NewSearchForm workspaceId={workspaceId} apiKeyProviders={apiKeyProviders} />
       </section>
 
       {/* Letzte Suchen */}

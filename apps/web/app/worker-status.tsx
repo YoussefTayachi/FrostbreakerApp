@@ -37,6 +37,50 @@ export type WorkerHealth = {
 // Zahl bei lebendem Worker deutet auf ein echtes Problem hin.
 const BACKLOG_THRESHOLD = 100;
 
+/** Offener Guthaben-Alarm eines Anbieters (Migration 0059). */
+export type ProviderAlert = {
+  provider: string;
+  message: string | null;
+  first_seen_at: string;
+};
+
+const PROVIDER_LABELS: Record<string, string> = {
+  google_maps: "Google Maps",
+  apollo: "Apollo",
+  hunter: "Hunter",
+  openai: "OpenAI",
+  neverbounce: "NeverBounce",
+};
+
+/**
+ * Aufgebrauchtes Guthaben. Steht ueber dem Worker-Status, weil es die
+ * konkretere Ursache ist: ein Worker kann tadellos laufen und trotzdem nichts
+ * zustandebringen, wenn das Konto beim Anbieter leer ist.
+ *
+ * Kein Wegklicken-Knopf: der Alarm loest sich von selbst auf, sobald derselbe
+ * Anbieter wieder erfolgreich antwortet (siehe resolve_provider_alert). Eine
+ * Warnung, die man von Hand wegraeumen kann, wird weggeraeumt statt behoben.
+ */
+export function ProviderAlerts({ alerts, t, lang }: { alerts: ProviderAlert[]; t: Dictionary; lang: Lang }) {
+  if (alerts.length === 0) return null;
+  const A = t.providerAlerts;
+  return (
+    <div className="space-y-2">
+      {alerts.map((alert) => (
+        <div key={alert.provider} className="rounded-xl border border-red-500/40 bg-red-500/5 px-4 py-3">
+          <p className="text-sm font-medium text-red-600 dark:text-red-400">
+            {A.title(PROVIDER_LABELS[alert.provider] ?? alert.provider)}
+          </p>
+          <p className="mt-0.5 text-xs text-soft">{A.body}</p>
+          <p className="mt-1.5 text-[11px] text-faint">
+            {A.since(formatDateTime(alert.first_seen_at, lang))}
+          </p>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export default function WorkerStatus({
   health,
   t,

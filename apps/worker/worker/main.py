@@ -68,6 +68,17 @@ def process_due_schedules() -> None:
 # verschluckte Aufrufe, bevor faelschlich Alarm gemeldet wird.
 HEARTBEAT_INTERVAL_S = 30
 
+# Welcher Anbieter gilt als "antwortet wieder", wenn dieser Job-Typ glueckt?
+# Nur die eindeutigen Faelle -- get_businesses fehlt bewusst, weil dort je nach
+# Quelle der Suche Google Maps, Hunter oder Apollo zustaendig ist und ein
+# falsch aufgeloester Alarm schlimmer waere als ein stehengebliebener.
+# Spiegelt _JOB_TYPE_PROVIDERS in worker/provider_errors.py.
+PROVIDER_BY_JOB_TYPE = {
+    "find_decisionmaker": "openai",
+    "personalize": "openai",
+    "hunt_persons": "hunter",
+}
+
 
 def main() -> None:
     log.info("Worker gestartet (%s)", queue.WORKER_ID)
@@ -132,6 +143,15 @@ def main() -> None:
             handler(job)
             queue.complete_job(job["id"])
             log.info("Job %s abgeschlossen", job["id"])
+            # Geglueckt heisst: der Anbieter antwortet wieder. Einen offenen
+            # Guthaben-Alarm dafuer aufloesen, damit der Nutzer nichts
+            # wegklicken muss (siehe queue.clear_provider_alert).
+            provider = PROVIDER_BY_JOB_TYPE.get(job["type"])
+            if provider:
+                try:
+                    queue.clear_provider_alert(job["workspace_id"], provider)
+                except Exception:
+                    log.warning("Anbieter-Alarm konnte nicht aufgeloest werden", exc_info=True)
         except Exception as exc:
             log.exception("Job %s fehlgeschlagen", job["id"])
             # Auch das Wegschreiben des Fehlers geht ueber das Netz. Scheitert

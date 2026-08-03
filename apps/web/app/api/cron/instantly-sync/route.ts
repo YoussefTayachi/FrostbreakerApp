@@ -264,6 +264,66 @@ async function notifyReply(
   }
 }
 
+/**
+ * Meldet aufgebrauchtes Anbieter-Guthaben per Mail (Migration 0059).
+ *
+ * Warum hier und nicht im Worker: der Worker hat keinen Resend-Schluessel und
+ * soll auch keinen bekommen -- er laeuft bei einem anderen Hoster und braucht
+ * fuer seine Aufgabe kein Mailkonto. Er schreibt den Alarm nur in die
+ * Datenbank; verschickt wird er von hier, wo Resend ohnehin schon eingerichtet
+ * ist und ohnehin jede Minute etwas laeuft.
+ *
+ * notified_at wird VOR dem Versand gesetzt: schlaegt der Mailversand fehl,
+ * ist eine ausgebliebene Meldung aergerlich -- eine Endlosschleife, die im
+ * Minutentakt dieselbe Mail schickt, sobald Resend kurz klemmt, waere
+ * schlimmer.
+ */
+async function notifyProviderAlerts(supabase: SupabaseClient): Promise<number> {
+  const { data: alerts } = await supabase
+    .from("provider_alerts")
+    .select("id, workspace_id, provider, message")
+    .is("notified_at", null)
+    .is("resolved_at", null)
+    .limit(20);
+
+  if (!alerts?.length) return 0;
+
+  let sent = 0;
+  for (const alert of alerts) {
+    await supabase
+      .from("provider_alerts")
+      .update({ notified_at: new Date().toISOString() })
+      .eq("id", alert.id);
+
+    const { data: ws } = await supabase
+      .from("workspaces")
+      .select("reply_notify_email")
+      .eq("id", alert.workspace_id)
+      .single();
+    const to = (ws?.reply_notify_email ?? "").trim();
+    if (!to) continue; // nicht eingerichtet -- der Alarm bleibt im Dashboard sichtbar
+
+    const result = await sendEmail(
+      to,
+      `Guthaben aufgebraucht: ${alert.provider}`,
+      [
+        `Der Anbieter ${alert.provider} meldet, dass dein Guthaben aufgebraucht ist.`,
+        "",
+        "Die Lead-Suche laeuft deshalb gerade nicht weiter. Die betroffenen",
+        "Jobs sind nicht verloren -- sie werden zurueckgestellt und laufen",
+        "von allein weiter, sobald du aufgeladen hast.",
+        "",
+        `Originalmeldung: ${(alert.message ?? "").slice(0, 400)}`,
+        "",
+        "Zum Dashboard: https://app.frostbreaker.app/",
+      ].join("\n")
+    );
+    if (result.ok) sent++;
+    else console.warn("Guthaben-Warnung nicht zugestellt:", result.reason);
+  }
+  return sent;
+}
+
 async function fetchEmails(
   apiKey: string,
   params: Record<string, string>
@@ -488,7 +548,16 @@ export async function POST(req: Request) {
       })
     );
 
-    return NextResponse.json({ workspaces: results.length, results });
+    // Ausserhalb der Workspace-Schleife: die Alarme haengen nicht an einem
+    // Instantly-Schluessel, sondern am Worker. Ein Workspace ohne Instantly
+    // taucht in der Schleife oben gar nicht auf, hat aber genauso ein leeres
+    // OpenAI-Konto -- und soll es genauso erfahren.
+    const alertsSent = await notifyProviderAlerts(supabase).catch((e) => {
+      console.warn("Guthaben-Warnungen fehlgeschlagen:", (e as Error).message);
+      return 0;
+    });
+
+    return NextResponse.json({ workspaces: results.length, results, alertsSent });
   } catch (e) {
     return NextResponse.json({ error: (e as Error).message }, { status: 500 });
   }

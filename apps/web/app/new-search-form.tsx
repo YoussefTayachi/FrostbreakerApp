@@ -1,9 +1,11 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { citySuggestionsFor, usStateForCity } from "@/lib/locations";
 import { resolveTechnologies, technologiesFor, type TechGroup } from "@/lib/technologies";
+import { missingProviders } from "@/lib/search-requirements";
 import {
   APOLLO_DEFAULT_SENIORITIES,
   APOLLO_EMPLOYEE_RANGES,
@@ -250,6 +252,15 @@ const PLAYBOOKS: Playbook[] = [
 // bleibt die Aenderung ohne Migration und ohne zusaetzliche RLS-Regeln.
 type SearchMode = "maps" | "corporate" | "apollo";
 
+/** Anbietername, wie ihn der Nutzer in den Einstellungen sieht -- 'google_maps'
+ *  als roher Provider-Schluessel waere in einer Fehlermeldung unbrauchbar. */
+const PROVIDER_LABELS: Record<string, string> = {
+  google_maps: "Google Maps",
+  apollo: "Apollo",
+  hunter: "Hunter",
+  openai: "OpenAI",
+};
+
 type Preset = {
   name: string;
   mode: SearchMode;
@@ -475,7 +486,16 @@ function TechnologyPicker({
   );
 }
 
-export default function NewSearchForm({ workspaceId }: { workspaceId: string }) {
+export default function NewSearchForm({
+  workspaceId,
+  apiKeyProviders = [],
+}: {
+  workspaceId: string;
+  /** Hinterlegte Provider dieses Workspaces, fuer die Vorpruefung. Kommt vom
+   *  Dashboard, das die Liste ohnehin schon fuer die Onboarding-Checkliste
+   *  laedt -- keine zweite Abfrage. */
+  apiKeyProviders?: string[];
+}) {
   const router = useRouter();
   const { t } = useT();
   const { push } = useToast();
@@ -581,8 +601,19 @@ export default function NewSearchForm({ workspaceId }: { workspaceId: string }) 
   const locationList = parseList(location);
   const fanoutCount = mode === "maps" ? Math.max(1, queryList.length * locationList.length) : 1;
 
+  // Vorpruefung: welche Keys fehlen fuer genau diesen Suchweg? Wird sowohl
+  // oben im Formular angezeigt (damit man es sieht, BEVOR man alles ausfuellt)
+  // als auch beim Absenden geprueft. Ohne das reihte die App Jobs ein, die
+  // nie funktionieren konnten -- in den Logs standen dreiundzwanzig solche
+  // Fehlschlaege ueber acht Tage.
+  const missingKeys = missingProviders(mode, apiKeyProviders);
+
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (missingKeys.length > 0) {
+      push(t.newSearchForm.missingKeysError(missingKeys.map((p) => PROVIDER_LABELS[p] ?? p).join(", ")), "error");
+      return;
+    }
     const painPointFilters: Record<string, unknown> = {};
     if (painPointNoWebsite) painPointFilters.pain_point_no_website = true;
     if (painPointMaxRating !== "") painPointFilters.pain_point_max_rating = painPointMaxRating;
@@ -745,6 +776,26 @@ export default function NewSearchForm({ workspaceId }: { workspaceId: string }) 
 
   return (
     <form onSubmit={onSubmit} className="space-y-4">
+      {/* Ganz oben, noch vor der ersten Eingabe: wer den noetigen Schluessel
+          nicht hinterlegt hat, soll das erfahren, bevor er ein Formular
+          ausfuellt -- und nicht erst, wenn die Suche stumm im Nichts landet.
+          Der Hinweis wechselt mit dem Suchweg, weil jeder Weg andere
+          Anbieter braucht (siehe lib/search-requirements.ts). */}
+      {missingKeys.length > 0 && (
+        <div className="rounded-lg border border-amber-500/40 bg-amber-500/5 px-3 py-2.5">
+          <p className="text-xs font-medium text-amber-700 dark:text-amber-400">
+            {t.newSearchForm.missingKeysTitle(
+              missingKeys.map((p) => PROVIDER_LABELS[p] ?? p).join(", ")
+            )}
+          </p>
+          <p className="mt-0.5 text-[11px] text-soft">
+            {t.newSearchForm.missingKeysBody}{" "}
+            <Link href="/settings" className="font-medium text-sky-600 hover:text-sky-500 dark:text-sky-400">
+              {t.newSearchForm.missingKeysCta}
+            </Link>
+          </p>
+        </div>
+      )}
       <div className="flex flex-wrap items-end gap-3">
         <label className={labelCls + " max-w-xs flex-1"}>
           {t.newSearchForm.playbookLabel}
