@@ -51,6 +51,7 @@ type ContactRow = {
     personalization: string | null;
     company_summary: string | null;
     search_id: string | null;
+    // Dank searches!inner nie null -- siehe Begruendung an der Abfrage.
     searches: {
       id: string;
       name: string | null;
@@ -58,12 +59,9 @@ type ContactRow = {
       location: string;
       source: string | null;
       note: string | null;
-    } | null;
+    };
   } | null;
 };
-
-/** Kontakte ohne zugeordnete Suche (search_id ist null, z.B. nach dem Loeschen einer Suche) landen hier. */
-const UNGROUPED = "__ungrouped__";
 
 export default async function LinkedInPage({
   searchParams,
@@ -85,7 +83,7 @@ export default async function LinkedInPage({
       .select(
         "id, first_name, last_name, full_name, title, email, linkedin, outreach_status, business_id, " +
           "businesses!inner(name, website, personalization, company_summary, search_id, " +
-          "searches(id, name, query, location, source, note))"
+          "searches!inner(id, name, query, location, source, note))"
       )
       .eq("workspace_id", workspaceId)
       .not("linkedin", "is", null)
@@ -93,6 +91,22 @@ export default async function LinkedInPage({
       // (api/instantly/campaigns): wer abgesagt hat, taucht in keiner
       // Akquise-Liste wieder auf, egal ueber welchen Kanal.
       .neq("outreach_status", "not_interested")
+      // Papierkorb ausblenden. Ohne diesen Filter zeigte die Seite auch Leads
+      // aus geloeschten Suchen -- gemessen am Bestand vom 2026-08-03 waren das
+      // 360 von 908 Profilen aus 16 Papierkorb-Listen, also 40% der Seite.
+      //
+      // Der Filter sitzt in der Abfrage und nicht im Speicher, weil sonst ein
+      // erheblicher Teil der Obergrenze fuer Zeilen draufginge, die ohnehin
+      // weggeworfen werden.
+      //
+      // searches!inner statt eines lockeren Joins: nur so schliesst PostgREST
+      // die Eltern-Zeile aus. Bei einem lockeren Join bliebe der Kontakt
+      // stehen und nur die eingebettete Suche waere null. Der Preis dafuer --
+      // Kontakte ohne zugeordnete Suche fallen raus -- ist hier keiner: das
+      // endgueltige Loeschen entfernt die Firmen mit (search-actions.tsx),
+      // und deren Kontakte haengen per Kaskade daran. Nachgemessen: null
+      // Kontakte ohne Suche.
+      .is("businesses.searches.deleted_at", null)
       .limit(MAX_ROWS),
     supabase
       .from("activities")
@@ -121,7 +135,7 @@ export default async function LinkedInPage({
     business_id: r.business_id,
     company_name: r.businesses?.name ?? null,
     personalization: r.businesses?.personalization ?? null,
-    listId: r.businesses?.searches?.id ?? UNGROUPED,
+    listId: r.businesses!.searches.id,
     alreadyContacted: contactedIds.has(r.id),
   }));
 
@@ -130,16 +144,16 @@ export default async function LinkedInPage({
   // ist ohne E-Mail nur hier erreichbar, wie viel hat schon einen Icebreaker.
   const byList = new Map<string, LeadListSummary>();
   for (const row of rows) {
-    const search = row.businesses?.searches ?? null;
-    const id = search?.id ?? UNGROUPED;
+    const search = row.businesses!.searches;
+    const id = search.id;
     let entry = byList.get(id);
     if (!entry) {
       entry = {
         id,
-        name: search ? (search.name || search.query) : t.linkedin.ungroupedName,
-        location: search?.location ?? null,
-        source: search?.source ?? null,
-        note: search?.note ?? null,
+        name: search.name || search.query,
+        location: search.location,
+        source: search.source,
+        note: search.note,
         total: 0,
         withoutEmail: 0,
         withIcebreaker: 0,
