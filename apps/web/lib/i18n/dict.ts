@@ -155,6 +155,35 @@ const de = {
     methodNote:
       "Jeder kostenpflichtige Aufruf schreibt beim Ausführen eine Zeile mit der tatsächlich verbrauchten Menge. Bei OpenAI sind das die von der API gemeldeten Tokens, ein Korrektur-Versuch zählt also doppelt. Bei Apollo zählt jede freigeschaltete Adresse, auch wenn der Datensatz danach verworfen wurde.",
   },
+  customFields: {
+    heading: "Eigene Felder",
+    description:
+      "Zusatzangaben, die es hier noch nicht gibt — Branche, Vertragsende, Zuständigkeit. Sie erscheinen im aufgeklappten Datensatz.",
+    entityLabels: { contact: "Kontakt", business: "Firma", deal: "Deal" } as Record<string, string>,
+    typeLabels: {
+      text: "Text",
+      number: "Zahl",
+      date: "Datum",
+      select: "Auswahl",
+    } as Record<string, string>,
+    labelPlaceholder: "Beschriftung, z.B. Branche",
+    optionsPlaceholder: "Möglichkeiten, mit Komma getrennt",
+    add: "Feld anlegen",
+    added: "Feld angelegt",
+    removed: "Feld entfernt",
+    removeConfirm: (label: string) =>
+      `Feld „${label}" entfernen? Bereits erfasste Werte bleiben gespeichert, werden aber nicht mehr angezeigt.`,
+    needsOptions: "Ein Auswahlfeld braucht mindestens eine Möglichkeit.",
+    footnote:
+      "Der technische Schlüssel entsteht einmal aus der Beschriftung und ändert sich danach nicht mehr — eine Umbenennung kostet also keine Daten.",
+    detailsHeading: "Eigene Felder",
+    notSet: "nicht gesetzt",
+    errors: {
+      not_a_number: "Das ist keine Zahl.",
+      not_a_date: "Bitte ein Datum wählen.",
+      not_an_option: "Dieser Wert steht nicht zur Auswahl.",
+    } as Record<string, string>,
+  },
   automations: {
     heading: "Automatisierungen",
     description:
@@ -1448,6 +1477,30 @@ const en: Dictionary = {
     tariffDependent: "depends on plan",
     methodNote:
       "Every paid call writes a row with the amount actually consumed as it runs. For OpenAI those are the tokens the API itself reports, so a correction attempt counts twice. For Apollo every revealed address counts, even when the record was discarded afterwards.",
+  },
+  customFields: {
+    heading: "Custom fields",
+    description:
+      "Extra details that do not exist here yet — industry, contract end, owner. They show up in the expanded record.",
+    entityLabels: { contact: "Contact", business: "Company", deal: "Deal" },
+    typeLabels: { text: "Text", number: "Number", date: "Date", select: "Choice" },
+    labelPlaceholder: "Label, e.g. Industry",
+    optionsPlaceholder: "Choices, comma separated",
+    add: "Add field",
+    added: "Field added",
+    removed: "Field removed",
+    removeConfirm: (label: string) =>
+      `Remove the field "${label}"? Values already captured stay stored but are no longer shown.`,
+    needsOptions: "A choice field needs at least one option.",
+    footnote:
+      "The technical key is derived once from the label and never changes afterwards — renaming costs no data.",
+    detailsHeading: "Custom fields",
+    notSet: "not set",
+    errors: {
+      not_a_number: "That is not a number.",
+      not_a_date: "Please pick a date.",
+      not_an_option: "That value is not one of the choices.",
+    },
   },
   automations: {
     heading: "Automations",

@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/client";
 import CompanyLogo from "../company-logo";
 import ContactTimeline from "../crm/contact-timeline";
 import DealsPanel from "../crm/deals-panel";
+import CustomFieldValues from "../crm/custom-field-values";
 import StatusSelect from "../crm/status-select";
 import { useT } from "../language-provider";
 import { useToast } from "../toast-provider";
@@ -206,6 +207,17 @@ export default function PipelineView({
                 labels={t.leads.statusLabels}
               />
             </div>
+
+            {/* Der "Detailbereich" wie bei Pipedrive: eigene Felder zwischen
+                Stammdaten und Verlauf. Zeigt sich gar nicht, solange keine
+                Felder angelegt sind -- ein leerer Kasten waere schlechter als
+                keiner. */}
+            <CustomFieldValues
+              entity="contact"
+              table="contacts"
+              recordId={detail.id}
+              className="mb-5"
+            />
 
             <DealsPanel businessId={detail.business_id} contactId={detail.id} className="mb-5" />
             <ContactTimeline contactId={detail.id} businessId={detail.business_id} />
