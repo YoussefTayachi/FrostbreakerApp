@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { ActivityOutcome, ActivityType } from "./activities";
+import type { ActivityChannel, ActivityOutcome, ActivityType } from "./activities";
 import type { DealStage, DealStatus } from "./deals";
 
 /**
@@ -36,6 +36,8 @@ export type StatusMeta = {
 };
 export type ActivityMeta = {
   type: ActivityType;
+  /** Medium der Kontaktaufnahme (Migration 0057). Null bei Altbestand und bei Aufgaben, die kein Medium haben. */
+  channel: ActivityChannel | null;
   outcome: ActivityOutcome | null;
   duration_seconds: number | null;
   due_at: string | null;

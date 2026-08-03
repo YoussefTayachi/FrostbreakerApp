@@ -3,7 +3,13 @@ import { useRef, type RefObject } from "react";
 import { inputCls } from "@/lib/ui";
 import { buildHighlightSegments, type Highlights, type Severity } from "@/lib/email-quality";
 
-// Textfeld mit farbiger Markierung der Befundstellen, wie im Hemingway-Editor.
+// Textfeld mit farbiger Markierung von Textstellen, wie im Hemingway-Editor.
+//
+// Liegt bewusst hier und nicht mehr unter instantly/campaigns: die Komponente
+// wird inzwischen von zwei Stellen mit unterschiedlicher Bedeutung genutzt --
+// im Kampagnen-Editor markiert sie Qualitaetsbefunde (Passiv, Spam-Trigger),
+// im LinkedIn-Vorlagen-Editor die Variablen (blau gueltig, rot vertippt). Sie
+// kennt beide Bedeutungen nicht, sie faerbt nur Bereiche ein.
 // Da eine <textarea> keine formatierten Bereiche kann, liegt hinter ihr eine
 // deckungsgleiche Ebene mit demselben Text: dort stehen die farbigen Flaechen,
 // der sichtbare Text kommt weiterhin aus der Textarea selbst. Deshalb bleiben

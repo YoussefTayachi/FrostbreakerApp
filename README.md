@@ -1,32 +1,64 @@
-# System3 — B2B Lead-Gen & Cold-Outreach (BYOK)
+# Frostbreaker — B2B Lead-Gen & Cold-Outreach (BYOK)
 
-SaaS: Leads per Nische finden (Google Maps) → Decisionmaker identifizieren (OpenAI Web Search) → E-Mails finden (Hunter) → personalisierte Akquise-Mails über die eigenen Postfächer des Users versenden (eigener Sequencer, kein Instantly).
+SaaS: Firmen per Nische finden (Google Maps oder Apollo) → Entscheider
+identifizieren (OpenAI Web Search) → E-Mail-Adressen finden (Hunter/Apollo) →
+Adressen verifizieren (NeverBounce) → personalisierte Eröffnungszeile pro Lead
+(OpenAI) → Kampagne **über Instantly** versenden.
 
-**BYOK-Prinzip:** User hinterlegt eigene API-Keys (Google Maps, OpenAI, Hunter) und eigene SMTP/IMAP-Postfächer. Keys werden serverseitig verschlüsselt (Fernet) in Supabase gespeichert.
+**BYOK-Prinzip:** Der Nutzer hinterlegt eigene API-Keys (Google Maps, Apollo,
+OpenAI, Hunter, NeverBounce, Instantly). Keys werden serverseitig
+Fernet-verschlüsselt in Supabase gespeichert und zur Laufzeit mit
+`APP_ENCRYPTION_KEY` entschlüsselt.
+
+> **Wichtig, weil der PROJEKTPLAN etwas anderes sagt:** Eine eigene
+> Sende-Engine (Phase 3) wurde bewusst **nicht** gebaut. Instantly ist und
+> bleibt die Sende-Infrastruktur. `docs/PROJEKTPLAN.md` ist das
+> Ursprungsdokument von Juli 2026 und in diesem Punkt überholt.
 
 ## Struktur
 
 ```
 apps/
-  api/     FastAPI-Backend (REST für Frontend)
-  worker/  Pipelines (get_businesses, find_decisionmaker, hunt_persons, personalize) + Sending Engine
-  web/     Next.js-Frontend (Phase 4)
+  web/     Next.js-Frontend + alle API-Routen  → Vercel (fra1)
+  worker/  Python-Pipelines (get_businesses, find_decisionmaker,
+           hunt_persons, personalize)          → Railway (US West)
+  api/     TOT. FastAPI, wird von nirgendwo aufgerufen, siehe docs/BETRIEB.md
 supabase/
-  migrations/  SQL-Migrations (Source of Truth fürs Schema, via Supabase MCP/CLI applied)
+  migrations/  SQL, Source of Truth fürs Schema (via Supabase MCP/CLI)
 docs/
-  PROJEKTPLAN.md
+  BETRIEB.md              was wo läuft, Umgebungsvariablen, Störungssuche
+  PROJEKTPLAN.md          Ursprungsplan Juli 2026, teilweise überholt
+  KALTAKQUISE-VORLAGEN.md erprobte Mail-Sequenzen
+  CASE-STUDY-FROSTBREAKER.md
+  TESTLAUF.md
 ```
 
-## Setup (lokal)
+**`docs/BETRIEB.md` zuerst lesen**, wenn du wissen willst, wo etwas läuft.
+Der Code beschreibt die Absicht, diese Datei den tatsächlichen Betrieb.
+
+## Entwicklung
 
 ```bash
-cp .env.example .env   # Werte eintragen
-cd apps/api && pip install -e ".[dev]" && uvicorn app.main:app --reload
+# Frontend
+cd apps/web && npm install && npm run dev
+cd apps/web && npm test          # vitest, 167 Tests
+cd apps/web && npx tsc --noEmit
+
+# Worker
 cd apps/worker && pip install -e ".[dev]" && python -m worker.main
+cd apps/worker && python -m pytest
 ```
+
+Der Worker läuft produktiv auf Railway. Lokal starten ist nur zum Debuggen
+nötig — er würde sonst als dritter Worker gegen dieselbe Queue laufen (was
+dank `for update skip locked` in `claim_job` gefahrlos, aber nutzlos ist).
 
 ## Konventionen
 
 - Python 3.11+, ruff (Lint+Format), pytest
-- Migrations: fortlaufend nummeriert, niemals editieren, nur neue anlegen
+- Migrations: fortlaufend nummeriert, **niemals editieren**, nur neue anlegen
 - Secrets nur in `.env` / Deployment-Env, nie committen
+- Kommentare halten *gemessenes* Verhalten fremder APIs fest, keine
+  Vermutungen. Wenn eine Zeile existiert, weil Instantly/Apollo sich
+  unerwartet verhält, gehört das Messergebnis danebengeschrieben — sonst
+  entfernt es die nächste Person als vermeintlich überflüssig.

@@ -5,7 +5,7 @@ import { useWorkspace } from "../../workspace-provider";
 import { inputCls } from "@/lib/ui";
 import { plainTextToInstantlyHtml } from "@/lib/instantly/campaigns";
 import EmailQualityPanel from "./email-quality-panel";
-import HighlightedTextarea from "./highlighted-textarea";
+import HighlightedTextarea from "../../highlighted-textarea";
 import type { Highlights } from "@/lib/email-quality";
 import type { Step } from "./campaign-form";
 

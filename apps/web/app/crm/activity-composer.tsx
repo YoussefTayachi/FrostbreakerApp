@@ -2,9 +2,13 @@
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import {
-  ACTIVITY_OUTCOMES,
+  ACTIVITY_CHANNELS,
   ACTIVITY_TYPES,
+  defaultChannelFor,
+  outcomesFor,
+  supportsDuration,
   supportsOutcome,
+  type ActivityChannel,
   type ActivityOutcome,
   type ActivityType,
 } from "@/lib/crm/activities";
@@ -13,7 +17,7 @@ import { useToast } from "../toast-provider";
 import { useWorkspace } from "../workspace-provider";
 
 /**
- * Anruf loggen oder Aufgabe planen.
+ * Kontaktaufnahme loggen oder Aufgabe planen.
  *
  * Zwei Faelle in einem Formular, unterschieden ueber die Faelligkeit:
  *   - Faelligkeit leer  -> bereits passiert, wird sofort als erledigt gespeichert
@@ -21,8 +25,10 @@ import { useWorkspace } from "../workspace-provider";
  *   - Faelligkeit gesetzt -> geplante Aufgabe, bleibt offen und taucht im
  *                          "Heute faellig"-Widget auf
  *
- * Das Gespraechsergebnis gibt es nur beim Anruf (supportsOutcome) -- eine Aufgabe
- * hat kein Ergebnis, und ein leeres Dropdown waere nur Rauschen.
+ * Typ und Kanal sind getrennt (Migration 0057): der Typ ist die Form der
+ * Interaktion, der Kanal das Medium. Welche Ergebnisse zur Auswahl stehen,
+ * haengt am Typ -- "Mailbox" ergibt bei einer LinkedIn-DM keinen Sinn, siehe
+ * outcomesFor() in lib/crm/activities.ts.
  */
 export default function ActivityComposer({
   contactId,
@@ -41,6 +47,7 @@ export default function ActivityComposer({
 
   const [open, setOpen] = useState(false);
   const [type, setType] = useState<ActivityType>("call");
+  const [channel, setChannel] = useState<ActivityChannel | null>(defaultChannelFor("call"));
   const [subject, setSubject] = useState("");
   const [note, setNote] = useState("");
   const [outcome, setOutcome] = useState<ActivityOutcome | "">("");
@@ -48,8 +55,22 @@ export default function ActivityComposer({
   const [dueDate, setDueDate] = useState("");
   const [saving, setSaving] = useState(false);
 
+  /**
+   * Typwechsel zieht Kanal und Ergebnis mit: ein beim Anruf gewaehltes
+   * "Mailbox" bliebe sonst stehen, wenn danach auf "Nachricht" umgestellt
+   * wird -- und waere dort ein Wert, den das Dropdown gar nicht mehr anbietet.
+   */
+  function changeType(next: ActivityType) {
+    setType(next);
+    setChannel(defaultChannelFor(next));
+    setOutcome((current) =>
+      current && outcomesFor(next).includes(current as ActivityOutcome) ? current : ""
+    );
+  }
+
   function reset() {
     setType("call");
+    setChannel(defaultChannelFor("call"));
     setSubject("");
     setNote("");
     setOutcome("");
@@ -71,11 +92,14 @@ export default function ActivityComposer({
         contact_id: contactId ?? null,
         business_id: contactId ? null : (businessId ?? null),
         type,
+        channel,
         subject: subject.trim() || null,
         note: note.trim() || null,
         outcome: supportsOutcome(type) && outcome ? outcome : null,
         duration_seconds:
-          Number.isFinite(parsedMinutes) && parsedMinutes > 0 ? Math.round(parsedMinutes * 60) : null,
+          supportsDuration(type) && Number.isFinite(parsedMinutes) && parsedMinutes > 0
+            ? Math.round(parsedMinutes * 60)
+            : null,
         // Ende des gewaehlten Tages, damit eine Aufgabe nicht um 00:00 schon
         // als ueberfaellig gilt.
         due_at: planned ? new Date(dueDate + "T23:59:59").toISOString() : null,
@@ -117,7 +141,7 @@ export default function ActivityComposer({
         {ACTIVITY_TYPES.map((option) => (
           <button
             key={option}
-            onClick={() => setType(option)}
+            onClick={() => changeType(option)}
             className={
               "rounded-full border px-2.5 py-0.5 text-[11px] font-medium transition-colors " +
               (type === option
@@ -128,6 +152,40 @@ export default function ActivityComposer({
             {C.activityTypeLabels[option] ?? option}
           </button>
         ))}
+      </div>
+
+      {/* Kanal: bei einer Aufgabe optional (sie hat kein Medium), sonst die
+          Angabe, die spaeter in der Timeline und in Auswertungen zeigt, ueber
+          welchen Weg der Kontakt entstanden ist. */}
+      <div className="mb-2">
+        <p className="mb-1 text-[10px] font-medium text-faint">{C.activityChannelLabel}</p>
+        <div className="flex flex-wrap gap-1.5">
+          <button
+            onClick={() => setChannel(null)}
+            className={
+              "rounded-full border px-2.5 py-0.5 text-[11px] transition-colors " +
+              (channel === null
+                ? "border-sky-500/60 bg-sky-500/10 text-sky-600 dark:text-sky-300"
+                : "border-edge2 bg-chip text-soft hover:border-edge3 hover:text-ink")
+            }
+          >
+            {C.activityChannelNone}
+          </button>
+          {ACTIVITY_CHANNELS.map((option) => (
+            <button
+              key={option}
+              onClick={() => setChannel(option)}
+              className={
+                "rounded-full border px-2.5 py-0.5 text-[11px] transition-colors " +
+                (channel === option
+                  ? "border-sky-500/60 bg-sky-500/10 text-sky-600 dark:text-sky-300"
+                  : "border-edge2 bg-chip text-soft hover:border-edge3 hover:text-ink")
+              }
+            >
+              {C.activityChannelLabels[option] ?? option}
+            </button>
+          ))}
+        </div>
       </div>
 
       <input
@@ -154,7 +212,7 @@ export default function ActivityComposer({
               className={fieldCls + " mt-0.5 w-full"}
             >
               <option value="">{C.activityOutcomeNone}</option>
-              {ACTIVITY_OUTCOMES.map((option) => (
+              {outcomesFor(type).map((option) => (
                 <option key={option} value={option}>
                   {C.activityOutcomeLabels[option] ?? option}
                 </option>
@@ -162,7 +220,7 @@ export default function ActivityComposer({
             </select>
           </label>
         )}
-        {supportsOutcome(type) && (
+        {supportsDuration(type) && (
           <label className="text-[10px] font-medium text-faint">
             {C.activityDurationLabel}
             <input

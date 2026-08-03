@@ -1,6 +1,22 @@
 # Korrekturplan: Signup, Bestätigungsmail, Trial-Missbrauch
 
-**Status:** Plan only, nichts umgesetzt. Grundlage: Code-Lektüre von
+**Status (aktualisiert 2026-08-03):**
+
+- **Punkt 1 ist umgesetzt** — allerdings anders als unten vorgeschlagen: die
+  Weiterleitung sitzt zentral in `apps/web/middleware.ts`
+  (`loggedInMustLeavePaths`), nicht in beiden Seiten einzeln. Damit wird die
+  App-Hülle gar nicht erst gerendert. `/unsubscribe` ist dort ausdrücklich
+  ausgenommen, siehe Kommentar in der Datei.
+- **Punkt 2 (Verifizierung des Mailversands) ist weiterhin offen.** Es hat
+  sich bis heute niemand außer dem Betreiber registriert, der Fall ist also
+  nie eingetreten. Siehe `docs/BETRIEB.md`, Abschnitt Resend.
+- **Punkt 3 (Kartenpflicht) ist offen.** Der Vektor besteht unverändert:
+  `handle_new_user()` legt in Migration 0048, Zeile 18, weiterhin
+  `insert into public.subscriptions (owner_id)` an — Default-Status
+  `trialing`, ohne jeden Stripe-Kontakt. Neue Adresse, neuer 14-Tage-Zugang,
+  beliebig oft wiederholbar.
+
+Grundlage der ursprünglichen Analyse: Code-Lektüre von
 `apps/web/app/signup/page.tsx`, `apps/web/app/layout.tsx`,
 `supabase/migrations/0024_billing.sql`, `lib/billing.ts`,
 `api/billing/checkout/route.ts` und `api/billing/webhook/route.ts`.
