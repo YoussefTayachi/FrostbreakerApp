@@ -4,8 +4,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import {
-  ACTIVITY_OUTCOMES,
   OUTCOME_TO_STAGE,
+  outcomesFor,
   supportsOutcome,
   type ActivityOutcome,
   type ActivityType,
@@ -219,7 +219,10 @@ function CallRow({
                     className="mt-0.5 block rounded-lg border border-edge2 bg-field px-2.5 py-1.5 text-xs text-ink outline-none focus:border-sky-500"
                   >
                     <option value="">{C.outcomeNone}</option>
-                    {ACTIVITY_OUTCOMES.map((option) => (
+                    {/* Typabhaengig statt pauschal alle: seit Migration 0057
+                        kann hier auch eine geplante Nachricht stehen, und
+                        "Mailbox" waere bei einer LinkedIn-DM Unsinn. */}
+                    {outcomesFor(task.type).map((option) => (
                       <option key={option} value={option}>
                         {t.crm.activityOutcomeLabels[option] ?? option}
                       </option>

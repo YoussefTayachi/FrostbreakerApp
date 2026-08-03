@@ -271,11 +271,18 @@ function TimelineRow({
       const done = Boolean(event.meta.completed_at);
       const overdue = !done && event.meta.due_at && new Date(event.meta.due_at) < new Date();
       const minutes = event.meta.duration_seconds ? Math.round(event.meta.duration_seconds / 60) : null;
+      // Kanal ans Badge haengen statt in eine eigene Zeile: "Nachricht · LinkedIn"
+      // beantwortet die Frage "worueber lief das" auf einen Blick. Altbestand
+      // ohne Kanal (alles vor Migration 0057) zeigt weiterhin nur den Typ.
+      const typeLabel = C.activityTypeLabels[event.meta.type] ?? event.meta.type;
+      const channelLabel = event.meta.channel
+        ? (C.activityChannelLabels[event.meta.channel] ?? event.meta.channel)
+        : null;
       return (
         <EventShell
           at={event.at}
           lang={lang}
-          badge={C.activityTypeLabels[event.meta.type] ?? event.meta.type}
+          badge={channelLabel ? `${typeLabel} · ${channelLabel}` : typeLabel}
           tone={overdue ? "red" : "violet"}
           title={event.title || C.activityTypeLabels[event.meta.type] || event.meta.type}
           extra={
