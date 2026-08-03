@@ -1,25 +1,11 @@
 "use client";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { createClient } from "@/lib/supabase/client";
 import { OUTREACH_STAGES, STAGE_DOT_CLS, type OutreachStage } from "@/lib/crm/stages";
+import { formatRelative } from "@/lib/format-time";
 import CompanyLogo from "../company-logo";
-import ContactTimeline from "../crm/contact-timeline";
-import DealsPanel from "../crm/deals-panel";
-import StatusSelect from "../crm/status-select";
 import { IconSearch } from "../icons";
 import { useT } from "../language-provider";
-import { useToast } from "../toast-provider";
-import { useWorkspace } from "../workspace-provider";
-
-export type BoardContact = {
-  id: string;
-  full_name: string | null;
-  title: string | null;
-  email: string | null;
-  outreach_status: string;
-  business_id: string;
-  businesses: { name: string; website: string | null } | null;
-};
+import { displayName, type PipelineRow } from "./types";
 
 /**
  * Wie viele Karten pro Spalte gerendert werden. Der Nutzer entscheidet das
@@ -30,15 +16,22 @@ const PAGE_SIZES = [15, 30, 60, 0] as const; // 0 = alle
 const DEFAULT_PAGE_SIZE = 15;
 const PAGE_SIZE_KEY = "pipeline_page_size";
 
-export default function PipelineBoard({ contacts }: { contacts: BoardContact[] }) {
-  const { t } = useT();
-  const { push } = useToast();
-  const { workspaceId } = useWorkspace();
+export default function PipelineBoard({
+  rows: contacts,
+  overrides,
+  onStageChange,
+  onOpen,
+}: {
+  rows: PipelineRow[];
+  /** Status, die gerade lokal abweichen -- gehalten in pipeline-view.tsx,
+   *  damit Board und Liste denselben Stand zeigen. */
+  overrides: Record<string, string>;
+  onStageChange: (row: PipelineRow, stage: string) => void;
+  onOpen: (row: PipelineRow) => void;
+}) {
+  const { t, lang } = useT();
   const P = t.pipeline;
 
-  // Lokale Status-Overrides: das Board reagiert sofort, ohne auf einen
-  // router.refresh() zu warten. Gleiches Muster wie in leads-table.tsx.
-  const [overrides, setOverrides] = useState<Record<string, string>>({});
   const [query, setQuery] = useState("");
   const [onlyEmail, setOnlyEmail] = useState(false);
   const [pageSize, setPageSize] = useState<number>(DEFAULT_PAGE_SIZE);
@@ -47,7 +40,7 @@ export default function PipelineBoard({ contacts }: { contacts: BoardContact[] }
   const [extra, setExtra] = useState<Record<string, number>>({});
   const [dragId, setDragId] = useState<string | null>(null);
   const [dragOverStage, setDragOverStage] = useState<OutreachStage | null>(null);
-  const [detail, setDetail] = useState<BoardContact | null>(null);
+
   // Die ganze Karte ist klickbar UND ziehbar. Endet ein Zug auf derselben Karte,
   // feuert je nach Browser noch ein click -- das darf nicht den Drawer aufreissen.
   const draggedRef = useRef(false);
@@ -74,14 +67,14 @@ export default function PipelineBoard({ contacts }: { contacts: BoardContact[] }
       .filter((c) => {
         if (onlyEmail && !c.email) return false;
         if (!needle) return true;
-        return [c.full_name, c.title, c.email, c.businesses?.name]
+        return [c.full_name, c.title, c.email, c.company_name]
           .filter(Boolean)
           .some((v) => v!.toLowerCase().includes(needle));
       });
   }, [contacts, overrides, query, onlyEmail]);
 
   const byStage = useMemo(() => {
-    const groups = new Map<string, BoardContact[]>();
+    const groups = new Map<string, PipelineRow[]>();
     for (const stage of OUTREACH_STAGES) groups.set(stage, []);
     for (const contact of filtered) {
       // Unbekannte Status (falls je ein neuer Wert dazukommt) landen in "new",
@@ -92,28 +85,11 @@ export default function PipelineBoard({ contacts }: { contacts: BoardContact[] }
     return groups;
   }, [filtered]);
 
-  async function moveTo(contact: BoardContact, stage: string) {
-    if (contact.outreach_status === stage) return;
-    setOverrides((prev) => ({ ...prev, [contact.id]: stage }));
-    const { error } = await createClient()
-      .from("contacts")
-      .update({ outreach_status: stage })
-      .eq("id", contact.id)
-      .eq("workspace_id", workspaceId);
-    if (error) {
-      // Zuruecknehmen, damit die Karte nicht in einer Spalte liegt, die die DB nicht kennt
-      setOverrides((prev) => ({ ...prev, [contact.id]: contact.outreach_status }));
-      push(t.common.error + error.message, "error");
-      return;
-    }
-    push(P.moved(contact.full_name ?? P.cardNoName, t.leads.statusLabels[stage] ?? stage), "success");
-  }
-
   function onDrop(stage: OutreachStage) {
     setDragOverStage(null);
     const contact = filtered.find((c) => c.id === dragId);
     setDragId(null);
-    if (contact) moveTo(contact, stage);
+    if (contact) onStageChange(contact, stage);
   }
 
   if (contacts.length === 0) {
@@ -225,9 +201,9 @@ export default function PipelineBoard({ contacts }: { contacts: BoardContact[] }
                           draggedRef.current = false;
                           return;
                         }
-                        setDetail(contact);
+                        onOpen(contact);
                       }}
-                      title={[contact.full_name, contact.title, contact.businesses?.name, contact.email]
+                      title={[displayName(contact, ""), contact.title, contact.company_name, contact.email]
                         .filter(Boolean)
                         .join(" · ")}
                       className={
@@ -237,12 +213,12 @@ export default function PipelineBoard({ contacts }: { contacts: BoardContact[] }
                     >
                       <div className="flex items-center gap-2">
                         <CompanyLogo
-                          name={contact.businesses?.name ?? contact.full_name ?? "?"}
-                          website={contact.businesses?.website ?? null}
+                          name={contact.company_name ?? displayName(contact, "?")}
+                          website={contact.company_website}
                           size={18}
                         />
                         <p className="min-w-0 flex-1 truncate text-[12.5px] font-medium leading-tight text-ink">
-                          {contact.full_name ?? P.cardNoName}
+                          {displayName(contact, P.cardNoName)}
                         </p>
                         {contact.email && (
                           <span
@@ -254,8 +230,41 @@ export default function PipelineBoard({ contacts }: { contacts: BoardContact[] }
                       {/* Firma und Position in einer Zeile: zwei getrennte Zeilen
                           machten die Karte fast doppelt so hoch. */}
                       <p className="mt-0.5 truncate pl-[26px] text-[11px] leading-tight text-faint">
-                        {[contact.businesses?.name, contact.title].filter(Boolean).join(" · ")}
+                        {[contact.company_name, contact.title].filter(Boolean).join(" · ")}
                       </p>
+                      {/* Wann und worueber zuletzt Kontakt bestand, bzw. was
+                          ansteht. Ohne das beantwortete die Karte die Frage
+                          "habe ich den schon angefasst" nur durch Aufklappen --
+                          bei einer Spalte mit 300 Karten unbrauchbar.
+                          Ein anstehender Termin gewinnt vor der Vergangenheit:
+                          er ist das, was zu tun ist. */}
+                      {(contact.next_due_at || contact.last_reply_at || contact.last_touch_at) && (
+                        <p className="mt-1 truncate pl-[26px] text-[10px] leading-tight">
+                          {contact.next_due_at ? (
+                            <span
+                              className={
+                                new Date(contact.next_due_at) < new Date()
+                                  ? "text-red-500"
+                                  : "text-emerald-600 dark:text-emerald-400"
+                              }
+                            >
+                              ● {P.dueOn(formatRelative(contact.next_due_at, lang))}
+                            </span>
+                          ) : contact.last_reply_at ? (
+                            <span className="text-sky-600 dark:text-sky-400">
+                              ● {P.repliedAgo(formatRelative(contact.last_reply_at, lang))}
+                            </span>
+                          ) : (
+                            <span className="text-mute">
+                              {P.touchedAgo(
+                                t.crm.activityChannelLabels[contact.last_touch_channel ?? ""] ??
+                                  P.channelUnknown,
+                                formatRelative(contact.last_touch_at!, lang)
+                              )}
+                            </span>
+                          )}
+                        </p>
+                      )}
                     </article>
                   ))}
 
@@ -282,62 +291,6 @@ export default function PipelineBoard({ contacts }: { contacts: BoardContact[] }
 
       <p className="mt-1 text-xs text-faint">{P.columnCount(totalShown)}</p>
 
-      {detail && (
-        <div className="fixed inset-0 z-40">
-          <div
-            className="absolute inset-0 bg-black/40 backdrop-blur-[2px]"
-            onClick={() => setDetail(null)}
-          />
-          <aside className="absolute right-0 top-0 h-full w-full max-w-md overflow-y-auto border-l border-edge/60 bg-panel p-6 shadow-2xl [animation:fadeUp_.25s_ease]">
-            <div className="mb-4 flex items-start justify-between gap-3">
-              <div className="flex min-w-0 items-start gap-2.5">
-                <CompanyLogo
-                  name={detail.businesses?.name ?? detail.full_name ?? "?"}
-                  website={detail.businesses?.website ?? null}
-                  size={32}
-                />
-                <div className="min-w-0">
-                  <h2 className="truncate text-lg font-semibold tracking-tight text-ink">
-                    {detail.full_name ?? P.cardNoName}
-                  </h2>
-                  <p className="truncate text-xs text-faint">
-                    {[detail.title, detail.businesses?.name, detail.email].filter(Boolean).join(" · ")}
-                  </p>
-                </div>
-              </div>
-              <button
-                onClick={() => setDetail(null)}
-                className="rounded-lg border border-edge/60 px-2.5 py-1 text-sm text-faint transition-colors hover:border-edge2 hover:text-ink"
-              >
-                ✕
-              </button>
-            </div>
-
-            {/* Stufe wird hier gewechselt, nicht mehr auf jeder Karte -- das
-                Dropdown auf 328 Karten war der Hauptgrund fuer die Bauhoehe.
-                Gleichzeitig der Touch- und Tastatur-Weg, wo Drag and Drop nicht geht. */}
-            {(() => {
-              // Aktueller Stand kann von dem abweichen, mit dem der Drawer geoeffnet
-              // wurde (z.B. nach einem Drag). moveTo braucht den aktuellen Wert fuer
-              // die Frueh-Rueckkehr und fuer das Zuruecknehmen im Fehlerfall.
-              const current = overrides[detail.id] ?? detail.outreach_status;
-              return (
-                <div className="mb-5 flex items-center gap-2 rounded-lg border border-edge/60 bg-surface/60 px-3 py-2">
-                  <span className="text-xs font-medium text-faint">{P.stageLabel}</span>
-                  <StatusSelect
-                    value={current}
-                    onChange={(next) => moveTo({ ...detail, outreach_status: current }, next)}
-                    labels={t.leads.statusLabels}
-                  />
-                </div>
-              );
-            })()}
-
-            <DealsPanel businessId={detail.business_id} contactId={detail.id} className="mb-5" />
-            <ContactTimeline contactId={detail.id} businessId={detail.business_id} />
-          </aside>
-        </div>
-      )}
     </>
   );
 }

@@ -131,6 +131,25 @@ async function processEmail(
   );
   if (upsertError) return `messages upsert ${email.id}: ${upsertError.message}`;
 
+  // Hinausgegangene Mail hebt 'new' auf 'contacted'.
+  //
+  // Fehlte bisher komplett: der Status wurde ausschliesslich bei einer
+  // EINGEHENDEN Antwort angehoben. Wer angeschrieben wurde und (noch) nicht
+  // geantwortet hat -- also die grosse Mehrheit -- blieb dauerhaft auf 'new'.
+  // Nachgemessen am 2026-08-03: 21 Kontakte mit nachweislich versendeter Mail
+  // standen weiterhin auf 'new', im Pipeline-Board also in der Spalte "Neu".
+  // Damit war die Pipeline blind fuer genau das, wofuer es sie gibt.
+  //
+  // Nur von 'new' aus: 'replied' oder 'meeting_booked' duerfen durch eine
+  // spaeter versendete Folgemail nicht zurueckfallen.
+  if (contact && direction === "outbound" && contact.outreach_status === "new") {
+    const { error } = await supabase
+      .from("contacts")
+      .update({ outreach_status: "contacted" })
+      .eq("id", contact.id);
+    if (error) return `contact contacted ${contact.id}: ${error.message}`;
+  }
+
   if (
     contact &&
     direction === "inbound" &&

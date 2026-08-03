@@ -1,0 +1,323 @@
+"use client";
+import { useMemo, useState } from "react";
+import Link from "next/link";
+import { createClient } from "@/lib/supabase/client";
+import { OUTREACH_STAGES } from "@/lib/crm/stages";
+import { formatRelative, formatDay } from "@/lib/format-time";
+import CompanyLogo from "../company-logo";
+import StatusSelect from "../crm/status-select";
+import { IconSearch } from "../icons";
+import { useT } from "../language-provider";
+import { useToast } from "../toast-provider";
+import { useWorkspace } from "../workspace-provider";
+import ContactChannels from "./contact-channels";
+import { displayName, type PipelineRow } from "./types";
+
+/**
+ * Die Pipeline als Arbeitsliste, nach Lead-Liste gruppiert -- dasselbe Muster
+ * wie unter /linkedin.
+ *
+ * Das Board beantwortet "wie steht mein Trichter". Diese Ansicht beantwortet
+ * "wen mache ich als naechstes und wie erreiche ich ihn" -- und dafuer war das
+ * Board das falsche Werkzeug: es zeigte Name, Titel und Firma, sonst nichts.
+ * Wer anrufen wollte, musste die Nummer woanders suchen.
+ *
+ * Pipedrive haelt beide Ansichten nebeneinander, statt sich fuer eine zu
+ * entscheiden. Genau das machen wir hier auch (siehe pipeline-view.tsx).
+ */
+
+/** Schnellauswahl fuer den Rueckruf, in Tagen ab heute. */
+const CALLBACK_PRESETS = [1, 3, 7] as const;
+
+export default function PipelineList({
+  rows,
+  overrides,
+  onStageChange,
+  onOpen,
+  onRowsChanged,
+}: {
+  rows: PipelineRow[];
+  overrides: Record<string, string>;
+  onStageChange: (row: PipelineRow, stage: string) => void;
+  onOpen: (row: PipelineRow) => void;
+  /** Nach dem Planen eines Rueckrufs, damit die Zeile ihn sofort zeigt. */
+  onRowsChanged: (patch: Record<string, Partial<PipelineRow>>) => void;
+}) {
+  const { t, lang } = useT();
+  const { push } = useToast();
+  const { workspaceId } = useWorkspace();
+  const P = t.pipeline;
+
+  const [query, setQuery] = useState("");
+  const [stageFilter, setStageFilter] = useState<string>("");
+  const [listFilter, setListFilter] = useState<string>("");
+  const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
+  const [busyId, setBusyId] = useState<string | null>(null);
+
+  const lists = useMemo(() => {
+    const seen = new Map<string, string>();
+    for (const r of rows) {
+      const id = r.list_id ?? "";
+      if (!seen.has(id)) seen.set(id, r.list_name ?? P.noList);
+    }
+    return [...seen.entries()].map(([id, name]) => ({ id, name }));
+  }, [rows, P.noList]);
+
+  const filtered = useMemo(() => {
+    const needle = query.trim().toLowerCase();
+    return rows
+      .map((r) => ({ ...r, outreach_status: overrides[r.id] ?? r.outreach_status }))
+      .filter((r) => {
+        if (stageFilter && r.outreach_status !== stageFilter) return false;
+        if (listFilter && (r.list_id ?? "") !== listFilter) return false;
+        if (!needle) return true;
+        return [r.full_name, r.first_name, r.last_name, r.title, r.email, r.phone, r.company_name]
+          .filter(Boolean)
+          .some((v) => v!.toLowerCase().includes(needle));
+      });
+  }, [rows, overrides, query, stageFilter, listFilter]);
+
+  /** Gruppiert, Reihenfolge nach Groesse -- wo am meisten liegt, steht oben. */
+  const groups = useMemo(() => {
+    const map = new Map<string, { id: string; name: string; location: string | null; rows: PipelineRow[] }>();
+    for (const r of filtered) {
+      const id = r.list_id ?? "";
+      let g = map.get(id);
+      if (!g) {
+        g = { id, name: r.list_name ?? P.noList, location: r.list_location, rows: [] };
+        map.set(id, g);
+      }
+      g.rows.push(r);
+    }
+    return [...map.values()].sort((a, b) => b.rows.length - a.rows.length);
+  }, [filtered, P.noList]);
+
+  function toggleGroup(id: string) {
+    setCollapsed((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  /**
+   * Rueckruf planen. Legt genau die Aktivitaet an, die /calls anzeigt --
+   * offen, mit Faelligkeit. Damit ist die Verbindung zwischen den beiden
+   * Ansichten nicht nur behauptet, sondern dieselbe Zeile in derselben
+   * Tabelle.
+   *
+   * Ende des gewaehlten Tages, wie im ActivityComposer: sonst gilt der Termin
+   * ab 00:00 schon als ueberfaellig.
+   */
+  async function planCallback(row: PipelineRow, days: number) {
+    if (busyId) return;
+    setBusyId(row.id);
+    const due = new Date();
+    due.setDate(due.getDate() + days);
+    const dueAt = new Date(
+      `${due.toISOString().slice(0, 10)}T23:59:59`
+    ).toISOString();
+
+    const { error } = await createClient().from("activities").insert({
+      workspace_id: workspaceId,
+      contact_id: row.id,
+      type: "call",
+      channel: "phone",
+      subject: P.callbackSubject,
+      due_at: dueAt,
+    });
+    setBusyId(null);
+    if (error) {
+      push(t.common.error + error.message, "error");
+      return;
+    }
+    onRowsChanged({
+      [row.id]: { next_due_at: dueAt, next_due_subject: P.callbackSubject, next_due_channel: "phone" },
+    });
+    push(P.callbackPlanned(formatDay(dueAt, lang)), "success");
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="relative min-w-52 flex-1">
+          <IconSearch className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-mute" />
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder={P.searchPlaceholder}
+            className="w-full rounded-lg border border-edge2 bg-field py-2 pl-9 pr-3 text-sm text-ink placeholder-mute outline-none transition-colors focus:border-sky-500"
+          />
+        </div>
+        <select
+          value={stageFilter}
+          onChange={(e) => setStageFilter(e.target.value)}
+          className="rounded-lg border border-edge2 bg-field px-2.5 py-2 text-sm text-ink outline-none focus:border-sky-500"
+        >
+          <option value="">{P.allStages}</option>
+          {OUTREACH_STAGES.map((s) => (
+            <option key={s} value={s}>
+              {t.leads.statusLabels[s] ?? s}
+            </option>
+          ))}
+        </select>
+        <select
+          value={listFilter}
+          onChange={(e) => setListFilter(e.target.value)}
+          className="max-w-56 rounded-lg border border-edge2 bg-field px-2.5 py-2 text-sm text-ink outline-none focus:border-sky-500"
+        >
+          <option value="">{P.allLists}</option>
+          {lists.map((l) => (
+            <option key={l.id} value={l.id}>
+              {l.name}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {groups.length === 0 ? (
+        <p className="rounded-xl border border-edge/60 bg-panel px-4 py-10 text-center text-sm text-faint">
+          {P.noResults}
+        </p>
+      ) : (
+        groups.map((group) => {
+          const isCollapsed = collapsed.has(group.id);
+          return (
+            <section key={group.id} className="overflow-hidden rounded-xl border border-edge/60 bg-panel">
+              <button
+                onClick={() => toggleGroup(group.id)}
+                className="flex w-full items-center gap-2 border-b border-edge2/60 px-4 py-2.5 text-left transition-colors hover:bg-chip/50"
+              >
+                <span className={"text-xs text-mute transition-transform " + (isCollapsed ? "" : "rotate-90")}>
+                  ▶
+                </span>
+                <span className="truncate text-sm font-medium text-ink">{group.name}</span>
+                {group.location && <span className="truncate text-xs text-faint">{group.location}</span>}
+                <span className="ml-auto text-xs tabular-nums text-faint">{group.rows.length}</span>
+              </button>
+
+              {!isCollapsed && (
+                <div className="divide-y divide-edge2/50">
+                  {group.rows.map((row) => (
+                    <Row
+                      key={row.id}
+                      row={row}
+                      busy={busyId === row.id}
+                      onOpen={() => onOpen(row)}
+                      onStageChange={(stage) => onStageChange(row, stage)}
+                      onPlanCallback={(days) => planCallback(row, days)}
+                    />
+                  ))}
+                </div>
+              )}
+            </section>
+          );
+        })
+      )}
+
+      <p className="text-xs text-faint">{P.columnCount(filtered.length)}</p>
+    </div>
+  );
+}
+
+function Row({
+  row,
+  busy,
+  onOpen,
+  onStageChange,
+  onPlanCallback,
+}: {
+  row: PipelineRow;
+  busy: boolean;
+  onOpen: () => void;
+  onStageChange: (stage: string) => void;
+  onPlanCallback: (days: number) => void;
+}) {
+  const { t, lang } = useT();
+  const P = t.pipeline;
+  const [callbackOpen, setCallbackOpen] = useState(false);
+
+  const overdue = row.next_due_at ? new Date(row.next_due_at) < new Date() : false;
+
+  return (
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-2.5 transition-colors hover:bg-chip/40">
+      <button onClick={onOpen} className="flex min-w-0 flex-1 items-center gap-2.5 text-left">
+        <CompanyLogo name={row.company_name ?? displayName(row, "?")} website={row.company_website} size={26} />
+        <div className="min-w-0">
+          <p className="truncate text-sm text-ink">{displayName(row, P.cardNoName)}</p>
+          <p className="truncate text-[11px] text-faint">
+            {[row.company_name, row.title].filter(Boolean).join(" · ")}
+          </p>
+        </div>
+      </button>
+
+      {/* Kontaktwege: der eigentliche Zweck dieser Ansicht */}
+      <ContactChannels row={row} />
+
+      {/* Wie und wann zuletzt Kontakt bestand. Ohne diese Spalte musste man
+          jede Zeile aufklappen, um zu sehen, ob schon etwas passiert ist. */}
+      <div className="w-40 shrink-0 text-[11px] leading-tight">
+        {row.last_reply_at ? (
+          <span className="text-sky-600 dark:text-sky-400">
+            {P.repliedAgo(formatRelative(row.last_reply_at, lang))}
+          </span>
+        ) : row.last_touch_at ? (
+          <span className="text-faint">
+            {P.touchedAgo(
+              t.crm.activityChannelLabels[row.last_touch_channel ?? ""] ?? P.channelUnknown,
+              formatRelative(row.last_touch_at, lang)
+            )}
+          </span>
+        ) : (
+          <span className="text-mute">{P.neverTouched}</span>
+        )}
+      </div>
+
+      {/* Naechster Termin -- dieselbe Zeile, die unter /calls steht */}
+      <div className="w-36 shrink-0 text-[11px] leading-tight">
+        {row.next_due_at ? (
+          <Link
+            href="/calls"
+            className={
+              "transition-colors hover:underline " +
+              (overdue ? "text-red-500" : "text-emerald-600 dark:text-emerald-400")
+            }
+            title={P.openInCallList}
+          >
+            {overdue ? P.dueOverdue(formatDay(row.next_due_at, lang)) : P.dueOn(formatDay(row.next_due_at, lang))}
+          </Link>
+        ) : callbackOpen ? (
+          <div className="flex items-center gap-1">
+            {CALLBACK_PRESETS.map((d) => (
+              <button
+                key={d}
+                onClick={() => {
+                  setCallbackOpen(false);
+                  onPlanCallback(d);
+                }}
+                disabled={busy}
+                className="rounded border border-edge2 px-1.5 py-0.5 text-[10px] text-soft transition-colors hover:border-sky-500/60 hover:text-sky-600 disabled:opacity-40 dark:hover:text-sky-400"
+              >
+                {P.inDays(d)}
+              </button>
+            ))}
+          </div>
+        ) : (
+          <button
+            onClick={() => setCallbackOpen(true)}
+            className="text-mute transition-colors hover:text-sky-600 dark:hover:text-sky-400"
+          >
+            + {P.planCallback}
+          </button>
+        )}
+      </div>
+
+      <StatusSelect
+        value={row.outreach_status}
+        onChange={onStageChange}
+        labels={t.leads.statusLabels}
+      />
+    </div>
+  );
+}
