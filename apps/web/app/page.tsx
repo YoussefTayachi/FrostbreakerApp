@@ -11,6 +11,7 @@ import CountUp from "./count-up";
 import DateRangePicker from "./date-range-picker";
 import ForecastCards, { type PipelineStats } from "./crm/forecast-cards";
 import WelcomeModal from "./welcome-modal";
+import WorkerStatus, { type WorkerHealth } from "./worker-status";
 import { IconLock, IconSend, IconSearch, IconMail } from "./icons";
 
 type Stats = {
@@ -95,7 +96,7 @@ export default async function Dashboard({
   if (!ws) return <p className="text-faint">Kein Workspace gefunden.</p>;
   const workspaceId = ws.workspace.id;
 
-  const [statsRes, searchesRes, recentRes, apiKeysRes, campaignsCountRes, pipelineRes] = await Promise.all([
+  const [statsRes, searchesRes, recentRes, apiKeysRes, campaignsCountRes, pipelineRes, workerRes] = await Promise.all([
     supabase.rpc("dashboard_stats", {
       p_workspace_id: workspaceId,
       p_days: rangeDays,
@@ -118,8 +119,13 @@ export default async function Dashboard({
     supabase.from("api_keys").select("provider").eq("workspace_id", workspaceId),
     supabase.from("campaigns").select("id", { count: "exact", head: true }).eq("workspace_id", workspaceId),
     supabase.rpc("crm_pipeline_stats", { p_workspace_id: workspaceId }),
+    // Betriebszustand des Workers (Migration 0058). Nicht workspace-bezogen --
+    // der Worker bedient alle. Kostet eine winzige Abfrage und beantwortet die
+    // Frage, die sonst niemand stellen kann: laeuft die Maschine ueberhaupt?
+    supabase.rpc("worker_health"),
   ]);
   const stats = (statsRes.data ?? {}) as Stats;
+  const workerHealth = (workerRes.data ?? null) as WorkerHealth | null;
   const pipelineStats = (pipelineRes.data ?? null) as PipelineStats | null;
   const searches = searchesRes.data ?? [];
   const recent = recentRes.data ?? [];
@@ -193,6 +199,10 @@ export default async function Dashboard({
   return (
     <div className="fade-up space-y-5">
       {hasActive && <AutoRefresh />}
+      {/* Ganz oben und vor allem anderen: wenn die Maschine steht, ist jede
+          andere Zahl auf dieser Seite veraltet. Zeigt sich im Normalfall gar
+          nicht, siehe worker-status.tsx. */}
+      <WorkerStatus health={workerHealth} t={t} lang={lang} />
       <div className="flex items-end justify-between">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight text-ink">{t.dashboard.title}</h1>

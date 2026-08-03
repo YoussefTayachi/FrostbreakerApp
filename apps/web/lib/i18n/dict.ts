@@ -1106,6 +1106,18 @@ const de = {
     noteLabel: "Wichtig:",
     helpLink: "Wie funktioniert das?",
   },
+  workerStatus: {
+    downTitle: "Die Lead-Maschine läuft gerade nicht",
+    downBody:
+      "Neue Suchen werden eingereiht, aber nicht abgearbeitet. Prüf zuerst, ob das Guthaben beim Hoster aufgebraucht ist — das ist die häufigste Ursache.",
+    lastSeen: (when: string) => `Zuletzt gemeldet: ${when}`,
+    pendingWaiting: (n: number) => `${n} Jobs warten`,
+    backlogTitle: "Die Warteschlange staut sich",
+    backlogBody: (n: number) =>
+      `${n} Jobs sind fällig und noch nicht dran. Der Worker läuft, kommt aber nicht hinterher — das kann bei einer großen Suche normal sein und sollte sich von selbst auflösen.`,
+    partial: (alive: number, total: number) =>
+      `Nur ${alive} von ${total} Arbeitsprozessen antworten. Es läuft weiter, aber langsamer.`,
+  },
   onboarding: {
     heading: "Erste Schritte",
     subtitle: "In wenigen Minuten startklar: so kommst du am schnellsten zu den ersten Leads im Postfach.",
@@ -2253,6 +2265,18 @@ const en: Dictionary = {
     subtitle: "How cold outreach actually works, and how to set frostbreaker up for it. Read top to bottom if you're new.",
     noteLabel: "Important:",
     helpLink: "How does this work?",
+  },
+  workerStatus: {
+    downTitle: "The lead engine is not running",
+    downBody:
+      "New searches are queued but not processed. Check whether the hosting credit has run out — that is the most common cause.",
+    lastSeen: (when: string) => `Last seen: ${when}`,
+    pendingWaiting: (n: number) => `${n} jobs waiting`,
+    backlogTitle: "The queue is backing up",
+    backlogBody: (n: number) =>
+      `${n} jobs are due and not picked up yet. The worker is running but falling behind — this can be normal during a large search and should clear on its own.`,
+    partial: (alive: number, total: number) =>
+      `Only ${alive} of ${total} worker processes are responding. Work continues, but slower.`,
   },
   onboarding: {
     heading: "Getting started",

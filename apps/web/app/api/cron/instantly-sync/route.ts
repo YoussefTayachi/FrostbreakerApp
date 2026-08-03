@@ -6,6 +6,7 @@ import { instantlyRequest } from "@/lib/instantly";
 import { getApiKey } from "@/lib/api-keys";
 import { extractOutputText } from "@/lib/openai";
 import { sendEmail } from "@/lib/email";
+import { detectOptOut } from "@/lib/crm/opt-out";
 
 // Ersetzt den frueheren Python-Worker-Job "poll_instantly" (kampagnen-scoped
 // Analytics/Antworten) UND "poll_instantly_inbox" (mailbox-weiter Sync) in einer
@@ -148,6 +149,69 @@ async function processEmail(
     await notifyReply(supabase, workspaceId, leadEmail, email.subject ?? "", bodyText);
   }
 
+  // Absage merken -- unabhaengig davon, ob der Statuswechsel oben gerade
+  // stattgefunden hat. Ein Kontakt kann erst freundlich antworten (Status
+  // 'replied') und im zweiten Zug absagen; ohne diesen eigenen Zweig ginge
+  // die Absage verloren, weil der Block oben beim zweiten Mal nicht mehr
+  // greift.
+  //
+  // Bewusst NICHT in die Sperrliste: "kein Interesse" heisst "diesmal nicht",
+  // nicht "nie wieder". Der Kontaktstatus reicht -- api/instantly/campaigns
+  // schliesst 'not_interested' beim Anlegen jeder neuen Kampagne aus. Genau
+  // dieser Ausschluss lief bisher ins Leere, weil den Status niemand je
+  // automatisch gesetzt hat.
+  if (contact && direction === "inbound" && aiInterest === "not_interested") {
+    const { error } = await supabase
+      .from("contacts")
+      .update({ outreach_status: "not_interested" })
+      .eq("id", contact.id);
+    if (error) return `contact not_interested ${contact.id}: ${error.message}`;
+  }
+
+  // Abmeldebitte -- das ist die harte Variante und gilt dauerhaft ueber alle
+  // Kampagnen hinweg. Greift auch ohne CRM-Kontakt: wer sich abmeldet, hat
+  // Anspruch darauf, egal ob wir ihn zuordnen koennen.
+  if (direction === "inbound" && leadEmail) {
+    const err = await suppressOnOptOut(supabase, workspaceId, leadEmail, bodyText);
+    if (err) return err;
+  }
+
+  return null;
+}
+
+/**
+ * Traegt eine Abmeldebitte in die Sperrliste ein.
+ *
+ * Die Kampagnen-Signatur verspricht "reply 'stop' and I'll leave you alone".
+ * Eingeloest wurde das nie: die Sperrliste hatte am 2026-08-03 null Eintraege,
+ * obwohl mehrere Kampagnen liefen. Wer "stop" schrieb, bekam beim naechsten
+ * Lauf wieder Post.
+ *
+ * Die Erkennung selbst (inklusive der Falle mit der zitierten Originalmail,
+ * in deren Fuss dasselbe Wort steht) sitzt in lib/crm/opt-out.ts und ist dort
+ * mit 18 Faellen abgesichert.
+ *
+ * onConflict: eine zweite "stop"-Mail derselben Adresse ist kein Fehler,
+ * sondern der Normalfall -- der Eintrag bleibt einfach bestehen.
+ */
+async function suppressOnOptOut(
+  supabase: SupabaseClient,
+  workspaceId: string,
+  leadEmail: string,
+  bodyText: string
+): Promise<string | null> {
+  const { optOut, phrase } = detectOptOut(bodyText);
+  if (!optOut) return null;
+
+  const { error } = await supabase
+    .from("suppression_list")
+    .upsert(
+      { workspace_id: workspaceId, email: leadEmail, reason: "unsubscribed" },
+      { onConflict: "workspace_id,email", ignoreDuplicates: true }
+    );
+  if (error) return `suppression ${leadEmail}: ${error.message}`;
+
+  console.info(`Abmeldung erkannt und gesperrt: ${leadEmail} ("${phrase}")`);
   return null;
 }
 

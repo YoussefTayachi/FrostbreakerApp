@@ -61,11 +61,34 @@ def process_due_schedules() -> None:
         log.info("Abo-Suche %s erneut eingeplant (%s)", s["id"], s["schedule"])
 
 
+# Wie oft der Worker von sich hoeren laesst. Deutlich seltener als der
+# Poll-Takt (5s), weil jeder Herzschlag ein Netzaufruf ist und der Zustand
+# sich zwischen zwei Sekunden nicht sinnvoll aendert. Muss zur Schwelle in
+# worker_health() passen (2 Minuten) -- mit 30s bleibt Luft fuer ein paar
+# verschluckte Aufrufe, bevor faelschlich Alarm gemeldet wird.
+HEARTBEAT_INTERVAL_S = 30
+
+
 def main() -> None:
     log.info("Worker gestartet (%s)", queue.WORKER_ID)
     last_schedule_check = 0.0
+    last_heartbeat = 0.0
     consecutive_poll_errors = 0
     while True:
+        # Vor allem anderen, auch vor dem Job-Abholen: gerade wenn die
+        # Warteschlange klemmt, ist die Information "ich lebe noch" am
+        # wertvollsten. Stuende der Herzschlag weiter unten, wuerde ein
+        # haengender Job ihn mit verschlucken und wie ein toter Worker
+        # aussehen.
+        if time.monotonic() - last_heartbeat > HEARTBEAT_INTERVAL_S:
+            last_heartbeat = time.monotonic()
+            try:
+                queue.ping()
+            except Exception:
+                # Ein misslungenes Lebenszeichen ist ein Anzeigeproblem, kein
+                # Grund, die Arbeit einzustellen. Nur protokollieren.
+                log.warning("Lebenszeichen konnte nicht gesetzt werden", exc_info=True)
+
         if time.monotonic() - last_schedule_check > 60:
             last_schedule_check = time.monotonic()
             try:
