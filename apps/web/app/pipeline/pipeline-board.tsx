@@ -176,7 +176,14 @@ export default function PipelineBoard({
                   // Linien statt sie in Kaesten zu setzen. Das laesst die
                   // Karten die Flaeche tragen und wirkt bei sechs Spalten
                   // deutlich ruhiger als sechs gerahmte Boxen.
-                  "flex h-full w-64 shrink-0 flex-col overflow-hidden border-l transition-colors first:border-l-0 " +
+                  //
+                  // Breite und Schriftgroessen sind an Pipedrives Massstab
+                  // angeglichen (gemessen bei 1568 Pixel Fensterbreite): dort
+                  // ist die Grundschrift des Boards eine Stufe groesser als in
+                  // unserer uebrigen Oberflaeche. Die dichtere Setzung passt
+                  // im Rest der App, auf einem Board mit wenigen grossen
+                  // Elementen wirkt sie gedraengt.
+                  "flex h-full w-72 shrink-0 flex-col overflow-hidden border-l transition-colors first:border-l-0 " +
                   (isTarget ? "border-sky-500/70 bg-sky-500/5" : "border-edge2/60")
                 }
               >
@@ -197,16 +204,16 @@ export default function PipelineBoard({
                   ausgeschrieben daneben.
                 */}
                 <header className="shrink-0 px-3 pb-2 pt-3">
-                  <h2 className="truncate text-[15px] font-semibold leading-tight text-ink">
+                  <h2 className="truncate text-base font-semibold leading-tight text-ink">
                     {t.leads.statusLabels[stage] ?? stage}
                   </h2>
-                  <p className="mt-0.5 truncate text-[11px] text-faint">
+                  <p className="mt-1 truncate text-xs text-faint">
                     {P.columnCount(items.length)}
                     {openInStage > 0 && ` \u00b7 ${P.columnNeedsStep(openInStage)}`}
                   </p>
                 </header>
 
-                <div className="flex-1 space-y-1.5 overflow-y-auto px-2 pb-2">
+                <div className="flex-1 space-y-2 overflow-y-auto px-2.5 pb-3">
                   {shown.map((contact) => (
                     <article
                       key={contact.id}
@@ -233,7 +240,7 @@ export default function PipelineBoard({
                         // Pipedrives Karten sind weisse Flaechen mit weichem
                         // Schatten und fast unsichtbarem Rand -- der Rand
                         // traegt dort nichts, der Schatten hebt die Karte.
-                        "group cursor-grab rounded-md border border-edge/40 bg-panel px-3 py-2.5 shadow-sm transition-all hover:shadow-md active:cursor-grabbing " +
+                        "group cursor-grab rounded-lg border border-edge/40 bg-panel px-3.5 py-3 shadow-sm transition-all hover:shadow-md active:cursor-grabbing " +
                         (dragId === contact.id ? "opacity-40" : "")
                       }
                     >
@@ -258,10 +265,10 @@ export default function PipelineBoard({
                       */}
                       <div className="flex items-start gap-2">
                         <div className="min-w-0 flex-1">
-                          <p className="truncate text-[13px] font-semibold leading-tight text-ink">
+                          <p className="truncate text-sm font-semibold leading-snug text-ink">
                             {displayName(contact, P.cardNoName)}
                           </p>
-                          <p className="mt-0.5 truncate text-[11px] leading-tight text-faint">
+                          <p className="mt-1 truncate text-xs leading-snug text-faint">
                             {[contact.company_name, contact.title].filter(Boolean).join(" \u00b7 ") || "\u2014"}
                           </p>
                         </div>
@@ -273,7 +280,7 @@ export default function PipelineBoard({
                               : P.noNextStepTitle
                           }
                           className={
-                            "mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold text-white " +
+                            "mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white " +
                             (!contact.next_due_at
                               ? "bg-mute/50"
                               : new Date(contact.next_due_at) < new Date()
@@ -294,7 +301,7 @@ export default function PipelineBoard({
                         bei 300 Karten je Spalte ist Aufklappen keine Antwort.
                       */}
                       {(contact.last_reply_at || contact.last_touch_at) && (
-                        <p className="mt-1.5 flex items-center gap-1.5 truncate text-[10px] leading-tight">
+                        <p className="mt-2 flex items-center gap-1.5 truncate text-[11px] leading-tight">
                           <CompanyLogo
                             name={contact.company_name ?? displayName(contact, "?")}
                             website={contact.company_website}
