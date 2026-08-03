@@ -38,6 +38,11 @@ def _run_loop_until(monkeypatch, claim_side_effects, max_sleeps=10):
     monkeypatch.setattr(worker_main.queue, "claim_job", fake_claim)
     monkeypatch.setattr(worker_main.time, "sleep", fake_sleep)
     monkeypatch.setattr(worker_main, "process_due_schedules", lambda: None)
+    # Der Herzschlag geht ueber das Netz. Ohne diese Attrappe schreiben die
+    # Tests in die echte Datenbank -- passiert genau so, nachweisbar an einer
+    # Zeile mit dem Hostnamen des Entwicklungsrechners in worker_heartbeat.
+    # Im Dashboard tauchte sie danach als toter Arbeitsprozess auf.
+    monkeypatch.setattr(worker_main.queue, "ping", lambda: None)
 
     with pytest.raises(_StopLoop):
         worker_main.main()
