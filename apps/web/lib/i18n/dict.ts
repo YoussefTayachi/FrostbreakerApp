@@ -155,6 +155,30 @@ const de = {
     methodNote:
       "Jeder kostenpflichtige Aufruf schreibt beim Ausführen eine Zeile mit der tatsächlich verbrauchten Menge. Bei OpenAI sind das die von der API gemeldeten Tokens, ein Korrektur-Versuch zählt also doppelt. Bei Apollo zählt jede freigeschaltete Adresse, auch wenn der Datensatz danach verworfen wurde.",
   },
+  automations: {
+    heading: "Automatisierungen",
+    description:
+      "Fertige Regeln zum Einschalten. Sie laufen im Hintergrund und legen Aufgaben an, damit kein Vorgang ohne nächsten Schritt liegenbleibt.",
+    ruleTitles: {
+      reply_followup: "Antwort beantworten",
+      meeting_prep: "Termin vorbereiten",
+      stale_reminder: "Liegengebliebene wieder aufgreifen",
+    } as Record<string, string>,
+    ruleBodies: {
+      reply_followup:
+        "Antwortet ein Lead, entsteht eine Aufgabe für morgen. Bei Kaltakquise ist das genau das Fenster, in dem eine Antwort noch warm ist.",
+      meeting_prep:
+        "Wird ein Termin gebucht, entsteht eine Vorbereitungsaufgabe. Ein unvorbereiteter Termin ist ein verschenkter Termin.",
+      stale_reminder:
+        "Kontakte, bei denen etwas läuft, die aber seit einer Weile unberührt sind, kommen auf Wiedervorlage. Höchstens 25 pro Tag, damit die Anrufliste nicht überläuft.",
+    } as Record<string, string>,
+    staleAfter: "Nach",
+    days: (n: number) => `${n} Tagen`,
+    enabled: "Regel eingeschaltet",
+    disabled: "Regel ausgeschaltet",
+    footnote:
+      "Eine Regel legt nie eine zweite Aufgabe an, solange für den Kontakt noch eine offene existiert.",
+  },
   replyNotify: {
     heading: "Benachrichtigung bei Antworten",
     description: "E-Mail an diese Adresse, sobald ein Lead zum ersten Mal auf eine Kampagne antwortet.",
@@ -1424,6 +1448,30 @@ const en: Dictionary = {
     tariffDependent: "depends on plan",
     methodNote:
       "Every paid call writes a row with the amount actually consumed as it runs. For OpenAI those are the tokens the API itself reports, so a correction attempt counts twice. For Apollo every revealed address counts, even when the record was discarded afterwards.",
+  },
+  automations: {
+    heading: "Automations",
+    description:
+      "Ready-made rules to switch on. They run in the background and create tasks so no case is left without a next step.",
+    ruleTitles: {
+      reply_followup: "Reply to a reply",
+      meeting_prep: "Prepare for the meeting",
+      stale_reminder: "Pick up what went quiet",
+    },
+    ruleBodies: {
+      reply_followup:
+        "When a lead replies, a task appears for tomorrow. In cold outreach that is exactly the window in which a reply is still warm.",
+      meeting_prep:
+        "When a meeting is booked, a preparation task appears. An unprepared meeting is a wasted meeting.",
+      stale_reminder:
+        "Contacts with something in motion that have gone untouched for a while come back up. At most 25 per day, so the call list does not overflow.",
+    },
+    staleAfter: "After",
+    days: (n: number) => `${n} days`,
+    enabled: "Rule switched on",
+    disabled: "Rule switched off",
+    footnote:
+      "A rule never creates a second task while an open one still exists for that contact.",
   },
   replyNotify: {
     heading: "Reply notifications",

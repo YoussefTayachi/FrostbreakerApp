@@ -637,7 +637,31 @@ export async function POST(req: Request) {
       return 0;
     });
 
-    return NextResponse.json({ workspaces: results.length, results, alertsSent });
+    /**
+     * Zeitbasierte Automatisierungen (Migration 0066).
+     *
+     * Haengt hier mit dran, weil dieser Cron ohnehin jede Minute laeuft und
+     * ein zweiter Zeitplan ein zweiter Mechanismus waere, der ausfallen kann.
+     * Die Bremse sitzt in der Funktion selbst -- last_run_at sorgt dafuer,
+     * dass daraus ein Tageslauf wird und kein Minutenlauf. Diese Route muss
+     * davon nichts wissen und darf deshalb auch nichts daran einstellen.
+     *
+     * Fehler werden geschluckt: die Automatisierung ist eine Annehmlichkeit,
+     * der Mail-Sync darueber ist es nicht.
+     */
+    // try/catch statt .catch(): supabase-js gibt hier ein PromiseLike zurueck,
+    // kein vollstaendiges Promise -- eine angehaengte .catch-Kette existiert
+    // darauf gar nicht.
+    let automations: unknown = null;
+    try {
+      const { data, error } = await supabase.rpc("run_time_automations");
+      if (error) console.warn("Automatisierungen fehlgeschlagen:", error.message);
+      else automations = data;
+    } catch (e) {
+      console.warn("Automatisierungen fehlgeschlagen:", (e as Error).message);
+    }
+
+    return NextResponse.json({ workspaces: results.length, results, alertsSent, automations });
   } catch (e) {
     return NextResponse.json({ error: (e as Error).message }, { status: 500 });
   }
