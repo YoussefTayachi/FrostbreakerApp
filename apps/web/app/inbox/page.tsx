@@ -60,7 +60,7 @@ type Conversation = {
   replyTarget: Msg | null;
 };
 
-type Filter = "all" | "unread" | "interested" | "question" | "not_interested";
+type Filter = "all" | "unread" | "interested" | "question" | "out_of_office" | "not_interested";
 
 const REFRESH_INTERVAL_MS = 30_000;
 
@@ -260,6 +260,9 @@ export default function InboxPage() {
     { id: "unread", label: unreadTotal > 0 ? `${L.filterUnread} (${unreadTotal})` : L.filterUnread },
     { id: "interested", label: L.aiInterestLabels.interested },
     { id: "question", label: L.aiInterestLabels.question },
+    // Vor "kein Interesse": eine Abwesenheitsnotiz ist keine Absage, sondern
+    // ein spaeterer Versuch. Die Reihenfolge der Reiter soll das abbilden.
+    { id: "out_of_office", label: L.aiInterestLabels.out_of_office },
     { id: "not_interested", label: L.aiInterestLabels.not_interested },
   ];
 

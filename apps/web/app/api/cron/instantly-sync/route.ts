@@ -7,6 +7,7 @@ import { getApiKey } from "@/lib/api-keys";
 import { extractOutputText } from "@/lib/openai";
 import { sendEmail } from "@/lib/email";
 import { detectOptOut } from "@/lib/crm/opt-out";
+import { detectAutoReply } from "@/lib/crm/auto-reply";
 
 // Ersetzt den frueheren Python-Worker-Job "poll_instantly" (kampagnen-scoped
 // Analytics/Antworten) UND "poll_instantly_inbox" (mailbox-weiter Sync) in einer
@@ -57,7 +58,10 @@ async function classifyReply(openaiKey: string, bodyText: string): Promise<strin
             role: "system",
             content:
               "Ordne die folgende Antwort auf eine Akquise-E-Mail in genau eine Kategorie ein: " +
-              "'interested', 'not_interested' oder 'question'. Antworte nur mit dem Kategorie-Wort, sonst nichts.",
+              "'interested', 'not_interested', 'question' oder 'out_of_office'. " +
+              "'out_of_office' gilt fuer automatische Abwesenheits- oder Urlaubsantworten -- " +
+              "die Person hat dabei NICHT abgelehnt. " +
+              "Antworte nur mit dem Kategorie-Wort, sonst nichts.",
           },
           { role: "user", content: bodyText.slice(0, 2000) },
         ],
@@ -66,7 +70,7 @@ async function classifyReply(openaiKey: string, bodyText: string): Promise<strin
     });
     if (!res.ok) return null;
     const label = extractOutputText(await res.json()).trim().toLowerCase();
-    const valid = ["interested", "not_interested", "question"];
+    const valid = ["interested", "not_interested", "question", "out_of_office"];
     return valid.includes(label) ? label : "question";
   } catch {
     return null;
@@ -99,6 +103,26 @@ async function processEmail(
   // gespeichert wuerden sie Antwortquoten verfaelschen, ohne je eine Antwort zu sein.
   if (direction === "inbound" && !leadEmail) return null;
 
+  /**
+   * Schon bekannt? Dann sofort raus.
+   *
+   * Notwendig geworden durch die Ueberlappung beim Wasserstand (siehe
+   * syncInbox): der Sync sieht seither absichtlich einen Teil der Mails
+   * mehrfach. Ohne diese Pruefung wuerde jede davon erneut durch die
+   * KI-Einstufung laufen -- also ein bezahlter Modellaufruf pro Mail pro
+   * Durchlauf, fuer ein Ergebnis, das schon in der Datenbank steht.
+   *
+   * Steht bewusst VOR allem anderen und nicht als Teil des Upserts: der
+   * teure Teil ist nicht das Schreiben, sondern alles davor.
+   */
+  const { data: known } = await supabase
+    .from("messages")
+    .select("id")
+    .eq("workspace_id", workspaceId)
+    .eq("instantly_email_id", email.id)
+    .limit(1);
+  if (known?.length) return null;
+
   let contact: { id: string; outreach_status: string } | null = null;
   if (leadEmail) {
     const { data } = await supabase
@@ -111,7 +135,24 @@ async function processEmail(
   }
 
   const bodyText = email.body?.text ?? "";
-  const aiInterest = contact && openaiKey && bodyText ? await classifyReply(openaiKey, bodyText) : null;
+
+  /**
+   * Abwesenheitsnotiz zuerst am Muster pruefen, erst danach die KI fragen.
+   *
+   * Zwei Gruende, und der zweite wiegt schwerer als der erste:
+   *   1. Es spart den Modellaufruf ganz, statt sein Ergebnis zu korrigieren.
+   *   2. Es ist verlaesslicher. Die KI hatte beide vorhandenen Auto-Antworten
+   *      als "kein Interesse" eingestuft -- inhaltlich falsch und teuer, weil
+   *      dieser Status den Kontakt dauerhaft aus kuenftigen Kampagnen wirft.
+   *
+   * Die Muster stehen mit Tests in lib/crm/auto-reply.ts.
+   */
+  const auto = detectAutoReply(email.subject, bodyText);
+  const aiInterest = auto.autoReply
+    ? "out_of_office"
+    : contact && openaiKey && bodyText
+      ? await classifyReply(openaiKey, bodyText)
+      : null;
 
   const { error: upsertError } = await supabase.from("messages").upsert(
     {
@@ -510,12 +551,32 @@ async function syncInbox(
     })
   );
 
-  // since erst vorziehen, wenn dieser Tick die letzte Seite eines vollen
-  // Zyklus war -- vorher blieben alle Seiten beim selben since-Wert.
+  /**
+   * Wasserstand vorziehen -- aber MIT UEBERLAPPUNG.
+   *
+   * Der Fehler, den das behebt: bisher wurde hier now() eingetragen, sobald
+   * die letzte Seite eines Zyklus durch war. Die frueheren Seiten liefen aber
+   * Minuten vorher. Eine Mail, die nach dem Lauf ihrer Seite und vor diesem
+   * Update eintraf, wurde damit nie geholt -- beim naechsten Durchlauf galt
+   * schon der neuere Wasserstand, und ihr Zeitfenster lag davor.
+   *
+   * Nachgewiesen am 2026-08-03 bei 19 Postfaechern (38 Paare, 3 Seiten):
+   * zwei eingehende Antworten mit gueltigem lead-Feld fehlten dauerhaft in
+   * der App, obwohl Instantly sie lieferte -- hudson@plantpeople.co und
+   * adam@partnercommerce.com.
+   *
+   * Statt now() wird deshalb der Beginn des Zyklus eingetragen, grosszuegig
+   * gerechnet: eine Minute je Seite plus zwei Minuten Sicherheit. Der Sync
+   * sieht dadurch absichtlich einen Teil der Mails mehrfach. Das kostet
+   * nichts, weil processEmail bereits bekannte Mails sofort verwirft (siehe
+   * dort) -- und ein doppelt gesehener Datensatz ist unendlich viel besser
+   * als ein verlorener.
+   */
   if (page === pageCount - 1) {
+    const overlapMs = (pageCount + 2) * 60 * 1000;
     await supabase
       .from("workspaces")
-      .update({ instantly_inbox_synced_at: new Date().toISOString() })
+      .update({ instantly_inbox_synced_at: new Date(Date.now() - overlapMs).toISOString() })
       .eq("id", workspaceId);
   }
 

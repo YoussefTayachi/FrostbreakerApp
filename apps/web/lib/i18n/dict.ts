@@ -416,6 +416,7 @@ const de = {
     noSubject: "(kein Betreff)",
     aiInterestLabels: {
       interested: "Interessiert", not_interested: "Kein Interesse", question: "Rückfrage",
+      out_of_office: "Abwesend",
     } as Record<string, string>,
     directionInbound: "Empfangen",
     directionOutbound: "Gesendet",
@@ -742,6 +743,7 @@ const de = {
     directionOutbound: "Gesendet",
     aiInterestLabels: {
       interested: "Interessiert", not_interested: "Kein Interesse", question: "Rückfrage",
+      out_of_office: "Abwesend",
     } as Record<string, string>,
     openInLeads: "Im Lead-Kontext öffnen →",
     replyPlaceholder: "Deine Antwort...",
@@ -1662,6 +1664,7 @@ const en: Dictionary = {
     noSubject: "(no subject)",
     aiInterestLabels: {
       interested: "Interested", not_interested: "Not interested", question: "Question",
+      out_of_office: "Out of office",
     },
     directionInbound: "Received",
     directionOutbound: "Sent",
@@ -1973,6 +1976,7 @@ const en: Dictionary = {
     directionOutbound: "Sent",
     aiInterestLabels: {
       interested: "Interested", not_interested: "Not interested", question: "Question",
+      out_of_office: "Out of office",
     },
     openInLeads: "Open in lead context →",
     replyPlaceholder: "Your reply...",
