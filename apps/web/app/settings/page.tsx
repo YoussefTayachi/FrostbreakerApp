@@ -9,6 +9,7 @@ import { useWorkspace } from "../workspace-provider";
 import BillingSection from "./billing-section";
 import AutomationRules from "./automation-rules";
 import CustomFields from "./custom-fields";
+import ImportCsv from "./import-csv";
 import HelpLink from "../help-link";
 
 // Instantly (Mailboxen, Kampagnen, API-Key) lebt seit dem eigenen /instantly-
@@ -322,6 +323,12 @@ export default function SettingsPage() {
         </span>
         <span className="text-sm text-faint">→</span>
       </Link>
+
+      <div className="rounded-lg border border-edge/60 bg-panel p-6">
+        <h2 className="font-medium text-ink">{t.importCsv.heading}</h2>
+        <p className="mb-4 mt-1 text-sm text-faint">{t.importCsv.description}</p>
+        <ImportCsv />
+      </div>
 
       <div className="rounded-lg border border-edge/60 bg-panel p-6">
         <h2 className="font-medium text-ink">{t.customFields.heading}</h2>

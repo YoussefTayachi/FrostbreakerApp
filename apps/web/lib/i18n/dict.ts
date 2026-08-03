@@ -155,6 +155,38 @@ const de = {
     methodNote:
       "Jeder kostenpflichtige Aufruf schreibt beim Ausführen eine Zeile mit der tatsächlich verbrauchten Menge. Bei OpenAI sind das die von der API gemeldeten Tokens, ein Korrektur-Versuch zählt also doppelt. Bei Apollo zählt jede freigeschaltete Adresse, auch wenn der Datensatz danach verworfen wurde.",
   },
+  importCsv: {
+    heading: "Daten importieren",
+    description:
+      "Kontakte aus einer CSV-Datei übernehmen, etwa einem Pipedrive-Export. Spaltenzuordnung und Vorschau vorweg — ein Import lässt sich nicht rückgängig machen.",
+    pickFile: "CSV-Datei wählen",
+    pickHint: "Trennzeichen und Spalten werden erkannt",
+    tooShort: "Die Datei enthält keine Datenzeilen.",
+    foundRows: (n: number) => `${n} Datenzeilen gefunden`,
+    otherFile: "Andere Datei",
+    noHeader: "(ohne Überschrift)",
+    targetLabels: {
+      ignore: "— nicht übernehmen —",
+      first_name: "Vorname",
+      last_name: "Nachname",
+      full_name: "Name",
+      email: "E-Mail",
+      phone: "Telefon",
+      title: "Position",
+      linkedin: "LinkedIn",
+      company_name: "Firma",
+      company_website: "Website",
+    } as Record<string, string>,
+    check: "Vorschau",
+    run: "Übernehmen",
+    planUsable: (n: number) => `${n} Kontakte werden angelegt`,
+    planDuplicates: (n: number) => `${n} sind schon im Bestand und werden übersprungen`,
+    planInFile: (n: number) => `${n} kommen in der Datei doppelt vor`,
+    planNoCompany: (n: number) => `${n} haben keine Firma und können nicht angelegt werden`,
+    doneTitle: (contacts: number, companies: number) =>
+      `${contacts} Kontakte und ${companies} Firmen angelegt.`,
+    again: "Weitere Datei importieren",
+  },
   customFields: {
     heading: "Eigene Felder",
     description:
@@ -1477,6 +1509,38 @@ const en: Dictionary = {
     tariffDependent: "depends on plan",
     methodNote:
       "Every paid call writes a row with the amount actually consumed as it runs. For OpenAI those are the tokens the API itself reports, so a correction attempt counts twice. For Apollo every revealed address counts, even when the record was discarded afterwards.",
+  },
+  importCsv: {
+    heading: "Import data",
+    description:
+      "Bring contacts in from a CSV file, for example a Pipedrive export. Column mapping and a preview first — an import cannot be undone.",
+    pickFile: "Choose a CSV file",
+    pickHint: "Delimiter and columns are detected",
+    tooShort: "The file contains no data rows.",
+    foundRows: (n: number) => `${n} data rows found`,
+    otherFile: "Different file",
+    noHeader: "(no header)",
+    targetLabels: {
+      ignore: "— do not import —",
+      first_name: "First name",
+      last_name: "Last name",
+      full_name: "Name",
+      email: "Email",
+      phone: "Phone",
+      title: "Job title",
+      linkedin: "LinkedIn",
+      company_name: "Company",
+      company_website: "Website",
+    },
+    check: "Preview",
+    run: "Import",
+    planUsable: (n: number) => `${n} contacts will be created`,
+    planDuplicates: (n: number) => `${n} already exist and will be skipped`,
+    planInFile: (n: number) => `${n} appear twice in the file`,
+    planNoCompany: (n: number) => `${n} have no company and cannot be created`,
+    doneTitle: (contacts: number, companies: number) =>
+      `Created ${contacts} contacts and ${companies} companies.`,
+    again: "Import another file",
   },
   customFields: {
     heading: "Custom fields",
