@@ -32,6 +32,130 @@ für dieses Zielpublikum.
 
 ---
 
+## Finale Version: US-Agenturen, Custom-Dev-Angebot
+
+Fuer die Instantly-Kampagne aus den Suchen "Marketing_App Entwicklung"
+(Raleigh, Chicago, Denver, Nashville) + "Custom-Dev Outreach - Austin".
+
+**Merge-Tags:** `{{firstName}}`, `{{companyName}}`, `{{personalization}}`.
+Exakt die Feldnamen, die die App beim Anlegen der Leads mitschickt.
+
+**Stilregeln fuer diese Copy (Nutzer-Vorgabe):**
+- Nie den Gedankenstrich "—" verwenden, Punkt oder Komma statt Halbsatz-Pause.
+- Der eigene Ablauf klingt einfach und fast beilaeufig, nicht wie eine
+  technische Spezifikation. Also "finds the decision maker, gets their
+  email, checks it's real, then sends the message" statt "Google Maps
+  Suche, KI-Recherche, Hunter-Abfrage, NeverBounce-Verifizierung". Die
+  Technik ist der Beweis auf der Case-Study-Seite, nicht der Verkaufstext
+  in der Mail.
+
+**Was aus dem ersten Entwurf korrigiert wurde:**
+1. Kaputter Merge-Tag repariert. `{{personalization - e.g., ...}}` ist kein
+   gueltiges Instantly-Feld, der tatsaechliche Feldname ist exakt
+   `personalization` (siehe `lib/instantly/campaigns.ts`).
+2. Ungedeckte Versprechen gestrichen ("no data leaks" etc.), das sind
+   Zusagen ueber ein System, das fuer den Empfaenger noch nicht gescoped
+   ist, und widersprechen der eigenen `/eigene-software`-Positionierung
+   ("erst Klarheit, dann Angebot").
+3. Der Talking-Point "diese Mail hat die App geschrieben" ist so nicht
+   korrekt. Nur `{{personalization}}` kommt tatsaechlich aus Frostbreakers
+   KI pro Lead, das darf man wahrheitsgemaess sagen. Der Rest der Mail ist
+   von Hand geschrieben und sollte auch so bleiben.
+
+**Wichtig:** `{{personalization}}` steht bewusst als eigener Absatz. 11 der
+51 Leads haben keine Personalisierung, bei denen faellt dann nur ein Absatz
+weg statt dass mitten im Satz eine Luecke klafft.
+
+**Vor dem Versand ausfuellen:** die physische Adresse im Footer, CAN-SPAM-
+Pflicht, ein Postfach reicht.
+
+---
+
+### Schritt 1, Tag 0
+
+```
+Subject: Renting vs. owning your outreach stack
+
+Hi {{firstName}},
+
+{{personalization}}
+
+Most agencies I talk to are stuck paying a "SaaS tax": a lead scraper,
+an email verifier, a sender, and a CRM, held together with Zapier,
+billed per seat, growing with every client you land.
+
+I got tired of renting that stack, so I built my own (frostbreaker.app).
+Point it at a niche and a city, and it finds the businesses, the
+decision maker, their email, checks it's real, then writes and sends
+a personal message on its own. Built in three weeks, already run 800+
+companies through it.
+
+I now build the same, custom, for agencies, white-labeled too if you'd
+rather pitch it as your own tech than a reseller's tool.
+
+Worth a 10-minute call to see what it'd save {{companyName}}?
+
+Best,
+Youssef
+
+---
+Youssef Tayachi · [DEINE POSTADRESSE]
+Don't want these? Reply "stop" and I'll remove you.
+```
+
+### Schritt 2, Tag 3
+
+```
+Subject: (im selben Thread lassen)
+
+Hi {{firstName}},
+
+One number in case it helps. Building it took three weeks, and it has
+since run 800+ companies through it. The whole story is written up
+here, including what it cost and what didn't work:
+
+frostbreaker.app/case-study
+
+If tooling isn't a priority right now, just say so and I'll stop.
+
+Best,
+Youssef
+
+---
+Youssef Tayachi · [DEINE POSTADRESSE]
+Don't want these? Reply "stop" and I'll remove you.
+```
+
+### Schritt 3, Tag 7, Abschluss
+
+```
+Subject: (im selben Thread lassen)
+
+Hi {{firstName}},
+
+Last one from me.
+
+If owning your outreach stack ever moves up the list, the offer stands:
+frostbreaker.app/eigene-software
+
+Either way, good luck.
+
+Best,
+Youssef
+
+---
+Youssef Tayachi · [DEINE POSTADRESSE]
+Don't want these? Reply "stop" and I'll remove you.
+```
+
+**Ehrlicher Gespraechseinstieg fuers Erstgespraech:** *"Die Zeile oben in
+der Mail, {{personalization}}, hat tatsaechlich eine KI aus meiner App pro
+Firma einzeln generiert. Den Rest der Mail hab ich selbst geschrieben."*
+Ehrlich, ueberpruefbar, passt zur selben Beweis-statt-Behauptung-Linie wie
+die Case Study.
+
+---
+
 ## Vorlage A (English): Agencies — your strongest, provable offer
 
 **Target:** Marketing / growth / recruiting agencies in the US that run

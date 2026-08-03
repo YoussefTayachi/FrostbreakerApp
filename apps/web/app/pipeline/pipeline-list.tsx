@@ -11,7 +11,13 @@ import { useT } from "../language-provider";
 import { useToast } from "../toast-provider";
 import { useWorkspace } from "../workspace-provider";
 import ContactChannels from "./contact-channels";
-import { displayName, type PipelineRow } from "./types";
+import {
+  daysInStage,
+  displayName,
+  hasNoNextStep,
+  isStale,
+  type PipelineRow,
+} from "@/lib/crm/pipeline";
 
 /**
  * Die Pipeline als Arbeitsliste, nach Lead-Liste gruppiert -- dasselbe Muster
@@ -53,6 +59,15 @@ export default function PipelineList({
   const [listFilter, setListFilter] = useState<string>("");
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const [busyId, setBusyId] = useState<string | null>(null);
+  /**
+   * Pipedrives zentraler Reflex als Filter.
+   *
+   * "needsStep" ist die Frage, die ein Pipedrive-Nutzer als erstes stellt:
+   * wo habe ich nichts geplant? Gemessen am 2026-08-03 traf das auf 569 von
+   * 570 Kontakten zu -- ohne diesen Filter ist die Antwort unbrauchbar, mit
+   * ihm ist sie die Arbeitsliste des Tages.
+   */
+  const [focus, setFocus] = useState<"" | "needsStep" | "stale">("");
 
   const lists = useMemo(() => {
     const seen = new Map<string, string>();
@@ -70,12 +85,19 @@ export default function PipelineList({
       .filter((r) => {
         if (stageFilter && r.outreach_status !== stageFilter) return false;
         if (listFilter && (r.list_id ?? "") !== listFilter) return false;
+        if (focus === "needsStep" && !hasNoNextStep(r)) return false;
+        if (focus === "stale" && !isStale(r)) return false;
         if (!needle) return true;
         return [r.full_name, r.first_name, r.last_name, r.title, r.email, r.phone, r.company_name]
           .filter(Boolean)
           .some((v) => v!.toLowerCase().includes(needle));
       });
-  }, [rows, overrides, query, stageFilter, listFilter]);
+  }, [rows, overrides, query, stageFilter, listFilter, focus]);
+
+  // Zaehler an den Reitern: eine Schaltflaeche, die auf 0 fuehrt, ist eine
+  // Sackgasse -- die Zahl davor beantwortet, ob sich der Klick lohnt.
+  const needsStepCount = useMemo(() => rows.filter(hasNoNextStep).length, [rows]);
+  const staleCount = useMemo(() => rows.filter((r) => isStale(r)).length, [rows]);
 
   /** Gruppiert, Reihenfolge nach Groesse -- wo am meisten liegt, steht oben. */
   const groups = useMemo(() => {
@@ -138,8 +160,40 @@ export default function PipelineList({
     push(P.callbackPlanned(formatDay(dueAt, lang)), "success");
   }
 
+  const focusTabs: { key: typeof focus; label: string; count?: number; tone?: string }[] = [
+    { key: "", label: P.focusAll },
+    { key: "needsStep", label: P.focusNeedsStep, count: needsStepCount, tone: "text-amber-700 dark:text-amber-400" },
+    { key: "stale", label: P.focusStale, count: staleCount, tone: "text-red-600 dark:text-red-400" },
+  ];
+
   return (
     <div className="space-y-4">
+      {/* Die zwei Fragen, die Pipedrive einem antrainiert -- wo fehlt der
+          naechste Schritt, und was liegt zu lange. Als Reiter statt als
+          Dropdown, weil sie der Einstieg in den Arbeitstag sind und nicht
+          eine Einstellung unter anderen. */}
+      <div className="flex flex-wrap items-center gap-1.5">
+        {focusTabs.map((tab) => (
+          <button
+            key={tab.key}
+            onClick={() => setFocus(tab.key)}
+            className={
+              "flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition-colors " +
+              (focus === tab.key
+                ? "border-sky-500/60 bg-sky-500/10 text-sky-600 dark:text-sky-300"
+                : "border-edge2 bg-chip text-soft hover:border-edge3 hover:text-ink")
+            }
+          >
+            {tab.label}
+            {tab.count !== undefined && tab.count > 0 && (
+              <span className={"tabular-nums " + (focus === tab.key ? "" : (tab.tone ?? ""))}>
+                {tab.count}
+              </span>
+            )}
+          </button>
+        ))}
+      </div>
+
       <div className="flex flex-wrap items-center gap-3">
         <div className="relative min-w-52 flex-1">
           <IconSearch className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-mute" />
@@ -239,13 +293,26 @@ function Row({
   const [callbackOpen, setCallbackOpen] = useState(false);
 
   const overdue = row.next_due_at ? new Date(row.next_due_at) < new Date() : false;
+  const stale = isStale(row);
+  const days = daysInStage(row);
 
   return (
     <div className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-2.5 transition-colors hover:bg-chip/40">
       <button onClick={onOpen} className="flex min-w-0 flex-1 items-center gap-2.5 text-left">
         <CompanyLogo name={row.company_name ?? displayName(row, "?")} website={row.company_website} size={26} />
         <div className="min-w-0">
-          <p className="truncate text-sm text-ink">{displayName(row, P.cardNoName)}</p>
+          <p className="flex items-center gap-1.5 truncate text-sm text-ink">
+            {displayName(row, P.cardNoName)}
+            {/* Pipedrives "rotting deal": liegt zu lange auf derselben Stufe.
+                Nur der Punkt, kein Text -- die Zeile ist schon voll, und die
+                Erklaerung steht im Tooltip. */}
+            {stale && (
+              <span
+                title={P.staleTitle(days ?? 0)}
+                className="h-1.5 w-1.5 shrink-0 rounded-full bg-red-500"
+              />
+            )}
+          </p>
           <p className="truncate text-[11px] text-faint">
             {[row.company_name, row.title].filter(Boolean).join(" · ")}
           </p>

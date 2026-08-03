@@ -11,7 +11,7 @@ import { useWorkspace } from "../workspace-provider";
 import PipelineBoard from "./pipeline-board";
 import PipelineList from "./pipeline-list";
 import ContactChannels from "./contact-channels";
-import { displayName, type PipelineRow } from "./types";
+import { displayName, type PipelineRow } from "@/lib/crm/pipeline";
 
 /**
  * Klammer um beide Pipeline-Ansichten.

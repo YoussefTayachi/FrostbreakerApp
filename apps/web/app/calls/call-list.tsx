@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import {
+  ACTIVITY_TYPES,
+  ACTIVITY_TYPE_TONE,
   OUTCOME_TO_STAGE,
   outcomesFor,
   supportsOutcome,
@@ -72,6 +74,27 @@ function endOfToday(): number {
 function startOfToday(): number {
   const d = new Date();
   d.setHours(0, 0, 0, 0);
+  return d.getTime();
+}
+
+/** Ende des morgigen Tages bzw. der laufenden Woche -- fuer die feinere
+ *  Aufteilung nach Pipedrives Vorbild (Heute / Morgen / Diese Woche / Spaeter).
+ *  Vorher fiel alles ab uebermorgen in einen einzigen Topf "Spaeter", was bei
+ *  geplanten Rueckrufen die haeufigste Frage unbeantwortet liess: was kommt
+ *  diese Woche noch? */
+function endOfTomorrow(): number {
+  const d = new Date();
+  d.setDate(d.getDate() + 1);
+  d.setHours(23, 59, 59, 999);
+  return d.getTime();
+}
+
+function endOfThisWeek(): number {
+  const d = new Date();
+  // Montag als Wochenstart: getDay() liefert 0 fuer Sonntag, deshalb die 7.
+  const daysToSunday = (7 - d.getDay()) % 7;
+  d.setDate(d.getDate() + daysToSunday);
+  d.setHours(23, 59, 59, 999);
   return d.getTime();
 }
 
@@ -309,19 +332,37 @@ export default function CallList({ tasks }: { tasks: CallTask[] }) {
   // Lokal abgehakte/verworfene Aufgaben sofort ausblenden, statt auf den Reload
   // zu warten -- sonst steht ein erledigter Anruf noch sichtbar in der Liste.
   const [removed, setRemoved] = useState<Set<string>>(new Set());
+  /** Pipedrive stellt seinen Aktivitaeten eine Typleiste voran (Anruf, Meeting,
+   *  Aufgabe, Frist, E-Mail). Gleiche Idee, mit unseren vier Typen. */
+  const [typeFilter, setTypeFilter] = useState<ActivityType | "">("");
 
   const groups = useMemo(() => {
     const dayStart = startOfToday();
     const dayEnd = endOfToday();
-    const open = tasks.filter((task) => !removed.has(task.id));
+    const tomorrowEnd = endOfTomorrow();
+    const weekEnd = endOfThisWeek();
+    const open = tasks.filter(
+      (task) => !removed.has(task.id) && (typeFilter === "" || task.type === typeFilter)
+    );
+    const at = (task: CallTask) => new Date(task.due_at).getTime();
     return {
-      overdue: open.filter((task) => new Date(task.due_at).getTime() < dayStart),
-      today: open.filter((task) => {
-        const at = new Date(task.due_at).getTime();
-        return at >= dayStart && at <= dayEnd;
-      }),
-      later: open.filter((task) => new Date(task.due_at).getTime() > dayEnd),
+      overdue: open.filter((task) => at(task) < dayStart),
+      today: open.filter((task) => at(task) >= dayStart && at(task) <= dayEnd),
+      tomorrow: open.filter((task) => at(task) > dayEnd && at(task) <= tomorrowEnd),
+      thisWeek: open.filter((task) => at(task) > tomorrowEnd && at(task) <= weekEnd),
+      later: open.filter((task) => at(task) > weekEnd),
     };
+  }, [tasks, removed, typeFilter]);
+
+  /** Wie viele Aufgaben es je Typ ueberhaupt gibt -- ein Filter, der auf eine
+   *  leere Liste fuehrt, ist eine Sackgasse. */
+  const typeCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const task of tasks) {
+      if (removed.has(task.id)) continue;
+      counts[task.type] = (counts[task.type] ?? 0) + 1;
+    }
+    return counts;
   }, [tasks, removed]);
 
   const complete = useCallback(
@@ -444,18 +485,64 @@ export default function CallList({ tasks }: { tasks: CallTask[] }) {
     ));
   }
 
-  const total = groups.overdue.length + groups.today.length + groups.later.length;
+  const total =
+    groups.overdue.length +
+    groups.today.length +
+    groups.tomorrow.length +
+    groups.thisWeek.length +
+    groups.later.length;
+
+  // Die Typleiste bleibt auch bei leerem Ergebnis stehen: sonst haette man
+  // nach einem Filter, der nichts trifft, keine Moeglichkeit mehr, ihn wieder
+  // zu loesen.
+  const typeBar = (
+    <div className="flex flex-wrap items-center gap-1.5">
+      <button
+        onClick={() => setTypeFilter("")}
+        className={
+          "rounded-full border px-3 py-1 text-xs font-medium transition-colors " +
+          (typeFilter === ""
+            ? "border-sky-500/60 bg-sky-500/10 text-sky-600 dark:text-sky-300"
+            : "border-edge2 bg-chip text-soft hover:border-edge3 hover:text-ink")
+        }
+      >
+        {C.typeAll}
+      </button>
+      {ACTIVITY_TYPES.map((type) => (
+        <button
+          key={type}
+          onClick={() => setTypeFilter(type)}
+          disabled={!typeCounts[type]}
+          className={
+            "flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition-colors disabled:opacity-40 " +
+            (typeFilter === type
+              ? "border-sky-500/60 bg-sky-500/10 text-sky-600 dark:text-sky-300"
+              : "border-edge2 bg-chip text-soft hover:border-edge3 hover:text-ink")
+          }
+        >
+          <span className={"h-1.5 w-1.5 rounded-full bg-current " + ACTIVITY_TYPE_TONE[type]} />
+          {t.crm.activityTypeLabels[type] ?? type}
+          {typeCounts[type] > 0 && <span className="tabular-nums text-mute">{typeCounts[type]}</span>}
+        </button>
+      ))}
+    </div>
+  );
+
   if (total === 0) {
     return (
-      <div className="rounded-lg border border-edge/60 bg-panel p-10 text-center">
-        <p className="text-faint">{C.emptyState}</p>
-        <p className="mt-1 text-xs text-mute">{C.emptyHint}</p>
+      <div className="space-y-4">
+        {typeBar}
+        <div className="rounded-lg border border-edge/60 bg-panel p-10 text-center">
+          <p className="text-faint">{typeFilter ? C.noneOfType : C.emptyState}</p>
+          <p className="mt-1 text-xs text-mute">{C.emptyHint}</p>
+        </div>
       </div>
     );
   }
 
   return (
     <div className="space-y-4">
+      {typeBar}
       <CallSection
         label={C.sectionOverdue}
         count={groups.overdue.length}
@@ -465,6 +552,12 @@ export default function CallList({ tasks }: { tasks: CallTask[] }) {
       </CallSection>
       <CallSection label={C.sectionToday} count={groups.today.length}>
         {renderRows(groups.today, false)}
+      </CallSection>
+      <CallSection label={C.sectionTomorrow} count={groups.tomorrow.length}>
+        {renderRows(groups.tomorrow, false)}
+      </CallSection>
+      <CallSection label={C.sectionThisWeek} count={groups.thisWeek.length}>
+        {renderRows(groups.thisWeek, false)}
       </CallSection>
       <CallSection label={C.sectionLater} count={groups.later.length}>
         {renderRows(groups.later, false)}

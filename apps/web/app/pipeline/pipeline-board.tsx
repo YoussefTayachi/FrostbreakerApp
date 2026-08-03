@@ -5,7 +5,7 @@ import { formatRelative } from "@/lib/format-time";
 import CompanyLogo from "../company-logo";
 import { IconSearch } from "../icons";
 import { useT } from "../language-provider";
-import { displayName, type PipelineRow } from "./types";
+import { displayName, type PipelineRow } from "@/lib/crm/pipeline";
 
 /**
  * Wie viele Karten pro Spalte gerendert werden. Der Nutzer entscheidet das

@@ -6,6 +6,7 @@ import {
   defaultProbability,
   formatMoney,
   weightedValue,
+  DEAL_LOST_REASONS,
   type Deal,
   type DealStage,
 } from "@/lib/crm/deals";
@@ -68,6 +69,18 @@ export default function DealsPanel({
   const C = t.crm;
 
   const [deals, setDeals] = useState<Deal[]>([]);
+  /**
+   * Welcher Deal wartet gerade auf einen Verlustgrund?
+   *
+   * Vorher fragte ein window.prompt danach. Zwei Probleme: es sieht aus wie
+   * ein Browserfehler statt wie Teil der App, und Freitext laesst sich nicht
+   * auswerten -- "zu teuer", "Preis", "price too high" sind drei Zeilen in
+   * jeder Statistik. Pipedrive laesst die Gruende deshalb vorgeben. Genau
+   * diese Auswertung ("woran verlieren wir eigentlich") ist der einzige
+   * Bericht, den Vertriebler wirklich lesen.
+   */
+  const [losing, setLosing] = useState<string | null>(null);
+
   const [draft, setDraft] = useState<DraftDeal | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -121,9 +134,7 @@ export default function DealsPanel({
   }
 
   /** status und closed_at haengen zusammen (CHECK-Constraint deals_closed_at_check). */
-  async function setStatus(deal: Deal, status: Deal["status"]) {
-    const lostReason =
-      status === "lost" ? (window.prompt(C.dealLostReasonPrompt) ?? "").trim() || null : null;
+  async function setStatus(deal: Deal, status: Deal["status"], lostReason: string | null = null) {
     const { error } = await createClient()
       .from("deals")
       .update({
@@ -201,6 +212,27 @@ export default function DealsPanel({
                   {deal.expected_close_date && " · " + formatDay(deal.expected_close_date, lang)}
                 </p>
                 {deal.lost_reason && <p className="mt-0.5 text-[11px] text-red-500">{deal.lost_reason}</p>}
+                {losing === deal.id && (
+                  <div className="mt-2 rounded-lg border border-red-500/30 bg-red-500/5 p-2.5">
+                    <p className="mb-1.5 text-[11px] font-medium text-red-600 dark:text-red-400">
+                      {C.dealLostReasonPrompt}
+                    </p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {DEAL_LOST_REASONS.map((reason) => (
+                        <button
+                          key={reason}
+                          onClick={() => {
+                            setLosing(null);
+                            setStatus(deal, "lost", C.dealLostReasons[reason] ?? reason);
+                          }}
+                          className="rounded-full border border-edge2 bg-panel px-2.5 py-0.5 text-[11px] text-soft transition-colors hover:border-red-500/50 hover:text-red-600 dark:hover:text-red-400"
+                        >
+                          {C.dealLostReasons[reason] ?? reason}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
               <span className="shrink-0 text-sm font-semibold text-ink">
                 {formatMoney(Number(deal.value) || 0, deal.currency, lang)}
@@ -225,15 +257,19 @@ export default function DealsPanel({
               </button>
               {deal.status === "open" ? (
                 <>
+                  {/* Farbig gefuellt statt als Textlink: bei Pipedrive sind
+                      Gewonnen und Verloren die beiden auffaelligsten Elemente
+                      der Deal-Ansicht. Sie sind der Abschluss des Vorgangs --
+                      wer sie sucht, soll sie nicht suchen muessen. */}
                   <button
                     onClick={() => setStatus(deal, "won")}
-                    className="text-emerald-600 transition-colors hover:text-emerald-500 dark:text-emerald-400"
+                    className="rounded-md bg-emerald-600 px-2 py-0.5 text-[11px] font-medium text-white transition-all hover:brightness-110 active:scale-[0.98]"
                   >
                     {C.dealWin}
                   </button>
                   <button
-                    onClick={() => setStatus(deal, "lost")}
-                    className="text-red-600 transition-colors hover:text-red-500 dark:text-red-400"
+                    onClick={() => setLosing(losing === deal.id ? null : deal.id)}
+                    className="rounded-md border border-red-500/50 px-2 py-0.5 text-[11px] font-medium text-red-600 transition-colors hover:bg-red-500/10 dark:text-red-400"
                   >
                     {C.dealLose}
                   </button>

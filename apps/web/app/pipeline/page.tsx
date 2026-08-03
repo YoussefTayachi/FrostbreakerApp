@@ -3,7 +3,7 @@ import { getCurrentWorkspace } from "@/lib/workspace/server";
 import { getLangServer } from "@/lib/i18n/lang";
 import { dict } from "@/lib/i18n/dict";
 import PipelineView from "./pipeline-view";
-import type { PipelineRow } from "./types";
+import type { PipelineRow } from "@/lib/crm/pipeline";
 
 /**
  * Pipeline ueber contacts.outreach_status -- bewusst ohne eigene Tabelle: die

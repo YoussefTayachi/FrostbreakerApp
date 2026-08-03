@@ -1,7 +1,7 @@
 "use client";
 import { IconMail, IconPhone, IconLinkedIn } from "../icons";
 import { useT } from "../language-provider";
-import type { PipelineRow } from "./types";
+import type { PipelineRow } from "@/lib/crm/pipeline";
 
 /**
  * Die Kontaktwege einer Zeile als direkte Aktionen.
@@ -64,8 +64,14 @@ export default function ContactChannels({
             e.stopPropagation();
             onLogged?.("phone");
           }}
-          title={row.phone}
-          className={active}
+          // Zentrale oder Durchwahl steht dran: wer eine Zentrale anruft,
+          // meldet sich anders. Bei Leads aus Google Maps ist die Zentrale
+          // sogar der Normalfall -- Places liefert die Betriebsnummer, keine
+          // Durchwahl.
+          title={row.phone_is_company ? P.phoneCompany(row.phone) : P.phoneDirect(row.phone)}
+          className={
+            active + (row.phone_is_company ? " border-dashed" : "")
+          }
         >
           <IconPhone className="h-3.5 w-3.5" />
         </a>

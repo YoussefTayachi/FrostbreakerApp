@@ -28,6 +28,21 @@ export const ACTIVITY_CHANNELS = [
 ] as const;
 export type ActivityChannel = (typeof ACTIVITY_CHANNELS)[number];
 
+/**
+ * Farbe je Aktivitaetstyp, wie STAGE_DOT_CLS in stages.ts. Sprachunabhaengig,
+ * deshalb hier und nicht in dict.ts.
+ *
+ * Pipedrive faerbt seine Aktivitaetstypen und stellt ihnen ein Symbol voran --
+ * das macht eine Liste mit dreissig Eintraegen auf einen Blick lesbar, statt
+ * dass man jede Zeile lesen muss, um "Anruf" von "Aufgabe" zu unterscheiden.
+ */
+export const ACTIVITY_TYPE_TONE: Record<ActivityType, string> = {
+  call: "text-emerald-600 dark:text-emerald-400",
+  message: "text-sky-600 dark:text-sky-400",
+  meeting: "text-violet-600 dark:text-violet-400",
+  task: "text-amber-600 dark:text-amber-400",
+};
+
 export const ACTIVITY_OUTCOMES = [
   "reached",
   "voicemail",

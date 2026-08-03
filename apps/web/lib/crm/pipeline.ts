@@ -17,7 +17,11 @@ export type PipelineRow = {
   title: string | null;
   /** Die drei Kontaktwege. Liegen laengst in contacts, wurden in der Pipeline nur nie gezeigt. */
   email: string | null;
+  /** Durchwahl des Kontakts, sonst die Firmennummer (Migration 0063). */
   phone: string | null;
+  /** true = es ist die Zentrale, nicht die Durchwahl. Wer eine Zentrale anruft,
+   *  meldet sich anders -- deshalb steht das an der Nummer dran. */
+  phone_is_company: boolean;
   linkedin: string | null;
   outreach_status: string;
   business_id: string;
@@ -40,7 +44,44 @@ export type PipelineRow = {
   next_due_subject: string | null;
   next_due_channel: string | null;
   next_due_type: string | null;
+  /** Seit wann steht der Kontakt auf dieser Stufe (Migration 0063). Grundlage
+   *  fuer die Stagnations-Anzeige -- Pipedrives "rotting deals". */
+  stage_since: string | null;
 };
+
+/**
+ * Ab wann gilt ein Kontakt als liegengeblieben?
+ *
+ * Pipedrive laesst die Schwelle je Phase einstellen. Das waere hier
+ * verfrueht -- erst muss sich zeigen, ob die Anzeige ueberhaupt genutzt wird.
+ * 14 Tage sind bei Kaltakquise eine vertretbare Vorgabe: kuerzer waere bei
+ * einer Sequenz mit mehreren Schritten reines Rauschen, laenger merkt man den
+ * Stillstand erst, wenn der Lead ohnehin kalt ist.
+ *
+ * Gilt bewusst NICHT fuer Endzustaende: ein Kunde oder eine Absage darf
+ * beliebig lange so stehen, das ist kein Stillstand, sondern das Ergebnis.
+ */
+export const STALE_AFTER_DAYS = 14;
+
+const FINAL_STAGES = new Set(["customer", "not_interested"]);
+
+export function daysInStage(row: PipelineRow, now = new Date()): number | null {
+  if (!row.stage_since) return null;
+  const ms = now.getTime() - new Date(row.stage_since).getTime();
+  return Math.floor(ms / 86_400_000);
+}
+
+export function isStale(row: PipelineRow, now = new Date()): boolean {
+  if (FINAL_STAGES.has(row.outreach_status)) return false;
+  const days = daysInStage(row, now);
+  return days !== null && days >= STALE_AFTER_DAYS;
+}
+
+/** Kein geplanter naechster Schritt -- Pipedrives zentraler Reflex. */
+export function hasNoNextStep(row: PipelineRow): boolean {
+  if (FINAL_STAGES.has(row.outreach_status)) return false;
+  return !row.next_due_at;
+}
 
 /** Anzeigename mit Rueckfall, damit nie eine leere Zeile entsteht. */
 export function displayName(row: PipelineRow, fallback: string): string {

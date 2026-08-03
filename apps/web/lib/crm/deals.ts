@@ -70,3 +70,26 @@ export function formatMoney(value: number, currency: string, lang: Lang): string
     return `${Math.round(value)} ${currency}`;
   }
 }
+
+/**
+ * Vorgegebene Verlustgruende.
+ *
+ * Vorher fragte ein window.prompt nach Freitext. Das laesst sich nicht
+ * auswerten: "zu teuer", "Preis", "price too high" sind drei verschiedene
+ * Zeilen in jeder Statistik, obwohl sie dasselbe meinen. Pipedrive gibt die
+ * Gruende deshalb vor -- und genau diese Auswertung ("woran verlieren wir
+ * eigentlich") ist der einzige Bericht, den Vertriebler wirklich lesen.
+ *
+ * Bewusst kurz gehalten. Eine lange Liste wird nicht gelesen, sondern es wird
+ * der erste Eintrag geklickt.
+ */
+export const DEAL_LOST_REASONS = [
+  "price",
+  "timing",
+  "competitor",
+  "no_budget",
+  "no_need",
+  "no_response",
+] as const;
+
+export type DealLostReason = (typeof DEAL_LOST_REASONS)[number];
