@@ -2,63 +2,39 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
-import {
-  getDefaultLinkedInTemplate,
-  renderLinkedInMessage,
-  unknownPlaceholders,
-} from "@/lib/crm/linkedin-message";
+import { renderLinkedInMessage } from "@/lib/crm/linkedin-message";
 import { useT } from "../language-provider";
 import { useToast } from "../toast-provider";
 import { useWorkspace } from "../workspace-provider";
-
-export type LinkedInLead = {
-  id: string;
-  first_name: string | null;
-  last_name: string | null;
-  full_name: string | null;
-  title: string | null;
-  email: string | null;
-  linkedin: string;
-  outreach_status: string;
-  business_id: string | null;
-  businesses: {
-    name: string | null;
-    website: string | null;
-    personalization: string | null;
-    company_summary: string | null;
-  } | null;
-  alreadyContacted: boolean;
-};
+import LinkedInTemplate from "./linkedin-template";
+import SourceBadge from "./source-badge";
+import type { LeadListSummary, LinkedInLead } from "./types";
 
 /**
- * Arbeitsliste: eine Zeile pro Kontakt, daneben die fertige Nachricht.
+ * Zweite Stufe: die Profile genau einer Lead-Liste.
  *
- * Der Ablauf ist bewusst dreischrittig und bricht nicht aus der App aus:
- * kopieren -> Profil im neuen Tab oeffnen -> zurueckkommen und abhaken. Die
- * Alternative waere ein "senden"-Knopf gewesen, den es aus gutem Grund nicht
- * gibt (siehe Dateikopf von page.tsx und lib/crm/linkedin-message.ts).
+ * Der Ablauf bricht bewusst nicht aus der App aus: kopieren -> Profil im
+ * neuen Tab oeffnen -> zurueckkommen und abhaken. Ein "senden"-Knopf existiert
+ * aus gutem Grund nicht (siehe Dateikopf von page.tsx).
  */
 export default function LinkedInList({
+  list,
   leads,
   template: initialTemplate,
   isCustomTemplate,
-  totalCount,
-  listLimit,
 }: {
+  list: LeadListSummary;
   leads: LinkedInLead[];
   template: string;
   isCustomTemplate: boolean;
-  totalCount: number;
-  listLimit: number;
 }) {
-  const { t, lang } = useT();
+  const { t } = useT();
   const { push } = useToast();
   const { workspaceId } = useWorkspace();
   const L = t.linkedin;
 
   const [template, setTemplate] = useState(initialTemplate);
   const [templateOpen, setTemplateOpen] = useState(false);
-  const [savingTemplate, setSavingTemplate] = useState(false);
   const [hideContacted, setHideContacted] = useState(false);
   const [onlyWithoutEmail, setOnlyWithoutEmail] = useState(false);
   // Lokal abgehakt: die Serverdaten werden nicht neu geladen, damit die Zeile
@@ -66,38 +42,33 @@ export default function LinkedInList({
   const [justLogged, setJustLogged] = useState<Set<string>>(new Set());
   const [busyId, setBusyId] = useState<string | null>(null);
 
-  const badPlaceholders = useMemo(() => unknownPlaceholders(template), [template]);
+  // Arbeitsreihenfolge: offen vor erledigt, fertiger Icebreaker vor keinem,
+  // und ohne E-Mail-Adresse zuerst -- fuer die ist LinkedIn der einzige Weg.
+  const ordered = useMemo(
+    () =>
+      [...leads].sort((a, b) => {
+        const aDone = a.alreadyContacted ? 1 : 0;
+        const bDone = b.alreadyContacted ? 1 : 0;
+        if (aDone !== bDone) return aDone - bDone;
+        const aReady = a.personalization ? 0 : 1;
+        const bReady = b.personalization ? 0 : 1;
+        if (aReady !== bReady) return aReady - bReady;
+        return (a.email ? 1 : 0) - (b.email ? 1 : 0);
+      }),
+    [leads]
+  );
 
   const visible = useMemo(
     () =>
-      leads.filter((lead) => {
+      ordered.filter((lead) => {
         if (onlyWithoutEmail && lead.email) return false;
         if (hideContacted && (lead.alreadyContacted || justLogged.has(lead.id))) return false;
         return true;
       }),
-    [leads, onlyWithoutEmail, hideContacted, justLogged]
+    [ordered, onlyWithoutEmail, hideContacted, justLogged]
   );
 
-  const readyCount = leads.filter((l) => l.businesses?.personalization).length;
-  const withoutEmailCount = leads.filter((l) => !l.email).length;
-
-  async function saveTemplate() {
-    setSavingTemplate(true);
-    const { error } = await createClient()
-      .from("workspaces")
-      .update({ linkedin_message_template: template.trim() || null })
-      .eq("id", workspaceId);
-    setSavingTemplate(false);
-    if (error) {
-      push(t.common.error + error.message, "error");
-      return;
-    }
-    push(L.templateSaved, "success");
-  }
-
-  function resetTemplate() {
-    setTemplate(getDefaultLinkedInTemplate(lang));
-  }
+  const doneCount = leads.filter((l) => l.alreadyContacted || justLogged.has(l.id)).length;
 
   async function copy(text: string) {
     try {
@@ -115,8 +86,8 @@ export default function LinkedInList({
   /**
    * Kontaktaufnahme festhalten: eine erledigte Aktivitaet mit Kanal 'linkedin'
    * (Migration 0057) und der tatsaechlich verschickte Text als Notiz -- damit
-   * spaeter nachvollziehbar ist, was dieser Kontakt gelesen hat, nicht nur dass
-   * irgendetwas gesendet wurde.
+   * spaeter nachvollziehbar ist, was dieser Kontakt gelesen hat, nicht nur
+   * dass irgendetwas gesendet wurde.
    */
   async function logSent(lead: LinkedInLead, message: string) {
     if (busyId) return;
@@ -161,71 +132,66 @@ export default function LinkedInList({
 
   return (
     <div className="space-y-4">
-      {/* Kopfzeile: was liegt hier ueberhaupt */}
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-xl border border-edge/60 bg-panel px-4 py-3 text-xs">
-        <span className="text-soft">{L.summary(leads.length, readyCount, withoutEmailCount)}</span>
-        <label className="flex items-center gap-1.5 text-faint">
-          <input
-            type="checkbox"
-            checked={onlyWithoutEmail}
-            onChange={(e) => setOnlyWithoutEmail(e.target.checked)}
-          />
-          {L.filterOnlyWithoutEmail}
-        </label>
-        <label className="flex items-center gap-1.5 text-faint">
-          <input
-            type="checkbox"
-            checked={hideContacted}
-            onChange={(e) => setHideContacted(e.target.checked)}
-          />
-          {L.filterHideContacted}
-        </label>
-        <button
-          onClick={() => setTemplateOpen((v) => !v)}
-          className="ml-auto text-xs font-medium text-sky-600 hover:text-sky-500 dark:text-sky-400"
+      {/* Kopf: wo bin ich, und wie weit bin ich hier */}
+      <div className="rounded-xl border border-edge/60 bg-panel p-4">
+        <Link
+          href="/linkedin"
+          className="text-xs text-faint transition-colors hover:text-ink"
         >
-          {templateOpen ? L.templateHide : L.templateShow}
-        </button>
+          ← {L.backToLists}
+        </Link>
+        <div className="mt-2 flex flex-wrap items-start justify-between gap-2">
+          <div className="min-w-0">
+            <h2 className="truncate text-lg font-semibold text-ink">{list.name}</h2>
+            <p className="text-xs text-faint">{list.location ?? "—"}</p>
+          </div>
+          <SourceBadge source={list.source} />
+        </div>
+        {list.note && <p className="mt-2 text-xs text-mute">{list.note}</p>}
+
+        <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-edge2/60 pt-3 text-xs">
+          <span className="text-soft">{L.progress(doneCount, leads.length)}</span>
+          <label className="flex items-center gap-1.5 text-faint">
+            <input
+              type="checkbox"
+              checked={onlyWithoutEmail}
+              onChange={(e) => setOnlyWithoutEmail(e.target.checked)}
+            />
+            {L.filterOnlyWithoutEmail}
+          </label>
+          <label className="flex items-center gap-1.5 text-faint">
+            <input
+              type="checkbox"
+              checked={hideContacted}
+              onChange={(e) => setHideContacted(e.target.checked)}
+            />
+            {L.filterHideContacted}
+          </label>
+          <button
+            onClick={() => setTemplateOpen((v) => !v)}
+            className="ml-auto text-xs font-medium text-sky-600 hover:text-sky-500 dark:text-sky-400"
+          >
+            {templateOpen ? L.templateHide : L.templateShow}
+          </button>
+        </div>
       </div>
 
-      {totalCount > listLimit && (
-        <p className="rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-xs text-amber-700 dark:text-amber-500">
-          {L.truncated(listLimit, totalCount)}
-        </p>
-      )}
-
       {templateOpen && (
-        <div className="rounded-xl border border-edge/60 bg-panel p-4">
-          <p className="mb-1 text-xs font-medium text-ink">{L.templateHeading}</p>
-          <p className="mb-2 text-[11px] text-faint">{L.templateHint}</p>
-          <textarea
-            value={template}
-            onChange={(e) => setTemplate(e.target.value)}
-            rows={10}
-            className="w-full rounded-lg border border-edge2 bg-field px-3 py-2 font-mono text-xs text-ink outline-none transition-colors focus:border-sky-500"
-          />
-          {badPlaceholders.length > 0 && (
-            <p className="mt-1.5 text-[11px] text-red-500">
-              {L.templateUnknownPlaceholders(badPlaceholders.join(", "))}
-            </p>
-          )}
-          <div className="mt-2 flex items-center gap-2">
-            <button
-              onClick={saveTemplate}
-              disabled={savingTemplate}
-              className="rounded-lg bg-sky-600 px-3.5 py-1.5 text-xs font-medium text-white transition-all hover:brightness-110 active:scale-[0.98] disabled:opacity-40"
-            >
-              {savingTemplate ? t.common.saving : L.templateSave}
-            </button>
-            <button
-              onClick={resetTemplate}
-              className="rounded-lg border border-edge2 px-3 py-1.5 text-xs text-soft transition-colors hover:text-ink"
-            >
-              {L.templateReset}
-            </button>
-            {!isCustomTemplate && <span className="text-[11px] text-mute">{L.templateIsDefault}</span>}
-          </div>
-        </div>
+        <LinkedInTemplate
+          template={template}
+          onTemplateChange={setTemplate}
+          isCustom={isCustomTemplate}
+          previewValues={
+            ordered[0]
+              ? {
+                  firstName: ordered[0].first_name,
+                  companyName: ordered[0].company_name,
+                  personalization: ordered[0].personalization,
+                }
+              : null
+          }
+          previewLabel={ordered[0]?.company_name ?? null}
+        />
       )}
 
       {visible.length === 0 ? (
@@ -273,16 +239,15 @@ function LeadRow({
     () =>
       renderLinkedInMessage(template, {
         firstName: lead.first_name,
-        companyName: lead.businesses?.name,
-        personalization: lead.businesses?.personalization,
+        companyName: lead.company_name,
+        personalization: lead.personalization,
       }),
     [template, lead]
   );
 
   // Der Text ist pro Zeile aenderbar, ohne die Vorlage anzufassen -- fuer den
-  // einen Kontakt, bei dem der Icebreaker nicht ganz passt. Sobald die Vorlage
-  // oben geaendert wird, gewinnt wieder die Vorlage (key-loses useState waere
-  // hier eine Falle, deshalb der explizite Abgleich unten).
+  // einen Kontakt, bei dem der Icebreaker nicht ganz passt. Wird die Vorlage
+  // geaendert, gewinnt wieder die Vorlage.
   const [edited, setEdited] = useState<string | null>(null);
   const [baseline, setBaseline] = useState(rendered);
   if (baseline !== rendered) {
@@ -292,7 +257,6 @@ function LeadRow({
   const message = edited ?? rendered;
 
   const name = lead.full_name || [lead.first_name, lead.last_name].filter(Boolean).join(" ") || "—";
-  const hasPersonalization = Boolean(lead.businesses?.personalization);
 
   return (
     <div
@@ -307,7 +271,7 @@ function LeadRow({
             {name}
             {lead.title && <span className="font-normal text-faint"> · {lead.title}</span>}
           </p>
-          <p className="truncate text-xs text-faint">{lead.businesses?.name ?? "—"}</p>
+          <p className="truncate text-xs text-faint">{lead.company_name ?? "—"}</p>
         </div>
         <div className="flex flex-wrap items-center gap-1.5">
           {!lead.email && (
@@ -318,7 +282,7 @@ function LeadRow({
               {L.badgeNoEmail}
             </span>
           )}
-          {!hasPersonalization && (
+          {!lead.personalization && (
             <span className="rounded-full bg-chip px-2 py-0.5 text-[10px] text-mute">
               {L.badgeNoIcebreaker}
             </span>

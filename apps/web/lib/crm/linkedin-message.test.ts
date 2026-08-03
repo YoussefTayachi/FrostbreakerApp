@@ -4,6 +4,7 @@ import {
   getDefaultLinkedInTemplate,
   renderLinkedInMessage,
   unknownPlaceholders,
+  variableHighlightRanges,
 } from "./linkedin-message";
 
 describe("renderLinkedInMessage", () => {
@@ -95,5 +96,53 @@ describe("unknownPlaceholders", () => {
 
   it("meldet jeden falschen Platzhalter nur einmal", () => {
     expect(unknownPlaceholders("{{foo}} und {{foo}}")).toEqual(["foo"]);
+  });
+});
+
+describe("variableHighlightRanges", () => {
+  it("markiert eine gueltige Variable blau", () => {
+    const template = "Hi {{firstName}}!";
+    const [range] = variableHighlightRanges(template);
+    expect(range).toEqual({ start: 3, end: 16, severity: "info" });
+    expect(template.slice(range.start, range.end)).toBe("{{firstName}}");
+  });
+
+  it("markiert einen Schreibfehler rot", () => {
+    const [range] = variableHighlightRanges("Hi {{firstname}}!");
+    expect(range.severity).toBe("danger");
+  });
+
+  it("findet alle Variablen einer Vorlage", () => {
+    const ranges = variableHighlightRanges("{{firstName}} {{companyName}} {{personalization}}");
+    expect(ranges).toHaveLength(3);
+    expect(ranges.every((r) => r.severity === "info")).toBe(true);
+  });
+
+  it("liefert Bereiche, die exakt auf dem Text sitzen", () => {
+    const template = "A {{firstName}} B {{nope}} C";
+    for (const r of variableHighlightRanges(template)) {
+      expect(template.slice(r.start, r.end)).toMatch(/^\{\{.*\}\}$/);
+    }
+  });
+
+  it("meldet nichts bei einer Vorlage ohne Variablen", () => {
+    expect(variableHighlightRanges("Nur Text")).toEqual([]);
+  });
+
+  // Die Markierung und die Fehlerliste teilen sich dieselbe Regex -- sonst
+  // koennte etwas rot markiert sein, das unten nicht genannt wird, oder
+  // umgekehrt.
+  it("stimmt mit unknownPlaceholders ueberein", () => {
+    const template = "{{firstName}} {{foo}} {{companyName}} {{bar}}";
+    const rot = variableHighlightRanges(template)
+      .filter((r) => r.severity === "danger")
+      .map((r) => template.slice(r.start, r.end).replace(/[{}]/g, "").trim());
+    expect(rot).toEqual(unknownPlaceholders(template));
+  });
+
+  it("markiert in der Standardvorlage ausschliesslich gueltige Variablen", () => {
+    const ranges = variableHighlightRanges(DEFAULT_LINKEDIN_TEMPLATE_DE);
+    expect(ranges.length).toBeGreaterThan(0);
+    expect(ranges.some((r) => r.severity === "danger")).toBe(false);
   });
 });

@@ -2,7 +2,7 @@
 import { useRef, useState } from "react";
 import { useT } from "../../language-provider";
 import { inputCls } from "@/lib/ui";
-import HighlightedTextarea from "../campaigns/highlighted-textarea";
+import HighlightedTextarea from "../../highlighted-textarea";
 import QualitySidebar from "./quality-sidebar";
 import type { Highlights } from "@/lib/email-quality";
 

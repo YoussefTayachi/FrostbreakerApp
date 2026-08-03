@@ -22,6 +22,13 @@
 export const LINKEDIN_PLACEHOLDERS = ["firstName", "companyName", "personalization"] as const;
 export type LinkedInPlaceholder = (typeof LINKEDIN_PLACEHOLDERS)[number];
 
+/** Fertige Tokens fuer die Einfuegen-Knoepfe, gleiche Reihenfolge wie im Kampagnen-Editor. */
+export const LINKEDIN_VARIABLE_TOKENS: Record<LinkedInPlaceholder, string> = {
+  firstName: "{{firstName}}",
+  companyName: "{{companyName}}",
+  personalization: "{{personalization}}",
+};
+
 /**
  * Standardvorlage. Bewusst kurz: LinkedIn kuerzt Erstnachrichten in der
  * Vorschau stark ab, und eine Kontaktanfrage mit Notiz ist ohnehin auf 300
@@ -117,4 +124,36 @@ export function unknownPlaceholders(template: string): string[] {
     .map((raw) => raw.replace(/[{}]/g, "").trim())
     .filter((name) => !known.has(name));
   return [...new Set(unknown)];
+}
+
+/**
+ * Farbige Markierung der Variablen im Vorlagen-Editor.
+ *
+ * Nutzt denselben Mechanismus wie die Qualitaetspruefung im Kampagnen-Editor
+ * (HighlightedTextarea + buildHighlightSegments), nur mit anderer Bedeutung:
+ *
+ *   info (blau) -- gueltige Variable, wird pro Empfaenger ersetzt
+ *   danger (rot) -- Schreibfehler, landet woertlich beim Empfaenger
+ *
+ * Ohne diese Markierung sieht {{firstName}} im Textfeld genauso aus wie
+ * {{firstname}}, und der Unterschied faellt erst dem Empfaenger auf.
+ */
+export function variableHighlightRanges(
+  template: string
+): { start: number; end: number; severity: "info" | "danger" }[] {
+  const ranges: { start: number; end: number; severity: "info" | "danger" }[] = [];
+  const known = new Set<string>(LINKEDIN_PLACEHOLDERS);
+  // Bewusst dieselbe Regex wie in unknownPlaceholders, damit "gueltig" hier
+  // und "unbekannt" dort nie auseinanderlaufen koennen.
+  const pattern = /\{\{\s*[^}]+\s*\}\}/g;
+  let match: RegExpExecArray | null;
+  while ((match = pattern.exec(template)) !== null) {
+    const name = match[0].replace(/[{}]/g, "").trim();
+    ranges.push({
+      start: match.index,
+      end: match.index + match[0].length,
+      severity: known.has(name) ? "info" : "danger",
+    });
+  }
+  return ranges;
 }
