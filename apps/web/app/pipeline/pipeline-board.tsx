@@ -1,11 +1,11 @@
 "use client";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { OUTREACH_STAGES, STAGE_DOT_CLS, type OutreachStage } from "@/lib/crm/stages";
+import { OUTREACH_STAGES, type OutreachStage } from "@/lib/crm/stages";
 import { formatRelative } from "@/lib/format-time";
 import CompanyLogo from "../company-logo";
 import { IconSearch } from "../icons";
 import { useT } from "../language-provider";
-import { displayName, type PipelineRow } from "@/lib/crm/pipeline";
+import { displayName, hasNoNextStep, type PipelineRow } from "@/lib/crm/pipeline";
 
 /**
  * Wie viele Karten pro Spalte gerendert werden. Der Nutzer entscheidet das
@@ -158,6 +158,9 @@ export default function PipelineBoard({
             const limit = pageSize === 0 ? items.length : pageSize + (extra[stage] ?? 0);
             const shown = items.slice(0, limit);
             const isTarget = dragOverStage === stage && dragId !== null;
+            // Wie viele in dieser Stufe haben keinen geplanten naechsten
+            // Schritt -- die Kennzahl im Spaltenkopf, siehe Kommentar dort.
+            const openInStage = items.filter(hasNoNextStep).length;
             return (
               <section
                 key={stage}
@@ -169,18 +172,38 @@ export default function PipelineBoard({
                 onDragLeave={() => setDragOverStage((prev) => (prev === stage ? null : prev))}
                 onDrop={() => onDrop(stage)}
                 className={
-                  "flex h-full w-60 shrink-0 flex-col overflow-hidden rounded-xl border transition-colors " +
-                  (isTarget ? "border-sky-500/70 bg-sky-500/5" : "border-edge/60 bg-panel2/60")
+                  // Pipedrive trennt seine Spalten durch schmale senkrechte
+                  // Linien statt sie in Kaesten zu setzen. Das laesst die
+                  // Karten die Flaeche tragen und wirkt bei sechs Spalten
+                  // deutlich ruhiger als sechs gerahmte Boxen.
+                  "flex h-full w-64 shrink-0 flex-col overflow-hidden border-l transition-colors first:border-l-0 " +
+                  (isTarget ? "border-sky-500/70 bg-sky-500/5" : "border-edge2/60")
                 }
               >
-                <header className="flex shrink-0 items-center gap-2 px-3 py-2.5">
-                  <span className={"h-2 w-2 shrink-0 rounded-full " + STAGE_DOT_CLS[stage]} />
-                  <h2 className="min-w-0 flex-1 truncate text-[13px] font-semibold text-ink">
+                {/*
+                  Spaltenkopf nach Pipedrives Vorbild: Name fett darueber, in
+                  der Zeile darunter die Kennzahlen in Grau.
+
+                  Pipedrive zeigt dort die Deal-Summe ("EUR 30.000 - 1 Deal").
+                  Eine Geldsumme gibt es hier nicht: diese Spalten fuehren
+                  Kontakte, keine Deals mit Wert. Statt eine Zahl zu erfinden
+                  steht dort die Kennzahl, die bei Kaltakquise dieselbe Rolle
+                  spielt -- wie viele in dieser Stufe auf einen naechsten
+                  Schritt warten. Das ist die Frage, die Pipedrive seinen
+                  Nutzern antrainiert, nur uebersetzt in unsere Waehrung.
+
+                  Der farbige Punkt aus der alten Fassung faellt weg: Pipedrive
+                  faerbt seine Spaltenkoepfe nicht, und die Stufe steht ohnehin
+                  ausgeschrieben daneben.
+                */}
+                <header className="shrink-0 px-3 pb-2 pt-3">
+                  <h2 className="truncate text-[15px] font-semibold leading-tight text-ink">
                     {t.leads.statusLabels[stage] ?? stage}
                   </h2>
-                  <span className="shrink-0 rounded-full bg-chip px-1.5 py-0.5 text-[10px] font-medium text-soft">
-                    {items.length}
-                  </span>
+                  <p className="mt-0.5 truncate text-[11px] text-faint">
+                    {P.columnCount(items.length)}
+                    {openInStage > 0 && ` \u00b7 ${P.columnNeedsStep(openInStage)}`}
+                  </p>
                 </header>
 
                 <div className="flex-1 space-y-1.5 overflow-y-auto px-2 pb-2">
@@ -207,55 +230,82 @@ export default function PipelineBoard({
                         .filter(Boolean)
                         .join(" · ")}
                       className={
-                        "group cursor-grab rounded-lg border border-edge/60 bg-panel px-2.5 py-2 shadow-sm transition-all hover:border-sky-500/50 hover:shadow-md active:cursor-grabbing " +
+                        // Pipedrives Karten sind weisse Flaechen mit weichem
+                        // Schatten und fast unsichtbarem Rand -- der Rand
+                        // traegt dort nichts, der Schatten hebt die Karte.
+                        "group cursor-grab rounded-md border border-edge/40 bg-panel px-3 py-2.5 shadow-sm transition-all hover:shadow-md active:cursor-grabbing " +
                         (dragId === contact.id ? "opacity-40" : "")
                       }
                     >
-                      <div className="flex items-center gap-2">
-                        <CompanyLogo
-                          name={contact.company_name ?? displayName(contact, "?")}
-                          website={contact.company_website}
-                          size={18}
-                        />
-                        <p className="min-w-0 flex-1 truncate text-[12.5px] font-medium leading-tight text-ink">
-                          {displayName(contact, P.cardNoName)}
-                        </p>
-                        {contact.email && (
-                          <span
-                            title={P.hasEmail}
-                            className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500"
-                          />
-                        )}
+                      {/*
+                        Kartenaufbau nach Pipedrive: Titel fett, darunter der
+                        Zusammenhang in Grau, rechts ein runder Knopf, dessen
+                        FARBE den Zustand traegt.
+
+                        Der Kreis ist das eigentliche Zitat. Bei Pipedrive ist
+                        er gruen, wenn fuer diesen Vorgang ein naechster Schritt
+                        geplant ist, und grau, wenn keiner existiert. Damit
+                        beantwortet eine Spalte mit dreissig Karten die
+                        wichtigste Frage ihres Systems auf einen Blick, ohne
+                        eine einzige Zeile Text. Genau diese Angabe haben wir
+                        seit Migration 0061 als next_due_at -- sie war bisher
+                        nur als Textzeile sichtbar.
+
+                        Rot statt gruen, wenn der Termin ueberfaellig ist: das
+                        kennt Pipedrive so nicht, aber ein verstrichener Termin
+                        ist etwas anderes als ein geplanter, und beides gleich
+                        einzufaerben wuerde die Aussage des Kreises verwaessern.
+                      */}
+                      <div className="flex items-start gap-2">
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-[13px] font-semibold leading-tight text-ink">
+                            {displayName(contact, P.cardNoName)}
+                          </p>
+                          <p className="mt-0.5 truncate text-[11px] leading-tight text-faint">
+                            {[contact.company_name, contact.title].filter(Boolean).join(" \u00b7 ") || "\u2014"}
+                          </p>
+                        </div>
+
+                        <span
+                          title={
+                            contact.next_due_at
+                              ? P.dueOn(formatRelative(contact.next_due_at, lang))
+                              : P.noNextStepTitle
+                          }
+                          className={
+                            "mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold text-white " +
+                            (!contact.next_due_at
+                              ? "bg-mute/50"
+                              : new Date(contact.next_due_at) < new Date()
+                                ? "bg-red-500"
+                                : "bg-emerald-500")
+                          }
+                        >
+                          &#8250;
+                        </span>
                       </div>
-                      {/* Firma und Position in einer Zeile: zwei getrennte Zeilen
-                          machten die Karte fast doppelt so hoch. */}
-                      <p className="mt-0.5 truncate pl-[26px] text-[11px] leading-tight text-faint">
-                        {[contact.company_name, contact.title].filter(Boolean).join(" · ")}
-                      </p>
-                      {/* Wann und worueber zuletzt Kontakt bestand, bzw. was
-                          ansteht. Ohne das beantwortete die Karte die Frage
-                          "habe ich den schon angefasst" nur durch Aufklappen --
-                          bei einer Spalte mit 300 Karten unbrauchbar.
-                          Ein anstehender Termin gewinnt vor der Vergangenheit:
-                          er ist das, was zu tun ist. */}
-                      {(contact.next_due_at || contact.last_reply_at || contact.last_touch_at) && (
-                        <p className="mt-1 truncate pl-[26px] text-[10px] leading-tight">
-                          {contact.next_due_at ? (
-                            <span
-                              className={
-                                new Date(contact.next_due_at) < new Date()
-                                  ? "text-red-500"
-                                  : "text-emerald-600 dark:text-emerald-400"
-                              }
-                            >
-                              ● {P.dueOn(formatRelative(contact.next_due_at, lang))}
-                            </span>
-                          ) : contact.last_reply_at ? (
-                            <span className="text-sky-600 dark:text-sky-400">
-                              ● {P.repliedAgo(formatRelative(contact.last_reply_at, lang))}
+
+                      {/*
+                        Fusszeile mit dem, was die Karte sonst verschweigt.
+                        Ein anstehender Termin steht schon im Kreis oben,
+                        deshalb hier nur die Vergangenheit: wann und worueber
+                        zuletzt Kontakt bestand. Ohne das beantwortet die Karte
+                        die Frage "habe ich den schon angefasst" gar nicht, und
+                        bei 300 Karten je Spalte ist Aufklappen keine Antwort.
+                      */}
+                      {(contact.last_reply_at || contact.last_touch_at) && (
+                        <p className="mt-1.5 flex items-center gap-1.5 truncate text-[10px] leading-tight">
+                          <CompanyLogo
+                            name={contact.company_name ?? displayName(contact, "?")}
+                            website={contact.company_website}
+                            size={14}
+                          />
+                          {contact.last_reply_at ? (
+                            <span className="truncate text-sky-600 dark:text-sky-400">
+                              {P.repliedAgo(formatRelative(contact.last_reply_at, lang))}
                             </span>
                           ) : (
-                            <span className="text-mute">
+                            <span className="truncate text-mute">
                               {P.touchedAgo(
                                 t.crm.activityChannelLabels[contact.last_touch_channel ?? ""] ??
                                   P.channelUnknown,
