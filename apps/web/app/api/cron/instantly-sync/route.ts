@@ -8,6 +8,7 @@ import { extractOutputText } from "@/lib/openai";
 import { sendEmail } from "@/lib/email";
 import { detectOptOut } from "@/lib/crm/opt-out";
 import { detectAutoReply } from "@/lib/crm/auto-reply";
+import { emailBodyText } from "@/lib/instantly/email-body";
 
 // Ersetzt den frueheren Python-Worker-Job "poll_instantly" (kampagnen-scoped
 // Analytics/Antworten) UND "poll_instantly_inbox" (mailbox-weiter Sync) in einer
@@ -31,9 +32,21 @@ type InstantlyEmail = {
   id: string;
   lead?: string | null;
   subject?: string | null;
-  body?: { text?: string | null } | null;
+  /** html ist bei aus einer Kampagne versendeten Mails das einzig gefuellte
+   *  Feld -- siehe lib/instantly/email-body.ts. */
+  body?: { text?: string | null; html?: string | null } | null;
   timestamp_email?: string | null;
 };
+
+/**
+ * Was beim Nachholen anders laeuft als im laufenden Betrieb.
+ *
+ * notify: beim Nachholen aus. Die Antworten, die dabei hochkommen, sind
+ * Wochen alt -- eine Mail "X hat gerade geantwortet" waere schlicht falsch,
+ * und bei ueber hundert nachgeholten Nachrichten waere sie hundertmal falsch.
+ * Im Posteingang tauchen sie trotzdem auf, dort gehoeren sie hin.
+ */
+type ProcessOptions = { notify?: boolean };
 
 function isAuthorized(req: Request): boolean {
   const secret = process.env.CRON_SECRET;
@@ -93,7 +106,8 @@ async function processEmail(
   email: InstantlyEmail,
   direction: "inbound" | "outbound",
   eaccount: string,
-  openaiKey: string | null
+  openaiKey: string | null,
+  options: ProcessOptions = {}
 ): Promise<string | null> {
   const leadEmail = (email.lead ?? "").trim().toLowerCase();
 
@@ -102,6 +116,12 @@ async function processEmail(
   // Stripe- oder Passkey-Mails an die verbundene Adresse selbst. Als "received"
   // gespeichert wuerden sie Antwortquoten verfaelschen, ohne je eine Antwort zu sein.
   if (direction === "inbound" && !leadEmail) return null;
+
+  // Mit Ruecksfall auf body.html: von 184 gespeicherten ausgehenden Mails
+  // hatten am 2026-08-04 alle 184 einen leeren Text, weil hier nur body.text
+  // gelesen wurde und Instantly bei Kampagnenmails nur html fuellt. Im
+  // Posteingang stand zu jeder verschickten Mail eine leere Zeile.
+  const bodyText = emailBodyText(email.body);
 
   /**
    * Schon bekannt? Dann sofort raus.
@@ -112,16 +132,34 @@ async function processEmail(
    * KI-Einstufung laufen -- also ein bezahlter Modellaufruf pro Mail pro
    * Durchlauf, fuer ein Ergebnis, das schon in der Datenbank steht.
    *
-   * Steht bewusst VOR allem anderen und nicht als Teil des Upserts: der
-   * teure Teil ist nicht das Schreiben, sondern alles davor.
+   * Steht bewusst VOR allem anderen ausser dem Text: der teure Teil ist
+   * nicht das Schreiben, sondern alles davor.
    */
   const { data: known } = await supabase
     .from("messages")
-    .select("id")
+    .select("id, body")
     .eq("workspace_id", workspaceId)
     .eq("instantly_email_id", email.id)
     .limit(1);
-  if (known?.length) return null;
+  if (known?.length) {
+    /**
+     * Eine Ausnahme: der fehlende Text wird nachgetragen.
+     *
+     * Die 184 bereits gespeicherten Zeilen wuerden sonst fuer immer leer
+     * bleiben -- der Nachlauf laeuft an ihnen vorbei, weil er sie kennt, und
+     * der laufende Sync sieht sie nie wieder. Genau umgekehrt gedacht: der
+     * Nachlauf geht ohnehin an jeder dieser Mails vorbei, das ist die einzige
+     * Gelegenheit, sie zu reparieren.
+     *
+     * Nur wenn vorher nichts dastand. Eine vorhandene Fassung zu ueberschreiben
+     * waere kein Nachtragen mehr, sondern ein Ueberschreiben.
+     */
+    if (bodyText && !(known[0].body ?? "").trim()) {
+      const { error } = await supabase.from("messages").update({ body: bodyText }).eq("id", known[0].id);
+      if (error) return `messages body ${email.id}: ${error.message}`;
+    }
+    return null;
+  }
 
   let contact: { id: string; outreach_status: string } | null = null;
   if (leadEmail) {
@@ -134,8 +172,6 @@ async function processEmail(
     contact = data?.[0] ?? null;
   }
 
-  const bodyText = email.body?.text ?? "";
-
   /**
    * Abwesenheitsnotiz zuerst am Muster pruefen, erst danach die KI fragen.
    *
@@ -147,10 +183,22 @@ async function processEmail(
    *
    * Die Muster stehen mit Tests in lib/crm/auto-reply.ts.
    */
-  const auto = detectAutoReply(email.subject, bodyText);
+  /**
+   * Und ausschliesslich fuer EINGEHENDE Mails.
+   *
+   * Die Einstufung beantwortet "wie hat der Empfaenger reagiert" -- auf den
+   * eigenen Kampagnentext angewandt ist sie sinnlos. Bisher fehlte diese
+   * Bedingung; dass trotzdem keine einzige ausgehende Zeile ein ai_interest
+   * trug, lag allein am leeren Body, der den Aufruf zufaellig verhinderte.
+   * Mit dem html-Ruecksfall oben faellt dieser Zufall weg: ohne die Schranke
+   * haette der Nachlauf rund 130 bezahlte Modellaufrufe auf selbst
+   * geschriebene Mails ausgeloest.
+   */
+  const inbound = direction === "inbound";
+  const auto = inbound ? detectAutoReply(email.subject, bodyText) : { autoReply: false };
   const aiInterest = auto.autoReply
     ? "out_of_office"
-    : contact && openaiKey && bodyText
+    : inbound && contact && openaiKey && bodyText
       ? await classifyReply(openaiKey, bodyText)
       : null;
 
@@ -206,7 +254,9 @@ async function processEmail(
     // Statuswechsel oben passiert genau einmal, jede Folgemail laeuft nicht
     // mehr in diesen Zweig. Ohne diese Bedingung meldete ein Hin und Her im
     // selben Thread jedes Mal erneut.
-    await notifyReply(supabase, workspaceId, leadEmail, email.subject ?? "", bodyText);
+    if (options.notify !== false) {
+      await notifyReply(supabase, workspaceId, leadEmail, email.subject ?? "", bodyText);
+    }
   }
 
   // Absage merken -- unabhaengig davon, ob der Statuswechsel oben gerade
@@ -384,13 +434,35 @@ async function notifyProviderAlerts(supabase: SupabaseClient): Promise<number> {
   return sent;
 }
 
+/** Eine Seite ist bei Instantly auf 100 gedeckelt. */
+const EMAIL_PAGE_SIZE = 100;
+
+/**
+ * Eine Seite Mails, mit dem Cursor auf die naechste.
+ *
+ * next ist null, wenn Instantly keine weitere Seite kennt. Wer den Cursor
+ * ignoriert, bekommt bei einem vollen Ergebnis stillschweigend nur die
+ * neuesten 100 -- genau darauf beruht der Nachlauf unten.
+ */
 async function fetchEmails(
   apiKey: string,
   params: Record<string, string>
-): Promise<InstantlyEmail[]> {
-  const query = new URLSearchParams({ limit: "100", ...params });
-  const data = await instantlyRequest<{ items?: InstantlyEmail[] }>(apiKey, `/api/v2/emails?${query}`);
-  return data.items ?? [];
+): Promise<{ items: InstantlyEmail[]; next: string | null }> {
+  const query = new URLSearchParams({ limit: String(EMAIL_PAGE_SIZE), ...params });
+  const data = await instantlyRequest<{ items?: InstantlyEmail[]; next_starting_after?: string }>(
+    apiKey,
+    `/api/v2/emails?${query}`
+  );
+  return { items: data.items ?? [], next: data.next_starting_after ?? null };
+}
+
+/** Die verbundenen Postfaecher. Zaehlt nicht gegen die 20/min auf /emails. */
+async function listAccounts(apiKey: string): Promise<string[]> {
+  const data = await instantlyRequest<{ items?: { email?: string }[] }>(
+    apiKey,
+    "/api/v2/accounts?limit=100"
+  );
+  return (data.items ?? []).map((a) => a.email).filter((e): e is string => Boolean(e));
 }
 
 // Jede Suche kostet 1 Request gegen /api/v2/emails (die 20/min-Grenze) -- bei
@@ -457,9 +529,9 @@ async function syncCampaigns(
 
       const params: Record<string, string> = { campaign_id: campaignId, email_type: "received" };
       if (search.instantly_last_polled_at) params.min_timestamp_created = search.instantly_last_polled_at;
-      const emails = await fetchEmails(apiKey, params).catch((e) => {
+      const { items: emails } = await fetchEmails(apiKey, params).catch((e) => {
         errors.push(`emails ${campaignId}: ${(e as Error).message}`);
-        return [];
+        return { items: [] as InstantlyEmail[], next: null };
       });
       emailsFound += emails.length;
       for (const email of emails) {
@@ -485,6 +557,13 @@ async function syncCampaigns(
 // Kampagnen-Teil (syncCampaigns) bleibt, der parallel dazu laeuft.
 const INBOX_REQUEST_BUDGET = 15;
 
+/** Beide Richtungen eines Postfachs -- die Einheit, in der beide Sync-Teile
+ *  und der Nachlauf ihre Arbeit zaehlen. */
+const DIRECTIONS: { emailType: "received" | "sent"; direction: "inbound" | "outbound" }[] = [
+  { emailType: "received", direction: "inbound" },
+  { emailType: "sent", direction: "outbound" },
+];
+
 /** Mailbox-Teil: postfach-weiter Sync ueber alle verbundenen eaccounts, beide
  *  Richtungen, ohne campaign_id-Filter -- wie zuvor poll_instantly.run_inbox().
  *  Verarbeitet pro Aufruf nur bis zu INBOX_REQUEST_BUDGET (eaccount, Richtung)-
@@ -497,7 +576,8 @@ async function syncInbox(
   supabase: SupabaseClient,
   workspaceId: string,
   apiKey: string,
-  openaiKey: string | null
+  openaiKey: string | null,
+  eaccounts: string[]
 ): Promise<{ accounts: number; page: string; emailsFound: number; since: string | null; errors: string[] }> {
   const { data: workspace } = await supabase
     .from("workspaces")
@@ -507,24 +587,11 @@ async function syncInbox(
   const since = workspace?.instantly_inbox_synced_at ?? undefined;
 
   const errors: string[] = [];
-  const accounts = await instantlyRequest<{ items?: { email?: string }[] }>(
-    apiKey,
-    "/api/v2/accounts?limit=100"
-  ).catch((e) => {
-    errors.push(`accounts: ${(e as Error).message}`);
-    return { items: [] };
-  });
+  const overflow: string[] = [];
 
-  const directions: { emailType: string; direction: "inbound" | "outbound" }[] = [
-    { emailType: "received", direction: "inbound" },
-    { emailType: "sent", direction: "outbound" },
-  ];
-
-  const allPairs = (accounts.items ?? []).flatMap((account) => {
-    const eaccount = account.email;
-    if (!eaccount) return [];
-    return directions.map((d) => ({ eaccount, ...d }));
-  });
+  const allPairs = eaccounts.flatMap((eaccount) =>
+    DIRECTIONS.map((d) => ({ eaccount, ...d }))
+  );
 
   const pageCount = Math.max(1, Math.ceil(allPairs.length / INBOX_REQUEST_BUDGET));
   // Tick-Laenge muss zum tatsaechlichen Cron-Intervall passen (Migration 0043:
@@ -539,17 +606,43 @@ async function syncInbox(
     pairs.map(async ({ eaccount, emailType, direction }) => {
       const params: Record<string, string> = { eaccount, email_type: emailType, mode: "emode_all" };
       if (since) params.min_timestamp_created = since;
-      const emails = await fetchEmails(apiKey, params).catch((e) => {
+      const { items: emails, next } = await fetchEmails(apiKey, params).catch((e) => {
         errors.push(`emails ${eaccount}/${emailType}: ${(e as Error).message}`);
-        return [];
+        return { items: [] as InstantlyEmail[], next: null };
       });
       emailsFound += emails.length;
       for (const email of emails) {
         const err = await processEmail(supabase, workspaceId, email, direction, eaccount, openaiKey);
         if (err) errors.push(err);
       }
+
+      /**
+       * Eine volle Seite heisst: es gab mehr, als in eine passt.
+       *
+       * Der laufende Sync holt bewusst genau eine Seite je Paar, damit ein
+       * Tick nicht die 20 Anfragen je Minute sprengt. Bei einem Wasserstand
+       * von wenigen Minuten reicht das mit weitem Abstand -- 100 Mails an
+       * EIN Postfach in EINER Richtung in diesem Fenster kommt bei 19
+       * Postfaechern und rund 300 Mails insgesamt nicht vor.
+       *
+       * Falls es doch einmal so weit ist, soll es nicht still passieren:
+       * dann fehlen Mails, und zwar dauerhaft, weil der Wasserstand
+       * weiterwandert. Deshalb hier eine Meldung statt einer Schleife -- die
+       * richtige Antwort waere ein Nachlauf fuer dieses Paar, und dessen
+       * Auswirkung auf das Anfragebudget will man bewusst entscheiden und
+       * nicht als Nebenwirkung bekommen.
+       */
+      if (emails.length >= EMAIL_PAGE_SIZE && next) {
+        overflow.push(`${eaccount}/${emailType}`);
+      }
     })
   );
+
+  if (overflow.length) {
+    console.warn(
+      `Sync-Seite voll ausgeschoepft, es koennten Mails fehlen: ${overflow.join(", ")}`
+    );
+  }
 
   /**
    * Wasserstand vorziehen -- aber MIT UEBERLAPPUNG.
@@ -581,12 +674,183 @@ async function syncInbox(
   }
 
   return {
-    accounts: accounts.items?.length ?? 0,
+    accounts: eaccounts.length,
     page: `${page + 1}/${pageCount}`,
     emailsFound,
     since: since ?? null,
     errors,
   };
+}
+
+/**
+ * Wie viele Seiten der Nachlauf je Tick holt.
+ *
+ * Zusammen mit CAMPAIGN_REQUEST_BUDGET (4) bleiben 14 von 20 erlaubten
+ * Anfragen je Minute. Bewusst unter INBOX_REQUEST_BUDGET: der Nachlauf holt
+ * bis zu 100 Mails je Seite, und die muessen alle einzeln durch processEmail
+ * -- bei 15 Seiten gleichzeitig waere Vercels Minute das engere Limit als
+ * Instantlys Zaehler.
+ */
+const BACKFILL_REQUEST_BUDGET = 10;
+
+/** 100 Seiten sind 10.000 Mails je Postfach und Richtung. Die Grenze ist die
+ *  Bremse gegen eine Endlosschleife, nicht gegen den Normalfall. */
+const BACKFILL_MAX_PAGES = 100;
+
+/** Danach gibt der Nachlauf diese Zeile auf. Ohne diese Grenze wuerde ein
+ *  dauerhaft kaputtes Postfach den normalen Inbox-Sync fuer immer aussetzen. */
+const BACKFILL_MAX_FAILURES = 5;
+
+type BackfillRow = {
+  id: string;
+  eaccount: string;
+  email_type: string;
+  starting_after: string | null;
+  pages_done: number;
+  emails_seen: number;
+  failed_attempts: number;
+};
+
+type BackfillResult = {
+  /** Solange true, setzt der Aufrufer den normalen Inbox-Sync aus. */
+  active: boolean;
+  seeded?: number;
+  worked?: number;
+  emailsFound?: number;
+  remaining?: number;
+  errors?: string[];
+};
+
+/**
+ * Die Mails nachholen, die vor dem allerersten Sync verschickt wurden.
+ *
+ * Siehe Migration 0068 fuer den Befund. Kurz: der Wasserstand wurde beim
+ * ersten Lauf auf "jetzt" gesetzt, alles davor liegt fuer immer ausserhalb
+ * jedes Zeitfensters, das der laufende Sync je abfragt. Am 2026-08-04 fehlten
+ * dadurch rund 130 versendete Mails -- und mit ihnen rund 110 Kontakte, die
+ * im Pipeline-Board weiterhin unter "Neu" standen, obwohl sie angeschrieben
+ * waren.
+ *
+ * Laeuft von allein leer: eine Zeile je Postfach und Richtung, jede haelt
+ * ihren Cursor, jeder Tick holt bis zu BACKFILL_REQUEST_BUDGET Seiten. Bei 19
+ * Postfaechern sind das 38 Zeilen, meist eine Seite pro Zeile -- nach wenigen
+ * Minuten ist Ruhe, und danach kostet die Sache eine Indexabfrage pro Minute.
+ *
+ * WAEHRENDDESSEN PAUSIERT DER NORMALE INBOX-SYNC (Entscheidung des
+ * Aufrufers). Das ist kein Verzicht: der Nachlauf geht dieselben Postfaecher
+ * von Anfang an durch und sieht damit ohnehin alles, was der laufende Sync
+ * sehen wuerde. Beides gleichzeitig wuerde nur das Anfragebudget teilen.
+ */
+async function runBackfill(
+  supabase: SupabaseClient,
+  workspaceId: string,
+  apiKey: string,
+  openaiKey: string | null,
+  eaccounts: string[]
+): Promise<BackfillResult> {
+  const errors: string[] = [];
+
+  // Einmalig anlegen. Dass ueberhaupt Zeilen existieren, IST die Notiz "hier
+  // wurde schon nachgeholt" -- ein zusaetzliches Datum am Workspace waere eine
+  // zweite Wahrheit, die von der ersten abweichen kann.
+  const { count: total } = await supabase
+    .from("instantly_backfill")
+    .select("id", { count: "exact", head: true })
+    .eq("workspace_id", workspaceId);
+
+  let seeded = 0;
+  if (total === 0 && eaccounts.length > 0) {
+    const rows = eaccounts.flatMap((eaccount) =>
+      DIRECTIONS.map((d) => ({ workspace_id: workspaceId, eaccount, email_type: d.emailType }))
+    );
+    const { error } = await supabase.from("instantly_backfill").insert(rows);
+    if (error) return { active: false, errors: [`backfill seed: ${error.message}`] };
+    seeded = rows.length;
+  }
+
+  const { data: due } = await supabase
+    .from("instantly_backfill")
+    .select("id, eaccount, email_type, starting_after, pages_done, emails_seen, failed_attempts")
+    .eq("workspace_id", workspaceId)
+    .is("finished_at", null)
+    .order("created_at", { ascending: true })
+    .limit(BACKFILL_REQUEST_BUDGET);
+
+  const rows = (due ?? []) as BackfillRow[];
+  if (rows.length === 0) return { active: false, seeded };
+
+  let emailsFound = 0;
+  await Promise.all(
+    rows.map(async (row) => {
+      const direction = row.email_type === "sent" ? "outbound" : "inbound";
+      const params: Record<string, string> = {
+        eaccount: row.eaccount,
+        email_type: row.email_type,
+        mode: "emode_all",
+        // Von der aeltesten zur neuesten. Bricht der Nachlauf mittendrin ab,
+        // ist damit die aeltere Haelfte schon drin -- und genau die ist die,
+        // die der laufende Sync nie mehr holen wuerde.
+        sort_order: "asc",
+      };
+      if (row.starting_after) params.starting_after = row.starting_after;
+
+      let page: { items: InstantlyEmail[]; next: string | null };
+      try {
+        page = await fetchEmails(apiKey, params);
+      } catch (e) {
+        const failed = row.failed_attempts + 1;
+        errors.push(`backfill ${row.eaccount}/${row.email_type}: ${(e as Error).message}`);
+        await supabase
+          .from("instantly_backfill")
+          .update({
+            failed_attempts: failed,
+            error: (e as Error).message.slice(0, 500),
+            finished_at: failed >= BACKFILL_MAX_FAILURES ? new Date().toISOString() : null,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", row.id);
+        return;
+      }
+
+      emailsFound += page.items.length;
+      for (const email of page.items) {
+        const err = await processEmail(
+          supabase,
+          workspaceId,
+          email,
+          direction,
+          row.eaccount,
+          openaiKey,
+          // Keine Benachrichtigung: diese Antworten sind Wochen alt.
+          { notify: false }
+        );
+        if (err) errors.push(err);
+      }
+
+      const pagesDone = row.pages_done + 1;
+      const done = !page.next || page.items.length === 0 || pagesDone >= BACKFILL_MAX_PAGES;
+      await supabase
+        .from("instantly_backfill")
+        .update({
+          starting_after: page.next ?? row.starting_after,
+          pages_done: pagesDone,
+          emails_seen: row.emails_seen + page.items.length,
+          failed_attempts: 0,
+          error: pagesDone >= BACKFILL_MAX_PAGES && page.next ? "Seitenlimit erreicht" : null,
+          finished_at: done ? new Date().toISOString() : null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", row.id);
+    })
+  );
+
+  const { count: remaining } = await supabase
+    .from("instantly_backfill")
+    .select("id", { count: "exact", head: true })
+    .eq("workspace_id", workspaceId)
+    .is("finished_at", null);
+
+  return { active: true, seeded, worked: rows.length, emailsFound, remaining: remaining ?? 0, errors };
 }
 
 export async function POST(req: Request) {
@@ -617,11 +881,24 @@ export async function POST(req: Request) {
           // Sync trotzdem, nur ohne ai_interest auf neuen Nachrichten.
           const openaiKey = await getApiKey(supabase, workspaceId, "openai").catch(() => null);
 
-          const [campaigns, inbox] = await Promise.all([
+          // Einmal geholt und an beide weitergereicht: die Postfachliste
+          // brauchen Nachlauf und Inbox-Sync gleichermassen, und sie kostet
+          // eine Anfrage.
+          const eaccounts = await listAccounts(apiKey).catch(() => [] as string[]);
+
+          const [campaigns, backfill] = await Promise.all([
             syncCampaigns(supabase, workspaceId, apiKey, openaiKey),
-            syncInbox(supabase, workspaceId, apiKey, openaiKey),
+            runBackfill(supabase, workspaceId, apiKey, openaiKey, eaccounts),
           ]);
-          return { workspaceId, status: "ok", campaigns, inbox };
+
+          // Solange nachgeholt wird, bleibt der laufende Sync aus -- siehe
+          // runBackfill. Er wuerde dieselben Postfaecher abfragen und sich
+          // nur das Anfragebudget mit dem Nachlauf teilen.
+          const inbox = backfill.active
+            ? { skipped: "backfill", remaining: backfill.remaining }
+            : await syncInbox(supabase, workspaceId, apiKey, openaiKey, eaccounts);
+
+          return { workspaceId, status: "ok", campaigns, backfill, inbox };
         } catch (e) {
           return { workspaceId, status: "error", message: (e as Error).message };
         }
