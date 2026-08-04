@@ -15,6 +15,8 @@ type CampaignDetail = {
   status: string;
   instantlyCampaignId: string;
   search: { id: string; name: string | null; query: string; location: string } | null;
+  /** Alle verknuepften Lead-Listen (Migration 0050). */
+  searches?: { id: string; name: string | null; query: string; location: string }[];
   mailboxes: string[];
   steps: { subject: string; body: string; delayDays: number }[];
   days: number[];
@@ -194,12 +196,20 @@ export default function CampaignDetail({ id }: { id: string }) {
             {t.instantly.statusLabels[data.status as keyof typeof t.instantly.statusLabels] ?? data.status}
           </span>
         </div>
-        {data.search && (
+        {/* Alle verknuepften Listen, nicht nur die erste: eine Kampagne kann
+            seit Migration 0050 aus mehreren gespeist werden, und wer wissen
+            will, wen er da anschreibt, braucht sie vollstaendig. */}
+        {(data.searches?.length ? data.searches : data.search ? [data.search] : []).length > 0 && (
           <p className="text-sm text-faint">
             {D.linkedSearch}{" "}
-            <Link href={`/searches/${data.search.id}`} className="text-sky-600 hover:text-sky-500 dark:text-sky-400">
-              {data.search.name || data.search.query}
-            </Link>
+            {(data.searches?.length ? data.searches : [data.search!]).map((s, i) => (
+              <span key={s.id}>
+                {i > 0 && ", "}
+                <Link href={`/searches/${s.id}`} className="text-sky-600 hover:text-sky-500 dark:text-sky-400">
+                  {s.name || s.query}
+                </Link>
+              </span>
+            ))}
           </p>
         )}
       </div>

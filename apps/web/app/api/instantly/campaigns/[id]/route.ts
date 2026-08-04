@@ -49,27 +49,58 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
     await supabase.from("campaigns").update({ status: liveStatus }).eq("id", local.id);
   }
 
-  const [{ count: leadsAdded }, search, stats] = await Promise.all([
+  /**
+   * ALLE verknuepften Suchen, nicht nur campaigns.search_id.
+   *
+   * Seit Migration 0050 kann eine Kampagne aus mehreren Suchen gespeist
+   * werden; search_id ist davon nur noch die erste. Diese Seite las
+   * ausschliesslich sie, was bei der ersten Kampagne mit fuenf Suchen
+   * sichtbar wurde: "406 von 98 verfuegbaren Leads hinzugefuegt". Die 406
+   * stimmten, die 98 waren eine von fuenf Listen.
+   *
+   * Dieselbe Korrektur wie in api/instantly/campaigns fuer die Uebersicht --
+   * dort fiel es zuerst auf, hier stand sie noch aus.
+   */
+  const { data: links } = await supabase
+    .from("campaign_searches")
+    .select("search_id")
+    .eq("campaign_id", local.id);
+  const searchIds = links?.length
+    ? links.map((l) => l.search_id as string)
+    : local.search_id
+      ? [local.search_id]
+      : [];
+
+  const [{ count: leadsAdded }, searches, stats] = await Promise.all([
     supabase.from("campaign_leads").select("id", { count: "exact", head: true }).eq("campaign_id", local.id),
-    local.search_id
-      ? supabase.from("searches").select("id, name, query, location").eq("id", local.search_id).single()
-      : Promise.resolve({ data: null }),
-    local.search_id
+    searchIds.length
+      ? supabase.from("searches").select("id, name, query, location").in("id", searchIds)
+      : Promise.resolve({ data: [] }),
+    searchIds.length
       ? supabase
           .from("instantly_campaign_stats")
           .select("leads_count, contacted_count, emails_sent_count, open_count, reply_count_unique, bounced_count, unsubscribed_count, completed_count")
-          .eq("search_id", local.search_id)
-          .maybeSingle()
-      : Promise.resolve({ data: null }),
+          .in("search_id", searchIds)
+      : Promise.resolve({ data: [] }),
   ]);
 
+  // Ueber alle Suchen aufaddiert. Instantly fuehrt die Zahlen je Kampagne,
+  // gespiegelt werden sie je Suche -- die Summe ist damit die Kampagnenzahl.
+  const statRows = (stats.data ?? []) as Record<string, number>[];
+  const summedStats = statRows.length
+    ? statRows.reduce((sum, row) => {
+        for (const key of Object.keys(row)) sum[key] = (sum[key] ?? 0) + (row[key] ?? 0);
+        return sum;
+      }, {} as Record<string, number>)
+    : null;
+
   let leadsAvailable = 0;
-  if (local.search_id) {
+  if (searchIds.length) {
     const { count } = await supabase
       .from("contacts")
       .select("id, businesses!inner(search_id)", { count: "exact", head: true })
       .eq("workspace_id", ctx.workspace.id)
-      .eq("businesses.search_id", local.search_id)
+      .in("businesses.search_id", searchIds)
       .not("email", "is", null);
     leadsAvailable = count ?? 0;
   }
@@ -126,7 +157,9 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
     name: live.name ?? local.name,
     status: liveStatus,
     instantlyCampaignId: local.instantly_campaign_id,
-    search: search.data,
+    // Die erste bleibt fuer die Ueberschrift, alle fuer die Aufzaehlung.
+    search: (searches.data ?? [])[0] ?? null,
+    searches: searches.data ?? [],
     mailboxes: live.email_list ?? local.mailboxes,
     steps: effectiveSteps,
     days: schedule.days,
