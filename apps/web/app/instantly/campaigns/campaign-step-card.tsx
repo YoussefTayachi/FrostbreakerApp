@@ -3,10 +3,11 @@ import { useRef, useState } from "react";
 import { useT } from "../../language-provider";
 import { useWorkspace } from "../../workspace-provider";
 import { inputCls } from "@/lib/ui";
-import { plainTextToInstantlyHtml } from "@/lib/instantly/campaigns";
+import { plainTextToInstantlyHtml, variantLabel } from "@/lib/instantly/campaigns";
 import EmailQualityPanel from "./email-quality-panel";
 import HighlightedTextarea from "../../highlighted-textarea";
 import type { Highlights } from "@/lib/email-quality";
+import type { StepVariant } from "@/lib/instantly/campaigns";
 import type { Step } from "./campaign-form";
 
 // Eine Karte der Sequenz: Betreff, Text, Variablen-Buttons und die
@@ -36,6 +37,36 @@ export default function CampaignStepCard({
   const bodyRef = useRef<HTMLTextAreaElement | null>(null);
   const [activeField, setActiveField] = useState<"subject" | "body">("body");
   const [highlights, setHighlights] = useState<Highlights | null>(null);
+  /**
+   * Welche Fassung gerade bearbeitet wird.
+   *
+   * Reiter statt untereinander: zwei Fassungen desselben Schritts sind
+   * Alternativen, keine Fortsetzung. Untereinander gestellt liest man sie
+   * unwillkuerlich als zwei aufeinanderfolgende Mails -- und genau das sind
+   * sie nicht.
+   */
+  const [activeVariant, setActiveVariant] = useState(0);
+
+  // Nach dem Loeschen der letzten Fassung zeigt der Index sonst ins Leere.
+  const vi = Math.min(activeVariant, step.variants.length - 1);
+  const variant = step.variants[vi] ?? { subject: "", body: "" };
+
+  function patchVariant(patch: Partial<StepVariant>) {
+    onChange({ variants: step.variants.map((v, i) => (i === vi ? { ...v, ...patch } : v)) });
+  }
+
+  function addVariant() {
+    // Leer statt als Kopie: eine kopierte Fassung, an der man zwei Woerter
+    // aendert, misst nichts -- der Sinn des Vergleichs ist ein echter
+    // Gegenentwurf.
+    onChange({ variants: [...step.variants, { subject: "", body: "" }] });
+    setActiveVariant(step.variants.length);
+  }
+
+  function removeVariant() {
+    onChange({ variants: step.variants.filter((_, i) => i !== vi) });
+    setActiveVariant(Math.max(0, vi - 1));
+  }
 
   // Variablen per Klick einfuegen statt selbst tippen zu muessen: fuegt im
   // zuletzt fokussierten Feld an der Cursor-Position ein. Namen/Syntax
@@ -62,10 +93,10 @@ export default function CampaignStepCard({
 
   function insertVariable(token: string) {
     const el = activeField === "subject" ? subjectRef.current : bodyRef.current;
-    const current = step[activeField];
+    const current = variant[activeField];
     const start = el?.selectionStart ?? current.length;
     const end = el?.selectionEnd ?? current.length;
-    onChange({ [activeField]: current.slice(0, start) + token + current.slice(end) } as Partial<Step>);
+    patchVariant({ [activeField]: current.slice(0, start) + token + current.slice(end) } as Partial<StepVariant>);
     // Cursor hinter das eingefuegte Token setzen, nachdem React den neuen Wert gerendert hat.
     requestAnimationFrame(() => {
       el?.focus();
@@ -99,6 +130,42 @@ export default function CampaignStepCard({
         </div>
       </div>
 
+      {/* Reiter nur zeigen, wenn es etwas zu waehlen gibt -- bei einer
+          einzigen Fassung waere ein Reiter "A" ohne Nachbarn eine Frage ohne
+          Antwortmoeglichkeit. Der Knopf zum Hinzufuegen steht trotzdem da. */}
+      <div className="mb-2 flex flex-wrap items-center gap-1.5">
+        {step.variants.length > 1 &&
+          step.variants.map((v, i) => (
+            <button
+              key={i}
+              type="button"
+              onClick={() => setActiveVariant(i)}
+              className={
+                "rounded-md border px-2.5 py-1 text-[11px] font-medium transition-colors " +
+                (i === vi
+                  ? "border-sky-500 bg-sky-500/10 text-sky-600 dark:text-sky-300"
+                  : "border-edge2 text-faint hover:border-sky-500/50") +
+                (v.disabled ? " line-through opacity-60" : "")
+              }
+            >
+              {F.variantLabel(variantLabel(i))}
+            </button>
+          ))}
+        <button
+          type="button"
+          onClick={addVariant}
+          className="rounded-md border border-dashed border-edge2 px-2.5 py-1 text-[11px] text-faint transition-colors hover:border-sky-500/50 hover:text-sky-600 dark:hover:text-sky-400"
+        >
+          {F.addVariant}
+        </button>
+        {step.variants.length > 1 && (
+          <button type="button" onClick={removeVariant} className="text-[11px] text-red-500 hover:text-red-400">
+            {F.removeVariant(variantLabel(vi))}
+          </button>
+        )}
+      </div>
+      {step.variants.length > 1 && <p className="mb-2 text-[11px] text-mute">{F.variantHint}</p>}
+
       <div className="mb-2 flex flex-wrap items-center gap-1.5">
         <span className="text-[11px] text-faint">{F.insertVariable}</span>
         {VARIABLES.map((v) => (
@@ -126,16 +193,16 @@ export default function CampaignStepCard({
       <input
         ref={subjectRef}
         placeholder={F.subjectPlaceholder}
-        value={step.subject}
-        onChange={(e) => onChange({ subject: e.target.value })}
+        value={variant.subject}
+        onChange={(e) => patchVariant({ subject: e.target.value })}
         onFocus={() => setActiveField("subject")}
         className={inputCls + " mb-2 w-full"}
       />
       <HighlightedTextarea
         textareaRef={bodyRef}
         placeholder={F.bodyPlaceholder}
-        value={step.body}
-        onChange={(body) => onChange({ body })}
+        value={variant.body}
+        onChange={(body) => patchVariant({ body })}
         onFocus={() => setActiveField("body")}
         rows={4}
         highlights={highlights}
@@ -150,18 +217,18 @@ export default function CampaignStepCard({
           verspraeche, als die Vorschau halten kann.
           dangerouslySetInnerHTML ist unkritisch: plainTextToInstantlyHtml
           maskiert &, < und > und setzt danach ausschliesslich eigene Tags. */}
-      {step.body.trim().length > 0 && (
+      {variant.body.trim().length > 0 && (
         <details className="mt-2 rounded-lg border border-edge2/70">
           <summary className="cursor-pointer px-3 py-1.5 text-[11px] text-faint hover:text-soft">
             {F.previewToggle}
           </summary>
           <div
             className="border-t border-edge2/70 px-3 py-2.5 text-sm leading-relaxed text-soft [&_div]:min-h-[1em]"
-            dangerouslySetInnerHTML={{ __html: plainTextToInstantlyHtml(step.body) }}
+            dangerouslySetInnerHTML={{ __html: plainTextToInstantlyHtml(variant.body) }}
           />
         </details>
       )}
-      <EmailQualityPanel subject={step.subject} body={step.body} onHighlightsChange={setHighlights} />
+      <EmailQualityPanel subject={variant.subject} body={variant.body} onHighlightsChange={setHighlights} />
     </div>
   );
 }

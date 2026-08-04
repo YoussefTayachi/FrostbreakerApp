@@ -8,6 +8,7 @@ import {
   buildCampaignSchedule,
   buildCampaignSequence,
   toLocalStatus,
+  primaryVariant,
   type SequenceStep,
   type InstantlyCampaign,
 } from "@/lib/instantly/campaigns";
@@ -17,6 +18,8 @@ type CreateCampaignBody = {
   name: string;
   mailboxes: string[];
   steps: SequenceStep[];
+  openTracking?: boolean;
+  linkTracking?: boolean;
   days: number[]; // 0=Sonntag..6=Samstag
   from: string; // "09:00"
   to: string; // "17:00"
@@ -49,12 +52,20 @@ export async function POST(req: Request) {
 
   const body = (await req.json()) as CreateCampaignBody;
   const { searchIds, name, mailboxes, steps, days, from, to, timezone, dailyLimit } = body;
+  // Ausdruecklich mitgeschickt, nicht Instantlys Vorgabe uebernommen: der
+  // Zaehlpixel steht dort auf "an" und kostet Zustellbarkeit. Wer ihn will,
+  // soll ihn einschalten; wer nichts einstellt, sendet ohne (Migration 0071).
+  const openTracking = body.openTracking === true;
+  const linkTracking = body.linkTracking === true;
 
   if (!searchIds?.length || !name?.trim() || !mailboxes?.length || !steps?.length || !days?.length || !from || !to || !timezone) {
     return NextResponse.json({ error: "Pflichtfelder fehlen" }, { status: 400 });
   }
-  if (steps.some((s) => !s.subject?.trim() || !s.body?.trim())) {
-    return NextResponse.json({ error: "Jeder Schritt braucht Betreff und Text." }, { status: 400 });
+  // Jede Fassung muss vollstaendig sein. Eine halb ausgefuellte Variante
+  // wuerde bei Instantly als leere Mail an einen Teil der Empfaenger
+  // rausgehen -- und zwar an einen zufaellig ausgewaehlten.
+  if (steps.some((s) => !s.variants?.length || s.variants.some((v) => !v.subject?.trim() || !v.body?.trim()))) {
+    return NextResponse.json({ error: "Jede Variante braucht Betreff und Text." }, { status: 400 });
   }
 
   const { data: searches } = await supabase
@@ -147,6 +158,8 @@ export async function POST(req: Request) {
         sequences: buildCampaignSequence(steps),
         email_list: mailboxes,
         daily_limit: dailyLimit || undefined,
+        open_tracking: openTracking,
+        link_tracking: linkTracking,
         // Ohne dieses Feld ist laut Instantly-Doku bei per API angelegten
         // Kampagnen nicht garantiert, dass Folge-Schritte ausbleiben, sobald
         // ein Lead geantwortet hat (im UI ist "Stop on reply" default an, bei
@@ -189,6 +202,8 @@ export async function POST(req: Request) {
       mailboxes,
       days,
       daily_limit: dailyLimit || null,
+      open_tracking: openTracking,
+      link_tracking: linkTracking,
     })
     .select("id")
     .single();
@@ -210,8 +225,12 @@ export async function POST(req: Request) {
       campaign_id: localCampaign.id,
       step_order: i,
       wait_days: s.delayDays ?? 0,
-      subject: s.subject,
-      body: s.body,
+      // subject/body fuehren weiterhin Variante A (Migration 0071): alles,
+      // was die Spalten heute schon liest, bekommt damit denselben Text wie
+      // bisher, und variants haelt die vollstaendige Wahrheit.
+      subject: primaryVariant(s).subject,
+      body: primaryVariant(s).body,
+      variants: s.variants,
     }))
   );
 

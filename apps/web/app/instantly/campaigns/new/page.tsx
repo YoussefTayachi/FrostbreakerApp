@@ -119,7 +119,7 @@ export default function NewCampaignPage() {
       searchIds.length === 0 ||
       !value.name.trim() ||
       value.mailboxes.length === 0 ||
-      value.steps.some((s) => !s.subject.trim() || !s.body.trim())
+      value.steps.some((s) => s.variants.some((v) => !v.subject.trim() || !v.body.trim()))
     ) {
       push(F.validationError, "error");
       return;
@@ -138,6 +138,8 @@ export default function NewCampaignPage() {
         to: value.to,
         timezone: value.timezone,
         dailyLimit: Number(value.dailyLimit) || undefined,
+        openTracking: value.openTracking,
+        linkTracking: value.linkTracking,
       }),
     });
     const body = await res.json().catch(() => ({}));

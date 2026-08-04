@@ -1010,6 +1010,29 @@ const de = {
       description: "Kampagnen inklusive Sequenz direkt hier anlegen: Instantly bleibt die Sende-Infrastruktur im Hintergrund.",
       newButton: "+ Neue Kampagne",
       newPageTitle: "Neue Kampagne",
+      variants: {
+        stepLabel: (n: number) => `Schritt ${n}`,
+        singleVariant: "nur eine Fassung — kein Vergleich möglich",
+        needMore: (n: number) => `noch ${n} Sendungen bis zur Mindestmenge`,
+        tooClose: "zu knapp beieinander — der Unterschied kann Zufall sein",
+        winnerIs: (letter: string) => `Variante ${letter} gewinnt`,
+        verdicts: {
+          winner: "gewinnt",
+          leading: "führt",
+          behind: "abgeschlagen",
+          collecting: "sammelt noch",
+        } as Record<string, string>,
+        colVariant: "Variante",
+        colSent: "Gesendet",
+        colOpened: "Öffnungen",
+        colReplies: "Antworten",
+        colRate: "Antwortquote",
+        empty: "Noch keine Auswertung. Sie entsteht, sobald die Kampagne sendet.",
+        openTrackingOff:
+          "Öffnungen werden für diese Kampagne nicht gezählt. Die Spalte bleibt deshalb leer — das ist keine Aussage über die Mails.",
+        methodNote:
+          "Gemessen an eindeutigen Antworten je gesendeter Mail. Ein Gewinner wird erst genannt, wenn jede Fassung mindestens 50 Mails hinter sich hat und der Abstand einem Zufallstest standhält.",
+      },
       empty: "Noch keine Kampagne angelegt.",
       needsKeyBody: "Hinterlege zuerst einen Instantly-API-Key unter Verbindung.",
       columnName: "Name",
@@ -1051,6 +1074,18 @@ const de = {
         subjectPlaceholder: "Betreff",
         bodyPlaceholder: "Text: Variablen über die Buttons oben einfügen, nicht selbst tippen",
         addStep: "+ Weiteren Schritt hinzufügen",
+        variantLabel: (letter: string) => `Variante ${letter}`,
+        addVariant: "+ Variante",
+        removeVariant: (letter: string) => `Variante ${letter} löschen`,
+        variantHint:
+          "Instantly verteilt den Versand auf die Varianten und zählt sie getrennt. Schreib einen echten Gegenentwurf, keine Kopie mit zwei geänderten Wörtern.",
+        trackingLabel: "Messung",
+        openTracking: "Öffnungen zählen",
+        openTrackingHint:
+          "Setzt ein unsichtbares Zählpixel in jede Mail. Zeigt, ob gelesen wurde — ist aber eines der Merkmale, an denen Spamfilter kalte Massenmails erkennen.",
+        linkTracking: "Klicks zählen",
+        linkTrackingHint:
+          "Schreibt jeden Link auf eine Weiterleitung um. Kostet zusätzlich Vertrauen, weil die sichtbare Adresse nicht mehr das Ziel ist.",
         insertVariable: "Variable einfügen:",
         variableFirstName: "Vorname",
         variableLastName: "Nachname",
@@ -1152,6 +1187,8 @@ const de = {
         leadsAddedOf: (added: number, available: number) => `${added} von ${available} verfügbaren Leads hinzugefügt`,
         addMoreLeads: "Neue Leads hinzufügen",
         showLeadList: "Leads anzeigen",
+        showVariants: "Varianten-Auswertung",
+        hideVariants: "Auswertung ausblenden",
         hideLeadList: "Leads ausblenden",
         leadsPanel: {
           filters: {
@@ -2475,6 +2512,29 @@ const en: Dictionary = {
       description: "Create campaigns including the sequence right here: Instantly stays the sending infrastructure in the background.",
       newButton: "+ New campaign",
       newPageTitle: "New campaign",
+      variants: {
+        stepLabel: (n: number) => `Step ${n}`,
+        singleVariant: "only one version — nothing to compare",
+        needMore: (n: number) => `${n} more sends until the minimum`,
+        tooClose: "too close — the difference could be chance",
+        winnerIs: (letter: string) => `Variant ${letter} wins`,
+        verdicts: {
+          winner: "wins",
+          leading: "leading",
+          behind: "behind",
+          collecting: "collecting",
+        },
+        colVariant: "Variant",
+        colSent: "Sent",
+        colOpened: "Opens",
+        colReplies: "Replies",
+        colRate: "Reply rate",
+        empty: "No results yet. They appear once the campaign starts sending.",
+        openTrackingOff:
+          "Opens are not counted for this campaign. The column stays empty — that says nothing about the mails.",
+        methodNote:
+          "Measured as unique replies per mail sent. A winner is only named once every version has at least 50 sends and the gap survives a chance test.",
+      },
       empty: "No campaign created yet.",
       needsKeyBody: "Save an Instantly API key under Connection first.",
       columnName: "Name",
@@ -2516,6 +2576,18 @@ const en: Dictionary = {
         subjectPlaceholder: "Subject",
         bodyPlaceholder: "Body: insert variables via the buttons above, no need to type them",
         addStep: "+ Add another step",
+        variantLabel: (letter: string) => `Variant ${letter}`,
+        addVariant: "+ Variant",
+        removeVariant: (letter: string) => `Delete variant ${letter}`,
+        variantHint:
+          "Instantly splits sending across the variants and counts them separately. Write a real alternative, not a copy with two words changed.",
+        trackingLabel: "Tracking",
+        openTracking: "Count opens",
+        openTrackingHint:
+          "Puts an invisible pixel in every mail. Shows whether it was read — but it is one of the markers spam filters use to spot cold bulk mail.",
+        linkTracking: "Count clicks",
+        linkTrackingHint:
+          "Rewrites every link through a redirect. Costs additional trust, because the visible address is no longer the destination.",
         insertVariable: "Insert variable:",
         variableFirstName: "First name",
         variableLastName: "Last name",
@@ -2617,6 +2689,8 @@ const en: Dictionary = {
         leadsAddedOf: (added: number, available: number) => `${added} of ${available} available leads added`,
         addMoreLeads: "Add new leads",
         showLeadList: "Show leads",
+        showVariants: "Variant results",
+        hideVariants: "Hide results",
         hideLeadList: "Hide leads",
         leadsPanel: {
           filters: {

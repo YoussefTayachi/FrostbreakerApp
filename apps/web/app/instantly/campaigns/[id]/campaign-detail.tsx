@@ -6,6 +6,7 @@ import { useT } from "../../../language-provider";
 import { useToast } from "../../../toast-provider";
 import { cardCls, secondaryBtnCls, STATUS_BADGE_CLS } from "@/lib/ui";
 import CampaignLeadsPanel from "./campaign-leads-panel";
+import VariantPanel from "./variant-panel";
 import CampaignForm, { type CampaignFormValue } from "../campaign-form";
 
 type CampaignDetail = {
@@ -47,6 +48,7 @@ export default function CampaignDetail({ id }: { id: string }) {
   const [addingLeads, setAddingLeads] = useState(false);
   /** Die Lead-Liste haengt an einem Klick, siehe Kommentar an CampaignLeadsPanel. */
   const [leadsOpen, setLeadsOpen] = useState(false);
+  const [variantsOpen, setVariantsOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
   function load() {
@@ -66,6 +68,11 @@ export default function CampaignDetail({ id }: { id: string }) {
           from: body.from,
           to: body.to,
           timezone: body.timezone,
+          // Beim Bearbeiten kommt der Zustand von Instantly. Null (vor
+          // Migration 0071 angelegt) wird als "aus" dargestellt -- und beim
+          // Speichern damit auch so gesetzt, was die Unklarheit aufloest.
+          openTracking: body.openTracking === true,
+          linkTracking: body.linkTracking === true,
           dailyLimit: body.dailyLimit ? String(body.dailyLimit) : "",
         });
       })
@@ -257,6 +264,12 @@ export default function CampaignDetail({ id }: { id: string }) {
             >
               {leadsOpen ? D.hideLeadList : D.showLeadList}
             </button>
+            {/* Neben der Lead-Liste, nicht in einem eigenen Block: beides
+                beantwortet dieselbe Frage aus zwei Richtungen -- wen habe ich
+                erreicht, und womit. */}
+            <button onClick={() => setVariantsOpen((v) => !v)} className={secondaryBtnCls}>
+              {variantsOpen ? D.hideVariants : D.showVariants}
+            </button>
             <button onClick={addLeads} disabled={addingLeads || data.leadsAdded >= data.leadsAvailable} className={secondaryBtnCls}>
               {addingLeads ? D.addingLeads : D.addMoreLeads}
             </button>
@@ -267,6 +280,7 @@ export default function CampaignDetail({ id }: { id: string }) {
             an Instantly, und wer nur den Zeitplan aendern will, braucht ihn
             nicht. Die Komponente laedt selbst, sobald sie gerendert wird. */}
         {leadsOpen && <CampaignLeadsPanel campaignId={id} />}
+        {variantsOpen && <VariantPanel campaignId={id} />}
       </div>
 
       <div className={cardCls}>

@@ -103,9 +103,14 @@ describe("Hin- und Rueckweg", () => {
   });
 });
 
+/** Ein Schritt mit genau einer Fassung -- der Normalfall in diesen Tests. */
+function step(subject: string, body: string, delayDays: number) {
+  return { variants: [{ subject, body }], delayDays };
+}
+
 describe("buildCampaignSequence", () => {
   it("schickt den Body als HTML an Instantly", () => {
-    const seq = buildCampaignSequence([{ subject: "Betreff", body: "A & B", delayDays: 0 }]);
+    const seq = buildCampaignSequence([step("Betreff", "A & B", 0)]);
     expect(seq[0].steps[0].variants[0].body).toBe("<div>A &amp; B</div>");
     // Der Betreff bleibt Klartext -- den speichert Instantly problemlos.
     expect(seq[0].steps[0].variants[0].subject).toBe("Betreff");
@@ -118,17 +123,17 @@ describe("Wartezeit zwischen den Schritten", () => {
   // Ungefiltert durchgereicht ginge das Follow-up sofort raus.
   it("schreibt die Wartezeit auf den vorherigen Schritt", () => {
     const seq = buildCampaignSequence([
-      { subject: "1", body: "a", delayDays: 0 },
-      { subject: "2", body: "b", delayDays: 3 },
+      step("1", "a", 0),
+      step("2", "b", 3),
     ]);
     expect(seq[0].steps.map((s) => s.delay)).toEqual([3, 0]);
   });
 
   it("kommt mit drei Schritten klar", () => {
     const seq = buildCampaignSequence([
-      { subject: "1", body: "a", delayDays: 0 },
-      { subject: "2", body: "b", delayDays: 2 },
-      { subject: "3", body: "c", delayDays: 5 },
+      step("1", "a", 0),
+      step("2", "b", 2),
+      step("3", "c", 5),
     ]);
     expect(seq[0].steps.map((s) => s.delay)).toEqual([2, 5, 0]);
   });
@@ -152,9 +157,9 @@ describe("Wartezeit zwischen den Schritten", () => {
 
   it("ueberlebt den Weg hin und zurueck", () => {
     const original = [
-      { subject: "1", body: "a", delayDays: 0 },
-      { subject: "2", body: "b", delayDays: 3 },
-      { subject: "3", body: "c", delayDays: 7 },
+      step("1", "a", 0),
+      step("2", "b", 3),
+      step("3", "c", 7),
     ];
     const sent = buildCampaignSequence(original);
     const back = sequenceFromInstantly({
@@ -175,7 +180,7 @@ describe("sequenceFromInstantly", () => {
       status: 0,
       sequences: [{ steps: [{ delay: 2, variants: [{ subject: "S", body: "<p>A &amp; B</p>" }] }] }],
     });
-    expect(steps[0].body).toBe("A & B");
+    expect(steps[0].variants[0].body).toBe("A & B");
     // Der erste Schritt hat per Definition keine Vorlaufzeit -- die 2 oben ist
     // in Instantlys Modell die Wartezeit BIS zum naechsten Schritt.
     expect(steps[0].delayDays).toBe(0);
@@ -220,5 +225,79 @@ describe("instantlyHtmlToPlainText mit Instantlys <div>-HTML", () => {
     const einmal = instantlyHtmlToPlainText(html);
     const zweimal = instantlyHtmlToPlainText(plainTextToInstantlyHtml(einmal));
     expect(zweimal).toBe(einmal);
+  });
+});
+
+describe("Varianten je Schritt", () => {
+  /**
+   * Bis 2026-08-04 schickte buildCampaignSequence immer genau EINE Variante.
+   * Instantly verteilt den Versand auf alle und zaehlt getrennt mit -- ohne
+   * mehrere gibt es keinen Vergleich, egal wie viele Mails rausgehen.
+   */
+  it("gibt alle Fassungen an Instantly weiter", () => {
+    const seq = buildCampaignSequence([
+      { variants: [{ subject: "A", body: "erste" }, { subject: "B", body: "zweite" }], delayDays: 0 },
+    ]);
+    expect(seq[0].steps[0].variants.map((v) => v.subject)).toEqual(["A", "B"]);
+    expect(seq[0].steps[0].variants[1].body).toBe("<div>zweite</div>");
+  });
+
+  // Ein v_disabled:false an einer Kampagne, die das Feld nie kannte, waere
+  // eine Aenderung ohne Anlass.
+  it("setzt v_disabled nur bei abgeschalteten Varianten", () => {
+    const seq = buildCampaignSequence([
+      { variants: [{ subject: "A", body: "x" }, { subject: "B", body: "y", disabled: true }], delayDays: 0 },
+    ]);
+    expect(seq[0].steps[0].variants[0]).not.toHaveProperty("v_disabled");
+    expect(seq[0].steps[0].variants[1]).toHaveProperty("v_disabled", true);
+  });
+
+  it("liest alle Fassungen wieder ein, samt Abschaltung", () => {
+    const steps = sequenceFromInstantly({
+      id: "x",
+      name: "x",
+      status: 0,
+      sequences: [
+        {
+          steps: [
+            {
+              delay: 0,
+              variants: [
+                { subject: "A", body: "<p>eins</p>" },
+                { subject: "B", body: "<p>zwei</p>", v_disabled: true },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+    expect(steps[0].variants.map((v) => v.subject)).toEqual(["A", "B"]);
+    expect(steps[0].variants[0].disabled).toBeUndefined();
+    expect(steps[0].variants[1].disabled).toBe(true);
+  });
+
+  // Sonst stuende im Formular ein Schritt ganz ohne Textfeld.
+  it("erfindet eine leere Fassung, wenn Instantly gar keine liefert", () => {
+    const steps = sequenceFromInstantly({
+      id: "x",
+      name: "x",
+      status: 0,
+      sequences: [{ steps: [{ delay: 0 }] }],
+    });
+    expect(steps[0].variants).toEqual([{ subject: "", body: "" }]);
+  });
+
+  it("ueberlebt mit zwei Fassungen den Weg hin und zurueck", () => {
+    const original = [
+      { variants: [{ subject: "A", body: "eins" }, { subject: "B", body: "zwei" }], delayDays: 0 },
+      { variants: [{ subject: "C", body: "drei" }], delayDays: 3 },
+    ];
+    const back = sequenceFromInstantly({
+      id: "x",
+      name: "x",
+      status: 0,
+      sequences: [{ steps: buildCampaignSequence(original)[0].steps }],
+    });
+    expect(back).toEqual(original);
   });
 });

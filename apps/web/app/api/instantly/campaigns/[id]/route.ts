@@ -9,7 +9,9 @@ import {
   scheduleFromInstantly,
   toLocalStatus,
   type InstantlyCampaign,
+  primaryVariant,
   type SequenceStep,
+  type StepVariant,
 } from "@/lib/instantly/campaigns";
 
 /** Kuerzt Postgres' "HH:MM:SS"-Zeitformat auf "HH:MM" fuer <input type="time">. */
@@ -82,24 +84,40 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
   // campaign_steps noch vollstaendig vorliegt.
   const { data: mirroredSteps } = await supabase
     .from("campaign_steps")
-    .select("subject, body, wait_days")
+    .select("subject, body, wait_days, variants")
     .eq("campaign_id", local.id)
     .order("step_order");
+
+  /** Die gespiegelten Fassungen eines Schrittes, mit Ruecksfall auf
+   *  subject/body fuer Zeilen von vor Migration 0071. */
+  function mirroredVariants(i: number): StepVariant[] {
+    const row = mirroredSteps?.[i];
+    if (!row) return [];
+    const stored = row.variants as StepVariant[] | null;
+    if (stored?.length) return stored;
+    return [{ subject: row.subject ?? "", body: row.body ?? "" }];
+  }
+
   const liveSteps = sequenceFromInstantly(live);
-  const steps = (liveSteps.length > 0 ? liveSteps : []).map((s, i) => {
-    const mirrored = mirroredSteps?.[i];
-    return {
-      ...s,
-      subject: s.subject?.trim() ? s.subject : mirrored?.subject ?? s.subject,
-      body: s.body?.trim() ? s.body : mirrored?.body ?? s.body,
-    };
-  });
+  const steps = liveSteps.map((s, i) => ({
+    ...s,
+    // Je Variante einzeln: bei zwei Fassungen kann die eine bei Instantly
+    // vollstaendig sein und die andere leer, und dann darf nur die leere aus
+    // dem Spiegel ergaenzt werden.
+    variants: s.variants.map((v, vi) => {
+      const mirrored = mirroredVariants(i)[vi];
+      return {
+        ...v,
+        subject: v.subject.trim() ? v.subject : mirrored?.subject ?? v.subject,
+        body: v.body.trim() ? v.body : mirrored?.body ?? v.body,
+      };
+    }),
+  }));
   const effectiveSteps =
     steps.length > 0
       ? steps
-      : (mirroredSteps ?? []).map((s) => ({
-          subject: s.subject,
-          body: s.body,
+      : (mirroredSteps ?? []).map((s, i) => ({
+          variants: mirroredVariants(i),
           delayDays: s.wait_days,
         }));
 
@@ -116,6 +134,10 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
     to: schedule.to || toHhMm(local.send_window_end),
     timezone: schedule.timezone || local.timezone,
     dailyLimit: live.daily_limit ?? local.daily_limit,
+    // Live vor Spiegel: bei Instantly kann jemand direkt umgestellt haben,
+    // und was dort gilt, entscheidet ueber jede versendete Mail.
+    openTracking: live.open_tracking ?? local.open_tracking,
+    linkTracking: live.link_tracking ?? local.link_tracking,
     activatedAt: local.activated_at,
     createdAt: local.created_at,
     leadsAdded: leadsAdded ?? 0,
@@ -128,6 +150,8 @@ type UpdateCampaignBody = {
   name?: string;
   mailboxes?: string[];
   steps?: SequenceStep[];
+  openTracking?: boolean;
+  linkTracking?: boolean;
   days?: number[];
   from?: string;
   to?: string;
@@ -155,18 +179,30 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   const to = body.to || toHhMm(local.send_window_end);
   const timezone = body.timezone || local.timezone;
   const dailyLimit = body.dailyLimit !== undefined ? body.dailyLimit : local.daily_limit;
+  // Ohne Angabe bleibt der gespiegelte Zustand. Null (vor Migration 0071
+  // angelegt) wird dabei zu false -- damit steht ab dem ersten Speichern
+  // fest, was gilt, statt weiter "unbekannt" zu sein.
+  const openTracking = body.openTracking !== undefined ? body.openTracking : local.open_tracking === true;
+  const linkTracking = body.linkTracking !== undefined ? body.linkTracking : local.link_tracking === true;
 
   let steps = body.steps;
   if (!steps || steps.length === 0) {
     const { data: existingSteps } = await supabase
       .from("campaign_steps")
-      .select("subject, body, wait_days")
+      .select("subject, body, wait_days, variants")
       .eq("campaign_id", local.id)
       .order("step_order");
-    steps = (existingSteps ?? []).map((s) => ({ subject: s.subject, body: s.body, delayDays: s.wait_days }));
+    // Ruecksfall auf subject/body fuer Schritte, die vor Migration 0071
+    // angelegt wurden und deren Nachtrag (noch) nicht gelaufen ist.
+    steps = (existingSteps ?? []).map((s) => ({
+      variants: (s.variants as StepVariant[] | null)?.length
+        ? (s.variants as StepVariant[])
+        : [{ subject: s.subject ?? "", body: s.body ?? "" }],
+      delayDays: s.wait_days,
+    }));
   }
-  if (steps.some((s) => !s.subject?.trim() || !s.body?.trim())) {
-    return NextResponse.json({ error: "Jeder Schritt braucht Betreff und Text." }, { status: 400 });
+  if (steps.some((s) => !s.variants?.length || s.variants.some((v) => !v.subject?.trim() || !v.body?.trim()))) {
+    return NextResponse.json({ error: "Jede Variante braucht Betreff und Text." }, { status: 400 });
   }
 
   try {
@@ -178,6 +214,8 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
         sequences: buildCampaignSequence(steps),
         email_list: mailboxes,
         daily_limit: dailyLimit || undefined,
+        open_tracking: openTracking,
+        link_tracking: linkTracking,
       }),
     });
   } catch (e) {
@@ -195,6 +233,8 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
       send_window_end: to,
       timezone,
       daily_limit: dailyLimit || null,
+      open_tracking: openTracking,
+      link_tracking: linkTracking,
     })
     .eq("id", local.id);
 
@@ -204,8 +244,12 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
       campaign_id: local.id,
       step_order: i,
       wait_days: s.delayDays ?? 0,
-      subject: s.subject,
-      body: s.body,
+      // subject/body fuehren weiterhin Variante A (Migration 0071): alles,
+      // was die Spalten heute schon liest, bekommt damit denselben Text wie
+      // bisher, und variants haelt die vollstaendige Wahrheit.
+      subject: primaryVariant(s).subject,
+      body: primaryVariant(s).body,
+      variants: s.variants,
     }))
   );
 

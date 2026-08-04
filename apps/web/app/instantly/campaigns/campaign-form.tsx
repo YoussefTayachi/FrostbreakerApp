@@ -2,11 +2,16 @@
 import { useEffect, useState } from "react";
 import { useT } from "../../language-provider";
 import { inputCls, primaryBtnCls } from "@/lib/ui";
-import { INSTANTLY_TIMEZONE_OPTIONS, defaultInstantlyTimezone } from "@/lib/instantly/campaigns";
+import {
+  INSTANTLY_TIMEZONE_OPTIONS,
+  defaultInstantlyTimezone,
+  type StepVariant,
+} from "@/lib/instantly/campaigns";
 import CampaignStepCard from "./campaign-step-card";
 
 type Account = { email: string; status: number };
-export type Step = { subject: string; body: string; delayDays: number };
+/** Ein Sequenzschritt im Formular. Mindestens eine Fassung, siehe StepVariant. */
+export type Step = { variants: StepVariant[]; delayDays: number };
 export type CampaignFormValue = {
   name: string;
   mailboxes: string[];
@@ -16,6 +21,10 @@ export type CampaignFormValue = {
   to: string;
   timezone: string;
   dailyLimit: string;
+  /** Zaehlpixel und Link-Umschreibung. Beide kosten Zustellbarkeit, deshalb
+   *  aus (siehe die Erlaeuterung im Formular). */
+  openTracking: boolean;
+  linkTracking: boolean;
 };
 
 const DAY_LABELS = ["So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"];
@@ -24,12 +33,14 @@ export function emptyCampaignFormValue(): CampaignFormValue {
   return {
     name: "",
     mailboxes: [],
-    steps: [{ subject: "", body: "", delayDays: 0 }],
+    steps: [{ variants: [{ subject: "", body: "" }], delayDays: 0 }],
     days: [1, 2, 3, 4, 5],
     from: "09:00",
     to: "17:00",
     timezone: defaultInstantlyTimezone(),
     dailyLimit: "50",
+    openTracking: false,
+    linkTracking: false,
   };
 }
 
@@ -91,7 +102,7 @@ export default function CampaignForm({
   }
 
   function addStep() {
-    onChange({ ...value, steps: [...value.steps, { subject: "", body: "", delayDays: 3 }] });
+    onChange({ ...value, steps: [...value.steps, { variants: [{ subject: "", body: "" }], delayDays: 3 }] });
   }
 
   function removeStep(i: number) {
@@ -198,6 +209,43 @@ export default function CampaignForm({
           </label>
         </div>
         <p className="mt-1.5 text-xs text-mute">{F.dailyLimitHint}</p>
+      </div>
+
+      {/* Bewusste Entscheidung statt Instantlys Vorgabe.
+          instantly_campaign_stats meldete am 2026-08-04 ueber alle Kampagnen
+          open_count = 0 -- damit liess sich "gar nicht zugestellt" nicht von
+          "gelesen, aber uninteressant" unterscheiden. Beides einzuschalten
+          ist trotzdem nicht die Standardantwort: der Zaehlpixel und
+          umgeschriebene Links sind zwei der Merkmale, an denen Spamfilter
+          kalte Massenmails erkennen. */}
+      <div>
+        <p className="mb-1.5 text-xs font-medium text-faint">{F.trackingLabel}</p>
+        <div className="space-y-1.5">
+          <label className="flex items-start gap-2 text-sm text-ink">
+            <input
+              type="checkbox"
+              checked={value.openTracking}
+              onChange={(e) => onChange({ ...value, openTracking: e.target.checked })}
+              className="mt-0.5"
+            />
+            <span>
+              {F.openTracking}
+              <span className="block text-xs text-faint">{F.openTrackingHint}</span>
+            </span>
+          </label>
+          <label className="flex items-start gap-2 text-sm text-ink">
+            <input
+              type="checkbox"
+              checked={value.linkTracking}
+              onChange={(e) => onChange({ ...value, linkTracking: e.target.checked })}
+              className="mt-0.5"
+            />
+            <span>
+              {F.linkTracking}
+              <span className="block text-xs text-faint">{F.linkTrackingHint}</span>
+            </span>
+          </label>
+        </div>
       </div>
 
       {beforeSubmit}

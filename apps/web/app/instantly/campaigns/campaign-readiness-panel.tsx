@@ -74,7 +74,14 @@ export default function CampaignReadinessPanel({
       fetch("/api/campaigns/readiness", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ searchIds, mailboxes, steps: steps.map((s) => ({ body: s.body })) }),
+        // Geprueft wird Variante A: sie geht an jeden Empfaenger raus, die
+        // weiteren nur an einen Teil. Was hier auffaellt, faellt damit bei
+        // allen auf.
+        body: JSON.stringify({
+          searchIds,
+          mailboxes,
+          steps: steps.map((s) => ({ body: s.variants[0]?.body ?? "" })),
+        }),
       })
         .then((r) => r.json())
         .then((body: ReadinessResult & { error?: string }) => {

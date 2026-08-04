@@ -5,7 +5,34 @@
 // dieser Datei-Kopf als einziger Ort gilt, an dem man nachschauen muss, wenn
 // sich Instantlys Kampagnen-Schema aendert.
 
-export type SequenceStep = { subject: string; body: string; delayDays?: number };
+/**
+ * Eine Fassung eines Sequenzschritts.
+ *
+ * Instantly verschickt die Varianten eines Schrittes abwechselnd und zaehlt
+ * getrennt mit -- das ist der einzige eingebaute Weg, herauszufinden, welcher
+ * Text tatsaechlich Antworten bringt. Bis 2026-08-04 hat die App immer genau
+ * eine Variante angelegt; damit gab es keinerlei Vergleich, egal wie viele
+ * Mails rausgingen.
+ *
+ * disabled entspricht Instantlys v_disabled: die Variante bleibt stehen (man
+ * sieht weiter, was sie geleistet hat), wird aber nicht mehr versendet. Genau
+ * das braucht man, wenn ein Gewinner feststeht -- eine geloeschte Verliererin
+ * nimmt ihre Zahlen mit ins Grab, und die naechste Kampagne wiederholt den
+ * Fehler.
+ */
+export type StepVariant = { subject: string; body: string; disabled?: boolean };
+
+export type SequenceStep = { variants: StepVariant[]; delayDays?: number };
+
+/** Variante A eines Schrittes -- der Text, der auf jeden Fall existiert. */
+export function primaryVariant(step: SequenceStep): StepVariant {
+  return step.variants[0] ?? { subject: "", body: "" };
+}
+
+/** Die Buchstaben, unter denen Instantly die Varianten fuehrt: 0 = A, 1 = B, ... */
+export function variantLabel(index: number): string {
+  return String.fromCharCode(65 + index);
+}
 
 export type CampaignScheduleInput = {
   days: number[]; // 0=Sonntag..6=Samstag, wie JS Date#getDay()
@@ -231,8 +258,7 @@ export function instantlyHtmlToPlainText(body: string): string {
 }
 
 // Laut Instantly-Doku wird beim Top-Level-Feld "sequences" nur das erste Element
-// verwendet (Array existiert nur aus Kompatibilitaetsgruenden). Jeder Schritt hat
-// "variants" (fuer A/B-Tests), wir nutzen bewusst nur eine Variante pro Schritt.
+// verwendet (Array existiert nur aus Kompatibilitaetsgruenden).
 //
 // ACHTUNG, unterschiedliche Bedeutung von "delay":
 //   unser Modell:  step[i].delayDays = warte so lange VOR diesem Schritt
@@ -251,7 +277,16 @@ export function buildCampaignSequence(steps: SequenceStep[]) {
       steps: steps.map((s, i) => ({
         type: "email",
         delay: steps[i + 1]?.delayDays ?? 0,
-        variants: [{ subject: s.subject, body: plainTextToInstantlyHtml(s.body) }],
+        // Alle Fassungen mitgeben. Instantly verteilt den Versand darauf und
+        // zaehlt getrennt mit -- ohne mehrere Varianten gibt es keinen
+        // Vergleich, egal wie viele Mails rausgehen.
+        variants: s.variants.map((v) => ({
+          subject: v.subject,
+          body: plainTextToInstantlyHtml(v.body),
+          // Nur setzen, wenn abgeschaltet: ein v_disabled:false an einer
+          // Kampagne, die das Feld nie kannte, waere eine Aenderung ohne Anlass.
+          ...(v.disabled ? { v_disabled: true } : {}),
+        })),
       })),
     },
   ];
@@ -307,6 +342,10 @@ export type LocalCampaign = {
   send_window_end: string;
   timezone: string;
   daily_limit: number | null;
+  /** Migration 0071. Null = vor der Migration angelegt, echter Zustand nur bei
+   *  Instantly bekannt -- deshalb bewusst nicht als false gefuehrt. */
+  open_tracking: boolean | null;
+  link_tracking: boolean | null;
   activated_at: string | null;
   created_at: string;
 };
@@ -334,17 +373,29 @@ export type InstantlyCampaign = {
   campaign_schedule?: {
     schedules?: Array<{ timing?: { from?: string; to?: string }; days?: Record<string, boolean>; timezone?: string }>;
   };
-  sequences?: Array<{ steps?: Array<{ delay?: number; variants?: Array<{ subject?: string; body?: string }> }> }>;
+  sequences?: Array<{
+    steps?: Array<{
+      delay?: number;
+      variants?: Array<{ subject?: string; body?: string; v_disabled?: boolean }>;
+    }>;
+  }>;
   email_list?: string[];
   daily_limit?: number | null;
+  open_tracking?: boolean | null;
+  link_tracking?: boolean | null;
 };
 
 /** Instantlys Sequenz-Objekt zurueck in unsere editierbare Step-Form uebersetzen. */
 export function sequenceFromInstantly(campaign: InstantlyCampaign): SequenceStep[] {
   const steps = campaign.sequences?.[0]?.steps ?? [];
   return steps.map((s, i) => ({
-    subject: s.variants?.[0]?.subject ?? "",
-    body: instantlyHtmlToPlainText(s.variants?.[0]?.body ?? ""),
+    // Mindestens eine Fassung, auch wenn Instantly gar keine liefert -- sonst
+    // stuende im Formular ein Schritt ohne jedes Textfeld.
+    variants: (s.variants?.length ? s.variants : [{}]).map((v) => ({
+      subject: v.subject ?? "",
+      body: instantlyHtmlToPlainText(v.body ?? ""),
+      ...(v.v_disabled ? { disabled: true } : {}),
+    })),
     // Gegenstueck zur Verschiebung in buildCampaignSequence: die Wartezeit
     // steht bei Instantly am vorherigen Schritt. Schritt 1 hat per Definition
     // keine Vorlaufzeit.
