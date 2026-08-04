@@ -240,6 +240,16 @@ const de = {
     footnote:
       "Eine Regel legt nie eine zweite Aufgabe an, solange für den Kontakt noch eine offene existiert.",
   },
+  replyAssistant: {
+    title: "Antwort-Assistent",
+    subtitle: "Was die Entwürfe im Posteingang mitbekommen.",
+    calendarLabel: "Terminlink",
+    calendarPlaceholder: "https://cal.com/dein-name/15min",
+    senderLabel: "Unterschrift",
+    senderPlaceholder: "Youssef",
+    hint:
+      "Beides darf leer bleiben. Ohne Terminlink wird dem Modell ausdrücklich verboten, einen zu erfinden — es schlägt dann konkrete Zeitfenster vor. Sonst stünde eine plausible, tote Adresse in einer echten Geschäftsmail, und das fällt erst dem Empfänger auf.",
+  },
   replyNotify: {
     heading: "Benachrichtigung bei Antworten",
     description: "E-Mail an diese Adresse, sobald ein Lead zum ersten Mal auf eine Kampagne antwortet.",
@@ -847,6 +857,10 @@ const de = {
     openInLeads: "Im Lead-Kontext öffnen →",
     replyPlaceholder: "Deine Antwort...",
     replySend: "Antwort senden",
+    suggest: "Vorschläge",
+    suggesting: "Denkt nach...",
+    suggestHint: "Klick übernimmt den Entwurf ins Textfeld — dort noch anpassen, bevor du sendest.",
+    suggestError: "Vorschläge konnten nicht erzeugt werden.",
     replySending: "Sendet...",
     replySentToast: "Antwort gesendet",
     replyErrorGeneric: "Antwort konnte nicht gesendet werden.",
@@ -1777,6 +1791,16 @@ const en: Dictionary = {
     footnote:
       "A rule never creates a second task while an open one still exists for that contact.",
   },
+  replyAssistant: {
+    title: "Reply assistant",
+    subtitle: "What the drafts in your inbox get to work with.",
+    calendarLabel: "Booking link",
+    calendarPlaceholder: "https://cal.com/your-name/15min",
+    senderLabel: "Sign-off",
+    senderPlaceholder: "Youssef",
+    hint:
+      "Both may stay empty. Without a booking link the model is explicitly forbidden from inventing one — it proposes concrete time slots instead. Otherwise a plausible, dead address ends up in a real business email, and only the recipient finds out.",
+  },
   replyNotify: {
     heading: "Reply notifications",
     description: "Email this address as soon as a lead replies to a campaign for the first time.",
@@ -2361,6 +2385,10 @@ const en: Dictionary = {
     openInLeads: "Open in lead context →",
     replyPlaceholder: "Your reply...",
     replySend: "Send reply",
+    suggest: "Suggestions",
+    suggesting: "Thinking...",
+    suggestHint: "Click to load a draft into the text box — adjust it there before you send.",
+    suggestError: "Could not generate suggestions.",
     replySending: "Sending...",
     replySentToast: "Reply sent",
     replyErrorGeneric: "Could not send reply.",

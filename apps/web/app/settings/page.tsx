@@ -59,6 +59,9 @@ export default function SettingsPage() {
   const [linkCopied, setLinkCopied] = useState(false);
   const [replyNotifyEmail, setReplyNotifyEmail] = useState("");
   const [replyNotifySaving, setReplyNotifySaving] = useState(false);
+  const [calendarLink, setCalendarLink] = useState("");
+  const [senderName, setSenderName] = useState("");
+  const [assistantSaving, setAssistantSaving] = useState(false);
   const [replyTest, setReplyTest] = useState<"idle" | "sending">("idle");
   const reportOrigin = typeof window !== "undefined" ? window.location.origin : "";
 
@@ -66,7 +69,7 @@ export default function SettingsPage() {
     const supabase = createClient();
     supabase
       .from("workspaces")
-      .select("brand_name, brand_color, brand_logo_url, reply_notify_email")
+      .select("brand_name, brand_color, brand_logo_url, reply_notify_email, calendar_link, reply_sender_name")
       .eq("id", workspaceId)
       .single()
       .then(({ data }) => {
@@ -75,6 +78,8 @@ export default function SettingsPage() {
         setBrandColor(data.brand_color ?? "");
         setBrandLogoUrl(data.brand_logo_url ?? "");
         setReplyNotifyEmail(data.reply_notify_email ?? "");
+        setCalendarLink(data.calendar_link ?? "");
+        setSenderName(data.reply_sender_name ?? "");
       });
   }, [workspaceId]);
 
@@ -94,6 +99,32 @@ export default function SettingsPage() {
       return;
     }
     push(t.branding.saved, "success");
+  }
+
+  /**
+   * Was der Antwort-Assistent im Posteingang mitbekommt (Migration 0073).
+   *
+   * Beide Felder duerfen leer bleiben. Der Unterschied ist nicht "mit oder
+   * ohne Komfort", sondern was das Modell tut, wenn es die Angabe nicht hat:
+   * ohne Terminlink wird ihm ausdruecklich verboten, einen zu erfinden --
+   * sonst steht eine plausible, tote Calendly-Adresse in einer echten
+   * Geschaeftsmail, und der Fehler faellt erst dem Empfaenger auf.
+   */
+  async function saveAssistant() {
+    setAssistantSaving(true);
+    const { error } = await createClient()
+      .from("workspaces")
+      .update({
+        calendar_link: calendarLink.trim() || null,
+        reply_sender_name: senderName.trim() || null,
+      })
+      .eq("id", workspaceId);
+    setAssistantSaving(false);
+    if (error) {
+      push(t.common.error + error.message, "error");
+      return;
+    }
+    push(t.common.savedOk, "success");
   }
 
   /** Leeres Feld heisst bewusst "aus": lieber keine Benachrichtigung als eine
@@ -375,6 +406,41 @@ export default function SettingsPage() {
         </div>
         <p className="mt-3 text-xs leading-relaxed text-mute">{t.replyNotify.hint}</p>
       </div>
+
+      {/* Direkt unter der Antwort-Benachrichtigung: beides betrifft den
+          Moment, in dem jemand geantwortet hat. */}
+      <div className="rounded-lg border border-edge/60 bg-panel p-6">
+        <h2 className="font-medium text-ink">{t.replyAssistant.title}</h2>
+        <p className="mt-0.5 text-sm text-faint">{t.replyAssistant.subtitle}</p>
+
+        <div className="mt-3 grid gap-3 sm:grid-cols-2">
+          <div>
+            <label className="mb-1 block text-xs font-medium text-faint">{t.replyAssistant.calendarLabel}</label>
+            <input
+              value={calendarLink}
+              onChange={(e) => setCalendarLink(e.target.value)}
+              placeholder={t.replyAssistant.calendarPlaceholder}
+              className={inputCls + " w-full"}
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-xs font-medium text-faint">{t.replyAssistant.senderLabel}</label>
+            <input
+              value={senderName}
+              onChange={(e) => setSenderName(e.target.value)}
+              placeholder={t.replyAssistant.senderPlaceholder}
+              className={inputCls + " w-full"}
+            />
+          </div>
+        </div>
+
+        <p className="mt-2 text-xs leading-relaxed text-mute">{t.replyAssistant.hint}</p>
+
+        <button onClick={saveAssistant} disabled={assistantSaving} className={btnCls + " mt-3"}>
+          {assistantSaving ? t.common.saving : t.common.save}
+        </button>
+      </div>
+
 
       <div className="rounded-lg border border-edge/60 bg-panel p-6">
         <h2 className="font-medium text-ink">{t.branding.heading}</h2>

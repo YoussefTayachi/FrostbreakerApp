@@ -126,6 +126,16 @@ export default function InboxPage() {
   const [filter, setFilter] = useState<Filter>("all");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
+  /**
+   * Die Antwortentwuerfe.
+   *
+   * Auf Klick geholt, nicht beim Oeffnen: jeder Aufruf kostet Geld, und die
+   * meisten Antworten schreibt man in zehn Sekunden selbst. Der Assistent ist
+   * fuer die, bei denen man ins Gruebeln kommt -- und genau die bleiben sonst
+   * liegen.
+   */
+  const [suggestions, setSuggestions] = useState<{ label: string; text: string }[] | null>(null);
+  const [suggesting, setSuggesting] = useState(false);
   const [sending, setSending] = useState(false);
 
   const load = useCallback(async () => {
@@ -225,7 +235,30 @@ export default function InboxPage() {
   function select(c: Conversation) {
     setSelectedId(c.key);
     setDraft("");
+    // Entwuerfe gehoeren zu genau einem Gespraech. Stehen sie beim naechsten
+    // noch da, schickt man mit einem Klick die Antwort auf eine fremde Mail.
+    setSuggestions(null);
     if (c.unread > 0) markRead(c.key);
+  }
+
+  async function suggestReply() {
+    const target = selected?.replyTarget;
+    if (!target || suggesting) return;
+    setSuggesting(true);
+    try {
+      const res = await fetch("/api/inbox/suggest-reply", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messageId: target.id }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || L.suggestError);
+      setSuggestions(data.suggestions);
+    } catch (e) {
+      push((e as Error).message, "error");
+    } finally {
+      setSuggesting(false);
+    }
   }
 
   async function sendReply() {
@@ -434,6 +467,28 @@ export default function InboxPage() {
 
                 {selected.replyTarget && (
                   <div className="border-t border-edge/60 px-5 py-3.5">
+                    {/* Die Entwuerfe stehen UEBER dem Textfeld: sie sind ein
+                        Startpunkt, kein Nachschlag. Darunter wuerde man sie
+                        erst lesen, nachdem man selbst getippt hat. */}
+                    {suggestions && suggestions.length > 0 && (
+                      <div className="mb-2.5 space-y-1.5">
+                        {suggestions.map((sug, i) => (
+                          <button
+                            key={i}
+                            onClick={() => setDraft(sug.text)}
+                            className="block w-full rounded-lg border border-edge2 bg-panel2 px-3 py-2 text-left transition-colors hover:border-sky-500/50"
+                          >
+                            <span className="text-[11px] font-medium uppercase tracking-wide text-sky-600 dark:text-sky-400">
+                              {sug.label}
+                            </span>
+                            <span className="mt-0.5 block whitespace-pre-wrap text-xs leading-relaxed text-soft">
+                              {sug.text}
+                            </span>
+                          </button>
+                        ))}
+                        <p className="text-[11px] text-mute">{L.suggestHint}</p>
+                      </div>
+                    )}
                     <textarea
                       value={draft}
                       onChange={(e) => setDraft(e.target.value)}
@@ -442,10 +497,17 @@ export default function InboxPage() {
                       className="w-full rounded-lg border border-edge2 bg-field px-3 py-2 text-sm text-ink placeholder-mute outline-none transition-colors focus:border-sky-500"
                     />
                     <div className="mt-2 flex items-center justify-between gap-3">
-                      <span className="truncate text-[11px] text-faint">
+                      <span className="min-w-0 truncate text-[11px] text-faint">
                         {L.replySubjectPrefix}
                         {selected.replyTarget.subject || L.noSubject}
                       </span>
+                      <button
+                        onClick={suggestReply}
+                        disabled={suggesting}
+                        className="ml-auto shrink-0 rounded-lg border border-edge2 px-3 py-2 text-xs font-medium text-soft transition-colors hover:border-sky-500/50 hover:text-ink disabled:opacity-40"
+                      >
+                        {suggesting ? L.suggesting : L.suggest}
+                      </button>
                       <button
                         onClick={sendReply}
                         disabled={sending || !draft.trim()}
