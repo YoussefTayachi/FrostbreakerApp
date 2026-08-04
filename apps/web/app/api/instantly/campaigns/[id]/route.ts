@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { requireInstantlyContext, instantlyRequest, InstantlyApiError } from "@/lib/instantly";
+import { campaignStatsRow, type StatsRow } from "@/lib/instantly/campaign-stats";
 import {
   buildCampaignSchedule,
   buildCampaignSequence,
@@ -79,20 +80,16 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
     searchIds.length
       ? supabase
           .from("instantly_campaign_stats")
-          .select("leads_count, contacted_count, emails_sent_count, open_count, reply_count_unique, bounced_count, unsubscribed_count, completed_count")
+          .select("updated_at, leads_count, contacted_count, emails_sent_count, open_count, reply_count_unique, bounced_count, unsubscribed_count, completed_count")
           .in("search_id", searchIds)
       : Promise.resolve({ data: [] }),
   ]);
 
-  // Ueber alle Suchen aufaddiert. Instantly fuehrt die Zahlen je Kampagne,
-  // gespiegelt werden sie je Suche -- die Summe ist damit die Kampagnenzahl.
-  const statRows = (stats.data ?? []) as Record<string, number>[];
-  const summedStats = statRows.length
-    ? statRows.reduce((sum, row) => {
-        for (const key of Object.keys(row)) sum[key] = (sum[key] ?? 0) + (row[key] ?? 0);
-        return sum;
-      }, {} as Record<string, number>)
-    : null;
+  /**
+   * Die Kennzahlen der Kampagne, aus einer Zeile statt aus der Summe.
+   * Begruendung und Zahlenbeispiel in lib/instantly/campaign-stats.ts.
+   */
+  const campaignStatsRowData = campaignStatsRow((stats.data ?? []) as StatsRow[]);
 
   let leadsAvailable = 0;
   if (searchIds.length) {

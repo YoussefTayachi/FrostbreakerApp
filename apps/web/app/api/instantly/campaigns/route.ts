@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { requireInstantlyContext, instantlyRequest, InstantlyApiError } from "@/lib/instantly";
+import { campaignStats, type StatsRow } from "@/lib/instantly/campaign-stats";
 import { getBillingStatus } from "@/lib/billing";
 import { filterSuppressed } from "@/lib/suppression";
 import { pickPrimaryContactPerBusiness, splitBySendability } from "@/lib/contacts";
@@ -321,14 +322,12 @@ export async function GET() {
     supabase
       .from("instantly_campaign_stats")
       .select(
-        "search_id, leads_count, contacted_count, emails_sent_count, open_count, reply_count_unique, bounced_count"
+        "search_id, updated_at, leads_count, contacted_count, emails_sent_count, open_count, reply_count_unique, bounced_count"
       )
       .eq("workspace_id", ctx.workspace.id),
     // Seit Migration 0050 kann eine Kampagne aus MEHREREN Suchen gespeist
-    // werden. instantly_campaign_stats haengt aber an genau einer search_id.
-    // Frueher wurde hier nur campaigns.search_id herangezogen -- bei einer
-    // Kampagne aus vier Suchen zeigte die Liste damit die Zahlen einer
-    // einzigen und untertrieb entsprechend.
+    // werden, und jede davon bekommt eine eigene Zeile in
+    // instantly_campaign_stats. Welche davon gilt, entscheidet statsFor.
     supabase.from("campaign_searches").select("campaign_id, search_id"),
   ]);
 
@@ -341,25 +340,21 @@ export async function GET() {
   }
 
   /**
-   * Kennzahlen einer Kampagne ueber alle ihre Suchen aufaddieren.
+   * Die Kennzahlen einer Kampagne.
    *
-   * Faellt auf campaigns.search_id zurueck, wenn es keine Eintraege in
-   * campaign_searches gibt -- Kampagnen von vor Migration 0050 haben dort
-   * nichts stehen und wuerden sonst ganz ohne Zahlen dastehen.
+   * Wieso EINE Zeile und nicht die Summe ueber alle verknuepften Suchen,
+   * steht mitsamt dem Zahlenbeispiel in lib/instantly/campaign-stats.ts.
+   * Kurz: die Tabelle ist nach search_id geschluesselt, ihr Inhalt ist
+   * kampagnenweit -- wer aufaddiert, multipliziert.
+   *
+   * Faellt auf campaigns.search_id zurueck, wenn campaign_searches leer ist:
+   * Kampagnen von vor Migration 0050 stehen dort nicht drin und haetten
+   * sonst gar keine Zahlen.
    */
   function statsFor(campaignId: string, primarySearchId: string | null) {
     const searchIds = searchesByCampaign.get(campaignId) ?? (primarySearchId ? [primarySearchId] : []);
-    const rows = searchIds.map((id) => statsBySearch.get(id)).filter(Boolean) as Record<string, number>[];
-    if (rows.length === 0) return null;
-    const sum = (key: string) => rows.reduce((n, r) => n + (Number(r[key]) || 0), 0);
-    return {
-      leads_count: sum("leads_count"),
-      contacted_count: sum("contacted_count"),
-      emails_sent_count: sum("emails_sent_count"),
-      open_count: sum("open_count"),
-      reply_count_unique: sum("reply_count_unique"),
-      bounced_count: sum("bounced_count"),
-    };
+    const rows = searchIds.map((id) => statsBySearch.get(id)).filter(Boolean) as StatsRow[];
+    return campaignStats(rows);
   }
 
   return NextResponse.json({
