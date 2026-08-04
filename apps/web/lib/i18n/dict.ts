@@ -1098,6 +1098,11 @@ const de = {
         variantLabel: (letter: string) => `Variante ${letter}`,
         addVariant: "+ Variante",
         removeVariant: (letter: string) => `Variante ${letter} löschen`,
+        disableVariant: (letter: string) => `${letter} abschalten`,
+        enableVariant: (letter: string) => `${letter} wieder senden`,
+        lastVariantHint: "Die letzte sendende Fassung lässt sich nicht abschalten — der Schritt würde dann nichts mehr verschicken.",
+        variantDisabledHint: (letter: string) =>
+          `Variante ${letter} ist abgeschaltet: sie bleibt in der Auswertung stehen, wird aber nicht mehr versendet.`,
         variantHint:
           "Instantly verteilt den Versand auf die Varianten und zählt sie getrennt. Schreib einen echten Gegenentwurf, keine Kopie mit zwei geänderten Wörtern.",
         trackingLabel: "Messung",
@@ -2650,6 +2655,11 @@ const en: Dictionary = {
         variantLabel: (letter: string) => `Variant ${letter}`,
         addVariant: "+ Variant",
         removeVariant: (letter: string) => `Delete variant ${letter}`,
+        disableVariant: (letter: string) => `Turn ${letter} off`,
+        enableVariant: (letter: string) => `Send ${letter} again`,
+        lastVariantHint: "The last sending version cannot be turned off — the step would stop sending anything.",
+        variantDisabledHint: (letter: string) =>
+          `Variant ${letter} is off: it stays in the results but is no longer sent.`,
         variantHint:
           "Instantly splits sending across the variants and counts them separately. Write a real alternative, not a copy with two words changed.",
         trackingLabel: "Tracking",

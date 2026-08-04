@@ -68,6 +68,27 @@ export default function CampaignStepCard({
     setActiveVariant(Math.max(0, vi - 1));
   }
 
+  /**
+   * Abschalten statt loeschen -- der Handgriff, wenn ein Gewinner feststeht.
+   *
+   * Eine geloeschte Verliererin nimmt ihre Zahlen mit ins Grab, und die
+   * naechste Kampagne wiederholt denselben Fehler. Abgeschaltet bleibt sie in
+   * der Auswertung stehen und wird nur nicht mehr versendet (Instantlys
+   * v_disabled).
+   *
+   * Die letzte aktive Fassung laesst sich nicht abschalten: ein Schritt ohne
+   * eine einzige sendbare Variante verschickt nichts, und zwar still.
+   */
+  const activeVariants = step.variants.filter((v) => !v.disabled).length;
+  const canDisable = !variant.disabled ? activeVariants > 1 : true;
+
+  function toggleDisabled() {
+    if (!canDisable) return;
+    onChange({
+      variants: step.variants.map((v, i) => (i === vi ? { ...v, disabled: !v.disabled } : v)),
+    });
+  }
+
   // Variablen per Klick einfuegen statt selbst tippen zu muessen: fuegt im
   // zuletzt fokussierten Feld an der Cursor-Position ein. Namen/Syntax
   // ({{firstName}} etc.) muessen exakt Instantlys vordefinierten
@@ -159,12 +180,27 @@ export default function CampaignStepCard({
           {F.addVariant}
         </button>
         {step.variants.length > 1 && (
-          <button type="button" onClick={removeVariant} className="text-[11px] text-red-500 hover:text-red-400">
-            {F.removeVariant(variantLabel(vi))}
-          </button>
+          <>
+            <button
+              type="button"
+              onClick={toggleDisabled}
+              disabled={!canDisable}
+              title={canDisable ? undefined : F.lastVariantHint}
+              className="text-[11px] text-faint transition-colors hover:text-ink disabled:opacity-40"
+            >
+              {variant.disabled ? F.enableVariant(variantLabel(vi)) : F.disableVariant(variantLabel(vi))}
+            </button>
+            <button type="button" onClick={removeVariant} className="text-[11px] text-red-500 hover:text-red-400">
+              {F.removeVariant(variantLabel(vi))}
+            </button>
+          </>
         )}
       </div>
-      {step.variants.length > 1 && <p className="mb-2 text-[11px] text-mute">{F.variantHint}</p>}
+      {step.variants.length > 1 && (
+        <p className="mb-2 text-[11px] text-mute">
+          {variant.disabled ? F.variantDisabledHint(variantLabel(vi)) : F.variantHint}
+        </p>
+      )}
 
       <div className="mb-2 flex flex-wrap items-center gap-1.5">
         <span className="text-[11px] text-faint">{F.insertVariable}</span>
