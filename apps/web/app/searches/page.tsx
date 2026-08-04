@@ -82,12 +82,23 @@ export default async function SearchesPage() {
           <h1 className="text-2xl font-semibold tracking-tight text-ink">{t.searches.title}</h1>
           <p className="text-sm text-faint">{t.searches.subtitle}</p>
         </div>
-        <Link
-          href="/"
-          className="rounded-lg bg-ink px-5 py-2.5 text-sm font-medium text-surface shadow-sm transition-all hover:opacity-85 active:scale-[0.98]"
-        >
-          {t.searches.newSearch}
-        </Link>
+        {/* Zwei Wege zu einer Lead-Liste, gleichrangig nebeneinander: suchen
+            oder mitbringen. Der Import stand vorher in den Einstellungen und
+            landete dort nicht einmal in einer Liste. */}
+        <div className="flex items-center gap-2">
+          <Link
+            href="/searches/import"
+            className="rounded-lg border border-edge2 px-4 py-2.5 text-sm font-medium text-soft transition-colors hover:border-sky-500 hover:text-sky-600 dark:hover:text-sky-400"
+          >
+            {t.importCsv.heading}
+          </Link>
+          <Link
+            href="/"
+            className="rounded-lg bg-ink px-5 py-2.5 text-sm font-medium text-surface shadow-sm transition-all hover:opacity-85 active:scale-[0.98]"
+          >
+            {t.searches.newSearch}
+          </Link>
+        </div>
       </div>
 
       <div className="space-y-3">

@@ -1,4 +1,6 @@
 "use client";
+import Link from "next/link";
+import { inputCls } from "@/lib/ui";
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import {
@@ -52,7 +54,25 @@ export default function ImportCsv() {
   const [mapping, setMapping] = useState<ImportTarget[]>([]);
   const [plan, setPlan] = useState<ImportPlan | null>(null);
   const [busy, setBusy] = useState(false);
-  const [result, setResult] = useState<{ contacts: number; companies: number } | null>(null);
+  const [result, setResult] = useState<{ contacts: number; companies: number; searchId: string } | null>(null);
+  /**
+   * Die importierten Firmen bekommen eine eigene Lead-Liste.
+   *
+   * Vorher stand hier search_id = null: die Kontakte tauchten unter "Alle
+   * Leads" auf, aber in keiner Liste -- also nirgends dort, wo man Leads
+   * auswaehlt. Wer 300 Kontakte aus Pipedrive mitbrachte, konnte sie
+   * anschliessend nicht anschreiben, ohne sie von Hand zusammenzusuchen.
+   */
+  const [listName, setListName] = useState("");
+  /**
+   * Aufhaenger gleich mitschreiben lassen.
+   *
+   * Kostet einen Modellaufruf je Firma, deshalb eine bewusste Entscheidung
+   * und nicht die Voreinstellung. Funktioniert nur dort, wo die Datei eine
+   * Website mitbringt: der Aufhaenger entsteht aus dem Seitentext, und ohne
+   * Quelle bleibt er leer, statt erfunden zu werden.
+   */
+  const [withIcebreaker, setWithIcebreaker] = useState(false);
 
   async function pickFile(file: File) {
     const text = await file.text();
@@ -103,6 +123,36 @@ export default function ImportCsv() {
     setBusy(true);
     const supabase = createClient();
 
+    /**
+     * Zuerst die Liste, dann die Firmen.
+     *
+     * source 'csv' haelt Migration 0075 vom Suchlauf ab -- fuer eine
+     * importierte Liste gibt es nichts zu holen, und ein get_businesses-Job
+     * wuerde Guthaben verbrennen und die Liste anschliessend als
+     * fehlgeschlagen markieren. Der Status steht deshalb direkt auf
+     * 'completed'.
+     */
+    const { data: search, error: searchError } = await supabase
+      .from("searches")
+      .insert({
+        workspace_id: workspaceId,
+        source: "csv",
+        name: listName.trim() || I.defaultListName,
+        query: I.defaultListName,
+        location: "",
+        status: "completed",
+        max_results: plan.usable.length,
+      })
+      .select("id")
+      .single();
+    if (searchError || !search) {
+      setBusy(false);
+      push(t.common.error + (searchError?.message ?? ""), "error");
+      return;
+    }
+    const searchId = search.id as string;
+    const importedBusinessIds: string[] = [];
+
     // Vorhandene Firmen einmal laden statt je Zeile zu fragen.
     const { data: existing } = await supabase
       .from("businesses")
@@ -132,9 +182,7 @@ export default function ImportCsv() {
               workspace_id: workspaceId,
               name,
               website: chunk.find((r) => r.company_name?.trim() === name)?.company_website ?? null,
-              // Ohne Suche importiert: search_id bleibt leer, damit diese
-              // Firmen nicht faelschlich in einer Lead-Liste auftauchen.
-              search_id: null,
+              search_id: searchId,
             }))
           )
           .select("id, name");
@@ -143,7 +191,10 @@ export default function ImportCsv() {
           push(t.common.error + error.message, "error");
           return;
         }
-        for (const b of inserted ?? []) byName.set((b.name as string).toLowerCase(), b.id as string);
+        for (const b of inserted ?? []) {
+          byName.set((b.name as string).toLowerCase(), b.id as string);
+          importedBusinessIds.push(b.id as string);
+        }
         createdCompanies += inserted?.length ?? 0;
       }
 
@@ -171,8 +222,24 @@ export default function ImportCsv() {
       createdContacts += chunk.length;
     }
 
+    /**
+     * Aufhaenger nachtraeglich einreihen, ueber dieselbe Funktion wie die
+     * Pruefschleife (Migration 0070): nur eigene Firmen, und kein zweiter
+     * Auftrag, solange einer offen ist.
+     *
+     * Fehler hier brechen den Import NICHT ab -- die Kontakte sind da, und
+     * das ist der Zweck. Der Aufhaenger laesst sich jederzeit nachtraeglich
+     * anstossen.
+     */
+    if (withIcebreaker && importedBusinessIds.length > 0) {
+      const { error } = await supabase.rpc("requeue_personalization", {
+        p_business_ids: importedBusinessIds,
+      });
+      if (error) push(t.common.error + error.message, "error");
+    }
+
     setBusy(false);
-    setResult({ contacts: createdContacts, companies: createdCompanies });
+    setResult({ contacts: createdContacts, companies: createdCompanies, searchId });
     setStep("done");
   }
 
@@ -194,12 +261,20 @@ export default function ImportCsv() {
         <p className="text-sm font-medium text-emerald-700 dark:text-emerald-400">
           {I.doneTitle(result.contacts, result.companies)}
         </p>
-        <button
-          onClick={reset}
-          className="mt-2 text-xs font-medium text-sky-600 hover:text-sky-500 dark:text-sky-400"
-        >
-          {I.again}
-        </button>
+        {/* Der Weg zur neuen Liste gehoert direkt hierhin: sie ist das
+            eigentliche Ergebnis des Imports, und ohne Link muesste man sie in
+            der Uebersicht suchen. */}
+        <div className="mt-2 flex flex-wrap items-center gap-4">
+          <Link
+            href={`/searches/${result.searchId}`}
+            className="text-xs font-medium text-sky-600 hover:text-sky-500 dark:text-sky-400"
+          >
+            {I.openList}
+          </Link>
+          <button onClick={reset} className="text-xs text-faint transition-colors hover:text-ink">
+            {I.again}
+          </button>
+        </div>
       </div>
     );
   }
@@ -226,6 +301,33 @@ export default function ImportCsv() {
 
   return (
     <div className="space-y-4">
+      {/* Der Listenname steht ganz oben und ist Pflicht: unter diesem Namen
+          taucht der Import spaeter in der Suchenuebersicht und als
+          Kampagnenquelle auf. Ein "Import vom 4.8." findet niemand wieder. */}
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div>
+          <label className="mb-1 block text-xs font-medium text-faint">{I.listNameLabel}</label>
+          <input
+            value={listName}
+            onChange={(e) => setListName(e.target.value)}
+            placeholder={I.listNamePlaceholder}
+            className={inputCls + " w-full"}
+          />
+        </div>
+        <label className="flex items-start gap-2 text-sm text-ink sm:mt-5">
+          <input
+            type="checkbox"
+            checked={withIcebreaker}
+            onChange={(e) => setWithIcebreaker(e.target.checked)}
+            className="mt-0.5"
+          />
+          <span>
+            {I.withIcebreaker}
+            <span className="block text-xs text-faint">{I.withIcebreakerHint}</span>
+          </span>
+        </label>
+      </div>
+
       <div className="flex items-center justify-between gap-3">
         <p className="text-xs text-faint">{I.foundRows(dataRows.length)}</p>
         <button onClick={reset} className="text-xs text-faint transition-colors hover:text-ink">
@@ -284,7 +386,7 @@ export default function ImportCsv() {
         </button>
         <button
           onClick={run}
-          disabled={busy || !plan || plan.usable.length === 0}
+          disabled={busy || !plan || plan.usable.length === 0 || !listName.trim()}
           className="rounded-lg bg-sky-600 px-4 py-2 text-sm font-medium text-white transition-all hover:brightness-110 active:scale-[0.98] disabled:opacity-40"
         >
           {busy && plan ? t.common.saving : I.run}

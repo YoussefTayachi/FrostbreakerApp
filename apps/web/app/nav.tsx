@@ -13,6 +13,8 @@ import {
   IconInbox,
   IconLeads,
   IconLinkedIn,
+  IconLock,
+  IconPalette,
   IconPhone,
   IconPipeline,
   IconSearch,
@@ -124,6 +126,9 @@ export default function Nav() {
     {
       parent: { href: "/settings", label: t.nav.settings, icon: IconSettings },
       children: [
+        { href: "/settings/keys", label: t.nav.apiKeys, icon: IconLock },
+        { href: "/settings/automations", label: t.nav.automations, icon: IconSparkle },
+        { href: "/settings/branding", label: t.nav.branding, icon: IconPalette },
         { href: "/blocklist", label: t.nav.blocklist, icon: IconShield },
         { href: "/costs", label: t.nav.costs, icon: IconCost },
       ],

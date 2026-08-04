@@ -71,6 +71,18 @@ export function IconChart({ className = "h-4 w-4" }: { className?: string }) {
   );
 }
 
+/** Branding: Farbpalette. Bewusst nicht dasselbe Zahnrad wie die
+ *  Einstellungen -- hier geht es um das Aussehen nach aussen, nicht um
+ *  Konfiguration. */
+export function IconPalette({ className = "h-4 w-4" }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 21a9 9 0 1 1 9-9c0 1.66-1.34 2.5-3 2.5h-1.5a2 2 0 0 0-1.4 3.42A2 2 0 0 1 12 21Z" />
+      <circle cx="7.5" cy="12" r="1" /><circle cx="10" cy="8" r="1" /><circle cx="15" cy="8.5" r="1" />
+    </svg>
+  );
+}
+
 export function IconShield({ className = "h-4 w-4" }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">

@@ -15,7 +15,8 @@ const de = {
   nav: {
     dashboard: "Dashboard", searches: "Suchen", leads: "Alle Leads",
     pipeline: "Pipeline", calls: "Anrufliste", linkedin: "LinkedIn", inbox: "Posteingang",
-    aiAgent: "AI Agent", icebreaker: "Aufhänger", effectiveness: "Wirkung", instantly: "Instantly", blocklist: "Blockliste", costs: "API-Kosten", settings: "Einstellungen", guide: "Anleitung",
+    aiAgent: "AI Agent", icebreaker: "Aufhänger", effectiveness: "Wirkung",
+    apiKeys: "API-Schlüssel", automations: "Automatisierungen", branding: "Branding", instantly: "Instantly", blocklist: "Blockliste", costs: "API-Kosten", settings: "Einstellungen", guide: "Anleitung",
   },
   commandPalette: {
     placeholder: "Seiten oder Firmen suchen...",
@@ -157,6 +158,13 @@ const de = {
   },
   importCsv: {
     heading: "Daten importieren",
+    defaultListName: "CSV-Import",
+    listNameLabel: "Name der Lead-Liste",
+    listNamePlaceholder: "z.B. Pipedrive-Bestand Mai",
+    withIcebreaker: "Aufhänger erzeugen lassen",
+    withIcebreakerHint:
+      "Kostet einen Modellaufruf je Firma. Klappt nur, wo die Datei eine Website mitbringt — ohne Quelle bleibt der Aufhänger leer, statt erfunden zu werden.",
+    openList: "Liste öffnen →",
     description:
       "Kontakte aus einer CSV-Datei übernehmen, etwa einem Pipedrive-Export. Spaltenzuordnung und Vorschau vorweg — ein Import lässt sich nicht rückgängig machen.",
     pickFile: "CSV-Datei wählen",
@@ -927,6 +935,29 @@ const de = {
     removing: "Wird entfernt…",
     removed: "entfernt",
     stackHeading: "Kompatibel mit deinem Stack",
+    sections: {
+      "/settings/keys": {
+        title: "API-Schlüssel",
+        hint: "Google Maps, OpenAI, Hunter, Apollo, NeverBounce — verschlüsselt gespeichert.",
+      },
+      "/settings/automations": {
+        title: "Automatisierungen",
+        hint: "Was von allein passiert: nächster Schritt, Benachrichtigung bei Antwort, Antwort-Assistent.",
+      },
+      "/settings/branding": {
+        title: "Branding",
+        hint: "Name, Farbe und Logo für den Report, den dein Kunde zu sehen bekommt.",
+      },
+      "/blocklist": {
+        title: "Sperrliste",
+        hint: "Adressen und Domains, die nie wieder angeschrieben werden.",
+      },
+      "/costs": {
+        title: "API-Kosten",
+        hint: "Was die Anbieter bisher gekostet haben, aufgeschlüsselt nach Suche.",
+      },
+      instantly: { hint: "API-Key, Postfächer und Kampagnen im eigenen Bereich verwalten" },
+    },
     stackDescription: "Exportiere Leads mit einem Klick. Die Spalten sind für den Direkt-Import vorbereitet.",
     providerHints: {
       google_maps: "Geocoding API + Places API (New) aktivieren",
@@ -1603,7 +1634,8 @@ const en: Dictionary = {
   nav: {
     dashboard: "Dashboard", searches: "Searches", leads: "All Leads",
     pipeline: "Pipeline", calls: "Call list", linkedin: "LinkedIn", inbox: "Inbox",
-    aiAgent: "AI Agent", icebreaker: "Icebreakers", effectiveness: "Effect", instantly: "Instantly", blocklist: "Blocklist", costs: "API costs", settings: "Settings", guide: "Guide",
+    aiAgent: "AI Agent", icebreaker: "Icebreakers", effectiveness: "Effect",
+    apiKeys: "API keys", automations: "Automations", branding: "Branding", instantly: "Instantly", blocklist: "Blocklist", costs: "API costs", settings: "Settings", guide: "Guide",
   },
   commandPalette: {
     placeholder: "Search pages or companies...",
@@ -1745,6 +1777,13 @@ const en: Dictionary = {
   },
   importCsv: {
     heading: "Import data",
+    defaultListName: "CSV import",
+    listNameLabel: "Lead list name",
+    listNamePlaceholder: "e.g. Pipedrive backlog May",
+    withIcebreaker: "Generate icebreakers",
+    withIcebreakerHint:
+      "Costs one model call per company. Only works where the file brings a website — without a source the icebreaker stays empty rather than being invented.",
+    openList: "Open list →",
     description:
       "Bring contacts in from a CSV file, for example a Pipedrive export. Column mapping and a preview first — an import cannot be undone.",
     pickFile: "Choose a CSV file",
@@ -2484,6 +2523,29 @@ const en: Dictionary = {
     removing: "Removing…",
     removed: "removed",
     stackHeading: "Compatible with your stack",
+    sections: {
+      "/settings/keys": {
+        title: "API keys",
+        hint: "Google Maps, OpenAI, Hunter, Apollo, NeverBounce — stored encrypted.",
+      },
+      "/settings/automations": {
+        title: "Automations",
+        hint: "What happens on its own: next step, reply notification, reply assistant.",
+      },
+      "/settings/branding": {
+        title: "Branding",
+        hint: "Name, colour and logo for the report your client gets to see.",
+      },
+      "/blocklist": {
+        title: "Blocklist",
+        hint: "Addresses and domains that are never contacted again.",
+      },
+      "/costs": {
+        title: "API costs",
+        hint: "What the providers have cost so far, broken down per search.",
+      },
+      instantly: { hint: "Manage API key, mailboxes and campaigns in their own area" },
+    },
     stackDescription: "Export leads with one click: columns are prepared for direct import.",
     providerHints: {
       google_maps: "Enable the Geocoding API + Places API (New)",
