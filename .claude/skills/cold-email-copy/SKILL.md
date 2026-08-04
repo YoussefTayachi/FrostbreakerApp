@@ -66,7 +66,7 @@ you're asking them to make. Pick the sharpest and drop the rest.
 ### 2. Bump — same point, tighter
 
 ```
-Bumping this up, in case it slipped by.
+In case my last email got buried.
 
 Still worth pointing out: [the friction, restated in one sentence, with
 the consequence that grows over time].
@@ -79,9 +79,16 @@ Yes or no, either works.
 [Name]
 ```
 
-Opens by marking itself as a follow-up. Does **not** re-explain the offer — a
-follow-up that repeats the pitch reads as desperate. It assumes email 1 was
+Opens by marking itself as a follow-up. Does **not** re-explain the offer. A
+follow-up that repeats the pitch reads as desperate; it assumes email 1 was
 read and only lowers the barrier further.
+
+**Not "Bumping this up".** It was in this template until Youssef struck it: it
+is the default opener of every sales tool, and a reader who has seen it twice
+recognises the sequence rather than the sender. The same goes for "Just
+circling back", "Following up on the below" and "Quick nudge". Write the
+plainest sentence a person would actually type when they think a mail got
+lost, and keep it to one line.
 
 "Yes or no, either works" instead of "Worth a yes?" — explicitly allowing the
 no removes the social pressure, and paradoxically makes yes easier.
