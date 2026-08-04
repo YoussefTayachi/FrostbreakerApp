@@ -558,3 +558,47 @@ def test_validate_keeps_matching_normal_words():
 
     assert validate("Ich bin beeindruckt.", max_words=99, banned_words=["beeindruckt"]) != []
     assert validate("Alles ruhig.", max_words=99, banned_words=["beeindruckt"]) == []
+
+
+def test_constraint_block_nennt_die_wortgrenze():
+    """Der eigentliche Fehler war, dass die Grenze nie im Prompt stand -- sie
+    wurde nur hinterher geprueft. Gemessen: Median 24 Woerter bei Vorgabe 22,
+    die auffaelligen lagen bei 33."""
+    from worker.pipelines.personalize import constraint_block
+
+    block = constraint_block(22, ["—", "-"])
+    assert "Maximum 22 words" in block
+    assert "Count them" in block
+
+
+def test_constraint_block_listet_verbotene_zeichen():
+    from worker.pipelines.personalize import constraint_block
+
+    block = constraint_block(22, ["—", "--"])
+    assert "— --" in block
+
+
+def test_constraint_block_ohne_verbotene_zeichen():
+    """Ohne Eintraege darf keine leere Verbotszeile im Prompt stehen -- eine
+    Regel ohne Inhalt ist eine Einladung, sie sich auszudenken."""
+    from worker.pipelines.personalize import constraint_block
+
+    block = constraint_block(22, ["", "  "])
+    assert "Never use these characters" not in block
+    assert "Maximum 22 words" in block
+
+
+def test_constraint_block_verbietet_das_abschreiben_der_beispiele():
+    """An echten Daten endeten praktisch alle Aufhaenger mit derselben
+    Wendung -- naemlich der ersten, die der Prompt als Beispiel nennt."""
+    from worker.pipelines.personalize import constraint_block
+
+    assert "NOT templates" in constraint_block(22, [])
+
+
+def test_constraint_block_haengt_an_den_prompt_an_ohne_ihn_zu_verdraengen():
+    from worker.pipelines.personalize import DEFAULT_PROMPT, constraint_block
+
+    ganzer = DEFAULT_PROMPT + constraint_block(20, ["—"])
+    assert ganzer.startswith(DEFAULT_PROMPT)
+    assert "Maximum 20 words" in ganzer

@@ -1244,6 +1244,8 @@ const de = {
     resetToDefault: "Auf Standard zurücksetzen",
     promptDescription: "Vollständig überschreibbar. Ohne Anpassung gilt der Standard-Icebreaker-Prompt.",
     maxWords: "Maximale Wortzahl",
+    limitsInPromptHint:
+      "Beide Vorgaben werden dem Modell direkt im Prompt genannt, nicht erst hinterher geprüft. Ändert sich hier etwas, gilt es ab dem nächsten erzeugten Aufhänger.",
     bannedWords: "Verbotene Wörter (kommagetrennt)",
     save: "Speichern",
     liveTestHeading: "Live-Test",
@@ -2707,6 +2709,8 @@ const en: Dictionary = {
     resetToDefault: "Reset to default",
     promptDescription: "Fully overridable. Without changes, the default icebreaker prompt applies.",
     maxWords: "Maximum word count",
+    limitsInPromptHint:
+      "Both rules are stated to the model in the prompt itself, not just checked afterwards. Change them here and the next generated icebreaker follows them.",
     bannedWords: "Banned words (comma-separated)",
     save: "Save",
     liveTestHeading: "Live test",

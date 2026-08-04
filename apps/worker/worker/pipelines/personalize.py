@@ -72,6 +72,53 @@ DEFAULT_SOURCE = "company_summary"
 VALID_SOURCES = {"company_summary", "website_text", "both"}
 
 
+def constraint_block(max_words: int, banned_words: list[str]) -> str:
+    """Die harten Vorgaben, die dem Modell BEIM ERSTEN VERSUCH gesagt werden.
+
+    DER FEHLER, DEN DAS BEHEBT
+
+    Die Wortgrenze stand nie im Prompt. Sie wurde ausschliesslich HINTERHER
+    von validate() geprueft -- das Modell hat also nie erfahren, woran es sich
+    halten soll, und erst der Korrektur-Versuch nannte die Zahl. Gemessen am
+    2026-08-04 ueber 1032 erzeugte Zeilen: Median 24 Woerter bei einer Grenze
+    von 22, und 705 Zeilen darueber. Die auffaelligen lagen bei 33 Woertern,
+    also 50 Prozent ueber der Vorgabe -- kein Ausrutscher, sondern ein Prompt,
+    der die Laenge schlicht nicht erwaehnt.
+
+    Wird an JEDEN Prompt angehaengt, auch an einen selbst geschriebenen. Die
+    Vorgaben stehen in den Workspace-Einstellungen; sie dort zu setzen und
+    dann darauf zu hoffen, dass der Nutzer sie zusaetzlich in seinen Prompt
+    schreibt, waere zwei Wahrheiten fuer dieselbe Sache.
+
+    Auf Englisch, unabhaengig von der Sprache des Prompts: das Modell befolgt
+    Formvorgaben in Englisch verlaesslicher, und dieser Block sagt nichts
+    ueber den INHALT -- die Ausgabesprache bestimmt weiterhin der Prompt
+    darueber.
+    """
+    lines = [
+        "",
+        "",
+        "HARD LIMITS (these override anything above):",
+        f"- Maximum {max_words} words. Count them before you answer. "
+        "Going over is the single most common failure here.",
+    ]
+    chars = [w.strip() for w in banned_words if w.strip()]
+    if chars:
+        lines.append("- Never use these characters: " + " ".join(chars))
+    lines += [
+        # Der Grund fuer diese Zeile: an echten Daten endeten praktisch ALLE
+        # erzeugten Aufhaenger mit derselben Wendung -- naemlich der ersten,
+        # die der Prompt als Beispiel nennt. Ein Beispiel wird vom Modell als
+        # Vorlage gelesen, wenn man es nicht ausdruecklich daran hindert. Bei
+        # Kaltakquise faellt genau das auf: 94 Mails an dieselbe Nische, die
+        # alle gleich enden.
+        "- Any example phrasings above are examples, NOT templates. Never reuse "
+        "one word for word; end differently every time.",
+        "- Output the line itself only: no quotes, no label, no preamble.",
+    ]
+    return "\n".join(lines)
+
+
 class NotReadyYet(Exception):
     """Die benoetigte Recherche (company_summary) ist noch nicht fertig -> Job wird
     vom Queue-Retry (fail_job, Backoff) automatisch spaeter erneut versucht."""
@@ -331,15 +378,18 @@ def run(job: dict) -> None:
     # Direkt vom Datensatz: das eingebettete searches(...) liefert nur
     # deleted_at, keine id (siehe BUSINESS_WITH_SEARCH).
     search_id = biz.get("search_id")
+    # Die Vorgaben gehoeren IN den Prompt, nicht nur in die Nachpruefung --
+    # siehe constraint_block.
+    system_prompt = cfg["system_prompt"] + constraint_block(cfg["max_words"], cfg["banned_words"])
     line = generate(
-        biz["name"], context, api_key, cfg["system_prompt"],
+        biz["name"], context, api_key, system_prompt,
         workspace_id=ws, search_id=search_id,
     )
     problems = validate(line, cfg["max_words"], cfg["banned_words"])
     needs_review = False
     if problems:
         line = generate(
-            biz["name"], context, api_key, cfg["system_prompt"],
+            biz["name"], context, api_key, system_prompt,
             correction="; ".join(problems), workspace_id=ws, search_id=search_id,
         )
         line = sanitize_banned_punctuation(line, cfg["banned_words"])

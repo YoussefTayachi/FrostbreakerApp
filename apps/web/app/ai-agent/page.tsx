@@ -413,6 +413,12 @@ export default function AiAgentPage() {
           </div>
         </div>
 
+        {/* Ohne diesen Hinweis wirken die beiden Felder wie eine reine
+            Nachpruefung -- genau das waren sie auch, und genau daran lag der
+            Fehler: die Wortgrenze stand nie im Prompt, das Modell erfuhr sie
+            erst im Korrekturversuch und lag im Schnitt darueber. */}
+        <p className="mt-2 text-xs text-mute">{t.aiAgent.limitsInPromptHint}</p>
+
         <div className="mt-4 flex items-center gap-3">
           <button onClick={save} className={btnCls}>{t.aiAgent.save}</button>
         </div>
