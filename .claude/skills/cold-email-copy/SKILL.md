@@ -66,7 +66,7 @@ you're asking them to make. Pick the sharpest and drop the rest.
 ### 2. Bump — same point, tighter
 
 ```
-In case my last email got buried.
+Hey {{firstName}}, real person here. I am following up on my last email.
 
 Still worth pointing out: [the friction, restated in one sentence, with
 the consequence that grows over time].
@@ -83,12 +83,17 @@ Opens by marking itself as a follow-up. Does **not** re-explain the offer. A
 follow-up that repeats the pitch reads as desperate; it assumes email 1 was
 read and only lowers the barrier further.
 
-**Not "Bumping this up".** It was in this template until Youssef struck it: it
-is the default opener of every sales tool, and a reader who has seen it twice
-recognises the sequence rather than the sender. The same goes for "Just
-circling back", "Following up on the below" and "Quick nudge". Write the
-plainest sentence a person would actually type when they think a mail got
-lost, and keep it to one line.
+**Not "Bumping this up".** It was the opener in this template until Youssef
+struck it: it is the default line of every sales tool, and a reader who has
+seen it twice recognises the sequence rather than the sender. The same goes
+for "Just circling back", "Quick nudge" and "Following up on the below".
+
+What replaced it is not a cleverer phrase but a **greeting plus a claim to
+being human**: name, then "real person here", then the plain statement that
+this is a follow-up. The name makes it addressed rather than broadcast, and
+"real person here" answers the question the reader is actually asking at the
+second email, which is not *what do you want* but *is anyone even there*.
+Keep it to one line and do not dress it up.
 
 "Yes or no, either works" instead of "Worth a yes?" — explicitly allowing the
 no removes the social pressure, and paradoxically makes yes easier.
