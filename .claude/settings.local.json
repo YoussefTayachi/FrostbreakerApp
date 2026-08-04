@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mkdir -p ~/.claude/skills/frontend-design)",
+      "Read(//c/Users/Youssef Tayachi/.claude/**)",
+      "Bash(gh api *)",
+      "Bash(python3 -c ' *)",
+      "Read(//tmp/**)",
+      "Bash(grep -rEn 'requests\\\\.\\(get|post\\)|urllib|urlopen|fetch\\\\\\(|axios|http\\\\.request|https\\\\.request|XMLHttpRequest|WebSocket' __CMDSUB_OUTPUT__/raw)"
+    ]
+  }
+}

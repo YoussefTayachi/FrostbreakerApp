@@ -49,6 +49,12 @@ looks like? No call, just the result.
 [Name]
 ```
 
+**One ask, never a choice.** Offering two ways to say yes ("ten minutes on a
+call, or I just send it over, your pick") looks like it lowers the barrier and
+does the opposite: a reader who has to pick has two decisions instead of one,
+and the easiest resolution of two decisions is neither. Pick the single ask
+you actually want and write only that one.
+
 The observation ("I also noticed…") is the second proof point after
 `{{personalization}}` — it builds the "how does he know that" moment in two
 steps instead of spending it in one line. It must come from a real filter you
@@ -145,6 +151,18 @@ they've invested attention, so the name lands in context instead of becoming a
 reason to google and disengage.
 
 ## Rules that came from real mistakes
+
+**Never break a sentence with a dash.** No em dash (—), no en dash (–), no
+`--`, and no standalone hyphen used as punctuation. Use a full stop, a comma,
+or a new paragraph instead. A dash mid-sentence is currently the single
+clearest tell that a text was written by a model, and readers spot it without
+being able to say why. This is the same rule the icebreaker generator already
+enforces (`DEFAULT_BANNED_WORDS` in `lib/personalization-defaults.ts` and
+`personalize.py`) — it applies to the sequence copy just as much, and it was
+broken there first by the assistant, not by the user. Hyphens *inside* a
+compound word ("third-party", "AI-powered") are fine and not meant here. The
+`---` line in the signature block is a separator on its own line, not
+punctuation, and stays.
 
 **Never use `{{companyName}}`.** Company names in lead data are full of GmbHs,
 punctuation, and odd casing. "Hi, I saw that Müller & Söhne GmbH & Co. KG…"
