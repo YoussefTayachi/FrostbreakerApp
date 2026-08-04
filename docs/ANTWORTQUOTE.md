@@ -167,65 +167,141 @@ Einzelheiten, die beim Weiterbauen leicht kaputtgehen:
 
 ---
 
-## Offene Punkte, nach Wirkung sortiert
+## Punkt 3 bis 8: gebaut am 2026-08-04
 
-Reihenfolge aus derselben Bestandsaufnahme. Punkt 1 und 2 sind oben erledigt.
+Reihenfolge aus derselben Bestandsaufnahme. Alles unten ist umgesetzt; was
+dabei entschieden wurde, steht jeweils dabei.
 
-### 3. Varianten mit automatischem Gewinner
+### 0. Die Wortgrenze stand nie im Prompt
 
-`buildCampaignSequence` in `lib/instantly/campaigns.ts` baut
-`variants: [{ subject, body }]` -- genau eine je Schritt. Instantly kann
-mehrere und misst sie selbst. Ohne Varianten gibt es keinen Lernprozess,
-egal wie viele Mails versendet werden.
+Kein eigener Punkt, sondern der Auslöser: `personalization_max_words` wurde
+ausschliesslich HINTERHER von `validate()` geprueft. Im Prompt kam keine Zahl
+vor -- das Modell erfuhr die Grenze erst im Korrekturversuch, und der lief
+nur, wenn der erste Versuch schon danebenlag. Median 24 Woerter bei Vorgabe
+22, die auffaelligen bei 33.
 
-Zu bauen: 2-3 Fassungen je Schritt im Formular, nach N Sends anzeigen welche
-gewinnt, Verlierer abschalten.
+`constraint_block()` in `apps/worker/worker/pipelines/personalize.py` haengt
+die Vorgaben an JEDEN Prompt, auch an einen selbst geschriebenen. Dieser
+Workspace hat einen eigenen Prompt -- eine Aenderung nur an DEFAULT_PROMPT
+haette hier nichts bewirkt.
 
-### 4. Zustellbarkeits-Waechter im Dauerbetrieb
+Zweiter Fund: praktisch alle Aufhaenger endeten mit derselben Wendung, dem
+ersten Beispiel, das der Prompt fuer den Schluss nennt. Ein Beispiel liest
+das Modell als Vorlage, wenn man es nicht ausdruecklich daran hindert.
 
-Der Torwart prueft beim Anlegen. Danach prueft niemand mehr. Zu bauen:
-taeglicher DNS-Check je Postfach, Bounce-Quote je Postfach und Domain,
-automatisches Pausieren beim Schwellwert. Die Infrastruktur steht komplett
-(`api/cron/instantly-sync` laeuft jede Minute, `provider_alerts` +
-`sendEmail` sind der fertige Meldeweg).
+### 3. Varianten je Schritt (Migration 0071)
 
-### 5. Kein Oeffnungs-Tracking
+`SequenceStep` heisst jetzt `{variants[], delayDays}` statt
+`{subject, body, delayDays}`. Sauberer Schnitt statt "Variante A ist
+subject/body und die anderen stehen woanders" -- bei der asymmetrischen
+Fassung waere jede Aktion auf A ein Sonderfall gewesen.
 
-`open_count` ist ueber alle Kampagnen 0. Damit laesst sich "nicht zugestellt"
-nicht von "gelesen, aber uninteressant" unterscheiden -- zwei voellig
-verschiedene Krankheiten mit verschiedenen Behandlungen.
+**Die schwierige Stelle ist nicht das Rechnen, sondern das Schweigen.**
+`lib/instantly/variant-winner.ts` kennt drei Zustaende: *sammelt noch* (unter
+50 Sendungen je Fassung, gar keine Empfehlung), *fuehrt* (Abstand im
+Zufallsbereich), *gewinnt* (haelt einem Zweistichprobentest auf 95 Prozent
+stand). Der Gewinner muss gegen JEDE andere Fassung bestehen, nicht nur gegen
+die zweitbeste -- sonst schaltet man bei drei Varianten B ab, obwohl A nur
+gegen C gewonnen hat.
 
-Die Entscheidung ist bewusst zu treffen und nicht nur zu vergessen: ein
-Tracking-Pixel schadet der Zustellbarkeit. Die saubere Loesung ist eine
-eigene Tracking-Domain. Die Alternative ist, bewusst darauf zu verzichten
-und Antwortquote plus Bounce als einzige Messgroessen zu fuehren.
+Gemessen an eindeutigen Antworten je Sendung, nicht an Oeffnungen: die haengen
+an einem Zaehlpixel, der bei einem Teil der Empfaenger nicht laedt und bei
+einem anderen vom Sicherheitsscanner automatisch geladen wird.
 
-### 6. Antwort-Assistent
+Abschalten statt loeschen (`v_disabled`): eine geloeschte Verliererin nimmt
+ihre Zahlen mit ins Grab.
 
-Bei 8 eingegangenen Mails 0 Termine. Nach einer Antwort passiert heute
-nichts. Zu bauen: drei Antwortvorschlaege (die Klassifizierung nach
-interested/question/not_interested/out_of_office laeuft bereits im
-Inbox-Sync), ein Klick zum Senden, Kalender-Link. Zwischen "Antwort" und
-"Abschluss" liegt genau diese Stelle.
+### 4. Zustellbarkeits-Waechter (Migration 0072)
 
-### 7. Multichannel als EINE Sequenz
+Taeglicher DNS-Check je Absender-Domain, laufende Bounce-Ueberwachung je
+Kampagne. Beides in `api/cron/instantly-sync`, Logik in
+`lib/deliverability-watch.ts`.
 
-Heute drei getrennte Dinge: Mail-Kampagne, LinkedIn-Liste (`/linkedin`),
-Anrufliste (`/calls`). Der Gewinn liegt in einer Kette -- Tag 1 Mail, Tag 3
-ohne Antwort LinkedIn-Anfrage, Tag 7 Anruf, jeweils automatisch in die
-richtige Liste geschoben.
+Gemeldet wird der **Uebergang**, nicht der Zustand. Eine seit drei Wochen
+kaputte Domain jeden Tag erneut zu melden ist die zuverlaessigste Art, dafuer
+zu sorgen, dass die Meldung weggeklickt wird. Wird der Eintrag repariert,
+loest sich der Alarm von allein auf.
 
-Das kann Instantly nicht, Lemlist nur halb, und kein Werkzeug mit einem CRM
-darunter. Alle drei Kanaele und die Pipeline sind bereits da; es fehlt die
-Verkettung.
+Ab 5 Prozent Bounce wird die Kampagne **angehalten**. Voreinstellung an
+(`workspaces.auto_pause_on_bounce`), weil ein Waechter, der nur zuschaut, die
+Sorte Warnung ist, die man im Nachhinein im Log findet. Umkehrbar, per Mail
+angekuendigt, abschaltbar. Je Kampagne, nicht je Workspace -- alles
+anzuhalten waere eine Kollektivstrafe fuer ein Problem mit bekanntem
+Verursacher. Schlaegt das Anhalten bei Instantly fehl, wird lokal NICHT auf
+"pausiert" gesetzt.
 
-### 8. Wirkungs-Ansicht
+Schwelle und Mindestmenge kommen aus denselben Konstanten wie der Torwart.
 
-Welche Nische, welcher Betreff, welcher Schritt, welche Uhrzeit bringt
-Antworten. Bei 312 Mails ist noch nichts zu sehen. Ab etwa 2000 wird das die
-Ansicht, die Kunden haelt.
+### 5. Oeffnungs-Tracking (Migration 0071)
+
+Instantlys Vorgabe ist "an", wir haben das Feld nie gesetzt -- und trotzdem
+stand ueberall `open_count = 0`. Ab jetzt wird `open_tracking`/`link_tracking`
+ausdruecklich mitgeschickt und gespiegelt, **Voreinstellung aus**: Zaehlpixel
+und umgeschriebene Links sind zwei der Merkmale, an denen Spamfilter kalte
+Massenmails erkennen. Wer messen will, entscheidet das bewusst.
+
+In der Variantentabelle steht bei abgeschaltetem Tracking ein Strich statt
+einer Null -- "0 Oeffnungen" waere dort keine Beobachtung, sondern eine
+fehlende Messung.
+
+### 6. Antwort-Assistent (Migration 0073)
+
+Drei Entwuerfe auf Klick im Posteingang, die sich in der ABSICHT
+unterscheiden. Ueber dem Textfeld, nicht darunter: ein Startpunkt, kein
+Nachschlag.
+
+**Der Terminlink ist der Grund fuer die Migration.** Ein Sprachmodell, dem
+einer fehlt, erfindet einen plausiblen. Der Fehler faellt erst dem Empfaenger
+auf, wenn er klickt -- und dann ist die Antwort verbrannt. Ist
+`workspaces.calendar_link` leer, verbietet der Prompt ausdruecklich, einen zu
+erfinden. Aus demselben Grund fliegen Entwuerfe mit uebrig gebliebenen
+Platzhaltern raus.
+
+### 7. Multichannel als eine Kette (Migration 0074)
+
+  Tag 0 Mail · Tag 3 ohne Antwort LinkedIn · Tag 7 Anruf
+
+Zwei neue Regelarten im vorhandenen Tageslauf. Die Reihenfolge stimmt ohne
+eigenen Zustand: `automation_create_touch` legt nichts an, solange eine
+offene Aufgabe existiert -- der Anruf entsteht erst, wenn die
+LinkedIn-Anfrage abgehakt ist.
+
+Nur fuer `contacted`. Wer geantwortet hat, braucht keine LinkedIn-Anfrage,
+sondern eine Antwort -- das ist der Unterschied zwischen einer Kette und
+einem Verfolgungsapparat.
+
+### 8. Wirkungs-Ansicht (`/wirkung`)
+
+Antwortquote nach Lead-Liste, Wochentag und Tageszeit. Konnte es vorher nicht
+geben: die App kannte 184 von 312 Mails.
+
+**Unter 30 angeschriebenen Kontakten je Zeile wird keine Quote ausgewiesen.**
+Bei 12 Mails und einer Antwort stuende da sonst "8,3 Prozent" -- praezise
+aussehend und bedeutungslos. Auch der Balken bleibt leer, statt einen
+zufaelligen Ausschlag zu zeichnen.
+
+Gemessen an Kontakten, nicht an Mails: eine Sequenz schickt drei bis vier
+Mails an dieselbe Person, und die eine Antwort gehoert nicht durch vier
+geteilt.
 
 ---
+
+## Was als Naechstes lohnt
+
+Nichts davon stand in der urspruenglichen Liste -- es sind die Fragen, die
+sich aus dem Gebauten ergeben.
+
+1. **Die Varianten tatsaechlich benutzen.** Der Apparat steht, aber jede
+   bestehende Kampagne hat weiterhin genau eine Fassung je Schritt. Ohne eine
+   zweite misst er nichts.
+2. **Eine eigene Tracking-Domain**, falls Oeffnungen gemessen werden sollen --
+   sonst bleibt die Entscheidung "messen oder zustellen".
+3. **Die Wirkungs-Ansicht braucht Datenmenge.** Bei 286 Kontakten traegt nur
+   die Aufschluesselung nach Lead-Liste; Wochentag und Tageszeit werden
+   grossteils "zu wenig" melden, und das ist richtig so.
+4. **Termine als eigener Status.** Der Antwort-Assistent fuehrt zum Termin,
+   aber `meeting_booked` setzt niemand automatisch -- der Uebergang von
+   Antwort zu Termin ist damit weiterhin unsichtbar.
 
 ## Zur "Garantie"
 
