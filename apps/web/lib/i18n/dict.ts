@@ -1295,6 +1295,15 @@ const de = {
     correctedNote: "Nach Regelverstoß automatisch korrigiert",
   },
   deliverability: {
+    watch: {
+      title: "Laufende Überwachung",
+      subtitle:
+        "Einmal täglich werden die DNS-Einträge aller verbundenen Absender-Domains geprüft. Gemeldet wird, wenn etwas kaputtgeht — nicht täglich derselbe Zustand.",
+      noneYet: "Noch nichts geprüft. Der erste Durchlauf passiert automatisch, sobald ein Postfach verbunden ist.",
+      autoPause: "Kampagne bei zu hoher Bounce-Quote automatisch anhalten",
+      autoPauseHint:
+        "Ab 5 % Bounce (mindestens 50 gesendete Mails). Weiterzusenden kostet nicht die Kampagne, sondern den Ruf der Absender-Domain — und der kommt nicht zurück. Du bekommst eine Mail und kannst mit einem Klick fortsetzen.",
+    },
     title: "Zustellbarkeit",
     subtitle: "Prüfe SPF, DKIM und DMARC deiner Sende-Domain. Davon hängt ab, ob deine Mails im Posteingang landen statt im Spam.",
     domainLabel: "Domain",
@@ -2797,6 +2806,15 @@ const en: Dictionary = {
     correctedNote: "Auto-corrected after a rule violation",
   },
   deliverability: {
+    watch: {
+      title: "Ongoing monitoring",
+      subtitle:
+        "Once a day the DNS records of every connected sending domain are checked. You hear about it when something breaks — not every day about the same state.",
+      noneYet: "Nothing checked yet. The first run happens automatically once a mailbox is connected.",
+      autoPause: "Pause campaigns automatically on a high bounce rate",
+      autoPauseHint:
+        "At 5% bounce (minimum 50 mails sent). Sending on does not cost you the campaign, it costs your sending domain's reputation — and that does not come back. You get an email and can resume with one click.",
+    },
     title: "Deliverability",
     subtitle: "Check SPF, DKIM and DMARC for your sending domain. It decides whether your emails land in the inbox instead of spam.",
     domainLabel: "Domain",

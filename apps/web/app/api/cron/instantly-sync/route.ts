@@ -9,6 +9,14 @@ import { sendEmail } from "@/lib/email";
 import { detectOptOut } from "@/lib/crm/opt-out";
 import { detectAutoReply } from "@/lib/crm/auto-reply";
 import { emailBodyText } from "@/lib/instantly/email-body";
+import { runDeliverabilityCheck } from "@/lib/deliverability";
+import {
+  assessBounces,
+  domainChange,
+  domainCheckDue,
+  type CampaignBounceState,
+  type DomainCheck,
+} from "@/lib/deliverability-watch";
 
 // Ersetzt den frueheren Python-Worker-Job "poll_instantly" (kampagnen-scoped
 // Analytics/Antworten) UND "poll_instantly_inbox" (mailbox-weiter Sync) in einer
@@ -388,10 +396,80 @@ async function notifyReply(
  * Minutentakt dieselbe Mail schickt, sobald Resend kurz klemmt, waere
  * schlimmer.
  */
+/**
+ * Der Text der Alarm-Mail, je nach Art.
+ *
+ * Alle drei Arten teilen sich die Strecke in provider_alerts (Entdoppelung,
+ * Versand, Dashboard) -- aber nicht den Text. "Guthaben aufgebraucht" ueber
+ * einer angehaltenen Kampagne zu schreiben waere schlimmer als gar keine
+ * Meldung: der Empfaenger sucht dann am falschen Ort.
+ *
+ * Jede Mail beantwortet dieselben drei Fragen: was ist passiert, was
+ * bedeutet es, was ist jetzt zu tun. Ohne die dritte ist eine Alarmmail nur
+ * eine schlechte Nachricht.
+ */
+function alertMail(kind: string, provider: string, message: string): { subject: string; body: string } {
+  if (kind === "domain_broken") {
+    return {
+      subject: `Zustellbarkeit gefaehrdet: ${provider}`,
+      body: [
+        message,
+        "",
+        "Was das heisst: Empfaenger koennen nicht mehr pruefen, ob die Mail",
+        "wirklich von dieser Domain kommt. Google und Microsoft stufen sie",
+        "deshalb herab -- ein grosser Teil landet im Spam-Ordner, ohne dass",
+        "es irgendwo als Fehler auftaucht.",
+        "",
+        "Was zu tun ist: den fehlenden Eintrag beim DNS-Anbieter der Domain",
+        "nachtragen. Die App zeigt unter Instantly > Zustellbarkeit, was",
+        "genau fehlt und wie der Eintrag aussehen muss.",
+        "",
+        "Zur Pruefung: https://app.frostbreaker.app/instantly/deliverability",
+      ].join("\n"),
+    };
+  }
+
+  if (kind === "campaign_paused") {
+    return {
+      subject: `Kampagne angehalten: ${provider}`,
+      body: [
+        message,
+        "",
+        "Was das heisst: ab etwa 5 Prozent Bounce greifen die",
+        "Schutzmechanismen der Empfaenger-Provider, und der Ruf deiner",
+        "Absender-Domain traegt das dauerhaft mit. Weiterzusenden haette",
+        "nicht diese Kampagne gekostet, sondern die Domain.",
+        "",
+        "Was zu tun ist: die Adressliste pruefen, bevor du fortsetzt --",
+        "meist stammen die Bounces aus einer Quelle mit vielen ungeprueften",
+        "Adressen. Danach laesst sich die Kampagne mit einem Klick wieder",
+        "starten.",
+        "",
+        "Zur Kampagne: https://app.frostbreaker.app/instantly/campaigns",
+      ].join("\n"),
+    };
+  }
+
+  return {
+    subject: `Guthaben aufgebraucht: ${provider}`,
+    body: [
+      `Der Anbieter ${provider} meldet, dass dein Guthaben aufgebraucht ist.`,
+      "",
+      "Die Lead-Suche laeuft deshalb gerade nicht weiter. Die betroffenen",
+      "Jobs sind nicht verloren -- sie werden zurueckgestellt und laufen",
+      "von allein weiter, sobald du aufgeladen hast.",
+      "",
+      `Originalmeldung: ${message.slice(0, 400)}`,
+      "",
+      "Zum Dashboard: https://app.frostbreaker.app/",
+    ].join("\n"),
+  };
+}
+
 async function notifyProviderAlerts(supabase: SupabaseClient): Promise<number> {
   const { data: alerts } = await supabase
     .from("provider_alerts")
-    .select("id, workspace_id, provider, message")
+    .select("id, workspace_id, provider, kind, message")
     .is("notified_at", null)
     .is("resolved_at", null)
     .limit(20);
@@ -413,21 +491,8 @@ async function notifyProviderAlerts(supabase: SupabaseClient): Promise<number> {
     const to = (ws?.reply_notify_email ?? "").trim();
     if (!to) continue; // nicht eingerichtet -- der Alarm bleibt im Dashboard sichtbar
 
-    const result = await sendEmail(
-      to,
-      `Guthaben aufgebraucht: ${alert.provider}`,
-      [
-        `Der Anbieter ${alert.provider} meldet, dass dein Guthaben aufgebraucht ist.`,
-        "",
-        "Die Lead-Suche laeuft deshalb gerade nicht weiter. Die betroffenen",
-        "Jobs sind nicht verloren -- sie werden zurueckgestellt und laufen",
-        "von allein weiter, sobald du aufgeladen hast.",
-        "",
-        `Originalmeldung: ${(alert.message ?? "").slice(0, 400)}`,
-        "",
-        "Zum Dashboard: https://app.frostbreaker.app/",
-      ].join("\n")
-    );
+    const mail = alertMail(alert.kind as string, alert.provider as string, alert.message ?? "");
+    const result = await sendEmail(to, mail.subject, mail.body);
     if (result.ok) sent++;
     else console.warn("Guthaben-Warnung nicht zugestellt:", result.reason);
   }
@@ -853,6 +918,214 @@ async function runBackfill(
   return { active: true, seeded, worked: rows.length, emailsFound, remaining: remaining ?? 0, errors };
 }
 
+
+/**
+ * Der Zustellbarkeits-Waechter, taeglicher Teil: die DNS-Eintraege.
+ *
+ * Der Torwart prueft einmal, beim Anlegen. Danach kann ein Eintrag jederzeit
+ * verschwinden -- ein Domain-Umzug, ein aufgeraeumtes Zonefile, ein
+ * abgelaufener Vertrag. Ab dem Moment landet jede Mail im Spam, und man merkt
+ * es an ausbleibenden Antworten, also gar nicht.
+ *
+ * Gemeldet wird nur der UEBERGANG (siehe lib/deliverability-watch.ts). Ein
+ * offener Alarm bleibt im Dashboard stehen; verschickt wird er einmal.
+ */
+async function watchDomains(
+  supabase: SupabaseClient,
+  workspaceId: string,
+  eaccounts: string[]
+): Promise<{ checked: number; broke: string[]; recovered: string[] }> {
+  const domains = [
+    ...new Set(
+      eaccounts
+        .map((e) => {
+          const at = e.lastIndexOf("@");
+          return at > 0 ? e.slice(at + 1).toLowerCase() : null;
+        })
+        .filter((d): d is string => Boolean(d))
+    ),
+  ];
+  if (domains.length === 0) return { checked: 0, broke: [], recovered: [] };
+
+  const { data: known } = await supabase
+    .from("domain_health")
+    .select("domain, spf, dkim, dmarc, checked_at")
+    .eq("workspace_id", workspaceId);
+  const byDomain = new Map((known ?? []).map((r) => [r.domain as string, r]));
+
+  const now = Date.now();
+  const due = domains.filter((d) => domainCheckDue(byDomain.get(d)?.checked_at ?? null, now));
+  if (due.length === 0) return { checked: 0, broke: [], recovered: [] };
+
+  const broke: string[] = [];
+  const recovered: string[] = [];
+
+  await Promise.all(
+    due.map(async (domain) => {
+      let current: DomainCheck;
+      try {
+        const report = await runDeliverabilityCheck(domain);
+        current = {
+          domain,
+          spf: report.spf.status !== "missing",
+          dkim: report.dkim.status !== "missing",
+          dmarc: report.dmarc.status !== "missing",
+        };
+      } catch {
+        // Eine fehlgeschlagene Abfrage ist keine kaputte Domain. Der Stand
+        // bleibt stehen, beim naechsten Lauf wird es erneut versucht -- einen
+        // Alarm auf einen eigenen Netzfehler zu setzen waere genau die Sorte
+        // Fehlalarm, die Alarme entwertet.
+        return;
+      }
+
+      const previous = byDomain.get(domain);
+      const change = domainChange(
+        previous ? { domain, spf: previous.spf, dkim: previous.dkim, dmarc: previous.dmarc } : null,
+        current
+      );
+
+      await supabase.from("domain_health").upsert(
+        { workspace_id: workspaceId, ...current, checked_at: new Date().toISOString() },
+        { onConflict: "workspace_id,domain" }
+      );
+
+      if (change === "broke") {
+        broke.push(domain);
+        const fehlend = [!current.spf && "SPF", !current.dkim && "DKIM"].filter(Boolean).join(" und ");
+        await supabase.from("provider_alerts").upsert(
+          {
+            workspace_id: workspaceId,
+            provider: domain,
+            kind: "domain_broken",
+            message: `${fehlend} fehlt fuer ${domain}. Bis das behoben ist, landet ein grosser Teil der Mails im Spam.`,
+          },
+          { onConflict: "workspace_id,provider" }
+        );
+      }
+      if (change === "recovered") {
+        recovered.push(domain);
+        // Von allein aufloesen: wer den Eintrag repariert hat, soll die
+        // Meldung nicht auch noch wegklicken muessen.
+        await supabase
+          .from("provider_alerts")
+          .update({ resolved_at: new Date().toISOString() })
+          .eq("workspace_id", workspaceId)
+          .eq("provider", domain)
+          .eq("kind", "domain_broken")
+          .is("resolved_at", null);
+      }
+    })
+  );
+
+  return { checked: due.length, broke, recovered };
+}
+
+/**
+ * Der Zustellbarkeits-Waechter, laufender Teil: die Bounce-Quote.
+ *
+ * Ab 5 Prozent greifen die Schutzmechanismen der Empfaenger-Provider, und der
+ * Ruf der Absender-Domain traegt es dauerhaft mit. Weiterzusenden ist dann
+ * nicht "etwas riskant", sondern der teuerste Fehler in der Kaltakquise -- er
+ * kostet die Domain, nicht die Kampagne. Gemessen am 2026-08-04 lag eine
+ * Kampagne bei 20 Prozent, ohne dass es irgendwo aufgefallen waere.
+ *
+ * Der Eingriff ist umkehrbar (ein Klick setzt fort), wird per Mail
+ * angekuendigt, und wer ihn nicht will, schaltet ihn ab
+ * (workspaces.auto_pause_on_bounce, Migration 0072).
+ */
+async function watchBounces(
+  supabase: SupabaseClient,
+  workspaceId: string,
+  apiKey: string
+): Promise<{ paused: string[]; errors: string[] }> {
+  const errors: string[] = [];
+
+  const { data: workspace } = await supabase
+    .from("workspaces")
+    .select("auto_pause_on_bounce")
+    .eq("id", workspaceId)
+    .single();
+  if (workspace?.auto_pause_on_bounce === false) return { paused: [], errors };
+
+  // Die Zahlen haengen an der Suche (instantly_campaign_stats.search_id), die
+  // Kampagne an ihrer Instantly-ID. Zusammengefuehrt ueber campaign_searches,
+  // weil eine Kampagne seit Migration 0050 aus mehreren Suchen gespeist werden
+  // kann -- nur search_id anzuschauen wuerde bei genau diesen Kampagnen einen
+  // Teil der Bounces uebersehen.
+  const [{ data: campaigns }, { data: stats }, { data: links }] = await Promise.all([
+    supabase
+      .from("campaigns")
+      .select("id, name, instantly_campaign_id, status, search_id")
+      .eq("workspace_id", workspaceId)
+      .not("instantly_campaign_id", "is", null),
+    supabase
+      .from("instantly_campaign_stats")
+      .select("search_id, emails_sent_count, bounced_count")
+      .eq("workspace_id", workspaceId),
+    supabase.from("campaign_searches").select("campaign_id, search_id"),
+  ]);
+
+  const statBySearch = new Map((stats ?? []).map((s) => [s.search_id as string, s]));
+  const searchesFor = new Map<string, string[]>();
+  for (const link of links ?? []) {
+    const list = searchesFor.get(link.campaign_id as string);
+    if (list) list.push(link.search_id as string);
+    else searchesFor.set(link.campaign_id as string, [link.search_id as string]);
+  }
+
+  const states: CampaignBounceState[] = (campaigns ?? []).map((c) => {
+    const searchIds = searchesFor.get(c.id as string) ?? (c.search_id ? [c.search_id as string] : []);
+    let sent = 0;
+    let bounced = 0;
+    for (const sid of searchIds) {
+      const stat = statBySearch.get(sid);
+      sent += stat?.emails_sent_count ?? 0;
+      bounced += stat?.bounced_count ?? 0;
+    }
+    return {
+      campaignId: c.id as string,
+      name: (c.name as string) ?? "",
+      instantlyCampaignId: c.instantly_campaign_id as string,
+      sent,
+      bounced,
+      active: c.status === "active",
+    };
+  });
+
+  const paused: string[] = [];
+  for (const verdict of assessBounces(states).filter((v) => v.shouldPause)) {
+    try {
+      await instantlyRequest(apiKey, `/api/v2/campaigns/${verdict.instantlyCampaignId}/pause`, {
+        method: "POST",
+      });
+    } catch (e) {
+      errors.push(`pause ${verdict.name}: ${(e as Error).message}`);
+      // Lokal NICHT als pausiert markieren, wenn Instantly es nicht ist --
+      // sonst zeigt die App "angehalten", waehrend weiter gesendet wird.
+      continue;
+    }
+
+    await supabase.from("campaigns").update({ status: "paused" }).eq("id", verdict.campaignId);
+    paused.push(verdict.name);
+
+    await supabase.from("provider_alerts").upsert(
+      {
+        workspace_id: workspaceId,
+        provider: verdict.name,
+        kind: "campaign_paused",
+        message:
+          `Die Kampagne "${verdict.name}" wurde angehalten: ` +
+          `${verdict.bounced} von ${verdict.sent} Mails sind zurueckgekommen ` +
+          `(${(verdict.rate * 100).toFixed(1)} Prozent).`,
+      },
+      { onConflict: "workspace_id,provider" }
+    );
+  }
+
+  return { paused, errors };
+}
+
 export async function POST(req: Request) {
   if (!isAuthorized(req)) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
@@ -898,7 +1171,15 @@ export async function POST(req: Request) {
             ? { skipped: "backfill", remaining: backfill.remaining }
             : await syncInbox(supabase, workspaceId, apiKey, openaiKey, eaccounts);
 
-          return { workspaceId, status: "ok", campaigns, backfill, inbox };
+          // Nach dem Sync, nicht davor: die Bounce-Zahlen stammen aus
+          // instantly_campaign_stats, und die frischt syncCampaigns gerade
+          // auf. Andersherum fiele jede Entscheidung auf dem Stand von gestern.
+          const [domains, bounces] = await Promise.all([
+            watchDomains(supabase, workspaceId, eaccounts),
+            watchBounces(supabase, workspaceId, apiKey),
+          ]);
+
+          return { workspaceId, status: "ok", campaigns, backfill, inbox, domains, bounces };
         } catch (e) {
           return { workspaceId, status: "error", message: (e as Error).message };
         }

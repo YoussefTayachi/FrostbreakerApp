@@ -4,6 +4,7 @@ import { dict } from "@/lib/i18n/dict";
 import { getLangServer } from "@/lib/i18n/lang";
 import DeliverabilityPanel from "./deliverability-panel";
 import HelpLink from "../../help-link";
+import WatchSettings from "./watch-settings";
 
 export default async function InstantlyDeliverabilityPage() {
   const lang = await getLangServer();
@@ -28,6 +29,10 @@ export default async function InstantlyDeliverabilityPage() {
           <HelpLink section="deliverability" label={t.guide.helpLink} />
         </p>
       </div>
+
+      {/* Was von allein laeuft, zuerst: die manuelle Pruefung darunter ist
+          der Einzelfall, dieser Block der Dauerzustand. */}
+      <WatchSettings />
       <DeliverabilityPanel hasInstantlyKey={!!key} />
     </div>
   );
