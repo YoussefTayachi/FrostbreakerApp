@@ -141,10 +141,20 @@ export default function AutomationRules() {
                   (on ? "bg-sky-600" : "bg-edge3")
                 }
               >
+                {/* left-0.5 ist Pflicht, nicht Kosmetik.
+                    Ohne waagrechten Anker nimmt der Browser fuer ein
+                    absolut positioniertes Element seine Fliessposition, und
+                    translate-x rechnet von DORT weiter. Gemessen am
+                    2026-08-04: im eingeschalteten Zustand stand der Knopf bei
+                    1104..1120, die Pille endete bei 1106 -- also 14 px
+                    ausserhalb, sichtbar als weisser Fleck neben dem blauen
+                    Schalter. Mit festem left sitzt er in beiden Zustaenden
+                    2 px innerhalb: aus bei 0, an um 16 px verschoben, bei
+                    36 px Pille und 16 px Knopf. */}
                 <span
                   className={
-                    "absolute top-0.5 h-4 w-4 rounded-full bg-white transition-transform " +
-                    (on ? "translate-x-4" : "translate-x-0.5")
+                    "absolute left-0.5 top-0.5 h-4 w-4 rounded-full bg-white shadow-sm transition-transform " +
+                    (on ? "translate-x-4" : "translate-x-0")
                   }
                 />
               </button>
