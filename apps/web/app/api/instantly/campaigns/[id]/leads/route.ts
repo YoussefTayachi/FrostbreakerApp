@@ -91,3 +91,111 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
 
   return NextResponse.json({ ok: true, added: newRows.length, skipped_unverified: unsendable.length });
 }
+
+/** Instantlys Lead-Objekt, nur die Felder, die wir hier tatsaechlich lesen. */
+type InstantlyLead = {
+  id: string;
+  email?: string | null;
+  first_name?: string | null;
+  last_name?: string | null;
+  company_name?: string | null;
+  /** Gesetzt, sobald die erste Mail rausging. Das verlaesslichste "kontaktiert"-Signal. */
+  timestamp_last_contact?: string | null;
+  email_open_count?: number | null;
+  email_click_count?: number | null;
+  email_reply_count?: number | null;
+  /** Instantlys Zahlencode. Negativ = Bounce/Abmeldung, siehe LEAD_STATUS unten. */
+  status?: number | null;
+};
+
+/**
+ * Instantlys numerischer Lead-Status.
+ *
+ * Am 2026-08-04 gegen echte Daten geprueft: die interessanten Faelle sind die
+ * negativen. Fuer "kontaktiert ja/nein" wird bewusst NICHT dieser Code
+ * herangezogen, sondern timestamp_last_contact -- der ist eindeutig, waehrend
+ * status auch waehrend einer laufenden Sequenz auf 1 steht.
+ */
+const LEAD_BOUNCED = -1;
+const LEAD_UNSUBSCRIBED = -2;
+
+/** Eine Seite ist bei Instantly auf 100 gedeckelt. */
+const PAGE_SIZE = 100;
+/**
+ * Obergrenze fuer einen Aufruf. Bei 260 Leads sind das drei Seiten; die
+ * Deckelung ist die Bremse gegen eine versehentlich riesige Kampagne, nicht
+ * gegen den Normalfall. Wird sie erreicht, sagt die Antwort das ausdruecklich
+ * -- eine stumm gekuerzte Liste sieht aus wie eine vollstaendige.
+ */
+const MAX_PAGES = 20;
+
+/**
+ * Der Stand je Lead, direkt von Instantly.
+ *
+ * BEWUSST NICHT aus unseren eigenen Daten. contacts.outreach_status wird nur
+ * dann auf "kontaktiert" gesetzt, wenn der Inbox-Sync eine ausgehende Mail
+ * gesehen hat -- und der holt nur, was seit seinem Wasserstand entstanden ist.
+ * Gemessen am 2026-08-04: Instantly meldet fuer eine Kampagne 45 kontaktierte
+ * Leads, unsere Daten kannten 10. Eine Ansicht, die zeigen soll "wer wurde
+ * schon angeschrieben", darf nicht auf einer Quelle stehen, die nachweislich
+ * untertreibt.
+ *
+ * Live abgefragt statt zwischengespeichert: die Seite wird gelegentlich
+ * geoeffnet, die Zahlen sind dann garantiert aktuell, und es braucht keine
+ * weitere Tabelle, die selbst wieder veralten kann.
+ */
+export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const supabase = await createClient();
+  const ctx = await requireInstantlyContext(supabase);
+  if ("error" in ctx) return ctx.error;
+
+  const local = await loadOwnedCampaign(supabase, ctx.workspace.id, id);
+  if (!local || !local.instantly_campaign_id) {
+    return NextResponse.json({ error: "Kampagne nicht gefunden" }, { status: 404 });
+  }
+
+  const leads: InstantlyLead[] = [];
+  let startingAfter: string | undefined;
+  let truncated = false;
+
+  try {
+    for (let page = 0; page < MAX_PAGES; page++) {
+      const body: Record<string, unknown> = {
+        campaign: local.instantly_campaign_id,
+        limit: PAGE_SIZE,
+      };
+      if (startingAfter) body.starting_after = startingAfter;
+
+      const data = await instantlyRequest<{ items?: InstantlyLead[]; next_starting_after?: string }>(
+        ctx.apiKey,
+        "/api/v2/leads/list",
+        { method: "POST", body: JSON.stringify(body) }
+      );
+      const items = data.items ?? [];
+      leads.push(...items);
+      startingAfter = data.next_starting_after;
+      if (!startingAfter || items.length === 0) break;
+      if (page === MAX_PAGES - 1) truncated = true;
+    }
+  } catch (e) {
+    const status = e instanceof InstantlyApiError ? e.status : 500;
+    return NextResponse.json({ error: (e as Error).message }, { status });
+  }
+
+  return NextResponse.json({
+    truncated,
+    items: leads.map((lead) => ({
+      id: lead.id,
+      email: lead.email ?? null,
+      name: [lead.first_name, lead.last_name].filter(Boolean).join(" ") || null,
+      company: lead.company_name ?? null,
+      contacted_at: lead.timestamp_last_contact ?? null,
+      opens: lead.email_open_count ?? 0,
+      clicks: lead.email_click_count ?? 0,
+      replies: lead.email_reply_count ?? 0,
+      bounced: lead.status === LEAD_BOUNCED,
+      unsubscribed: lead.status === LEAD_UNSUBSCRIBED,
+    })),
+  });
+}

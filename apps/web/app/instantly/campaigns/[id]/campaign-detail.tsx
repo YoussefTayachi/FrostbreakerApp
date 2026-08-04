@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useT } from "../../../language-provider";
 import { useToast } from "../../../toast-provider";
 import { cardCls, secondaryBtnCls, STATUS_BADGE_CLS } from "@/lib/ui";
+import CampaignLeadsPanel from "./campaign-leads-panel";
 import CampaignForm, { type CampaignFormValue } from "../campaign-form";
 
 type CampaignDetail = {
@@ -44,6 +45,8 @@ export default function CampaignDetail({ id }: { id: string }) {
   const [saving, setSaving] = useState(false);
   const [activating, setActivating] = useState(false);
   const [addingLeads, setAddingLeads] = useState(false);
+  /** Die Lead-Liste haengt an einem Klick, siehe Kommentar an CampaignLeadsPanel. */
+  const [leadsOpen, setLeadsOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
   function load() {
@@ -242,11 +245,28 @@ export default function CampaignDetail({ id }: { id: string }) {
       )}
 
       <div className={cardCls}>
-        <h2 className="mb-1 font-medium text-ink">{D.leadsHeading}</h2>
-        <p className="mb-3 text-sm text-faint">{D.leadsAddedOf(data.leadsAdded, data.leadsAvailable)}</p>
-        <button onClick={addLeads} disabled={addingLeads || data.leadsAdded >= data.leadsAvailable} className={secondaryBtnCls}>
-          {addingLeads ? D.addingLeads : D.addMoreLeads}
-        </button>
+        <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h2 className="mb-1 font-medium text-ink">{D.leadsHeading}</h2>
+            <p className="text-sm text-faint">{D.leadsAddedOf(data.leadsAdded, data.leadsAvailable)}</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setLeadsOpen((v) => !v)}
+              className={secondaryBtnCls}
+            >
+              {leadsOpen ? D.hideLeadList : D.showLeadList}
+            </button>
+            <button onClick={addLeads} disabled={addingLeads || data.leadsAdded >= data.leadsAvailable} className={secondaryBtnCls}>
+              {addingLeads ? D.addingLeads : D.addMoreLeads}
+            </button>
+          </div>
+        </div>
+
+        {/* Erst auf Klick: der Abruf kostet je nach Groesse mehrere Anfragen
+            an Instantly, und wer nur den Zeitplan aendern will, braucht ihn
+            nicht. Die Komponente laedt selbst, sobald sie gerendert wird. */}
+        {leadsOpen && <CampaignLeadsPanel campaignId={id} />}
       </div>
 
       <div className={cardCls}>

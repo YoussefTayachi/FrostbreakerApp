@@ -11,7 +11,15 @@ type CampaignListItem = {
   status: string;
   mailboxes: string[];
   searches: { name: string | null; query: string; location: string } | null;
-  stats: { reply_count_unique: number; emails_sent_count: number } | null;
+  /** Ueber ALLE verknuepften Suchen aufaddiert, siehe api/instantly/campaigns. */
+  stats: {
+    leads_count: number;
+    contacted_count: number;
+    emails_sent_count: number;
+    open_count: number;
+    reply_count_unique: number;
+    bounced_count: number;
+  } | null;
 };
 
 export default function InstantlyCampaignsPage() {
@@ -92,26 +100,79 @@ export default function InstantlyCampaignsPage() {
           <table className="w-full text-sm">
             <thead className="bg-panel2 text-left text-xs text-faint">
               <tr>
-                <th className="px-4 py-2.5 font-medium">{C.columnName}</th>
-                <th className="px-4 py-2.5 font-medium">{C.columnSearch}</th>
-                <th className="px-4 py-2.5 font-medium">{C.columnStatus}</th>
-                <th className="px-4 py-2.5 font-medium">{C.columnMailboxes}</th>
-                <th className="px-4 py-2.5 font-medium">{C.columnReplies}</th>
-                <th className="px-4 py-2.5" />
+                <th className="px-4 py-3 font-medium">{C.columnName}</th>
+                <th className="px-4 py-3 font-medium">{C.columnStatus}</th>
+                <th className="w-52 px-4 py-3 font-medium">{C.columnProgress}</th>
+                <th className="px-4 py-3 text-right font-medium">{C.columnLeads}</th>
+                <th className="px-4 py-3 text-right font-medium">{C.columnContacted}</th>
+                <th className="px-4 py-3 text-right font-medium">{C.columnReplies}</th>
+                <th className="px-4 py-3 text-right font-medium">{C.columnBounced}</th>
+                <th className="px-4 py-3" />
               </tr>
             </thead>
             <tbody>
               {items.map((c) => (
                 <tr key={c.id} className="border-t border-edge/60">
-                  <td className="px-4 py-3 font-medium text-ink">{c.name}</td>
-                  <td className="px-4 py-3 text-faint">{c.searches?.name || c.searches?.query || "–"}</td>
+                  {/* Name und Lead-Liste uebereinander statt in zwei Spalten:
+                      die Liste ist Zusatzinformation zum Namen, keine eigene
+                      Groesse -- und spart die Breite fuer die Kennzahlen. */}
+                  <td className="px-4 py-3">
+                    <p className="font-medium text-ink">{c.name}</p>
+                    <p className="mt-0.5 text-xs text-faint">
+                      {c.searches?.name || c.searches?.query || "–"}
+                      {c.mailboxes.length > 0 && ` · ${C.mailboxCount(c.mailboxes.length)}`}
+                    </p>
+                  </td>
                   <td className="px-4 py-3">
                     <span className={"rounded-full border px-2 py-0.5 text-[11px] " + (STATUS_BADGE_CLS[c.status] ?? "")}>
                       {t.instantly.statusLabels[c.status as keyof typeof t.instantly.statusLabels] ?? c.status}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-faint">{c.mailboxes.length}</td>
-                  <td className="px-4 py-3 text-faint">{c.stats?.reply_count_unique ?? "–"}</td>
+                  {/* Fortschritt wie bei Instantly: wie viel der Liste ist
+                      durch. Die Zahl allein ("115 von 260") beantwortet das
+                      auch, aber der Balken beantwortet es ohne Rechnen. */}
+                  <td className="px-4 py-3">
+                    {c.stats && c.stats.leads_count > 0 ? (
+                      <>
+                        <div className="flex items-baseline justify-between text-xs">
+                          <span className="font-medium text-ink">
+                            {Math.round((c.stats.contacted_count / c.stats.leads_count) * 100)}%
+                          </span>
+                          <span className="text-mute">
+                            {c.stats.contacted_count} / {c.stats.leads_count}
+                          </span>
+                        </div>
+                        <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-chip">
+                          <div
+                            className="h-full rounded-full bg-sky-500 transition-[width]"
+                            style={{
+                              width: `${Math.min(100, Math.round((c.stats.contacted_count / c.stats.leads_count) * 100))}%`,
+                            }}
+                          />
+                        </div>
+                      </>
+                    ) : (
+                      <span className="text-xs text-mute">–</span>
+                    )}
+                  </td>
+                  <td className="px-4 py-3 text-right tabular-nums text-soft">
+                    {c.stats?.leads_count ?? "–"}
+                  </td>
+                  <td className="px-4 py-3 text-right tabular-nums text-soft">
+                    {c.stats?.contacted_count ?? "–"}
+                  </td>
+                  <td className="px-4 py-3 text-right tabular-nums">
+                    {/* Antworten hervorgehoben: das ist die einzige Zahl in
+                        dieser Zeile, die tatsaechlich etwas wert ist. */}
+                    <span className={c.stats?.reply_count_unique ? "font-medium text-sky-600 dark:text-sky-400" : "text-soft"}>
+                      {c.stats?.reply_count_unique ?? "–"}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 text-right tabular-nums">
+                    <span className={c.stats?.bounced_count ? "font-medium text-red-500" : "text-mute"}>
+                      {c.stats?.bounced_count ?? "–"}
+                    </span>
+                  </td>
                   <td className="px-4 py-3 text-right">
                     <span className="flex items-center justify-end gap-3">
                       <Link href={`/instantly/campaigns/${c.id}`} className="text-xs font-medium text-sky-600 hover:text-sky-500 dark:text-sky-400">

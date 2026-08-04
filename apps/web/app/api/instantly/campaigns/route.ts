@@ -298,13 +298,52 @@ export async function GET() {
     })
   );
 
-  const { data: stats } = await supabase
-    .from("instantly_campaign_stats")
-    .select("search_id, leads_count, emails_sent_count, open_count, reply_count_unique, bounced_count")
-    .eq("workspace_id", ctx.workspace.id);
-  const statsBySearch = new Map((stats ?? []).map((s) => [s.search_id, s]));
+  const [{ data: stats }, { data: links }] = await Promise.all([
+    supabase
+      .from("instantly_campaign_stats")
+      .select(
+        "search_id, leads_count, contacted_count, emails_sent_count, open_count, reply_count_unique, bounced_count"
+      )
+      .eq("workspace_id", ctx.workspace.id),
+    // Seit Migration 0050 kann eine Kampagne aus MEHREREN Suchen gespeist
+    // werden. instantly_campaign_stats haengt aber an genau einer search_id.
+    // Frueher wurde hier nur campaigns.search_id herangezogen -- bei einer
+    // Kampagne aus vier Suchen zeigte die Liste damit die Zahlen einer
+    // einzigen und untertrieb entsprechend.
+    supabase.from("campaign_searches").select("campaign_id, search_id"),
+  ]);
+
+  const statsBySearch = new Map((stats ?? []).map((s) => [s.search_id as string, s]));
+  const searchesByCampaign = new Map<string, string[]>();
+  for (const link of links ?? []) {
+    const list = searchesByCampaign.get(link.campaign_id as string) ?? [];
+    list.push(link.search_id as string);
+    searchesByCampaign.set(link.campaign_id as string, list);
+  }
+
+  /**
+   * Kennzahlen einer Kampagne ueber alle ihre Suchen aufaddieren.
+   *
+   * Faellt auf campaigns.search_id zurueck, wenn es keine Eintraege in
+   * campaign_searches gibt -- Kampagnen von vor Migration 0050 haben dort
+   * nichts stehen und wuerden sonst ganz ohne Zahlen dastehen.
+   */
+  function statsFor(campaignId: string, primarySearchId: string | null) {
+    const searchIds = searchesByCampaign.get(campaignId) ?? (primarySearchId ? [primarySearchId] : []);
+    const rows = searchIds.map((id) => statsBySearch.get(id)).filter(Boolean) as Record<string, number>[];
+    if (rows.length === 0) return null;
+    const sum = (key: string) => rows.reduce((n, r) => n + (Number(r[key]) || 0), 0);
+    return {
+      leads_count: sum("leads_count"),
+      contacted_count: sum("contacted_count"),
+      emails_sent_count: sum("emails_sent_count"),
+      open_count: sum("open_count"),
+      reply_count_unique: sum("reply_count_unique"),
+      bounced_count: sum("bounced_count"),
+    };
+  }
 
   return NextResponse.json({
-    items: withLiveStatus.map((c) => ({ ...c, stats: statsBySearch.get(c.search_id ?? "") ?? null })),
+    items: withLiveStatus.map((c) => ({ ...c, stats: statsFor(c.id, c.search_id ?? null) })),
   });
 }
