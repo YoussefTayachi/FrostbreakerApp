@@ -49,6 +49,8 @@ export default function CampaignForm({
   submitting,
   submitLabel,
   submittingLabel,
+  beforeSubmit,
+  submitDisabled,
 }: {
   value: CampaignFormValue;
   onChange: (v: CampaignFormValue) => void;
@@ -56,6 +58,11 @@ export default function CampaignForm({
   submitting: boolean;
   submitLabel: string;
   submittingLabel: string;
+  /** Platz direkt ueber dem Absenden-Knopf -- beim Anlegen sitzt dort der
+   *  Torwart (campaign-readiness-panel). Beim Bearbeiten bleibt er leer: die
+   *  Kampagne laeuft dann schon, und eine Startbedingung waere zu spaet. */
+  beforeSubmit?: React.ReactNode;
+  submitDisabled?: boolean;
 }) {
   const { t } = useT();
   const F = t.instantly.campaigns.form;
@@ -193,7 +200,9 @@ export default function CampaignForm({
         <p className="mt-1.5 text-xs text-mute">{F.dailyLimitHint}</p>
       </div>
 
-      <button onClick={onSubmit} disabled={submitting} className={primaryBtnCls}>
+      {beforeSubmit}
+
+      <button onClick={onSubmit} disabled={submitting || submitDisabled} className={primaryBtnCls}>
         {submitting ? submittingLabel : submitLabel}
       </button>
     </div>

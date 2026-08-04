@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { pickPrimaryContactPerBusiness, splitBySendability } from "@/lib/contacts";
@@ -8,6 +8,7 @@ import { useT } from "../../../language-provider";
 import { useToast } from "../../../toast-provider";
 import { useWorkspace } from "../../../workspace-provider";
 import CampaignForm, { emptyCampaignFormValue, type CampaignFormValue } from "../campaign-form";
+import CampaignReadinessPanel, { type ReadinessResult } from "../campaign-readiness-panel";
 
 type SearchOption = { id: string; name: string | null; query: string; location: string; instantly_campaign_id: string | null };
 
@@ -31,6 +32,24 @@ export default function NewCampaignPage() {
   const [value, setValue] = useState<CampaignFormValue>(emptyCampaignFormValue());
   const [creating, setCreating] = useState(false);
   const [preview, setPreview] = useState<LeadPreview | null>(null);
+  /**
+   * Der Torwart und die bewusste Entscheidung, ihn zu uebergehen.
+   *
+   * Das Uebergehen wird zurueckgesetzt, sobald sich die Bewertung aendert:
+   * wer die Postfaecher wechselt, hat die neuen Blocker noch nie gesehen, und
+   * ein einmal gesetztes "trotzdem" wuerde stillschweigend auch fuer die
+   * gelten.
+   */
+  const [readiness, setReadiness] = useState<ReadinessResult | null>(null);
+  const [override, setOverride] = useState(false);
+
+  const handleReadiness = useCallback((r: ReadinessResult | null) => {
+    setReadiness((prev) => {
+      if (prev && r && prev.blockers === r.blockers && prev.warnings === r.warnings) return prev;
+      setOverride(false);
+      return r;
+    });
+  }, []);
 
   function toggleSearch(id: string) {
     setSearchIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
@@ -87,7 +106,15 @@ export default function NewCampaignPage() {
     };
   }, [searchIds, workspaceId]);
 
+  const blocked = (readiness?.blockers ?? 0) > 0;
+
   async function create() {
+    // Zweite Schranke neben dem abgeschalteten Knopf: das Formular kann per
+    // Enter abgeschickt werden, und dann greift disabled nicht.
+    if (blocked && !override) {
+      push(t.campaignReadiness.blockedTitle(readiness!.blockers), "error");
+      return;
+    }
     if (
       searchIds.length === 0 ||
       !value.name.trim() ||
@@ -178,6 +205,28 @@ export default function NewCampaignPage() {
         submitting={creating}
         submitLabel={F.create}
         submittingLabel={F.creating}
+        // Steht ueber dem Absenden-Knopf, nicht darunter: was den Start
+        // verhindert, muss gelesen sein, bevor die Hand am Knopf ist.
+        beforeSubmit={
+          <>
+            <CampaignReadinessPanel
+              searchIds={searchIds}
+              mailboxes={value.mailboxes}
+              steps={value.steps}
+              onResult={handleReadiness}
+            />
+            {blocked && (
+              <div className="rounded-lg border border-red-500/40 bg-red-500/5 px-4 py-3">
+                <p className="text-xs text-faint">{t.campaignReadiness.overrideHint}</p>
+                <label className="mt-2 flex items-center gap-2 text-sm text-ink">
+                  <input type="checkbox" checked={override} onChange={(e) => setOverride(e.target.checked)} />
+                  {t.campaignReadiness.override}
+                </label>
+              </div>
+            )}
+          </>
+        }
+        submitDisabled={blocked && !override}
       />
     </div>
   );

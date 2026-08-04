@@ -69,6 +69,8 @@ export default function Nav() {
     { href: "/linkedin", label: t.nav.linkedin, icon: IconLinkedIn, badge: 0 },
     { href: "/inbox", label: t.nav.inbox, icon: IconInbox, badge: unread },
     { href: "/ai-agent", label: t.nav.aiAgent, icon: IconAgent, badge: 0 },
+    // Direkt unter dem AI Agent: dort stehen die Vorgaben, hier das Ergebnis.
+    { href: "/icebreaker", label: t.nav.icebreaker, icon: IconAgent, badge: 0 },
     { href: "/instantly", label: t.nav.instantly, icon: IconSend, badge: 0 },
     { href: "/blocklist", label: t.nav.blocklist, icon: IconShield, badge: 0 },
     { href: "/costs", label: t.nav.costs, icon: IconSettings, badge: 0 },

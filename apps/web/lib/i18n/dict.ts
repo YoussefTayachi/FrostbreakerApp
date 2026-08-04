@@ -15,7 +15,7 @@ const de = {
   nav: {
     dashboard: "Dashboard", searches: "Suchen", leads: "Alle Leads",
     pipeline: "Pipeline", calls: "Anrufliste", linkedin: "LinkedIn", inbox: "Posteingang",
-    aiAgent: "AI Agent", instantly: "Instantly", blocklist: "Blockliste", costs: "API-Kosten", settings: "Einstellungen", guide: "Anleitung",
+    aiAgent: "AI Agent", icebreaker: "Aufhänger", instantly: "Instantly", blocklist: "Blockliste", costs: "API-Kosten", settings: "Einstellungen", guide: "Anleitung",
   },
   commandPalette: {
     placeholder: "Seiten oder Firmen suchen...",
@@ -1307,6 +1307,110 @@ const de = {
     noteLabel: "Wichtig:",
     helpLink: "Wie funktioniert das?",
   },
+  icebreakerReview: {
+    title: "Aufhänger prüfen",
+    subtitle: "Die KI-Eröffnungszeilen, die in den Kampagnen als {{personalization}} landen.",
+    explainer:
+      "Geprüft wird gegen die heute geltenden Vorgaben, nicht gegen die Markierung von damals. Ändert sich eine Regel, ändert sich diese Liste mit.",
+    settingsHint: (max: number, banned: string) => `Höchstens ${max} Wörter · verboten: ${banned}`,
+    settingsLink: "Vorgaben ändern",
+    states: {
+      failing: "Fehlerhaft",
+      stale: "Veraltet markiert",
+      clean: "Sauber",
+    } as Record<string, string>,
+    staleExplain:
+      "Diese Zeilen tragen noch eine Markierung aus einer Zeit, in der strengere Regeln galten. Nach den heutigen Vorgaben sind sie in Ordnung.",
+    acceptStale: (n: number) => `${n} veraltete Markierungen abhaken`,
+    accept: "Annehmen",
+    regenerate: "Neu erzeugen",
+    regenerateAll: (n: number) => `${n} neu erzeugen lassen`,
+    edit: "Selbst schreiben",
+    save: "Speichern",
+    cancel: "Abbrechen",
+    words: (n: number, max: number) => `${n} von ${max} Wörtern`,
+    queued: (n: number) => `${n} zur Neuerzeugung eingereiht. Der Worker arbeitet sie in den nächsten Minuten ab.`,
+    queuedNone: "Für diese Firmen läuft schon ein Auftrag.",
+    accepted: (n: number) => `${n} abgehakt.`,
+    savedWithProblems: "Gespeichert — verstößt weiter gegen die Vorgaben.",
+    saved: "Gespeichert.",
+    empty: "Keine Aufhänger vorhanden. Sie entstehen automatisch, während eine Suche läuft.",
+    allClean: "Nichts zu prüfen — alle Aufhänger halten sich an die Vorgaben.",
+    truncated: "Sehr viele Zeilen — es werden die ersten 2000 gezeigt.",
+  },
+  campaignReadiness: {
+    title: "Vor dem Start",
+    checking: "Wird geprüft...",
+    allGood: "Nichts spricht gegen den Start.",
+    blockedTitle: (n: number) => (n === 1 ? "1 Sache verhindert den Start" : `${n} Sachen verhindern den Start`),
+    warningTitle: (n: number) => (n === 1 ? "1 Hinweis" : `${n} Hinweise`),
+    showPassed: (n: number) => `${n} bestandene Prüfungen zeigen`,
+    hidePassed: "Bestandene ausblenden",
+    override: "Trotzdem starten",
+    overrideHint:
+      "Die Blocker bleiben bestehen. Fehlende SPF- oder DKIM-Einträge bedeuten, dass ein großer Teil der Mails im Spam landet — und der Ruf der Absender-Domain leidet dauerhaft.",
+    checks: {
+      leads: {
+        ok: (n: number) => `${n} sendbare Leads`,
+        bad: "Keine sendbaren Leads. Alle Adressen sind ungültig, gesperrt oder haben abgesagt.",
+      },
+      spf: {
+        ok: "SPF ist für alle Absender-Domains gesetzt",
+        bad: (domains: string) => `SPF fehlt: ${domains}`,
+        why: "Ohne SPF kann der Empfänger nicht prüfen, ob die Mail wirklich von dieser Domain kommt. Sie landet zuverlässig im Spam.",
+      },
+      dkim: {
+        ok: "DKIM ist für alle Absender-Domains gesetzt",
+        bad: (domains: string) => `DKIM fehlt: ${domains}`,
+        why: "Ohne DKIM ist die Mail nicht signiert. Google und Microsoft stufen sie deshalb herab.",
+      },
+      dmarc: {
+        ok: "DMARC ist gesetzt",
+        bad: (domains: string) => `DMARC fehlt: ${domains}`,
+        why: "Google und Yahoo verlangen DMARC seit 2024 von allen, die in größerem Umfang versenden.",
+      },
+      bounce: {
+        ok: (percent: number) => `Bounce-Quote bei ${percent} %`,
+        bad: (percent: number, bounced: number, sent: number) =>
+          `Bounce-Quote bei ${percent} % (${bounced} von ${sent})`,
+        why: "Ab 5 % greifen die Schutzmechanismen der Empfänger-Provider, und der Ruf der Domain trägt das dauerhaft mit. Prüfe die Adressen, bevor du weiter sendest.",
+      },
+      verification: {
+        ok: "Adressen sind geprüft",
+        bad: (count: number, total: number, percent: number) =>
+          `${count} von ${total} Adressen (${percent} %) wurden nie geprüft`,
+        why: "Ungeprüfte Adressen sind die häufigste Ursache für Bounces.",
+      },
+      icebreakerMissing: {
+        ok: "Alle Leads haben einen Aufhänger",
+        bad: (count: number, total: number, percent: number) =>
+          `${count} von ${total} Leads (${percent} %) haben keinen Aufhänger`,
+        why: "Bei diesen Leads bleibt {{personalization}} leer — die Mail beginnt dann mitten im Satz.",
+      },
+      icebreakerFailing: {
+        ok: "Die Aufhänger halten sich an die Vorgaben",
+        bad: (count: number, total: number, percent: number) =>
+          `${count} von ${total} Aufhängern (${percent} %) verstoßen gegen die Vorgaben`,
+        why: "Zu lang oder mit verbotenen Zeichen — beides fällt Empfängern als KI-Text auf.",
+        action: "Aufhänger prüfen",
+      },
+      sequence: {
+        ok: (steps: number) => `${steps} Schritte in der Sequenz`,
+        bad: "Die Sequenz hat nur einen Schritt",
+        why: "Die Mehrzahl der Antworten kommt erst auf die zweite oder dritte Berührung. Eine Sequenz aus einer einzigen Mail verschenkt den größeren Teil.",
+      },
+      firstMailLength: {
+        ok: (words: number) => `Erste Mail: ${words} Wörter`,
+        bad: (words: number, max: number) => `Erste Mail ist ${words} Wörter lang (empfohlen: unter ${max})`,
+        why: "Die erste Mail hat eine Aufgabe: eine Antwort auslösen. Alles darüber hinaus kostet Antwortwahrscheinlichkeit. Der Aufhänger ist mitgezählt.",
+      },
+      firstMailLink: {
+        ok: "Kein Link in der ersten Mail",
+        bad: "Die erste Mail enthält einen Link",
+        why: "Ein Link im kalten Erstkontakt ist einer der stärksten Spam-Faktoren. Ab der zweiten Mail ist er unproblematisch.",
+      },
+    },
+  },
   providerAlerts: {
     title: (provider: string) => `${provider}: Guthaben aufgebraucht`,
     body:
@@ -1405,7 +1509,7 @@ const en: Dictionary = {
   nav: {
     dashboard: "Dashboard", searches: "Searches", leads: "All Leads",
     pipeline: "Pipeline", calls: "Call list", linkedin: "LinkedIn", inbox: "Inbox",
-    aiAgent: "AI Agent", instantly: "Instantly", blocklist: "Blocklist", costs: "API costs", settings: "Settings", guide: "Guide",
+    aiAgent: "AI Agent", icebreaker: "Icebreakers", instantly: "Instantly", blocklist: "Blocklist", costs: "API costs", settings: "Settings", guide: "Guide",
   },
   commandPalette: {
     placeholder: "Search pages or companies...",
@@ -2665,6 +2769,110 @@ const en: Dictionary = {
     subtitle: "How cold outreach actually works, and how to set frostbreaker up for it. Read top to bottom if you're new.",
     noteLabel: "Important:",
     helpLink: "How does this work?",
+  },
+  icebreakerReview: {
+    title: "Review icebreakers",
+    subtitle: "The AI opening lines that end up in campaigns as {{personalization}}.",
+    explainer:
+      "Checked against the rules that apply today, not the flag from back then. Change a rule and this list changes with it.",
+    settingsHint: (max: number, banned: string) => `Max ${max} words · banned: ${banned}`,
+    settingsLink: "Change the rules",
+    states: {
+      failing: "Failing",
+      stale: "Stale flag",
+      clean: "Clean",
+    },
+    staleExplain:
+      "These lines still carry a flag from a time when stricter rules applied. Under today's rules they are fine.",
+    acceptStale: (n: number) => `Clear ${n} stale flags`,
+    accept: "Accept",
+    regenerate: "Regenerate",
+    regenerateAll: (n: number) => `Regenerate ${n}`,
+    edit: "Write it yourself",
+    save: "Save",
+    cancel: "Cancel",
+    words: (n: number, max: number) => `${n} of ${max} words`,
+    queued: (n: number) => `${n} queued for regeneration. The worker will get through them in the next few minutes.`,
+    queuedNone: "A job is already running for these companies.",
+    accepted: (n: number) => `${n} cleared.`,
+    savedWithProblems: "Saved — still violates the rules.",
+    saved: "Saved.",
+    empty: "No icebreakers yet. They are written automatically while a search runs.",
+    allClean: "Nothing to review — every icebreaker follows the rules.",
+    truncated: "Very many rows — showing the first 2000.",
+  },
+  campaignReadiness: {
+    title: "Before you start",
+    checking: "Checking...",
+    allGood: "Nothing speaks against starting.",
+    blockedTitle: (n: number) => (n === 1 ? "1 thing blocks the start" : `${n} things block the start`),
+    warningTitle: (n: number) => (n === 1 ? "1 note" : `${n} notes`),
+    showPassed: (n: number) => `Show ${n} passed checks`,
+    hidePassed: "Hide passed",
+    override: "Start anyway",
+    overrideHint:
+      "The blockers remain. Missing SPF or DKIM records mean a large share of your mail lands in spam — and the sending domain's reputation carries that permanently.",
+    checks: {
+      leads: {
+        ok: (n: number) => `${n} sendable leads`,
+        bad: "No sendable leads. Every address is invalid, blocked, or has declined.",
+      },
+      spf: {
+        ok: "SPF is set for every sending domain",
+        bad: (domains: string) => `SPF missing: ${domains}`,
+        why: "Without SPF the recipient cannot verify the mail really comes from this domain. It reliably lands in spam.",
+      },
+      dkim: {
+        ok: "DKIM is set for every sending domain",
+        bad: (domains: string) => `DKIM missing: ${domains}`,
+        why: "Without DKIM the mail is unsigned. Google and Microsoft downgrade it for that reason.",
+      },
+      dmarc: {
+        ok: "DMARC is set",
+        bad: (domains: string) => `DMARC missing: ${domains}`,
+        why: "Google and Yahoo have required DMARC from bulk senders since 2024.",
+      },
+      bounce: {
+        ok: (percent: number) => `Bounce rate at ${percent}%`,
+        bad: (percent: number, bounced: number, sent: number) =>
+          `Bounce rate at ${percent}% (${bounced} of ${sent})`,
+        why: "Past 5% the recipient providers' protections kick in, and the domain carries that permanently. Verify the addresses before sending more.",
+      },
+      verification: {
+        ok: "Addresses are verified",
+        bad: (count: number, total: number, percent: number) =>
+          `${count} of ${total} addresses (${percent}%) were never verified`,
+        why: "Unverified addresses are the most common cause of bounces.",
+      },
+      icebreakerMissing: {
+        ok: "Every lead has an icebreaker",
+        bad: (count: number, total: number, percent: number) =>
+          `${count} of ${total} leads (${percent}%) have no icebreaker`,
+        why: "For those leads {{personalization}} stays empty — the mail then starts mid-sentence.",
+      },
+      icebreakerFailing: {
+        ok: "The icebreakers follow the rules",
+        bad: (count: number, total: number, percent: number) =>
+          `${count} of ${total} icebreakers (${percent}%) violate the rules`,
+        why: "Too long or containing banned characters — both read as AI text to recipients.",
+        action: "Review icebreakers",
+      },
+      sequence: {
+        ok: (steps: number) => `${steps} steps in the sequence`,
+        bad: "The sequence has only one step",
+        why: "Most replies come on the second or third touch. A single-mail sequence gives away the larger part.",
+      },
+      firstMailLength: {
+        ok: (words: number) => `First mail: ${words} words`,
+        bad: (words: number, max: number) => `First mail is ${words} words long (recommended: under ${max})`,
+        why: "The first mail has one job: trigger a reply. Everything beyond that costs reply rate. The icebreaker is counted in.",
+      },
+      firstMailLink: {
+        ok: "No link in the first mail",
+        bad: "The first mail contains a link",
+        why: "A link in a cold first touch is one of the strongest spam factors. From the second mail on it is fine.",
+      },
+    },
   },
   providerAlerts: {
     title: (provider: string) => `${provider}: out of credit`,
