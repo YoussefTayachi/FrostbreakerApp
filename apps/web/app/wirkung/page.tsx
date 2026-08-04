@@ -52,12 +52,27 @@ export default async function WirkungPage() {
       .eq("direction", "outbound")
       .not("contact_id", "is", null)
       .limit(20000),
+    /**
+     * Abwesenheitsnotizen zaehlen NICHT als Antwort.
+     *
+     * Beim ersten Blick auf die fertige Seite stand hier 7 -- Instantly
+     * meldete 1. Der Unterschied waren die 5 automatischen Antworten und
+     * damit eine Quote von 2,4 statt 0,3 Prozent. Ein Autoresponder ist kein
+     * Mensch, der reagiert hat; ihn mitzuzaehlen macht ausgerechnet die
+     * Ansicht unehrlich, die es gibt, um ehrlich zu sein.
+     *
+     * Ueber ai_interest, das der Inbox-Sync ohnehin setzt (Migration 0064).
+     * Nachrichten ohne Einstufung bleiben drin: das sind die aelteren, und
+     * eine echte Antwort faelschlich zu verwerfen waere der schlimmere
+     * Fehler.
+     */
     supabase
       .from("messages")
       .select("contact_id")
       .eq("workspace_id", ws.workspace.id)
       .eq("direction", "inbound")
       .not("contact_id", "is", null)
+      .or("ai_interest.is.null,ai_interest.neq.out_of_office")
       .limit(20000),
   ]);
 
