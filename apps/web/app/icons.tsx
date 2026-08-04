@@ -59,6 +59,18 @@ export function IconCost({ className = "h-4 w-4" }: { className?: string }) {
   );
 }
 
+/** Wirkung: eine steigende Linie ueber Balken. Bewusst NICHT dasselbe Symbol
+ *  wie die Pipeline -- die zeigt, was gerade laeuft, das hier, was es
+ *  gebracht hat. */
+export function IconChart({ className = "h-4 w-4" }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M3 21h18" /><path d="M7 21v-6M12 21v-10M17 21v-4" />
+      <path d="m5 10 5-5 4 4 5-6" /><path d="M19 3h-3.5M19 3v3.5" />
+    </svg>
+  );
+}
+
 export function IconShield({ className = "h-4 w-4" }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">

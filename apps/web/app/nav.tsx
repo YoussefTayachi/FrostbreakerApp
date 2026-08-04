@@ -6,6 +6,8 @@ import { createClient } from "@/lib/supabase/client";
 import { UNREAD_CHANGED_EVENT } from "@/lib/unread";
 import {
   IconAgent,
+  IconChart,
+  IconCost,
   IconDashboard,
   IconGuide,
   IconInbox,
@@ -17,6 +19,7 @@ import {
   IconSend,
   IconSettings,
   IconShield,
+  IconSparkle,
 } from "./icons";
 import { useT } from "./language-provider";
 import { useWorkspace } from "./workspace-provider";
@@ -54,57 +57,131 @@ function useUnreadReplies(workspaceId: string): number {
   return count;
 }
 
+type NavEntry = {
+  href: string;
+  label: string;
+  icon: (p: { className?: string }) => React.ReactElement;
+  badge?: number;
+};
+
 export default function Nav() {
   const pathname = usePathname();
   const { t } = useT();
   const { workspaceId } = useWorkspace();
   const unread = useUnreadReplies(workspaceId);
 
-  const items = [
-    { href: "/", label: t.nav.dashboard, icon: IconDashboard, badge: 0 },
-    { href: "/searches", label: t.nav.searches, icon: IconSearch, badge: 0 },
-    { href: "/leads", label: t.nav.leads, icon: IconLeads, badge: 0 },
-    { href: "/pipeline", label: t.nav.pipeline, icon: IconPipeline, badge: 0 },
-    { href: "/calls", label: t.nav.calls, icon: IconPhone, badge: 0 },
-    { href: "/linkedin", label: t.nav.linkedin, icon: IconLinkedIn, badge: 0 },
-    { href: "/inbox", label: t.nav.inbox, icon: IconInbox, badge: unread },
-    { href: "/ai-agent", label: t.nav.aiAgent, icon: IconAgent, badge: 0 },
-    // Direkt unter dem AI Agent: dort stehen die Vorgaben, hier das Ergebnis.
-    { href: "/icebreaker", label: t.nav.icebreaker, icon: IconAgent, badge: 0 },
-    { href: "/instantly", label: t.nav.instantly, icon: IconSend, badge: 0 },
-    // Nach Instantly: die Auswertung dessen, was dort rausgegangen ist.
-    { href: "/wirkung", label: t.nav.effectiveness, icon: IconPipeline, badge: 0 },
-    { href: "/blocklist", label: t.nav.blocklist, icon: IconShield, badge: 0 },
-    { href: "/costs", label: t.nav.costs, icon: IconSettings, badge: 0 },
-    { href: "/settings", label: t.nav.settings, icon: IconSettings, badge: 0 },
-    { href: "/guide", label: t.nav.guide, icon: IconGuide, badge: 0 },
+  /**
+   * Die Leiste in Gruppen statt fuenfzehn gleichrangiger Zeilen.
+   *
+   * Gewachsen ist sie durch Zutun: jede neue Ansicht kam unten dran, bis
+   * nichts mehr auf einen Blick erfassbar war. Gruppiert wird nach dem, was
+   * man beim Arbeiten NACHEINANDER braucht, nicht nach technischer
+   * Verwandtschaft:
+   *
+   *   Uebersicht   was habe ich       Dashboard, Suchen, Leads
+   *   Pipeline     was mache ich      Board, Anrufliste, LinkedIn
+   *   Texte        was schreibe ich   Vorgaben, erzeugte Aufhaenger
+   *   Versand      was geht raus      Kampagnen, Posteingang, Wirkung
+   *   Einstellungen                   Sperrliste, Kosten
+   *
+   * Der Hauptpunkt ist selbst eine Seite, kein blosser Titel. Eine
+   * Ueberschrift, die nichts tut, kostet eine Zeile und gibt nichts zurueck.
+   *
+   * Untereinträge sind IMMER sichtbar und nicht einklappbar. Ein Klappmenue
+   * spart Platz, kostet aber bei jedem Wechsel einen zusaetzlichen Klick --
+   * in einem Werkzeug, das den ganzen Tag offen ist, ist das der schlechtere
+   * Tausch. Die Einrueckung allein macht die Liste lesbar.
+   */
+  const groups: { parent: NavEntry; children: NavEntry[] }[] = [
+    {
+      parent: { href: "/", label: t.nav.dashboard, icon: IconDashboard },
+      children: [
+        { href: "/searches", label: t.nav.searches, icon: IconSearch },
+        { href: "/leads", label: t.nav.leads, icon: IconLeads },
+      ],
+    },
+    {
+      parent: { href: "/pipeline", label: t.nav.pipeline, icon: IconPipeline },
+      children: [
+        { href: "/calls", label: t.nav.calls, icon: IconPhone },
+        { href: "/linkedin", label: t.nav.linkedin, icon: IconLinkedIn },
+      ],
+    },
+    {
+      // Vorgaben oben, Ergebnis darunter: im AI-Agent-Tab stehen Prompt,
+      // Wortgrenze und Verbotswoerter, unter Aufhaenger das, was dabei
+      // herauskam.
+      parent: { href: "/ai-agent", label: t.nav.aiAgent, icon: IconAgent },
+      children: [{ href: "/icebreaker", label: t.nav.icebreaker, icon: IconSparkle }],
+    },
+    {
+      parent: { href: "/instantly", label: t.nav.instantly, icon: IconSend },
+      children: [
+        { href: "/inbox", label: t.nav.inbox, icon: IconInbox, badge: unread },
+        { href: "/wirkung", label: t.nav.effectiveness, icon: IconChart },
+      ],
+    },
+    {
+      parent: { href: "/settings", label: t.nav.settings, icon: IconSettings },
+      children: [
+        { href: "/blocklist", label: t.nav.blocklist, icon: IconShield },
+        { href: "/costs", label: t.nav.costs, icon: IconCost },
+      ],
+    },
   ];
 
+  // Die Anleitung steht allein und ganz unten: sie gehoert zu keinem
+  // Arbeitsschritt, sondern zu allen.
+  const standalone: NavEntry = { href: "/guide", label: t.nav.guide, icon: IconGuide };
+
+  function isActive(href: string): boolean {
+    return href === "/" ? pathname === "/" : pathname.startsWith(href);
+  }
+
   return (
-    <nav className="flex flex-col gap-1">
-      {items.map(({ href, label, icon: Icon, badge }) => {
-        const active = href === "/" ? pathname === "/" : pathname.startsWith(href);
-        return (
-          <Link
-            key={href}
-            href={href}
-            className={
-              "relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-all duration-200 " +
-              (active
-                ? "border border-edge/60 bg-panel font-medium text-ink shadow-sm"
-                : "border border-transparent text-soft hover:bg-chip hover:text-ink")
-            }
-          >
-            <Icon className={"h-[18px] w-[18px] " + (active ? "text-sky-600 dark:text-sky-400" : "text-faint")} />
-            <span className="flex-1">{label}</span>
-            {badge > 0 && (
-              <span className="min-w-5 rounded-full bg-sky-600 px-1.5 py-0.5 text-center text-[10px] font-semibold leading-none text-white">
-                {badge > 99 ? "99+" : badge}
-              </span>
-            )}
-          </Link>
-        );
-      })}
+    <nav className="flex flex-col gap-3">
+      {groups.map(({ parent, children }) => (
+        <div key={parent.href} className="flex flex-col gap-0.5">
+          <NavRow entry={parent} active={isActive(parent.href)} />
+          {/* Die Leiste links verbindet die Untereinträge sichtbar mit ihrem
+              Hauptpunkt. Ohne sie wirkt die Einrueckung wie ein Zufall. */}
+          <div className="ml-[22px] flex flex-col gap-0.5 border-l border-edge2/70 pl-2">
+            {children.map((child) => (
+              <NavRow key={child.href} entry={child} active={isActive(child.href)} sub />
+            ))}
+          </div>
+        </div>
+      ))}
+      <NavRow entry={standalone} active={isActive(standalone.href)} />
     </nav>
+  );
+}
+
+function NavRow({ entry, active, sub }: { entry: NavEntry; active: boolean; sub?: boolean }) {
+  const { label, icon: Icon, badge = 0 } = entry;
+  return (
+    <Link
+      href={entry.href}
+      className={
+        "relative flex items-center gap-2.5 rounded-lg transition-all duration-200 " +
+        (sub ? "px-2.5 py-1.5 text-[13px] " : "px-3 py-2.5 text-sm ") +
+        (active
+          ? "border border-edge/60 bg-panel font-medium text-ink shadow-sm"
+          : "border border-transparent text-soft hover:bg-chip hover:text-ink")
+      }
+    >
+      <Icon
+        className={
+          (sub ? "h-4 w-4 " : "h-[18px] w-[18px] ") +
+          (active ? "text-sky-600 dark:text-sky-400" : "text-faint")
+        }
+      />
+      <span className="flex-1">{label}</span>
+      {badge > 0 && (
+        <span className="min-w-5 rounded-full bg-sky-600 px-1.5 py-0.5 text-center text-[10px] font-semibold leading-none text-white">
+          {badge > 99 ? "99+" : badge}
+        </span>
+      )}
+    </Link>
   );
 }
