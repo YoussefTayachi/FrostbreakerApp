@@ -15,7 +15,7 @@ const de = {
   nav: {
     dashboard: "Dashboard", searches: "Suchen", leads: "Alle Leads",
     pipeline: "Pipeline", calls: "Anrufliste", linkedin: "LinkedIn", inbox: "Posteingang",
-    aiAgent: "AI Agent", icebreaker: "Aufhänger", instantly: "Instantly", blocklist: "Blockliste", costs: "API-Kosten", settings: "Einstellungen", guide: "Anleitung",
+    aiAgent: "AI Agent", icebreaker: "Aufhänger", effectiveness: "Wirkung", instantly: "Instantly", blocklist: "Blockliste", costs: "API-Kosten", settings: "Einstellungen", guide: "Anleitung",
   },
   commandPalette: {
     placeholder: "Seiten oder Firmen suchen...",
@@ -224,6 +224,8 @@ const de = {
       reply_followup: "Antwort beantworten",
       meeting_prep: "Termin vorbereiten",
       stale_reminder: "Liegengebliebene wieder aufgreifen",
+      no_reply_linkedin: "Ohne Antwort? Dann auf LinkedIn",
+      no_reply_call: "Immer noch nichts? Dann anrufen",
     } as Record<string, string>,
     ruleBodies: {
       reply_followup:
@@ -232,8 +234,13 @@ const de = {
         "Wird ein Termin gebucht, entsteht eine Vorbereitungsaufgabe. Ein unvorbereiteter Termin ist ein verschenkter Termin.",
       stale_reminder:
         "Kontakte, bei denen etwas läuft, die aber seit einer Weile unberührt sind, kommen auf Wiedervorlage. Höchstens 25 pro Tag, damit die Anrufliste nicht überläuft.",
+      no_reply_linkedin:
+        "Wer angeschrieben wurde und nicht geantwortet hat, landet automatisch in der LinkedIn-Liste — aber nur, wenn ein Profil hinterlegt ist. Der zweite Kanal kostet nichts und verdoppelt die Chance, gesehen zu werden.",
+      no_reply_call:
+        "Bleibt es still, kommt der Anruf in die Anrufliste. Nur wo eine Nummer da ist, und erst wenn die LinkedIn-Aufgabe erledigt ist — es entsteht immer nur ein nächster Schritt.",
     } as Record<string, string>,
     staleAfter: "Nach",
+    chainAfter: "Warten",
     days: (n: number) => `${n} Tagen`,
     enabled: "Regel eingeschaltet",
     disabled: "Regel ausgeschaltet",
@@ -1473,6 +1480,26 @@ const de = {
       },
     },
   },
+  effectiveness: {
+    title: "Wirkung",
+    subtitle: "Was tatsächlich Antworten bringt — und was nur so aussieht.",
+    contacted: "Angeschrieben",
+    replied: "Geantwortet",
+    rate: "Antwortquote",
+    tooEarly: (n: number) =>
+      `Noch keine belastbare Aussage: es fehlen ${n} angeschriebene Kontakte. Bis dahin wäre jede Prozentzahl geraten.`,
+    bySearch: "Nach Lead-Liste",
+    bySearchHint:
+      "Die wichtigste Frage: welche Nische antwortet überhaupt. Text, Zeitpunkt und Kanal wirken erst, wenn die Zielgruppe stimmt.",
+    byWeekday: "Nach Wochentag",
+    byWeekdayHint: "Wochentag des Versands, nicht der Antwort.",
+    byHour: "Nach Tageszeit",
+    byHourHint: "In Blöcken von drei Stunden — einzelne Stunden wären 24 Zahlen, von denen keine etwas bedeutet.",
+    thin: (n: number) => `${n} — zu wenig`,
+    noData: "Noch keine Daten.",
+    methodNote: (min: number) =>
+      `Gemessen an Kontakten, nicht an Mails: eine Sequenz schickt mehrere Mails an dieselbe Person, und die eine Antwort darauf gehört nicht geteilt. Unter ${min} angeschriebenen Kontakten je Zeile wird bewusst keine Quote ausgewiesen.`,
+  },
   providerAlerts: {
     title: (provider: string) => `${provider}: Guthaben aufgebraucht`,
     body:
@@ -1571,7 +1598,7 @@ const en: Dictionary = {
   nav: {
     dashboard: "Dashboard", searches: "Searches", leads: "All Leads",
     pipeline: "Pipeline", calls: "Call list", linkedin: "LinkedIn", inbox: "Inbox",
-    aiAgent: "AI Agent", icebreaker: "Icebreakers", instantly: "Instantly", blocklist: "Blocklist", costs: "API costs", settings: "Settings", guide: "Guide",
+    aiAgent: "AI Agent", icebreaker: "Icebreakers", effectiveness: "Effect", instantly: "Instantly", blocklist: "Blocklist", costs: "API costs", settings: "Settings", guide: "Guide",
   },
   commandPalette: {
     placeholder: "Search pages or companies...",
@@ -1775,6 +1802,8 @@ const en: Dictionary = {
       reply_followup: "Reply to a reply",
       meeting_prep: "Prepare for the meeting",
       stale_reminder: "Pick up what went quiet",
+      no_reply_linkedin: "No reply? Then LinkedIn",
+      no_reply_call: "Still nothing? Then call",
     },
     ruleBodies: {
       reply_followup:
@@ -1783,8 +1812,13 @@ const en: Dictionary = {
         "When a meeting is booked, a preparation task appears. An unprepared meeting is a wasted meeting.",
       stale_reminder:
         "Contacts with something in motion that have gone untouched for a while come back up. At most 25 per day, so the call list does not overflow.",
+      no_reply_linkedin:
+        "Anyone who was mailed and did not reply lands in the LinkedIn list automatically — but only if a profile is on file. The second channel costs nothing and doubles the chance of being seen.",
+      no_reply_call:
+        "If it stays quiet, the call goes into the call list. Only where a number exists, and only once the LinkedIn task is done — there is always exactly one next step.",
     },
     staleAfter: "After",
+    chainAfter: "Wait",
     days: (n: number) => `${n} days`,
     enabled: "Rule switched on",
     disabled: "Rule switched off",
@@ -2997,6 +3031,26 @@ const en: Dictionary = {
         why: "A link in a cold first touch is one of the strongest spam factors. From the second mail on it is fine.",
       },
     },
+  },
+  effectiveness: {
+    title: "Effect",
+    subtitle: "What actually brings replies — and what only looks like it.",
+    contacted: "Contacted",
+    replied: "Replied",
+    rate: "Reply rate",
+    tooEarly: (n: number) =>
+      `No reliable statement yet: ${n} more contacted people needed. Until then any percentage would be guesswork.`,
+    bySearch: "By lead list",
+    bySearchHint:
+      "The most important question: which niche replies at all. Copy, timing and channel only matter once the audience is right.",
+    byWeekday: "By weekday",
+    byWeekdayHint: "Weekday the mail went out, not the day of the reply.",
+    byHour: "By time of day",
+    byHourHint: "In three-hour blocks — single hours would be 24 numbers, none of which means anything.",
+    thin: (n: number) => `${n} — too few`,
+    noData: "No data yet.",
+    methodNote: (min: number) =>
+      `Measured per contact, not per mail: a sequence sends several mails to the same person, and the one reply should not be divided. Below ${min} contacted people per row no rate is shown, on purpose.`,
   },
   providerAlerts: {
     title: (provider: string) => `${provider}: out of credit`,

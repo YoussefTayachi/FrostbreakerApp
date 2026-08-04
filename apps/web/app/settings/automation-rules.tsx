@@ -24,13 +24,40 @@ import { useWorkspace } from "../workspace-provider";
  */
 
 /** Muss synchron bleiben mit dem CHECK auf automation_rules.kind. */
-const RULE_KINDS = ["reply_followup", "meeting_prep", "stale_reminder"] as const;
+const RULE_KINDS = [
+  "reply_followup",
+  "meeting_prep",
+  "stale_reminder",
+  // Die Kette (Migration 0074), in der Reihenfolge, in der sie greift:
+  // Mail -> nach n Tagen ohne Antwort LinkedIn -> nach m Tagen Anruf.
+  "no_reply_linkedin",
+  "no_reply_call",
+] as const;
 type RuleKind = (typeof RULE_KINDS)[number];
 
 type Rule = { kind: RuleKind; enabled: boolean; config: { days?: number } };
 
-/** Auswahl fuer die einzige Regel, die eine Einstellung hat. */
+/** Wie lange etwas liegen darf, bevor es wieder hochkommt. */
 const STALE_DAY_OPTIONS = [14, 30, 60, 90] as const;
+
+/**
+ * Wartezeiten der Kettenregeln.
+ *
+ * Kurz gehalten und getrennt je Regel: 2 bis 3 Tage sind bei LinkedIn
+ * ueblich, beim Anruf ist mehr Abstand angebracht -- wer am dritten Tag nach
+ * einer kalten Mail anruft, wirkt wie ein Verfolger. Die Voreinstellungen (3
+ * und 7) stehen in der Datenbankfunktion und gelten, solange hier nichts
+ * gewaehlt wurde.
+ */
+const CHAIN_DAY_OPTIONS: Record<string, readonly number[]> = {
+  no_reply_linkedin: [2, 3, 5, 7],
+  no_reply_call: [5, 7, 10, 14],
+};
+
+const CHAIN_DEFAULT_DAYS: Record<string, number> = {
+  no_reply_linkedin: 3,
+  no_reply_call: 7,
+};
 
 export default function AutomationRules() {
   const { t } = useT();
@@ -134,6 +161,25 @@ export default function AutomationRules() {
                   className="rounded-lg border border-edge2 bg-field px-2 py-1 text-xs text-ink outline-none focus:border-sky-500"
                 >
                   {STALE_DAY_OPTIONS.map((d) => (
+                    <option key={d} value={d}>
+                      {A.days(d)}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
+
+            {/* Die Kettenregeln warten ab dem Versand, nicht ab dem letzten
+                Kontakt -- deshalb eine eigene Beschriftung. */}
+            {CHAIN_DAY_OPTIONS[kind] && on && (
+              <label className="mt-2.5 flex items-center gap-2 text-xs text-faint">
+                {A.chainAfter}
+                <select
+                  value={rules[kind]?.config?.days ?? CHAIN_DEFAULT_DAYS[kind]}
+                  onChange={(e) => toggle(kind, true, { days: Number(e.target.value) })}
+                  className="rounded-lg border border-edge2 bg-field px-2 py-1 text-xs text-ink outline-none focus:border-sky-500"
+                >
+                  {CHAIN_DAY_OPTIONS[kind].map((d) => (
                     <option key={d} value={d}>
                       {A.days(d)}
                     </option>

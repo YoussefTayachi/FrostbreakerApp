@@ -72,6 +72,8 @@ export default function Nav() {
     // Direkt unter dem AI Agent: dort stehen die Vorgaben, hier das Ergebnis.
     { href: "/icebreaker", label: t.nav.icebreaker, icon: IconAgent, badge: 0 },
     { href: "/instantly", label: t.nav.instantly, icon: IconSend, badge: 0 },
+    // Nach Instantly: die Auswertung dessen, was dort rausgegangen ist.
+    { href: "/wirkung", label: t.nav.effectiveness, icon: IconPipeline, badge: 0 },
     { href: "/blocklist", label: t.nav.blocklist, icon: IconShield, badge: 0 },
     { href: "/costs", label: t.nav.costs, icon: IconSettings, badge: 0 },
     { href: "/settings", label: t.nav.settings, icon: IconSettings, badge: 0 },
