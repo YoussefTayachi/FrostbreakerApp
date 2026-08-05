@@ -1549,6 +1549,7 @@ const de = {
     meetings: "Termine",
     autoReplies: "Abwesenheit",
     noAttribution: "Noch keine zugeordneten Nachrichten.",
+    externalCampaign: "(nur bei Instantly)",
     unattributed: (n: number) =>
       `${n} Nachrichten ohne Zuordnung — sie fehlen in dieser Auswertung.`,
     copyWarning:
@@ -3155,6 +3156,7 @@ const en: Dictionary = {
     meetings: "Meetings",
     autoReplies: "Auto-reply",
     noAttribution: "No attributed messages yet.",
+    externalCampaign: "(only in Instantly)",
     unattributed: (n: number) => `${n} messages without attribution — they are missing from this breakdown.`,
     copyWarning:
       "Reply rate alone is the wrong target: a version can lead and still collect nothing but rejections. The column that counts is meetings.",

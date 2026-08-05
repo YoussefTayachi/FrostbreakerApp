@@ -224,6 +224,7 @@ function CopySection({
     byCopyHint: string;
     copyWarning: string;
     noAttribution: string;
+    externalCampaign: string;
     unattributed: (n: number) => string;
     step: string;
     variant: string;
@@ -239,11 +240,16 @@ function CopySection({
 }) {
   // Mehrere Kampagnen: die Zwischenueberschrift verhindert, dass "Schritt 0"
   // aus zwei Kampagnen wie derselbe Text aussieht.
+  //
+  // Der Ersatzname fuer Kampagnen ohne lokale Zeile kommt aus dem
+  // Woerterbuch, nicht aus der Rechenfunktion -- die kennt die eingestellte
+  // Sprache nicht.
   const groups = new Map<string, CopyBucket[]>();
   for (const b of buckets) {
-    const list = groups.get(b.campaignName);
+    const name = b.campaignName || L.externalCampaign;
+    const list = groups.get(name);
     if (list) list.push(b);
-    else groups.set(b.campaignName, [b]);
+    else groups.set(name, [b]);
   }
 
   return (

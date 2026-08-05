@@ -193,7 +193,16 @@ export function byCopy(
       const positive = Math.max(a.interested, meetings);
       return {
         key,
-        campaignName: a.campaignName || "(nur bei Instantly)",
+        /**
+         * Leer bleibt leer.
+         *
+         * Hier stand ein fest verdrahtetes "(nur bei Instantly)" -- auf einer
+         * englisch eingestellten Oberflaeche also ein deutscher Text mitten in
+         * der Tabelle. Eine Rechenfunktion kennt die Sprache nicht und soll
+         * keine Beschriftung erfinden; die Ersetzung passiert dort, wo das
+         * Woerterbuch liegt.
+         */
+        campaignName: a.campaignName,
         step: a.step,
         variant: a.variant,
         contacts: n,

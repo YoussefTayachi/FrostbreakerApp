@@ -137,9 +137,15 @@ describe("byCopy", () => {
     expect(buckets.map((b) => b.campaignName)).toEqual(["Eins", "Zwei"]);
   });
 
-  it("benennt Kampagnen ohne lokale Zeile statt sie leer zu lassen", () => {
+  /**
+   * Die Beschriftung gehoert ins Woerterbuch, nicht hierher: eine
+   * Rechenfunktion kennt die eingestellte Sprache nicht. Ein fest verdrahtetes
+   * "(nur bei Instantly)" stand am 2026-08-05 auf der englischen Oberflaeche
+   * mitten in der Tabelle.
+   */
+  it("erfindet fuer Kampagnen ohne lokale Zeile keinen Namen", () => {
     const out = sends(1, { campaignId: null, campaignName: null });
-    expect(byCopy(out, [], new Set())[0].campaignName).toBe("(nur bei Instantly)");
+    expect(byCopy(out, [], new Set())[0].campaignName).toBe("");
   });
 
   it("sortiert in Sequenzreihenfolge, nicht nach Erfolg", () => {
