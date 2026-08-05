@@ -28,15 +28,36 @@ describe("buildProspeoFilters", () => {
     ).toEqual({});
   });
 
-  it("baut Stellentitel mit Vergleichsart", () => {
+  /**
+   * GROSSGESCHRIEBEN. Die Doku sagt "contains"/"exact", die echte API lehnt
+   * beides klein mit einem 400 ab: "Invalid match_mode. Must be one of:
+   * CONTAINS, EXACT, SIMILAR, STRICT." Am 2026-08-05 im Testlauf gemessen.
+   */
+  it("baut Stellentitel mit GROSS geschriebener Vergleichsart", () => {
     expect(buildProspeoFilters({ person_titles: "CEO, Head of Support" })).toEqual({
-      person_job_title: { include: ["CEO", "Head of Support"], match_mode: "contains" },
+      person_job_title: { include: ["CEO", "Head of Support"], match_mode: "CONTAINS" },
     });
     expect(
-      buildProspeoFilters({ person_titles: "CEO", person_title_match: "exact" })
+      buildProspeoFilters({ person_titles: "CEO", person_title_match: "EXACT" })
     ).toEqual({
-      person_job_title: { include: ["CEO"], match_mode: "exact" },
+      person_job_title: { include: ["CEO"], match_mode: "EXACT" },
     });
+  });
+
+  it("normalisiert eine klein geschriebene Vergleichsart, statt sie durchzureichen", () => {
+    const built = buildProspeoFilters({
+      person_titles: "CEO",
+      person_title_match: "exact" as unknown as "EXACT",
+    });
+    expect((built.person_job_title as { match_mode: string }).match_mode).toBe("EXACT");
+  });
+
+  it("faellt bei unbekannter Vergleichsart auf CONTAINS zurueck", () => {
+    const built = buildProspeoFilters({
+      person_titles: "CEO",
+      person_title_match: "fuzzy" as unknown as "EXACT",
+    });
+    expect((built.person_job_title as { match_mode: string }).match_mode).toBe("CONTAINS");
   });
 
   it("verwirft Groessenstufen, die Prospeo nicht kennt", () => {
@@ -76,7 +97,7 @@ describe("buildProspeoFilters", () => {
       expect(buildProspeoFilters({ hiring_for: "Customer Support, Support Agent" })).toEqual({
         company_job_posting_hiring_for: {
           include: ["Customer Support", "Support Agent"],
-          match_type: "contains",
+          match_type: "CONTAINS",
         },
       });
     });

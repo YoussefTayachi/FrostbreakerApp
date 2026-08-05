@@ -78,25 +78,55 @@ export async function POST(request: Request) {
     if (res.status === 401) {
       return NextResponse.json({ error: "rejected" }, { status: 400 });
     }
-    if (res.status === 403) {
-      // Fast immer eine Tarifsperre, kein Zugangsproblem. Welcher Filter sie
-      // ausloest, weiss die Oberflaeche selbst -- sie bekommt ihn hier
-      // trotzdem mit, damit die Meldung den Namen nennen kann statt "ein
-      // Filter".
-      const { plan, fields } = requiredProspeoPlan(filters);
-      return NextResponse.json({ error: "plan", plan, fields }, { status: 400 });
-    }
     if (res.status === 429) {
       return NextResponse.json({ error: "rate_limited" }, { status: 400 });
     }
-    if (!res.ok) {
+
+    /**
+     * Der Rumpf zuerst, dann der Statuscode.
+     *
+     * Am 2026-08-05 im Testlauf gelernt: eine Tarifsperre kommt bei Prospeo
+     * als **HTTP 400** mit einem Fehlercode im Rumpf, nicht als 403 --
+     *
+     *   {"error": true, "error_code": "PLAN_REQUIRED",
+     *    "filter_error": "Filters not available on your plan: company_technology (STARTER+)"}
+     *
+     * Hier stand zuerst nur eine 403-Pruefung. Der 400 fiel dadurch in den
+     * allgemeinen Zweig, und im Formular stand "Prospeo ist gerade nicht
+     * erreichbar" -- obwohl Prospeo praezise geantwortet hatte.
+     *
+     * filter_error geht woertlich an die Oberflaeche: Prospeo nennt darin den
+     * Filternamen und die noetige Stufe, das ist besser als jede Umschreibung.
+     */
+    let body: Record<string, unknown> | null = null;
+    try {
+      body = await res.json();
+    } catch {
       return NextResponse.json({ error: "http_" + res.status }, { status: 400 });
     }
 
-    const body = await res.json();
-    if (body?.error) return NextResponse.json({ error: "rejected" }, { status: 400 });
+    const code = String(body?.error_code ?? "");
+    const detail = String(body?.filter_error ?? "");
+    if (code === "PLAN_REQUIRED") {
+      const { plan, fields } = requiredProspeoPlan(filters);
+      return NextResponse.json({ error: "plan", plan, fields, detail }, { status: 400 });
+    }
+    if (code === "INVALID_FILTERS") {
+      return NextResponse.json({ error: "invalid_filters", detail }, { status: 400 });
+    }
+    if (res.status === 403) {
+      const { plan, fields } = requiredProspeoPlan(filters);
+      return NextResponse.json({ error: "plan", plan, fields, detail }, { status: 400 });
+    }
+    if (!res.ok || body?.error) {
+      return NextResponse.json(
+        { error: detail ? "invalid_filters" : "http_" + res.status, detail },
+        { status: 400 }
+      );
+    }
 
-    const total = Number(body?.pagination?.total_count ?? 0);
+    const pagination = (body?.pagination ?? {}) as { total_count?: number };
+    const total = Number(pagination.total_count ?? 0);
     return NextResponse.json({
       total: Number.isFinite(total) ? total : 0,
       retrievable: Math.min(Number.isFinite(total) ? total : 0, MAX_RETRIEVABLE),

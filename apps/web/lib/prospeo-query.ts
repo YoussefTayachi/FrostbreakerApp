@@ -77,8 +77,25 @@ export const PROSPEO_REVENUE_TIERS = [
 export const PROSPEO_TRAFFIC_PERIODS = ["monthly", "quarterly", "yearly"] as const;
 export type ProspeoTrafficPeriod = (typeof PROSPEO_TRAFFIC_PERIODS)[number];
 
-/** Wie Stellentitel verglichen werden. Voreinstellung laut Doku: contains. */
-export const PROSPEO_MATCH_TYPES = ["contains", "exact"] as const;
+/**
+ * Wie Stellentitel verglichen werden. GROSSGESCHRIEBEN, und es sind vier.
+ *
+ * Die Doku schreibt "contains (default) or exact". Die echte API lehnt beides
+ * klein ab: "Invalid match_mode. Must be one of: CONTAINS, EXACT, SIMILAR,
+ * STRICT." Am 2026-08-05 im Testlauf gegen die API gemessen -- ohne den waere
+ * jede Suche mit Positionsangabe an einem 400 gescheitert.
+ */
+export const PROSPEO_MATCH_TYPES = ["CONTAINS", "EXACT", "SIMILAR", "STRICT"] as const;
+export type ProspeoMatchMode = (typeof PROSPEO_MATCH_TYPES)[number];
+
+/** Unbekanntes faellt auf CONTAINS zurueck, statt einen ungueltigen Wert zu
+ *  schicken. Spiegelt _match_mode() im Worker. */
+function matchMode(raw: unknown): ProspeoMatchMode {
+  const value = String(raw ?? "").trim().toUpperCase();
+  return (PROSPEO_MATCH_TYPES as readonly string[]).includes(value)
+    ? (value as ProspeoMatchMode)
+    : "CONTAINS";
+}
 
 /** Grenzen aus der Doku. Ueberschreiten heisst bei Prospeo: ungueltige Anfrage. */
 export const PROSPEO_LIMITS = {
@@ -104,7 +121,7 @@ export const PROSPEO_LIMITS = {
 export type ProspeoFilters = {
   /** Freitext, mehrere durch Komma. Wird zu person_job_title. */
   person_titles?: string | null;
-  person_title_match?: (typeof PROSPEO_MATCH_TYPES)[number] | null;
+  person_title_match?: ProspeoMatchMode | null;
   /** Werte aus der Suggestions-API (location_search). */
   person_locations?: string[] | null;
   company_locations?: string[] | null;
@@ -122,7 +139,7 @@ export type ProspeoFilters = {
   intent?: string[] | null;
   /** Stellenausschreibungen: wonach gesucht wird. */
   hiring_for?: string | null;
-  hiring_match?: (typeof PROSPEO_MATCH_TYPES)[number] | null;
+  hiring_match?: ProspeoMatchMode | null;
   job_posting_min?: number | null;
   job_posting_max?: number | null;
   /** Website-Traffic. */
@@ -175,7 +192,7 @@ export function buildProspeoFilters(f: ProspeoFilters): ProspeoSearchFilters {
   if (titles.length) {
     out.person_job_title = {
       include: titles,
-      match_mode: f.person_title_match ?? "contains",
+      match_mode: matchMode(f.person_title_match),
     };
   }
 
@@ -217,7 +234,7 @@ export function buildProspeoFilters(f: ProspeoFilters): ProspeoSearchFilters {
   if (hiring.length) {
     out.company_job_posting_hiring_for = {
       include: hiring,
-      match_type: f.hiring_match ?? "contains",
+      match_type: matchMode(f.hiring_match),
     };
   }
 

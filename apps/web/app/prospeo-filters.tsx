@@ -8,6 +8,7 @@ import {
   hasAnyProspeoFilter,
   requiredProspeoPlan,
   type ProspeoFilters,
+  type ProspeoMatchMode,
 } from "@/lib/prospeo-query";
 import { useT } from "./language-provider";
 
@@ -78,12 +79,16 @@ export default function ProspeoFilterForm({ value, onChange }: Props) {
         </Field>
         <Field label={P.titleMatch}>
           <select
-            value={value.person_title_match ?? "contains"}
-            onChange={(e) => set("person_title_match", e.target.value as "contains" | "exact")}
+            value={value.person_title_match ?? "CONTAINS"}
+            onChange={(e) => set("person_title_match", e.target.value as ProspeoMatchMode)}
             className={INPUT}
           >
-            <option value="contains">{P.matchContains}</option>
-            <option value="exact">{P.matchExact}</option>
+            {/* GROSS, weil Prospeo klein geschriebene Werte mit einem 400
+                ablehnt -- am 2026-08-05 im Testlauf gemessen. */}
+            <option value="CONTAINS">{P.matchContains}</option>
+            <option value="EXACT">{P.matchExact}</option>
+            <option value="SIMILAR">{P.matchSimilar}</option>
+            <option value="STRICT">{P.matchStrict}</option>
           </select>
         </Field>
       </Group>
@@ -491,16 +496,28 @@ function CountButton({ filters }: { filters: ProspeoFilters }) {
       });
       const body = await res.json().catch(() => ({}));
       if (!res.ok) {
+        /**
+         * Prospeos eigenen Text zeigen, wo es einen gibt.
+         *
+         * filter_error nennt den Filternamen und die noetige Stufe
+         * ("company_technology (STARTER+)"). Das ist praeziser als jede
+         * Umschreibung von uns -- und im Testlauf am 2026-08-05 war genau
+         * diese Auskunft der Unterschied zwischen "nicht erreichbar" und
+         * "dein Tarif kann das nicht".
+         */
+        const detail = typeof body.detail === "string" && body.detail ? ` (${body.detail})` : "";
         const msg =
           body.error === "plan"
-            ? P.errorPlan(body.plan === "pro" ? "Pro" : "Starter")
-            : body.error === "no_key"
-              ? P.errorNoKey
-              : body.error === "rate_limited"
-                ? P.errorRateLimited
-                : body.error === "rejected"
-                  ? P.errorRejected
-                  : P.errorGeneric;
+            ? P.errorPlan(body.plan === "pro" ? "Pro" : "Starter") + detail
+            : body.error === "invalid_filters"
+              ? P.errorInvalidFilters + detail
+              : body.error === "no_key"
+                ? P.errorNoKey
+                : body.error === "rate_limited"
+                  ? P.errorRateLimited
+                  : body.error === "rejected"
+                    ? P.errorRejected
+                    : P.errorGeneric;
         setState({ kind: "error", message: msg });
         return;
       }

@@ -14,6 +14,8 @@ import pytest
 
 from worker.pipelines.prospeo import (
     BULK_ENRICH_CHUNK,
+    _current_job,
+    _phone_of,
     HEADCOUNT_RANGES,
     PER_PAGE,
     REVENUE_TIERS,
@@ -42,16 +44,27 @@ class TestBuildSearchFilters:
             }
         ) == {}
 
-    def test_stellentitel_mit_vergleichsart(self):
+    def test_stellentitel_mit_gross_geschriebener_vergleichsart(self):
+        """GROSS. Die Doku sagt "contains"/"exact", die echte API lehnt beides
+        klein ab: "Invalid match_mode. Must be one of: CONTAINS, EXACT,
+        SIMILAR, STRICT." Am 2026-08-05 im Testlauf gemessen."""
         assert build_search_filters({"person_titles": "CEO, Head of Support"}) == {
             "person_job_title": {
                 "include": ["CEO", "Head of Support"],
-                "match_mode": "contains",
+                "match_mode": "CONTAINS",
             }
         }
         assert build_search_filters(
-            {"person_titles": "CEO", "person_title_match": "exact"}
-        ) == {"person_job_title": {"include": ["CEO"], "match_mode": "exact"}}
+            {"person_titles": "CEO", "person_title_match": "EXACT"}
+        ) == {"person_job_title": {"include": ["CEO"], "match_mode": "EXACT"}}
+
+    def test_normalisiert_klein_geschriebene_vergleichsart(self):
+        built = build_search_filters({"person_titles": "CEO", "person_title_match": "exact"})
+        assert built["person_job_title"]["match_mode"] == "EXACT"
+
+    def test_unbekannte_vergleichsart_faellt_auf_contains(self):
+        built = build_search_filters({"person_titles": "CEO", "person_title_match": "fuzzy"})
+        assert built["person_job_title"]["match_mode"] == "CONTAINS"
 
     def test_verwirft_unbekannte_groessenstufen(self):
         """'11-50' gibt es bei Prospeo nicht, '10001+' ist Apollos
@@ -81,7 +94,7 @@ class TestStellenausschreibungen:
         assert build_search_filters({"hiring_for": "Customer Support, Support Agent"}) == {
             "company_job_posting_hiring_for": {
                 "include": ["Customer Support", "Support Agent"],
-                "match_type": "contains",
+                "match_type": "CONTAINS",
             }
         }
 
@@ -160,7 +173,17 @@ class TestMapping:
         assert _website_of({"domain": "b.com"}) == "https://b.com"
         assert _website_of({}) is None
 
-    def test_adresse_aus_verschachteltem_ort(self):
+    def test_adresse_bevorzugt_die_fertige_raw_address(self):
+        """Prospeo liefert eine vollstaendige Anschrift inklusive Strasse mit.
+        Am 2026-08-05 im Testlauf gesehen: "301 8th St, San Francisco,
+        California, US"."""
+        assert (
+            _address_of({"location": {"raw_address": "301 8th St, San Francisco, California, US",
+                                      "city": "San Francisco"}})
+            == "301 8th St, San Francisco, California, US"
+        )
+
+    def test_adresse_faellt_auf_die_einzelteile_zurueck(self):
         assert (
             _address_of({"location": {"city": "Austin", "state": "TX", "country": "United States"}})
             == "Austin, TX, United States"
@@ -168,6 +191,56 @@ class TestMapping:
         # Laut Doku kann jedes Feld null sein -- das darf nicht knallen.
         assert _address_of({"location": None}) is None
         assert _address_of({}) is None
+
+    def test_telefon_ist_ein_objekt_keine_zeichenkette(self):
+        """phone_hq ist verschachtelt:
+
+            {"phone_hq": "+16165759676", "phone_hq_national": "(616) 575-9676", ...}
+
+        Ohne _phone_of waere dieses dict in die Textspalte
+        businesses.phone_national gewandert -- entweder ein Datenbankfehler
+        oder ein gespeichertes "{'phone_hq': ...}". Am 2026-08-05 im Testlauf
+        aufgefallen."""
+        assert _phone_of({"phone_hq": {
+            "phone_hq": "+16165759676",
+            "phone_hq_national": "(616) 575-9676",
+            "phone_hq_international": "+16165759676",
+        }}) == "(616) 575-9676"
+        # Rueckfall, falls die nationale Fassung fehlt.
+        assert _phone_of({"phone_hq": {"phone_hq": "+4930123"}}) == "+4930123"
+        # Und falls Prospeo eines Tages doch eine Zeichenkette schickt.
+        assert _phone_of({"phone_hq": "+4930123"}) == "+4930123"
+        assert _phone_of({"phone_hq": None}) is None
+        assert _phone_of({}) is None
+
+    def test_senioritaet_kommt_aus_der_job_historie(self):
+        """seniority und departments stehen NICHT oben auf dem Person-Objekt --
+        dort sind sie durchgaengig null. Sie haengen am Eintrag in
+        job_history mit current=true. Ohne das haette jeder Prospeo-Kontakt
+        seniority=None bekommen, und die Kampagnen-Auswahl "nur Entscheider"
+        haette nichts mehr zu filtern gehabt."""
+        person = {
+            "full_name": "Ella Brant",
+            "seniority": None,
+            "departments": None,
+            "job_history": [
+                {"title": "Alt", "current": False, "seniority": "Entry", "departments": ["Sales"]},
+                {"title": "Customer Support Lead", "current": True,
+                 "seniority": "Manager", "departments": ["Customer Service / Support"]},
+            ],
+        }
+        job = _current_job(person)
+        assert job["seniority"] == "Manager"
+
+        pair = _map_pair(person, {"name": "X", "domain": "x.com"}, "a@x.com", "VERIFIED")
+        assert pair["contact"]["seniority"] == "Manager"
+        assert pair["contact"]["department"] == "Customer Service / Support"
+
+    def test_ohne_job_historie_kein_absturz(self):
+        assert _current_job({}) == {}
+        assert _current_job({"job_history": None}) == {}
+        # Kein current=true -> der erste Eintrag ist besser als nichts.
+        assert _current_job({"job_history": [{"title": "A", "seniority": "VP"}]})["seniority"] == "VP"
 
     def test_ohne_website_kein_datensatz(self):
         """Ohne Website gibt es keinen Entdopplungsschluessel -- dieselbe
@@ -185,14 +258,15 @@ class TestMapping:
                 "last_name": "Klein",
                 "full_name": "Sarah Klein",
                 "current_job_title": "Head of Support",
-                "seniority": "head",
-                "departments": ["Support", "Operations"],
+                "job_history": [
+                    {"current": True, "seniority": "head", "departments": ["Support", "Operations"]}
+                ],
                 "linkedin_url": "https://linkedin.com/in/sk",
             },
             {
                 "name": "Beispiel GmbH",
                 "domain": "beispiel.de",
-                "phone_hq": "+49 30 123",
+                "phone_hq": {"phone_hq_national": "+49 30 123"},
                 "location": {"city": "Berlin", "country": "Germany"},
             },
             "sarah@beispiel.de",
@@ -206,6 +280,7 @@ class TestMapping:
         assert pair["contact"]["source"] == "prospeo"
         # Nur die erste Abteilung -- unsere Spalte haelt eine.
         assert pair["contact"]["department"] == "Support"
+        assert pair["contact"]["seniority"] == "head"
         assert pair["contact"]["email_verification_status"] == "valid"
 
     def test_unverifizierte_adresse_bekommt_keinen_gueltig_stempel(self):

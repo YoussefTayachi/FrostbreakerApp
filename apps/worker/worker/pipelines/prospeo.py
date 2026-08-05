@@ -121,6 +121,22 @@ REVENUE_TIERS = [
     "100M", "250M", "500M", "1B", "5B", "10B+",
 ]
 
+# GROSSGESCHRIEBEN, und es sind vier statt zwei.
+#
+# Die Doku schreibt "contains (default) or exact". Die API lehnt beides klein
+# ab: "Invalid match_mode. Must be one of: CONTAINS, EXACT, SIMILAR, STRICT."
+# Am 2026-08-05 gegen die echte API gemessen -- ohne diesen Testlauf waere
+# jede Suche mit Positionsangabe an einem 400 gescheitert.
+MATCH_MODES = ["CONTAINS", "EXACT", "SIMILAR", "STRICT"]
+DEFAULT_MATCH_MODE = "CONTAINS"
+
+
+def _match_mode(raw) -> str:
+    """Vergleichsart normalisieren. Unbekanntes faellt auf CONTAINS zurueck,
+    statt Prospeo einen ungueltigen Wert zu schicken."""
+    value = str(raw or "").strip().upper()
+    return value if value in MATCH_MODES else DEFAULT_MATCH_MODE
+
 
 class ProspeoPlanError(Exception):
     """Der Tarif gibt einen benutzten Filter oder Endpunkt nicht frei.
@@ -155,35 +171,55 @@ def _is_retryable(exc: BaseException) -> bool:
     return isinstance(exc, (httpx.TimeoutException, httpx.TransportError))
 
 
-def _raise_for_plan(exc: httpx.HTTPStatusError) -> None:
-    """403/401 in eine Meldung uebersetzen, die der Nutzer versteht.
+def raise_for_filter_error(response: httpx.Response) -> None:
+    """Prospeos Fachfehler in eine Meldung uebersetzen, die der Nutzer versteht.
 
-    Prospeo antwortet auf einen tarifgesperrten Filter mit 403. Ohne diese
-    Uebersetzung stuende in der Suche "Client error '403 Forbidden'" -- und
-    der Nutzer haette keine Ahnung, dass sein Website-Traffic-Filter den
-    Pro-Tarif braucht.
+    ACHTUNG, das war die groesste Ueberraschung im Testlauf am 2026-08-05:
+    eine Tarifsperre kommt NICHT als 403, sondern als **HTTP 400** mit einem
+    Fehlercode im Rumpf:
+
+        {"error": true,
+         "error_code": "PLAN_REQUIRED",
+         "filter_error": "Filters not available on your plan: company_technology (STARTER+)"}
+
+    Wer nur auf 403 prueft (so stand es hier zuerst), verbucht das als
+    gewoehnlichen HTTP-Fehler -- in der Oberflaeche stand "Prospeo ist gerade
+    nicht erreichbar", obwohl Prospeo praezise geantwortet hatte.
+
+    filter_error wird woertlich weitergegeben: Prospeo nennt darin den
+    Filternamen und die noetige Stufe, und das ist besser als jede
+    Umschreibung von uns.
     """
-    status = exc.response.status_code
-    if status not in (401, 403):
-        return
-    body = ""
-    try:
-        body = exc.response.text[:400]
-    except Exception:  # noqa: BLE001
-        pass
-
+    status = response.status_code
     if status == 401:
         raise ProspeoPlanError(
             "Prospeo hat den Schluessel abgelehnt (401). Bitte den API-Key in den "
             "Einstellungen pruefen -- er steht im Prospeo-Konto unter API."
-        ) from exc
+        )
 
-    raise ProspeoPlanError(
-        "Prospeo hat die Anfrage abgelehnt (403). Das passiert, wenn ein Filter "
-        "einen hoeheren Tarif braucht: der Technologie-Filter und die "
-        "Stellenausschreibungen ab Starter, der Website-Traffic ab Pro. "
-        f"Prospeos Antwort: {body}"
-    ) from exc
+    if status not in (400, 403) and status < 500:
+        return
+    if status >= 500:
+        return
+
+    detail = ""
+    code = ""
+    try:
+        body = response.json()
+        code = str(body.get("error_code") or "")
+        detail = str(body.get("filter_error") or body.get("message") or "")
+    except Exception:  # noqa: BLE001
+        detail = (response.text or "")[:300]
+
+    if code == "PLAN_REQUIRED":
+        raise ProspeoPlanError(
+            f"Prospeo: dieser Filter ist in deinem Tarif nicht enthalten. {detail} "
+            "(Technologie und Stellenausschreibungen ab Starter, Website-Traffic ab Pro.)"
+        )
+    if code == "INVALID_FILTERS":
+        raise ProspeoPlanError(f"Prospeo hat einen Filterwert abgelehnt: {detail}")
+    if detail:
+        raise ProspeoPlanError(f"Prospeo hat die Anfrage abgelehnt ({status}): {detail}")
 
 
 def _sleep_for_rate_limit(response: httpx.Response) -> None:
@@ -220,11 +256,9 @@ def daily_left(response: httpx.Response) -> int | None:
 )
 def _post(url: str, body: dict, api_key: str) -> httpx.Response:
     r = httpx.post(url, json=body, headers=_headers(api_key), timeout=60)
-    if r.status_code in (401, 403):
-        try:
-            r.raise_for_status()
-        except httpx.HTTPStatusError as exc:
-            _raise_for_plan(exc)
+    # Vor raise_for_status: Prospeo legt den eigentlichen Grund in den Rumpf,
+    # und der ist bei 400 aussagekraeftiger als der Statuscode.
+    raise_for_filter_error(r)
     if r.status_code == 429:
         _sleep_for_rate_limit(r)
         raise ProspeoPlanError(
@@ -274,7 +308,7 @@ def build_search_filters(f: dict) -> dict:
     if titles:
         out["person_job_title"] = {
             "include": titles,
-            "match_mode": f.get("person_title_match") or "contains",
+            "match_mode": _match_mode(f.get("person_title_match")),
         }
 
     person_locations = clean_list(f.get("person_locations"))
@@ -316,8 +350,12 @@ def build_search_filters(f: dict) -> dict:
     hiring = comma_list(f.get("hiring_for"), 500)
     if hiring:
         out["company_job_posting_hiring_for"] = {
+            # Dieselbe Schreibweise wie bei match_mode. Nicht gegen die echte
+            # API geprueft, weil der Filter den Starter-Tarif braucht und der
+            # Testschluessel auf Free lief -- die Grossschreibung ist hier die
+            # sichere Annahme, weil Prospeo sie bei match_mode erzwingt.
             "include": hiring,
-            "match_type": f.get("hiring_match") or "contains",
+            "match_type": _match_mode(f.get("hiring_match")),
         }
 
     job_min, job_max = num(f.get("job_posting_min")), num(f.get("job_posting_max"))
@@ -414,12 +452,62 @@ def _website_of(company: dict) -> str | None:
 
 
 def _address_of(company: dict) -> str | None:
+    """Anschrift. Prospeo liefert eine fertige raw_address mit -- die ist
+    vollstaendiger als alles, was wir aus den Einzelteilen zusammensetzen
+    (sie enthaelt die Strasse). Rueckfall auf Stadt/Region/Land, weil laut
+    Doku jedes Feld null sein kann."""
     loc = company.get("location")
     if not isinstance(loc, dict):
         return None
+    raw = (loc.get("raw_address") or "").strip()
+    if raw:
+        return raw
     parts = [loc.get("city"), loc.get("state"), loc.get("country")]
     joined = ", ".join(p for p in parts if p)
     return joined or None
+
+
+def _phone_of(company: dict) -> str | None:
+    """Telefonnummer der Firmenzentrale.
+
+    phone_hq ist ein OBJEKT, keine Zeichenkette:
+
+        {"phone_hq": "+16165759676", "phone_hq_national": "(616) 575-9676",
+         "phone_hq_international": "+16165759676", ...}
+
+    Am 2026-08-05 im Testlauf gesehen. Ohne diese Funktion waere ein dict in
+    die Textspalte businesses.phone_national gewandert -- entweder ein
+    Datenbankfehler oder, schlimmer, ein gespeichertes "{'phone_hq': ...}".
+    """
+    phone = company.get("phone_hq")
+    if isinstance(phone, str):
+        return phone.strip() or None
+    if not isinstance(phone, dict):
+        return None
+    for key in ("phone_hq_national", "phone_hq", "phone_hq_international"):
+        value = phone.get(key)
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+    return None
+
+
+def _current_job(person: dict) -> dict:
+    """Der aktuelle Eintrag aus der Job-Historie.
+
+    Senioritaet und Abteilung stehen NICHT oben auf dem Person-Objekt --
+    dort sind sie durchgaengig null. Sie haengen am einzelnen Job in
+    job_history, wo current=true steht. Ebenfalls erst im Testlauf am
+    2026-08-05 aufgefallen; vorher haette jeder Kontakt seniority=None
+    bekommen, und die Kampagnen-Auswahl "nur Entscheider" haette nichts
+    mehr zu filtern gehabt.
+    """
+    history = person.get("job_history")
+    if not isinstance(history, list):
+        return {}
+    for job in history:
+        if isinstance(job, dict) and job.get("current"):
+            return job
+    return history[0] if history and isinstance(history[0], dict) else {}
 
 
 def _map_pair(person: dict, company: dict, email: str | None, email_status: str | None) -> dict | None:
@@ -437,8 +525,12 @@ def _map_pair(person: dict, company: dict, email: str | None, email_status: str 
     if not website or not name or not full_name:
         return None
 
-    departments = person.get("departments")
+    job = _current_job(person)
+    # Erst der Job, dann die oberste Ebene: falls Prospeo die Felder eines
+    # Tages doch oben mitliefert, gewinnt weiterhin der konkrete Job.
+    departments = job.get("departments") or person.get("departments")
     department = departments[0] if isinstance(departments, list) and departments else None
+    seniority = job.get("seniority") or person.get("seniority")
 
     business = {
         # Prospeo kennt keine Google-place_id. Wie im Corporate- und
@@ -448,15 +540,15 @@ def _map_pair(person: dict, company: dict, email: str | None, email_status: str 
         "name": name,
         "website": website,
         "address": _address_of(company),
-        "phone_national": (company.get("phone_hq") or None),
+        "phone_national": _phone_of(company),
     }
     contact = {
         "prospeo_id": person.get("person_id"),
         "full_name": full_name,
         "first_name": person.get("first_name") or full_name.split(" ", 1)[0],
         "last_name": person.get("last_name"),
-        "title": person.get("current_job_title"),
-        "seniority": person.get("seniority"),
+        "title": person.get("current_job_title") or job.get("title"),
+        "seniority": seniority,
         "department": department,
         "email": email,
         # Prospeo meldet VERIFIED oder UNAVAILABLE. Wir speichern es in
