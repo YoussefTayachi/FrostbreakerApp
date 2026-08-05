@@ -16,7 +16,13 @@ import HelpLink from "../../help-link";
  * (/instantly) mit Mailboxen und Kampagnen -- die Karte unten fuehrt nur
  * dorthin. Die anderen sind reine Lookup-Schluessel ohne eigene Oberflaeche.
  */
-const PROVIDER_IDS = ["google_maps", "openai", "hunter", "apollo", "neverbounce"] as const;
+const PROVIDER_IDS = ["google_maps", "openai", "hunter", "apollo", "prospeo", "neverbounce"] as const;
+
+/** Anbieter mit einem kostenlosen Endpunkt, an dem sich ein Key pruefen
+ *  laesst. Beide sagen ausdruecklich nur "Key gueltig" -- ob der TARIF die
+ *  Personensuche bzw. die einzelnen Filter freigibt, beantwortet keiner von
+ *  beiden (siehe die jeweilige health-Route). */
+const TESTABLE: readonly string[] = ["apollo", "prospeo"];
 
 export default function ApiKeysPage() {
   const { t } = useT();
@@ -30,7 +36,7 @@ export default function ApiKeysPage() {
   // Apollo hat einen kostenlosen Health-Endpunkt -- damit laesst sich ein Key
   // pruefen, ohne eine Suche zu starten und Credits zu verbrennen. Die anderen
   // Provider bieten kein Gegenstueck, deshalb bewusst nur hier.
-  const [apolloTest, setApolloTest] = useState<"idle" | "testing" | "ok" | "fail">("idle");
+  const [keyTest, setKeyTest] = useState<Record<string, "idle" | "testing" | "ok" | "fail">>({});
 
   useEffect(() => {
     createClient()
@@ -45,6 +51,7 @@ export default function ApiKeysPage() {
 
   const providerLabels: Record<string, string> = {
     google_maps: "Google Maps", openai: "OpenAI", hunter: "Hunter.io", apollo: "Apollo.io",
+    prospeo: "Prospeo",
     neverbounce: "NeverBounce",
   };
 
@@ -95,17 +102,29 @@ export default function ApiKeysPage() {
     }
   }
 
-  async function testApollo() {
-    setApolloTest("testing");
+  /**
+   * Key pruefen. Verallgemeinert, als Prospeo als zweiter pruefbarer Anbieter
+   * dazukam -- eine zweite testProspeo()-Funktion daneben waere dieselbe
+   * Funktion mit einem anderen Pfad gewesen.
+   *
+   * Beide Routen kosten nichts: Apollo hat einen Health-Endpunkt, Prospeo
+   * seine kostenlose Suggestions-API.
+   */
+  async function testKey(provider: string) {
+    setKeyTest((s) => ({ ...s, [provider]: "testing" }));
+    const label = providerLabels[provider] ?? provider;
     try {
-      const res = await fetch("/api/apollo/health", { method: "POST" });
+      const res = await fetch(`/api/${provider}/health`, { method: "POST" });
       const body = await res.json().catch(() => ({}));
       const ok = res.ok && body.ok === true;
-      setApolloTest(ok ? "ok" : "fail");
-      push(ok ? t.settings.apolloTestOk : t.settings.apolloTestFail, ok ? "success" : "error");
+      setKeyTest((s) => ({ ...s, [provider]: ok ? "ok" : "fail" }));
+      push(
+        ok ? t.settings.keyTestOk(label) : t.settings.keyTestFail(label),
+        ok ? "success" : "error"
+      );
     } catch {
-      setApolloTest("fail");
-      push(t.settings.apolloTestFail, "error");
+      setKeyTest((s) => ({ ...s, [provider]: "fail" }));
+      push(t.settings.keyTestFail(label), "error");
     }
   }
 
@@ -147,21 +166,21 @@ export default function ApiKeysPage() {
               className={inputCls + " flex-1"}
             />
             <button onClick={() => save(p)} className={primaryBtnCls}>{t.settings.save}</button>
-            {p === "apollo" && saved.includes(p) && (
+            {TESTABLE.includes(p) && saved.includes(p) && (
               <button
-                onClick={testApollo}
-                disabled={apolloTest === "testing"}
-                title={t.settings.apolloTestTitle}
+                onClick={() => testKey(p)}
+                disabled={keyTest[p] === "testing"}
+                title={t.settings.keyTestTitle}
                 className={
                   "rounded-lg border px-4 py-2.5 text-sm font-medium transition-colors disabled:opacity-50 " +
-                  (apolloTest === "ok"
+                  (keyTest[p] === "ok"
                     ? "border-emerald-500/40 text-emerald-600 dark:text-emerald-400"
-                    : apolloTest === "fail"
+                    : keyTest[p] === "fail"
                       ? "border-red-300 text-red-600 dark:border-red-500/30 dark:text-red-400"
                       : "border-edge2 text-soft hover:border-edge3 hover:text-ink")
                 }
               >
-                {apolloTest === "testing" ? t.settings.apolloTesting : t.settings.apolloTest}
+                {keyTest[p] === "testing" ? t.settings.apolloTesting : t.settings.apolloTest}
               </button>
             )}
             {saved.includes(p) && (

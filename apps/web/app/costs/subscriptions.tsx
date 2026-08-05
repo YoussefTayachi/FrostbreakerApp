@@ -30,6 +30,7 @@ import { useWorkspace } from "../workspace-provider";
 const PROVIDERS: { key: string; label: string; hint: string }[] = [
   { key: "instantly", label: "Instantly", hint: "~37" },
   { key: "apollo", label: "Apollo.io", hint: "~49" },
+  { key: "prospeo", label: "Prospeo", hint: "~39" },
   { key: "hunter", label: "Hunter.io", hint: "~34" },
   { key: "neverbounce", label: "NeverBounce", hint: "~0" },
   { key: "openai", label: "OpenAI", hint: "~0" },

@@ -10,8 +10,15 @@ Drei Quellen, die sich in Schritt 1-3 unterscheiden und in Schritt 4 fast:
   corporate  Hunter Discover -> Firmen, Anreicherung per KI-Websuche + Hunter
   apollo     Apollo People-Search -> Firmen UND Kontakte in einem Schritt,
              deshalb keine Anreicherung noetig (siehe pipelines/apollo.py)
+  prospeo    Prospeo Search + Bulk-Enrich -> ebenfalls Firmen UND Kontakte.
+             Wie Apollo, aber mit Filtern, die die anderen Wege nicht haben
+             (Stellenausschreibungen, Website-Traffic, Kaufabsicht) und mit
+             API-Zugang schon im kostenlosen Tarif (siehe pipelines/prospeo.py)
+
+Die beiden Personen-Wege teilen sich den Schreibpfad in _store_people_pairs.
 """
 from datetime import datetime, timedelta, timezone
+from typing import Callable
 
 import httpx
 from tenacity import retry, stop_after_attempt, wait_exponential
@@ -21,7 +28,7 @@ from worker.dedupe import businesses_to_skip
 from worker.email_classify import classify_email
 from worker.http_safety import raise_for_status_safe
 from worker.keys import get_api_key
-from worker.pipelines import apollo
+from worker.pipelines import apollo, prospeo
 from worker.pipelines.discover import discover_companies, parse_discover_company
 from worker.queue import enqueue
 from worker import usage
@@ -171,6 +178,135 @@ def apollo_leads_today(ws: str) -> int:
     return res.count or 0
 
 
+def prospeo_leads_today(ws: str) -> int:
+    """Wie viele Prospeo-Kontakte in den letzten 24 Stunden entstanden sind.
+
+    Gezaehlt wird wie bei Apollo der KONTAKT: bei Prospeo entspricht ein
+    Kontakt einem angereicherten Treffer, und genau der kostet einen Credit.
+    Die Suchseiten kosten zusaetzlich, sind aber um Groessenordnungen
+    billiger (1 Credit je 25 Treffer) -- die Bremse gehoert an die teure
+    Seite.
+    """
+    since = (datetime.now(timezone.utc) - timedelta(days=1)).isoformat()
+    res = (
+        sb()
+        .table("contacts")
+        .select("id", count="exact", head=True)
+        .eq("workspace_id", ws)
+        .eq("source", "prospeo")
+        .gte("created_at", since)
+        .execute()
+    )
+    return res.count or 0
+
+
+def _store_people_pairs(
+    search: dict,
+    ws: str,
+    pairs: list[dict],
+    transport_field: str,
+    summary_of: Callable[[str], str | None],
+) -> tuple[int, int]:
+    """Personen-plus-Firma-Paare entdoppeln, filtern und schreiben.
+
+    Herausgezogen aus run_apollo, als Prospeo als vierter Weg dazukam. Der
+    Ablauf ist fuer beide Wege identisch, und eine zweite Kopie waere die
+    Sorte Verdopplung, die genau so lange gleich bleibt, bis jemand nur eine
+    der beiden Stellen repariert.
+
+    Was sich zwischen den Anbietern UNTERSCHEIDET und deshalb von aussen
+    hereingereicht wird:
+
+      transport_field  das Feld, das nur dem Anreichern diente (apollo_id
+                       bzw. prospeo_id) und nicht in die Datenbank gehoert
+      summary_of       woher die Firmenbeschreibung kommt. Apollo holt sie
+                       in einem eigenen, kostenlosen Aufruf ueber die Domain;
+                       Prospeo liefert sie je Treffer gleich mit
+
+    Gibt (geschriebene Firmen, geschriebene Kontakte) zurueck. 0 Firmen heisst
+    "geliefert, aber alles schon bekannt oder gesperrt" -- eine ganz andere
+    Auskunft als "nichts gefunden", und der Aufrufer formuliert sie selbst.
+    """
+    # Gegen bereits bekannte Firmen sperren (Website als Schluessel, weil
+    # weder Apollo noch Prospeo eine Google-place_id kennen).
+    existing = {b["website"] for b in businesses_to_skip(ws) if b.get("website")}
+    sup_emails, blocked_domains = load_suppression(ws)
+
+    # Mehrere Entscheider derselben Firma sind der Normalfall und sollen EINE
+    # businesses-Zeile teilen -- sonst zaehlt das Dashboard dieselbe Firma
+    # mehrfach und die Kampagnen-Auswahl "eine Person pro Firma"
+    # (lib/contacts.ts) haette nichts mehr zu waehlen.
+    by_website: dict[str, dict] = {}
+    contacts_by_website: dict[str, list[dict]] = {}
+    for pair in pairs:
+        biz, contact = pair["business"], pair["contact"]
+        website = biz.get("website")
+        if not website or website in existing:
+            continue
+        d = domain_of(website)
+        if d and d in blocked_domains:
+            continue
+        if contact.get("email") and is_suppressed(sup_emails, blocked_domains, email=contact["email"]):
+            continue
+        by_website.setdefault(website, biz)
+        contacts_by_website.setdefault(website, []).append(contact)
+
+    if not by_website:
+        return 0, 0
+
+    websites = list(by_website)
+    rows = [
+        by_website[w]
+        | {
+            "workspace_id": ws,
+            "search_id": search["id"],
+            # Der Ansprechpartner kam mit -- die Entscheider-Recherche ist
+            # damit erledigt und darf nicht noch einmal Geld kosten.
+            "decisionmaker_status": "found",
+            # hunt_persons laeuft fuer diese Wege grundsaetzlich nicht
+            # (Hunter-Credits fuer Daten, die schon da sind).
+            "hunter_status": "not_found",
+            # Leer lassen, wenn nichts da ist: personalize hat dann weiterhin
+            # den Website-Rueckfall.
+            "company_summary": summary_of(w),
+        }
+        for w in websites
+    ]
+    inserted = sb().table("businesses").insert(rows).execute().data or []
+
+    contact_rows = []
+    for biz_row, website in zip(inserted, websites):
+        for c in contacts_by_website[website]:
+            email = c.get("email")
+            if not email:
+                continue  # Freischalten fehlgeschlagen -> kein verwertbarer Lead
+            email_type = classify_email(email)
+            if email_type == "generic":
+                continue  # Rollen-Adresse: gleiche Regel wie bei Hunter/KI
+            contact_rows.append(
+                {k: v for k, v in c.items() if k != transport_field}
+                | {
+                    "workspace_id": ws,
+                    "business_id": biz_row["id"],
+                    "email_type": email_type,
+                }
+            )
+    if contact_rows:
+        sb().table("contacts").insert(contact_rows).execute()
+
+    # Firmen, fuer die am Ende kein brauchbarer Kontakt uebrig blieb, ehrlich
+    # als 'not_found' markieren statt sie als 'found' zu fuehren -- sonst zeigt
+    # die Suchliste einen Fortschritt, den es nicht gibt.
+    with_contact = {r["business_id"] for r in contact_rows}
+    empty_ids = [r["id"] for r in inserted if r["id"] not in with_contact]
+    if empty_ids:
+        sb().table("businesses").update({"decisionmaker_status": "not_found"}).in_(
+            "id", empty_ids
+        ).execute()
+
+    return len(inserted), len(contact_rows)
+
+
 def _note(search_id: str, text: str) -> None:
     """Erklaerung zu einer durchgelaufenen Suche hinterlegen.
 
@@ -225,30 +361,29 @@ def run_apollo(search: dict, ws: str) -> None:
         _note(search["id"], apollo.explain_empty_result(filters, api_key))
         return
 
-    # Gegen bereits bekannte Firmen sperren (gleiche Regel wie im Corporate-
-    # Modus: Website als Schluessel, weil Apollo keine place_id kennt).
-    existing = {b["website"] for b in businesses_to_skip(ws) if b.get("website")}
-    sup_emails, blocked_domains = load_suppression(ws)
+    # Entdopplung, Sperrliste und Schreiben stehen seit dem Prospeo-Einbau in
+    # _store_people_pairs -- der Ablauf ist fuer beide Personen-Wege
+    # identisch. Was Apollo-spezifisch bleibt, steht hier:
+    #
+    # Firmenbeschreibungen kommen bei Apollo aus einem eigenen Aufruf. Ohne
+    # sie faellt personalize auf den Website-Text zurueck, und den geben die
+    # wenigsten Shops her: bei einer echten Supplement-Suche antworteten alle
+    # geprueften Seiten mit HTTP 429 auf unseren Crawler, am Ende hatten 10
+    # von 45 Firmen eine Zeile. Ueber Apollos Firmen-Endpunkt waren es 35 von
+    # 35 -- und er kostet keine Credits, weil Apollo nur Exporte abrechnet.
+    websites = sorted({p["business"]["website"] for p in pairs if p["business"].get("website")})
+    summaries = apollo.fetch_company_summaries(
+        [domain_of(w) or "" for w in websites], api_key
+    )
 
-    # Mehrere Entscheider derselben Firma sind der Normalfall und sollen EINE
-    # businesses-Zeile teilen -- sonst zaehlt das Dashboard dieselbe Firma
-    # mehrfach und die Kampagnen-Auswahl "eine Person pro Firma" (lib/contacts.ts)
-    # haette nichts mehr zu waehlen.
-    by_website: dict[str, dict] = {}
-    contacts_by_website: dict[str, list[dict]] = {}
-    for pair in pairs:
-        biz, contact = pair["business"], pair["contact"]
-        website = biz.get("website")
-        if not website or website in existing:
-            continue
-        d = domain_of(website)
-        if d and d in blocked_domains:
-            continue
-        if contact.get("email") and is_suppressed(sup_emails, blocked_domains, email=contact["email"]):
-            continue
-        by_website.setdefault(website, biz)
-        contacts_by_website.setdefault(website, []).append(contact)
-    if not by_website:
+    companies, _contacts = _store_people_pairs(
+        search,
+        ws,
+        pairs,
+        transport_field="apollo_id",  # nur Transportfeld fuer bulk_match
+        summary_of=lambda w: summaries.get(domain_of(w) or ""),
+    )
+    if companies == 0:
         # Hier ist die Ursache bekannt und die Filter sind unschuldig: Apollo
         # hat geliefert, aber alles war schon bekannt oder gesperrt. Das ist
         # eine ganz andere Auskunft als "Filter zu eng" -- und ein Hinweis, dass
@@ -259,78 +394,78 @@ def run_apollo(search: dict, ws: str) -> None:
             "bereits in deiner Liste stehen oder auf der Sperrliste sind. Für neue Leads "
             "hilft nur ein anderer Filter, etwa ein weiteres Land oder andere Positionen.",
         )
+
+
+def run_prospeo(search: dict, ws: str) -> None:
+    """Prospeo-Modus: Personensuche, Anreicherung, speichern.
+
+    Aufbau wie run_apollo -- mit drei Unterschieden, die aus Prospeos API
+    folgen:
+
+      1. Die SUCHE kostet Credits (1 je 25 Treffer). Bei Apollo ist sie
+         gratis. Deshalb werden hier ZWEI Verbrauchszeilen geschrieben, eine
+         je Kostenart -- sonst liesse sich in der Kostenansicht nicht mehr
+         auseinanderhalten, wofuer das Kontingent draufging.
+      2. Die Firmenbeschreibung kommt je Treffer mit, es braucht also keinen
+         zweiten Aufruf.
+      3. Ein 403 heisst hier meist nicht "kein Zugang", sondern "dieser
+         Filter braucht einen hoeheren Tarif" (Technologie ab Starter,
+         Website-Traffic ab Pro). ProspeoPlanError traegt diesen Unterschied.
+    """
+    api_key = get_api_key(ws, "prospeo")
+    already_today = prospeo_leads_today(ws)
+    remaining_today = prospeo.PROSPEO_MAX_PER_DAY - already_today
+    if remaining_today <= 0:
+        raise prospeo.ProspeoDailyCapReached(
+            f"Tageskontingent erreicht: {already_today} Prospeo-Leads in den letzten "
+            f"24 Stunden (Grenze {prospeo.PROSPEO_MAX_PER_DAY}). Die Suche laeuft "
+            "automatisch weiter, sobald wieder Kontingent frei ist."
+        )
+    wanted = min(search["max_results"], remaining_today)
+    filters = search.get("filters") or {}
+
+    # Zwei Kostenarten, zwei Zeilen. Der Betrag bleibt leer: was ein Credit in
+    # Euro wert ist, haengt am gebuchten Tarif und liesse sich hier nur
+    # unterstellen (siehe worker/usage.py und die Kostenseite).
+    pairs = prospeo.collect_people(
+        filters,
+        api_key,
+        wanted,
+        on_search_charge=lambda n: usage.record(
+            ws, "prospeo", "search-person", n, "credits", search_id=search["id"]
+        ),
+        on_enrich_charge=lambda n: usage.record(
+            ws, "prospeo", "bulk-enrich-person", n, "credits", search_id=search["id"]
+        ),
+    )
+    if not pairs:
+        # "Fertig, 0 Leads" ohne Begruendung ist die frustrierendste Auskunft,
+        # die diese Suche geben kann. Die Ursachensuche kostet je Versuch eine
+        # Suchseite und laeuft nur hier, auf dem Null-Pfad.
+        _note(search["id"], prospeo.explain_empty_result(filters, api_key))
         return
 
-    # Kein zweiter Freischalt-Durchlauf mehr: collect_people() liefert bereits
-    # angereicherte Datensaetze, weil Apollos Suche allein weder Adresse noch
-    # Firmendomain hergibt (siehe pipelines/apollo.py). Ein erneutes bulk_match
-    # an dieser Stelle wuerde dieselben Personen ein zweites Mal abrechnen.
-    websites = list(by_website)
+    # Prospeo liefert die Beschreibung je Treffer mit -- kein zweiter Aufruf.
+    summaries = {
+        p["business"]["website"]: p.get("company_summary")
+        for p in pairs
+        if p["business"].get("website")
+    }
 
-    # Firmenbeschreibungen gleich mitnehmen. Ohne sie faellt personalize auf
-    # den Website-Text zurueck, und den geben die wenigsten Shops her: bei
-    # einer echten Supplement-Suche antworteten alle geprueften Seiten mit
-    # HTTP 429 auf unseren Crawler, am Ende hatten 10 von 45 Firmen eine
-    # Zeile. Ueber Apollos Firmen-Endpunkt waren es 35 von 35 -- und er
-    # kostet keine Credits, weil Apollo nur Exporte abrechnet.
-    summaries = apollo.fetch_company_summaries(
-        [domain_of(w) or "" for w in websites], api_key
+    companies, _contacts = _store_people_pairs(
+        search,
+        ws,
+        pairs,
+        transport_field="prospeo_id",  # nur Transportfeld fuer bulk-enrich
+        summary_of=summaries.get,
     )
-
-    rows = [
-        by_website[w]
-        | {
-            "workspace_id": ws,
-            "search_id": search["id"],
-            # Apollo liefert den Ansprechpartner mit -- fuer diese Firmen ist
-            # die Entscheider-Recherche damit erledigt und darf nicht noch
-            # einmal Geld kosten. 'not_found' nur, wenn am Ende doch kein
-            # Kontakt mit Adresse uebrig bleibt (siehe unten).
-            "decisionmaker_status": "found",
-            # hunt_persons laeuft fuer Apollo grundsaetzlich nicht (Hunter-
-            # Credits fuer Daten, die Apollo schon geliefert hat).
-            "hunter_status": "not_found",
-            # Leer lassen, wenn Apollo nichts hergibt: personalize hat dann
-            # weiterhin den Website-Fallback.
-            "company_summary": summaries.get(domain_of(w) or ""),
-        }
-        for w in websites
-    ]
-    inserted = sb().table("businesses").insert(rows).execute().data or []
-
-    contact_rows = []
-    for biz_row, website in zip(inserted, websites):
-        for c in contacts_by_website[website]:
-            email = c.get("email")
-            if not email:
-                continue  # Freischalten fehlgeschlagen -> kein verwertbarer Lead
-            email_type = classify_email(email)
-            if email_type == "generic":
-                continue  # Rollen-Adresse: gleiche Regel wie bei Hunter/KI
-            contact_rows.append(
-                {
-                    k: v
-                    for k, v in c.items()
-                    if k != "apollo_id"  # nur Transportfeld fuer bulk_match
-                }
-                | {
-                    "workspace_id": ws,
-                    "business_id": biz_row["id"],
-                    "email_type": email_type,
-                }
-            )
-    if contact_rows:
-        sb().table("contacts").insert(contact_rows).execute()
-
-    # Firmen, fuer die am Ende kein brauchbarer Kontakt uebrig blieb, ehrlich
-    # als 'not_found' markieren statt sie als 'found' zu fuehren -- sonst zeigt
-    # die Suchliste einen Fortschritt, den es nicht gibt.
-    with_contact = {r["business_id"] for r in contact_rows}
-    empty_ids = [r["id"] for r in inserted if r["id"] not in with_contact]
-    if empty_ids:
-        sb().table("businesses").update({"decisionmaker_status": "not_found"}).in_(
-            "id", empty_ids
-        ).execute()
+    if companies == 0:
+        _note(
+            search["id"],
+            f"Prospeo hat {len(pairs)} Personen geliefert, aber alle gehören zu Firmen, die "
+            "bereits in deiner Liste stehen oder auf der Sperrliste sind. Für neue Leads "
+            "hilft nur ein anderer Filter, etwa ein weiteres Land oder andere Positionen.",
+        )
 
 
 def run(job: dict) -> None:
@@ -359,6 +494,10 @@ def run(job: dict) -> None:
             return
         if source == "apollo":
             run_apollo(search, ws)
+            _finish(search_id, ws, auto_enrich, source)
+            return
+        if source == "prospeo":
+            run_prospeo(search, ws)
             _finish(search_id, ws, auto_enrich, source)
             return
         api_key = get_api_key(ws, "google_maps")
@@ -414,14 +553,18 @@ def _finish(search_id: str, ws: str, auto_enrich: bool, source: str) -> None:
     sb().table("searches").update({"status": "completed"}).eq("id", search_id).execute()
     if not auto_enrich:
         return
-    if source == "apollo":
-        # Apollo hat Firma UND Kontakt schon geliefert -- weder
+    if source in ("apollo", "prospeo"):
+        # Beide Personen-Wege haben Firma UND Kontakt schon geliefert -- weder
         # find_decisionmaker (OpenAI-Kosten) noch hunt_persons (Hunter-Credits)
         # haetten hier etwas beizutragen. Personalisiert werden muss aber
-        # trotzdem, sonst geht die Kampagne ohne Icebreaker raus. Basis ist der
-        # Website-Text (Apollo liefert keine company_summary) -- die Quelle
-        # steht pro Workspace im AI-Agent und personalize.py faellt bei
-        # fehlender summary ohnehin auf die Website zurueck.
+        # trotzdem, sonst geht die Kampagne ohne Icebreaker raus.
+        #
+        # Unterschied zwischen den beiden: Apollo liefert keine
+        # company_summary, dort ist der Website-Text die Basis. Prospeo
+        # liefert sie mit (Beschreibung, Technik, Branche), der Aufhaenger
+        # wird dadurch spezifischer. personalize.py faellt bei fehlender
+        # summary ohnehin auf die Website zurueck -- der Zweig ist deshalb
+        # fuer beide derselbe.
         for b in (
             sb()
             .table("businesses")

@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { citySuggestionsFor, usStateForCity } from "@/lib/locations";
+import ProspeoFilterForm from "./prospeo-filters";
+import { hasAnyProspeoFilter, type ProspeoFilters } from "@/lib/prospeo-query";
 import { resolveTechnologies, technologiesFor, type TechGroup } from "@/lib/technologies";
 import { missingProviders } from "@/lib/search-requirements";
 import {
@@ -250,13 +252,14 @@ const PLAYBOOKS: Playbook[] = [
 // Eigene, benannte Suchvorlagen. Bewusst im localStorage statt in der
 // Datenbank: es gibt keinen Bedarf, sie zwischen Geraeten zu teilen, und so
 // bleibt die Aenderung ohne Migration und ohne zusaetzliche RLS-Regeln.
-type SearchMode = "maps" | "corporate" | "apollo";
+type SearchMode = "maps" | "corporate" | "apollo" | "prospeo";
 
 /** Anbietername, wie ihn der Nutzer in den Einstellungen sieht -- 'google_maps'
  *  als roher Provider-Schluessel waere in einer Fehlermeldung unbrauchbar. */
 const PROVIDER_LABELS: Record<string, string> = {
   google_maps: "Google Maps",
   apollo: "Apollo",
+  prospeo: "Prospeo",
   hunter: "Hunter",
   openai: "OpenAI",
 };
@@ -519,6 +522,14 @@ export default function NewSearchForm({
   // Interne IDs aus lib/technologies.ts, erst beim Absenden in die Slugs des
   // jeweiligen Anbieters uebersetzt.
   const [technologies, setTechnologies] = useState<string[]>([]);
+  /**
+   * Prospeos Filter liegen als EIN Objekt, nicht als ein Dutzend Einzel-
+   * Zustaende wie bei Apollo: es sind mehr als doppelt so viele Felder, und
+   * genau dieses Objekt wandert unveraendert in searches.filters. So ist
+   * ausgeschlossen, dass der Trefferzaehler etwas anderes zaehlt als die
+   * Suche spaeter sucht.
+   */
+  const [prospeoFilters, setProspeoFilters] = useState<ProspeoFilters>({});
   const [apolloCount, setApolloCount] = useState<
     { state: "idle" | "loading" } | { state: "ok"; total: number } | { state: "error"; reason: string }
   >({ state: "idle" });
@@ -656,6 +667,38 @@ export default function NewSearchForm({
           // Dasselbe Objekt, das der Trefferzaehler gezaehlt hat -- die
           // angezeigte Zahl gilt damit fuer genau diese Suche.
           filters: apolloFilters,
+        },
+      ];
+    } else if (mode === "prospeo") {
+      if (!hasAnyProspeoFilter(prospeoFilters)) {
+        push(t.prospeo.needsFilter, "error");
+        return;
+      }
+      rows = [
+        {
+          name: listName.trim() || null,
+          schedule,
+          workspace_id: workspaceId, source: "prospeo",
+          // Ein sprechender Titel aus dem, was den Filter ausmacht. Bewusst
+          // die Stellenausschreibung zuerst: wenn sie gesetzt ist, ist sie der
+          // Grund fuer die Suche.
+          query:
+            [
+              prospeoFilters.hiring_for,
+              (prospeoFilters.technologies ?? []).join("/"),
+              prospeoFilters.keywords,
+              prospeoFilters.person_titles,
+            ]
+              .filter(Boolean)
+              .join(" · ")
+              .slice(0, 120) || "Prospeo-Suche",
+          location: (prospeoFilters.company_locations ?? []).join(", "),
+          // Kein Trefferquoten-Aufschlag: wie bei Apollo ist die angefragte
+          // Zahl die Zahl der Leads MIT verifizierter Adresse -- die Pipeline
+          // reichert nur mit only_verified_email an.
+          max_results: apolloTarget, target_email_count: apolloTarget,
+          // Genau das Objekt, das der Trefferzaehler gezaehlt hat.
+          filters: prospeoFilters,
         },
       ];
     } else {
@@ -846,6 +889,9 @@ export default function NewSearchForm({
         </button>
         <button type="button" className={tabCls(mode === "apollo")} onClick={() => setMode("apollo")}>
           {t.newSearchForm.tabApollo}
+        </button>
+        <button type="button" className={tabCls(mode === "prospeo")} onClick={() => setMode("prospeo")}>
+          {t.prospeo.modeLabel}
         </button>
       </div>
 
@@ -1058,6 +1104,36 @@ export default function NewSearchForm({
         <p className="text-xs text-mute">
           {t.newSearchForm.corporateHint} {t.newSearchForm.targetEmailCountHint(estimateRawResults(targetEmails))}
         </p>
+      )}
+
+      {mode === "prospeo" && (
+        <>
+          <p className="max-w-3xl text-sm leading-relaxed text-faint">{t.prospeo.modeHint}</p>
+          <ProspeoFilterForm value={prospeoFilters} onChange={setProspeoFilters} />
+
+          {/* Zielmenge und Absenden.
+              apolloTarget wird bewusst mitbenutzt und nicht verdoppelt: es ist
+              in beiden Personen-Wegen dieselbe Groesse -- "so viele Leads MIT
+              verifizierter Adresse" -- und ein zweiter Zustand daneben waere
+              nur eine Stelle mehr, an der ein Standardwert auseinanderlaeuft.
+              Die Beschriftung nennt Prospeo, damit im Formular niemand ueber
+              den Apollo-Namen stolpert. */}
+          <div className="flex flex-wrap items-end gap-3">
+            <label className={labelCls}>
+              {t.newSearchForm.apolloTarget}
+              <input
+                type="number"
+                min={1}
+                max={APOLLO_MAX_TARGET}
+                step={1}
+                value={apolloTarget}
+                onChange={(e) => setApolloTarget(Number(e.target.value))}
+                className={inputCls + " w-28"}
+              />
+            </label>
+            <SubmitButton loading={loading} />
+          </div>
+        </>
       )}
 
       {mode === "apollo" && (

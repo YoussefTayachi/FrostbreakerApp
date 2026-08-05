@@ -42,6 +42,7 @@ const PROVIDER_LABEL: Record<string, string> = {
   openai: "OpenAI",
   hunter: "Hunter.io",
   apollo: "Apollo.io",
+  prospeo: "Prospeo",
   neverbounce: "NeverBounce",
   google_maps: "Google Maps",
 };

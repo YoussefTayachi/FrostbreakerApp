@@ -16,6 +16,8 @@
  *              Adressen von derselben Quelle -> hunter  (hunt_persons.py:100)
  *   apollo     get_businesses -> apollo                 (get_businesses.py:197)
  *              Adressen liefert Apollo selbst mit
+ *   prospeo    get_businesses -> prospeo                (run_prospeo)
+ *              Adressen aus bulk-enrich-person, ebenfalls derselbe Anbieter
  *
  * openai steht ueberall, weil personalize in allen drei Wegen eingereiht wird
  * (get_businesses.py:435/475) und dort den Schluessel zieht
@@ -26,13 +28,16 @@
  * Vorpruefung entweder zu viel oder zu wenig.
  */
 
-export type SearchMode = "maps" | "apollo" | "corporate";
-export type Provider = "google_maps" | "apollo" | "hunter" | "openai";
+export type SearchMode = "maps" | "apollo" | "corporate" | "prospeo";
+export type Provider = "google_maps" | "apollo" | "hunter" | "openai" | "prospeo";
 
 const REQUIREMENTS: Record<SearchMode, Provider[]> = {
   maps: ["google_maps", "openai"],
   corporate: ["hunter", "openai"],
   apollo: ["apollo", "openai"],
+  // prospeo liefert Person UND Firma in einem Lauf, wie Apollo. openai steht
+  // auch hier, weil personalize in allen Wegen eingereiht wird.
+  prospeo: ["prospeo", "openai"],
 };
 
 export function requiredProviders(mode: SearchMode): Provider[] {

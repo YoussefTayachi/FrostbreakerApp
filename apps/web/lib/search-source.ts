@@ -15,6 +15,7 @@ export const SEARCH_SOURCE_LABELS: Record<string, string> = {
   maps: "Maps",
   corporate: "Hunter",
   apollo: "Apollo",
+  prospeo: "Prospeo",
 };
 
 export function searchSourceLabel(source: string | null | undefined): string {
@@ -36,6 +37,12 @@ const NEUTRAL = "border-edge2 bg-chip text-soft";
  *  Im Dunkelmodus kehrt sich das um (helle Textstufe auf transparenter
  *  Flaeche), wie bei den uebrigen Chips der App. */
 export function searchSourceBadgeClass(source: string | null | undefined): string {
+  // Prospeos Markenfarbe ist ein kraeftiges Rot. Als Textfarbe rot-700, damit
+  // der Kontrast wie bei den uebrigen Chips ueber 4,5:1 bleibt -- Prospeos
+  // eigenes #FF4D4D kaeme auf Weiss nur auf rund 3:1.
+  if (source === "prospeo") {
+    return "border-red-500/40 bg-red-500/10 text-red-700 dark:text-red-300";
+  }
   if (source === "apollo") {
     return "border-yellow-500/40 bg-yellow-500/10 text-yellow-700 dark:text-yellow-300";
   }
@@ -55,6 +62,9 @@ export function searchSourceBadgeClass(source: string | null | undefined): strin
  *  Bekaeme jeder Wert eine eigene Farbe, waere die Spalte bunt und die Farbe
  *  saegte nichts mehr aus -- gerade in einer Tabelle mit hunderten Zeilen. */
 export function contactSourceBadgeClass(source: string | null | undefined): string {
+  if (source === "prospeo") {
+    return "border-red-500/40 bg-red-500/10 text-red-700 dark:text-red-300";
+  }
   if (source === "apollo") {
     return "border-yellow-500/40 bg-yellow-500/10 text-yellow-700 dark:text-yellow-300";
   }

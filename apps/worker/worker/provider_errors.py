@@ -58,6 +58,7 @@ _RATE_LIMIT_MARKERS = (
 _URL_PROVIDERS = (
     ("api.hunter.io", "hunter"),
     ("api.apollo.io", "apollo"),
+    ("api.prospeo.io", "prospeo"),
     ("api.openai.com", "openai"),
     ("openai.com", "openai"),
     ("googleapis.com", "google_maps"),
@@ -72,6 +73,19 @@ _JOB_TYPE_PROVIDERS = {
     "personalize": "openai",
     "hunt_persons": "hunter",
 }
+
+# Zweiter Rueckfall: Meldungen, die WIR selbst formuliert haben und die
+# deshalb keine URL enthalten -- ProspeoPlanError sagt "Prospeo hat den
+# Schluessel abgelehnt", nicht "https://api.prospeo.io/...".
+#
+# Bewusst eine eigene, kurze Liste statt den Anbieternamen einfach zu
+# _URL_PROVIDERS zu werfen: dort steht laut Vertrag eine URL, und ein
+# Anbietername als "URL" waere genau die Sorte stiller Bedeutungsverschiebung,
+# die spaeter niemand mehr nachvollzieht. Nur Namen, die eindeutig genug sind,
+# um nicht zufaellig in einer fremden Fehlermeldung aufzutauchen.
+_NAME_PROVIDERS = (
+    ("prospeo", "prospeo"),
+)
 
 
 def classify_error(error_text: str) -> str | None:
@@ -95,14 +109,18 @@ def classify_error(error_text: str) -> str | None:
 def provider_from_error(error_text: str, job_type: str | None = None) -> str | None:
     """Welcher Anbieter steckt hinter dem Fehler?
 
-    Erst die URL aus der Meldung, dann der Job-Typ. get_businesses bleibt
-    absichtlich ohne Rueckfall: welcher Anbieter dort zustaendig ist, haengt an
-    der Quelle der Suche (maps/corporate/apollo) und laesst sich aus dem
-    Fehlertext allein nicht sicher sagen. Lieber kein Anbieter als der falsche.
+    Erst die URL aus der Meldung, dann unsere eigenen Anbieternamen, dann der
+    Job-Typ. get_businesses bleibt absichtlich ohne Job-Typ-Rueckfall: welcher
+    Anbieter dort zustaendig ist, haengt an der Quelle der Suche
+    (maps/corporate/apollo/prospeo) und laesst sich aus dem Fehlertext allein
+    nicht sicher sagen. Lieber kein Anbieter als der falsche.
     """
     if error_text:
         text = error_text.lower()
         for needle, provider in _URL_PROVIDERS:
+            if needle in text:
+                return provider
+        for needle, provider in _NAME_PROVIDERS:
             if needle in text:
                 return provider
     if job_type:
