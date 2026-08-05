@@ -9,6 +9,7 @@ import { sendEmail } from "@/lib/email";
 import { detectOptOut } from "@/lib/crm/opt-out";
 import { detectAutoReply } from "@/lib/crm/auto-reply";
 import { emailBodyText } from "@/lib/instantly/email-body";
+import { parseStepRef } from "@/lib/instantly/step-ref";
 import { runDeliverabilityCheck } from "@/lib/deliverability";
 import {
   assessBounces,
@@ -44,7 +45,51 @@ type InstantlyEmail = {
    *  Feld -- siehe lib/instantly/email-body.ts. */
   body?: { text?: string | null; html?: string | null } | null;
   timestamp_email?: string | null;
+  /**
+   * Die drei Felder fuer die Zuordnung "welcher Text hat das ausgeloest".
+   *
+   * Instantly liefert sie seit jeher mit -- dieser Typ deklarierte nur fuenf
+   * der neunzehn Felder, und deshalb stand in 753 Nachrichten kein einziger
+   * step_order. Am 2026-08-05 an echten Mails nachgesehen, siehe Migration
+   * 0076 und lib/instantly/step-ref.ts.
+   */
+  campaign_id?: string | null;
+  /** "sequenz_schritt_variante", je 0-basiert. Z.B. "0_1_0". */
+  step?: string | null;
+  /** Verbindet eine Antwort mit der Mail, auf die sie antwortet. */
+  thread_id?: string | null;
 };
+
+/**
+ * Die Zuordnungsfelder einer Mail, fertig zum Schreiben.
+ *
+ * Als eigene Funktion, weil sie an zwei Stellen gebraucht wird: beim Anlegen
+ * einer neuen Zeile und beim Nachtragen an einer bereits bekannten.
+ */
+function attributionOf(
+  email: InstantlyEmail,
+  campaignIds: Map<string, string> | undefined
+): {
+  campaign_id: string | null;
+  instantly_campaign_id: string | null;
+  step_order: number | null;
+  variant_index: number | null;
+  thread_id: string | null;
+} {
+  const ref = parseStepRef(email.step);
+  const instantlyCampaignId = email.campaign_id ?? null;
+  return {
+    // Nur die Kampagnen, die die App auch kennt. Zwei der sechs Kampagnen im
+    // Konto wurden direkt bei Instantly angelegt und haben lokal keine Zeile
+    // -- fuer die bleibt campaign_id leer und instantly_campaign_id traegt
+    // den Beleg (siehe Migration 0076).
+    campaign_id: (instantlyCampaignId && campaignIds?.get(instantlyCampaignId)) || null,
+    instantly_campaign_id: instantlyCampaignId,
+    step_order: ref?.step ?? null,
+    variant_index: ref?.variant ?? null,
+    thread_id: email.thread_id ?? null,
+  };
+}
 
 /**
  * Was beim Nachholen anders laeuft als im laufenden Betrieb.
@@ -54,7 +99,18 @@ type InstantlyEmail = {
  * und bei ueber hundert nachgeholten Nachrichten waere sie hundertmal falsch.
  * Im Posteingang tauchen sie trotzdem auf, dort gehoeren sie hin.
  */
-type ProcessOptions = { notify?: boolean };
+type ProcessOptions = {
+  notify?: boolean;
+  /**
+   * Instantlys Kampagnen-UUID -> lokale campaigns.id.
+   *
+   * Einmal je Workspace geladen und durchgereicht, statt je Mail nachzusehen:
+   * ein Sync-Tick verarbeitet bis zu 15 Postfaecher mit je bis zu 100 Mails,
+   * und eine Abfrage pro Mail waere fuer eine Zuordnung, die sich waehrend
+   * eines Laufs nicht aendert.
+   */
+  campaignIds?: Map<string, string>;
+};
 
 function isAuthorized(req: Request): boolean {
   const secret = process.env.CRON_SECRET;
@@ -145,11 +201,31 @@ async function processEmail(
    */
   const { data: known } = await supabase
     .from("messages")
-    .select("id, body")
+    .select("id, body, step_order")
     .eq("workspace_id", workspaceId)
     .eq("instantly_email_id", email.id)
     .limit(1);
   if (known?.length) {
+    /**
+     * Zuordnung nachtragen, wenn sie fehlt.
+     *
+     * Dieselbe Ueberlegung wie beim fehlenden Text darunter: die Zeilen, die
+     * vor Migration 0076 entstanden sind, sehen den regulaeren Weg nie wieder
+     * -- der Sync erkennt sie als bekannt und steigt aus. Diese Stelle ist die
+     * einzige, an der eine erneut gesehene Mail eine alte Zeile reparieren
+     * kann.
+     *
+     * Nur wenn step_order leer ist. Eine vorhandene Zuordnung zu
+     * ueberschreiben waere kein Nachtragen mehr -- und bei einer Mail, deren
+     * Kampagne inzwischen anders verdrahtet ist, waere es eine Verfaelschung.
+     */
+    if (known[0].step_order === null) {
+      const attribution = attributionOf(email, options.campaignIds);
+      if (attribution.step_order !== null || attribution.instantly_campaign_id) {
+        const { error } = await supabase.from("messages").update(attribution).eq("id", known[0].id);
+        if (error) return `messages attribution ${email.id}: ${error.message}`;
+      }
+    }
     /**
      * Eine Ausnahme: der fehlende Text wird nachgetragen.
      *
@@ -223,6 +299,7 @@ async function processEmail(
       sent_at: email.timestamp_email ?? null,
       instantly_email_id: email.id,
       ai_interest: aiInterest,
+      ...attributionOf(email, options.campaignIds),
     },
     { onConflict: "workspace_id,instantly_email_id" }
   );
@@ -541,11 +618,34 @@ const CAMPAIGN_REQUEST_BUDGET = 4;
 /** Kampagnen-Teil: Analytics-Rollup + kampagnen-scoped Antworten, wie zuvor
  *  poll_instantly.run() im Python-Worker. Weiterhin fuer die CRM-Pipeline-
  *  Stats (ForecastCards etc.) zustaendig -- unabhaengig vom Mailbox-Teil unten. */
+/**
+ * Instantlys Kampagnen-UUID -> lokale campaigns.id.
+ *
+ * Einmal je Workspace und Lauf. Ohne diese Zuordnung traegt eine Nachricht
+ * zwar Schritt und Variante, aber keine Kampagne -- und "Schritt 1, Variante
+ * B" ist ohne die Kampagne dazu keine Aussage, weil jede Kampagne ihren
+ * eigenen Schritt 1 hat.
+ */
+async function loadCampaignIds(
+  supabase: SupabaseClient,
+  workspaceId: string
+): Promise<Map<string, string>> {
+  const { data } = await supabase
+    .from("campaigns")
+    .select("id, instantly_campaign_id")
+    .eq("workspace_id", workspaceId)
+    .not("instantly_campaign_id", "is", null);
+  return new Map(
+    (data ?? []).map((c) => [c.instantly_campaign_id as string, c.id as string])
+  );
+}
+
 async function syncCampaigns(
   supabase: SupabaseClient,
   workspaceId: string,
   apiKey: string,
-  openaiKey: string | null
+  openaiKey: string | null,
+  campaignIds: Map<string, string>
 ): Promise<{ searches: number; emailsFound: number; errors: string[] }> {
   const { data: searches } = await supabase
     .from("searches")
@@ -600,7 +700,9 @@ async function syncCampaigns(
       });
       emailsFound += emails.length;
       for (const email of emails) {
-        const err = await processEmail(supabase, workspaceId, email, "inbound", "", openaiKey);
+        const err = await processEmail(supabase, workspaceId, email, "inbound", "", openaiKey, {
+          campaignIds,
+        });
         if (err) errors.push(err);
       }
 
@@ -642,7 +744,8 @@ async function syncInbox(
   workspaceId: string,
   apiKey: string,
   openaiKey: string | null,
-  eaccounts: string[]
+  eaccounts: string[],
+  campaignIds: Map<string, string>
 ): Promise<{ accounts: number; page: string; emailsFound: number; since: string | null; errors: string[] }> {
   const { data: workspace } = await supabase
     .from("workspaces")
@@ -677,7 +780,9 @@ async function syncInbox(
       });
       emailsFound += emails.length;
       for (const email of emails) {
-        const err = await processEmail(supabase, workspaceId, email, direction, eaccount, openaiKey);
+        const err = await processEmail(supabase, workspaceId, email, direction, eaccount, openaiKey, {
+          campaignIds,
+        });
         if (err) errors.push(err);
       }
 
@@ -811,7 +916,8 @@ async function runBackfill(
   workspaceId: string,
   apiKey: string,
   openaiKey: string | null,
-  eaccounts: string[]
+  eaccounts: string[],
+  campaignIds: Map<string, string>
 ): Promise<BackfillResult> {
   const errors: string[] = [];
 
@@ -887,7 +993,7 @@ async function runBackfill(
           row.eaccount,
           openaiKey,
           // Keine Benachrichtigung: diese Antworten sind Wochen alt.
-          { notify: false }
+          { notify: false, campaignIds }
         );
         if (err) errors.push(err);
       }
@@ -1159,9 +1265,13 @@ export async function POST(req: Request) {
           // eine Anfrage.
           const eaccounts = await listAccounts(apiKey).catch(() => [] as string[]);
 
+          // Vor allem, was Mails verarbeitet: ohne diese Zuordnung bekaeme
+          // jede Nachricht Schritt und Variante, aber keine Kampagne.
+          const campaignIds = await loadCampaignIds(supabase, workspaceId);
+
           const [campaigns, backfill] = await Promise.all([
-            syncCampaigns(supabase, workspaceId, apiKey, openaiKey),
-            runBackfill(supabase, workspaceId, apiKey, openaiKey, eaccounts),
+            syncCampaigns(supabase, workspaceId, apiKey, openaiKey, campaignIds),
+            runBackfill(supabase, workspaceId, apiKey, openaiKey, eaccounts, campaignIds),
           ]);
 
           // Solange nachgeholt wird, bleibt der laufende Sync aus -- siehe
@@ -1169,7 +1279,7 @@ export async function POST(req: Request) {
           // nur das Anfragebudget mit dem Nachlauf teilen.
           const inbox = backfill.active
             ? { skipped: "backfill", remaining: backfill.remaining }
-            : await syncInbox(supabase, workspaceId, apiKey, openaiKey, eaccounts);
+            : await syncInbox(supabase, workspaceId, apiKey, openaiKey, eaccounts, campaignIds);
 
           // Nach dem Sync, nicht davor: die Bounce-Zahlen stammen aus
           // instantly_campaign_stats, und die frischt syncCampaigns gerade

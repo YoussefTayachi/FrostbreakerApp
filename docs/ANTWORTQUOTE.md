@@ -299,9 +299,98 @@ sich aus dem Gebauten ergeben.
 3. **Die Wirkungs-Ansicht braucht Datenmenge.** Bei 286 Kontakten traegt nur
    die Aufschluesselung nach Lead-Liste; Wochentag und Tageszeit werden
    grossteils "zu wenig" melden, und das ist richtig so.
-4. **Termine als eigener Status.** Der Antwort-Assistent fuehrt zum Termin,
-   aber `meeting_booked` setzt niemand automatisch -- der Uebergang von
-   Antwort zu Termin ist damit weiterhin unsichtbar.
+4. ~~**Termine als eigener Status.**~~ **Erledigt am 2026-08-05**, siehe
+   unten. Der Status existierte laengst (Migration 0018), war aber aus dem
+   Posteingang nicht erreichbar -- dort, wo die Antwort ankommt.
+
+---
+
+## Zuordnung: welcher Text hat das ausgeloest (2026-08-05)
+
+Migration 0076 · `lib/instantly/step-ref.ts` · `lib/report/copy-outcomes.ts`
+
+### Der Befund
+
+0 von 753 Nachrichten trugen einen `step_order`, und `messages.campaign_id`
+war ebenfalls durchgaengig leer. Die App konnte zu keiner Antwort sagen,
+worauf sie eine Antwort ist. Die Wirkungs-Ansicht schluesselte nach
+Lead-Liste, Wochentag und Tageszeit auf -- also nach allem AUSSER dem, was
+geschrieben wurde. Das ist PRODUKTPLAN Saeule 2.1, die Voraussetzung fuer den
+gesamten "geschlossenen Kreis".
+
+### Die Ursache war kein fehlendes Feld, sondern ein nie gelesenes
+
+`GET /api/v2/emails` liefert je Mail neunzehn Felder. Der Typ `InstantlyEmail`
+im Sync deklarierte fuenf davon. Am 2026-08-05 an 763 echten Mails
+nachgesehen:
+
+| Feld | Inhalt |
+|---|---|
+| `step` | `"sequenz_schritt_variante"`, je 0-basiert |
+| `campaign_id` | Instantlys Kampagne |
+| `thread_id` | verbindet Antwort und ausloesende Mail |
+| `ue_type` | 1 ausgehend, 2 eingehend |
+
+Die Belege fuer die Deutung von `step` stehen in `step-ref.ts`: die einzige
+Kampagne mit zwei Fassungen war die einzige mit `0_0_1`, und die Kampagnen mit
+versendetem Follow-up die einzigen mit `0_1_0`.
+
+**Der Glueckfall:** eine eingehende Antwort traegt denselben `step`-Wert wie
+die Mail, auf die sie antwortet. Instantly ordnet also bereits zu -- die
+Zuordnung ist exakt, nicht ueber Betreffzeilen oder Zeitfenster
+rekonstruiert.
+
+`campaign_steps.step_order` ist ebenfalls 0-basiert und `variants[0]` ist laut
+Migration 0071 Variante A. Beide Zaehlungen sind deckungsgleich, es wird
+nirgends umgerechnet.
+
+### Nachlauf
+
+753 von 753 Zeilen nachgetragen, 0 nicht zuordenbar. Als einmaliges Skript
+und nicht als Produktcode: fuer jeden kuenftigen Workspace fuellt
+`processEmail` die Felder beim Anlegen, und `runBackfill` holt beim ersten
+Verbinden ohnehin alles. Zusaetzlich repariert der Sync eine bereits bekannte
+Zeile, wenn sie erneut vorbeikommt und noch keine Zuordnung hat.
+
+### Die Auswertung, und warum sie fuenf Zahlen zeigt statt einer
+
+**Eine Antwortquote allein ist die falsche Zielgroesse.** Das stand sofort in
+den Daten: Variante A brachte 0 Antworten auf 144 Kontakte, Variante B zwei
+auf 149. Auf die Quote geschaut gewinnt B -- **beide Antworten waren
+Absagen**. Wer nur die Quote optimiert, sucht den Text, der am
+zuverlaessigsten ein Nein erzeugt.
+
+Deshalb je Zeile: Kontakte, Antworten, interessiert, Absagen, Abwesenheit,
+Termine. Die Termin-Spalte steht rechts aussen und traegt als einzige Farbe.
+
+Zwei Entscheidungen, die beim Weiterbauen leicht kaputtgehen:
+
+- **Ein Termin haengt an der Antwort, nicht am Kontakt.** Sonst erbt der
+  vierte Bump den Erfolg des ersten Satzes, weil derselbe Kontakt alle vier
+  Mails bekommen hat.
+- **Sortiert wird in Sequenzreihenfolge, nicht nach Erfolg** -- anders als in
+  `effectiveness.ts`. Die Frage lautet "wo bricht es ab", und die beantwortet
+  ein nach Quote umsortierter Ablauf nicht.
+
+Dieselbe Mindestmenge wie in der uebrigen Wirkungs-Ansicht (`MIN_SAMPLE`,
+30 Kontakte). Darunter stehen die Rohzahlen, aber keine Prozentzahl.
+
+### Termin festhalten, wo die Antwort ankommt
+
+Der Posteingang zeigte den Status als Plakette an, ohne ihn aendern zu
+koennen. Wer auf eine Antwort einen Termin ausmachte, musste dafuer nach
+`/leads` oder aufs Board wechseln. Jetzt steht dort dasselbe
+`StatusSelect` wie ueberall sonst.
+
+Das ist PRODUKTPLAN Saeule 3 woertlich: es muss auf dem Weg liegen, statt ein
+Ort zu sein, den man extra aufsucht.
+
+### Offen
+
+- Die Termin-Spalte bleibt leer, bis der erste Termin gesetzt wird. Am
+  2026-08-05 war erst eine von vier Mails der Sequenz draussen.
+- `thread_id` wird gespeichert, aber noch nicht genutzt. Sie traegt spaeter
+  die Frage, auf welchen Schritt hin ein Gespraech tatsaechlich weiterging.
 
 ## Zur "Garantie"
 

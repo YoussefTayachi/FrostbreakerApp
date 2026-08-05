@@ -1535,6 +1535,24 @@ const de = {
     noData: "Noch keine Daten.",
     methodNote: (min: number) =>
       `Gemessen an Kontakten, nicht an Mails: eine Sequenz schickt mehrere Mails an dieselbe Person, und die eine Antwort darauf gehört nicht geteilt. Unter ${min} angeschriebenen Kontakten je Zeile wird bewusst keine Quote ausgewiesen.`,
+
+    byCopy: "Nach Text",
+    byCopyHint:
+      "Welcher Schritt und welche Fassung. Die Zuordnung kommt von Instantly selbst — eine Antwort trägt den Schritt der Mail, auf die sie antwortet.",
+    step: "Schritt",
+    variant: "Fassung",
+    contacts: "Kontakte",
+    replies: "Antworten",
+    interested: "Interessiert",
+    notInterested: "Absagen",
+    questions: "Fragen",
+    meetings: "Termine",
+    autoReplies: "Abwesenheit",
+    noAttribution: "Noch keine zugeordneten Nachrichten.",
+    unattributed: (n: number) =>
+      `${n} Nachrichten ohne Zuordnung — sie fehlen in dieser Auswertung.`,
+    copyWarning:
+      "Eine Antwortquote allein ist die falsche Zielgröße: eine Fassung kann führen und trotzdem nur Absagen sammeln. Die Spalte, auf die es ankommt, ist Termine.",
   },
   providerAlerts: {
     title: (provider: string) => `${provider}: Guthaben aufgebraucht`,
@@ -3123,6 +3141,23 @@ const en: Dictionary = {
     noData: "No data yet.",
     methodNote: (min: number) =>
       `Measured per contact, not per mail: a sequence sends several mails to the same person, and the one reply should not be divided. Below ${min} contacted people per row no rate is shown, on purpose.`,
+
+    byCopy: "By copy",
+    byCopyHint:
+      "Which step and which version. The attribution comes from Instantly itself — a reply carries the step of the mail it answers.",
+    step: "Step",
+    variant: "Version",
+    contacts: "Contacts",
+    replies: "Replies",
+    interested: "Interested",
+    notInterested: "Rejections",
+    questions: "Questions",
+    meetings: "Meetings",
+    autoReplies: "Auto-reply",
+    noAttribution: "No attributed messages yet.",
+    unattributed: (n: number) => `${n} messages without attribution — they are missing from this breakdown.`,
+    copyWarning:
+      "Reply rate alone is the wrong target: a version can lead and still collect nothing but rejections. The column that counts is meetings.",
   },
   providerAlerts: {
     title: (provider: string) => `${provider}: out of credit`,

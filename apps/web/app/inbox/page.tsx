@@ -7,6 +7,7 @@ import { formatRelative } from "@/lib/format-time";
 import { notifyUnreadChanged } from "@/lib/unread";
 import CompanyLogo from "../company-logo";
 import ContactTimeline from "../crm/contact-timeline";
+import StatusSelect from "../crm/status-select";
 import { useT } from "../language-provider";
 import { useToast } from "../toast-provider";
 import { useWorkspace } from "../workspace-provider";
@@ -207,6 +208,36 @@ export default function InboxPage() {
       .in("id", ids)
       .eq("workspace_id", workspaceId);
     if (error) push(t.common.error + error.message, "error");
+  }
+
+  /**
+   * Status direkt aus dem Posteingang setzen.
+   *
+   * Optimistisch, wie markRead darueber: die Auswahl soll sofort stehen. Der
+   * Status-Trigger aus Migration 0032 schreibt die Bewegung ohnehin in den
+   * Verlauf, der rechts danebensteht -- ein Neuladen waere also nur eine
+   * Verzoegerung ohne zusaetzliche Aussage.
+   */
+  async function setStatus(conversation: Conversation, next: string) {
+    const contactId = conversation.contactId;
+    if (!contactId || next === conversation.outreachStatus) return;
+
+    setMessages((prev) =>
+      prev.map((m) =>
+        m.contacts?.id === contactId
+          ? { ...m, contacts: { ...m.contacts, outreach_status: next } }
+          : m
+      )
+    );
+
+    const { error } = await createClient()
+      .from("contacts")
+      .update({ outreach_status: next })
+      .eq("id", contactId)
+      .eq("workspace_id", workspaceId);
+
+    if (error) push(t.common.error + error.message, "error");
+    else push(t.crm.activityStatusSynced(t.leads.statusLabels[next] ?? next), "success");
   }
 
   async function markAllRead() {
@@ -437,9 +468,26 @@ export default function InboxPage() {
                       bei kontaktlosen Absendern (nur E-Mail bekannt) gibt es beides nicht. */}
                   {selected.contactId && (
                     <div className="flex shrink-0 flex-col items-end gap-1">
-                      <span className="rounded-full border border-edge2 bg-chip px-2 py-0.5 text-[10px] font-medium text-soft">
-                        {t.leads.statusLabels[selected.outreachStatus] ?? selected.outreachStatus}
-                      </span>
+                      {/**
+                       * Aenderbar statt nur angezeigt.
+                       *
+                       * Hier stand eine Anzeige-Plakette. Wer auf eine Antwort
+                       * einen Termin ausmachte, musste ihn anschliessend in
+                       * /leads oder auf dem Board eintragen -- also die Seite
+                       * verlassen, auf der er gerade gearbeitet hat. Am
+                       * 2026-08-05 standen bei 741 versendeten Mails 0 Termine,
+                       * und die Wirkungs-Ansicht konnte deshalb zu keinem Text
+                       * sagen, ob er je zu einem gefuehrt hat.
+                       *
+                       * Das ist PRODUKTPLAN Saeule 3 in einem Satz: es muss auf
+                       * dem Weg liegen, statt ein Ort zu sein, den man extra
+                       * aufsucht.
+                       */}
+                      <StatusSelect
+                        value={selected.outreachStatus}
+                        labels={t.leads.statusLabels}
+                        onChange={(next) => setStatus(selected, next)}
+                      />
                       <Link
                         href={`/leads?q=${encodeURIComponent(selected.businesses?.name ?? "")}`}
                         className="text-[11px] text-sky-600 underline-offset-4 hover:underline dark:text-sky-400"
