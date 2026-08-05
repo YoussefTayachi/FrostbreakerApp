@@ -152,6 +152,26 @@ class ProspeoDailyCapReached(Exception):
     """Unsere eigene Tagesgrenze, nicht Prospeos."""
 
 
+class ProspeoRateLimited(Exception):
+    """Prospeos Ratengrenze (429).
+
+    Eigene Klasse und ausdruecklich WIEDERHOLBAR -- anders als
+    ProspeoPlanError. Der Unterschied ist wesentlich:
+
+      Tarifsperre   aendert sich nicht durch Warten. Sofort aufgeben und
+                    erklaeren.
+      Ratengrenze   ist per Definition voruebergehend. Der Suchendpunkt
+                    erlaubt auf dem kleinsten Tarif EINE Anfrage pro
+                    Sekunde -- da ist ein 429 keine Stoerung, sondern der
+                    Normalfall bei Gleichzeitigkeit.
+
+    Vorher fuehrte jeder 429 dazu, dass der ganze Job einen seiner drei
+    Versuche verbrannte und die Suche auf "fehlgeschlagen" sprang. Bei drei
+    Versuchen mit quadratischem Backoff war eine Suche damit nach gut vier
+    Minuten endgueltig tot, obwohl eine Sekunde Warten gereicht haette.
+    """
+
+
 def _headers(api_key: str) -> dict:
     # Schluessel im Header, nicht als Query-Parameter -- so kann er gar nicht
     # erst in einer Fehler-URL landen (vgl. worker/http_safety.py).
@@ -159,13 +179,18 @@ def _headers(api_key: str) -> dict:
 
 
 def _is_retryable(exc: BaseException) -> bool:
-    """Netzfehler und 5xx erneut versuchen, 4xx nicht.
+    """Netzfehler, 5xx und die Ratengrenze erneut versuchen -- 4xx nicht.
 
-    429 ist bewusst NICHT retrybar ueber tenacity: die Ratengrenze wird vorher
-    ueber die Kontingent-Header vermieden und im Ernstfall in
-    _sleep_for_rate_limit() gezielt abgewartet. Ein blindes tenacity-Retry
-    wuerde in dieselbe Grenze laufen und die Wartezeit verdoppeln.
+    429 IST wiederholbar (siehe ProspeoRateLimited). Vor dem erneuten Versuch
+    wird die von Prospeo genannte Wartezeit abgesessen, es laeuft also nicht
+    blind in dieselbe Grenze.
+
+    Eine Tarifsperre ist dagegen nicht wiederholbar: sie aendert sich durch
+    Warten nicht, und drei Versuche daran waeren drei vergeudete Minuten und
+    eine spaetere, nicht bessere Fehlermeldung.
     """
+    if isinstance(exc, ProspeoRateLimited):
+        return True
     if isinstance(exc, httpx.HTTPStatusError):
         return exc.response.status_code >= 500
     return isinstance(exc, (httpx.TimeoutException, httpx.TransportError))
@@ -222,22 +247,37 @@ def raise_for_filter_error(response: httpx.Response) -> None:
         raise ProspeoPlanError(f"Prospeo hat die Anfrage abgelehnt ({status}): {detail}")
 
 
+def _header_int(response: httpx.Response, name: str, default: int = 0) -> int:
+    try:
+        return int(response.headers[name])
+    except (KeyError, TypeError, ValueError):
+        return default
+
+
 def _sleep_for_rate_limit(response: httpx.Response) -> None:
     """Warten, bevor die Grenze zuschlaegt -- nicht danach.
 
-    Prospeo gibt bei jeder Antwort mit, wie viele Anfragen in dieser Minute
-    und an diesem Tag noch frei sind. Ist die Minute aufgebraucht, warten wir
-    genau bis zu ihrem Ende, statt in den 429 zu laufen. Das ist der
-    Unterschied zwischen einem langsamen und einem abgebrochenen Lauf.
+    Prospeo gibt bei jeder Antwort mit, wie viele Anfragen in dieser Sekunde,
+    Minute und an diesem Tag noch frei sind. Ist eines der Fenster
+    aufgebraucht, warten wir genau bis zu seinem Ende, statt in den 429 zu
+    laufen.
+
+    Die SEKUNDE gehoert unbedingt dazu: der Suchendpunkt erlaubt auf dem
+    kleinsten Tarif genau eine Anfrage pro Sekunde, und nach jedem
+    erfolgreichen Aufruf steht dort x-second-request-left: 0. Ohne diese
+    Wartezeit laeuft der naechste Aufruf zuverlaessig in einen 429 -- das war
+    der Grund, warum der erste Testlauf am 2026-08-05 dreimal hintereinander
+    scheiterte.
     """
-    try:
-        left = int(response.headers.get("x-minute-request-left", "1"))
-        reset = int(response.headers.get("x-minute-reset-seconds", "0"))
-    except (TypeError, ValueError):
-        return
-    if left <= 0 and reset > 0:
-        log.info("Prospeo: Minutenkontingent aufgebraucht, warte %ss", reset)
-        time.sleep(min(reset + 1, 70))
+    if _header_int(response, "x-minute-request-left", 1) <= 0:
+        reset = _header_int(response, "x-minute-reset-seconds")
+        if reset > 0:
+            log.info("Prospeo: Minutenkontingent aufgebraucht, warte %ss", reset)
+            time.sleep(min(reset + 1, 70))
+            return
+    if _header_int(response, "x-second-request-left", 1) <= 0:
+        # Sekundenfenster: kurz, aber genau das, was den 429 ausloest.
+        time.sleep(max(1, _header_int(response, "x-second-reset-seconds", 1)) + 0.2)
 
 
 def daily_left(response: httpx.Response) -> int | None:
@@ -260,11 +300,18 @@ def _post(url: str, body: dict, api_key: str) -> httpx.Response:
     # und der ist bei 400 aussagekraeftiger als der Statuscode.
     raise_for_filter_error(r)
     if r.status_code == 429:
-        _sleep_for_rate_limit(r)
-        raise ProspeoPlanError(
-            "Prospeos Ratengrenze ist erreicht (429). Die Suche laeuft weiter, "
-            "sobald wieder Kontingent frei ist -- auf dem Starter-Tarif ist das "
-            "eine Suchanfrage pro Sekunde und 1000 pro Tag."
+        # Erst die von Prospeo genannte Wartezeit absitzen, dann wiederholen.
+        # tenacity faengt ProspeoRateLimited ab (siehe _is_retryable).
+        wait = max(
+            _header_int(r, "x-second-reset-seconds", 1),
+            _header_int(r, "x-minute-reset-seconds") if _header_int(r, "x-minute-request-left", 1) <= 0 else 0,
+        )
+        log.info("Prospeo 429, warte %ss und versuche erneut", wait)
+        time.sleep(min(wait + 0.5, 70))
+        raise ProspeoRateLimited(
+            "Prospeos Ratengrenze (429). Der Suchendpunkt erlaubt auf dem "
+            f"kleinsten Tarif eine Anfrage pro Sekunde. Prospeos Antwort: "
+            f"{(r.text or '')[:200]}"
         )
     raise_for_status_safe(r)
     _sleep_for_rate_limit(r)
