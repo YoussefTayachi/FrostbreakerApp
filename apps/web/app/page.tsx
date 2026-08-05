@@ -30,8 +30,17 @@ type Stats = {
   jobs_hunter: number;
   meetings_booked: number;
   customers: number;
-  /** Gemessene API-Kosten im gewaehlten Zeitraum (api_usage, Migration 0054). */
+  /** Gemessener Verbrauch im gewaehlten Zeitraum (api_usage, Migration 0054). */
   api_cost_usd?: number;
+  /** Seit wann ueberhaupt gemessen wird. Aelter als dieses Datum gibt es keine
+   *  Kosten -- nicht weil keine anfielen, sondern weil niemand mitschrieb. */
+  api_cost_since?: string | null;
+  /** Monatliche Tarifkosten, vom Nutzer eingetragen (Migration 0077). */
+  subscription_monthly_usd?: number;
+  /** Dieselben Tarife, anteilig auf das gewaehlte Fenster. */
+  subscription_window_usd?: number;
+  /** Laenge des Fensters in Tagen. */
+  window_days?: number;
   instantly: {
     emails_sent: number;
     replies_unique: number;
@@ -49,18 +58,57 @@ function estimateCosts(s: Stats) {
   return { usd: google + openai, hunterCredits: s.jobs_hunter ?? 0 };
 }
 
-// ROI: manuelle Recherche ~8 Min/Kontakt, Personalisierung ~4 Min/Firma
+/**
+ * Was die Maschine an Handarbeit erspart hat.
+ *
+ * DIE ANNAHMEN STEHEN HIER UND WERDEN AUCH ANGEZEIGT.
+ *
+ * Eine Zahl wie "511 Stunden gespart" ist nur so viel wert wie das, was
+ * darunter steht. Wer sie nicht nachrechnen kann, glaubt sie beim ersten Mal
+ * und keinem der folgenden Werte danach mehr. Deshalb nennt das Banner die
+ * drei Groessen im Klartext.
+ *
+ * GEZAEHLT WERDEN NUR KONTAKTE MIT E-MAIL.
+ *
+ * Vorher zaehlte die Rechnung contacts_total -- am 2026-08-05 also 3115
+ * Kontakte, von denen 1705 gar keine Adresse haben. Recherche fuer einen
+ * Ansprechpartner, den man nicht anschreiben kann, ist keine gesparte Arbeit,
+ * sondern ein unfertiges Ergebnis. Die Zahl war damit um rund das Doppelte
+ * zu hoch.
+ *
+ * Aufhaenger zaehlen dagegen ALLE, auch die mit Regelverstoss: die Recherche
+ * dahinter ist auch dann geleistet, wenn die Zeile noch redigiert werden
+ * muss.
+ */
+const MIN_PER_CONTACT = 8;
+const MIN_PER_ICEBREAKER = 4;
+const HOURLY_EUR = 45;
+
 function estimateRoi(s: Stats) {
-  const minutes = (s.contacts_total ?? 0) * 8 + (s.personalized ?? 0) * 4;
+  const minutes = (s.contacts_with_email ?? 0) * MIN_PER_CONTACT + (s.personalized ?? 0) * MIN_PER_ICEBREAKER;
   const hours = minutes / 60;
-  const value = Math.round(hours * 45); // 45 €/h Personalkosten
-  return { hours: Math.round(hours * 10) / 10, value };
+  return {
+    hours: Math.round(hours * 10) / 10,
+    value: Math.round(hours * HOURLY_EUR),
+    contacts: s.contacts_with_email ?? 0,
+    icebreakers: s.personalized ?? 0,
+  };
 }
 
-const RANGE_OPTIONS = [7, 14, 30, 90] as const;
+/**
+ * 0 heisst "Gesamtbestand".
+ *
+ * Bis 2026-08-05 filterten diese Knoepfe die Kacheln ueberhaupt nicht -- sie
+ * steuerten nur den Chart, und alles darueber blieb Gesamtbestand (siehe
+ * Migration 0077). Jetzt filtern sie, und weil der Gesamtbestand damit sonst
+ * unerreichbar waere, steht er als eigene Auswahl daneben statt als stille
+ * Voreinstellung.
+ */
+const RANGE_OPTIONS = [7, 14, 30, 90, 0] as const;
 const DEFAULT_RANGE_DAYS = 14;
 
 function parseRangeDays(raw: string | undefined): number {
+  if (raw === "all") return 0;
   const n = Number(raw);
   return RANGE_OPTIONS.includes(n as (typeof RANGE_OPTIONS)[number]) ? n : DEFAULT_RANGE_DAYS;
 }
@@ -189,10 +237,56 @@ export default async function Dashboard({
   // denen noch nichts erfasst wurde -- sonst stuende dort ploetzlich $0.00,
   // obwohl vorher Geld geflossen ist.
   const gemessen = Number(stats.api_cost_usd ?? 0);
-  const costs = gemessen > 0
-    ? { usd: gemessen, hunterCredits: stats.jobs_hunter ?? 0 }
-    : estimateCosts(stats);
+  /**
+   * Die Hochrechnung greift nur noch beim Gesamtbestand.
+   *
+   * estimateCosts rechnet aus den Job-Zaehlern, und die sind in
+   * dashboard_stats bewusst NICHT zeitraumgefiltert -- es sind Betriebszahlen.
+   * Sie in ein 7-Tage-Fenster zu setzen wuerde genau den Fehler wiederholen,
+   * um den es hier geht: eine Zahl aus sechs Wochen in einem Fenster von einer
+   * Woche. Im Fenster gilt deshalb der gemessene Wert, auch wenn er 0 ist --
+   * eine 0 fuer "in diesen sieben Tagen lief nichts" ist richtig, keine Luecke.
+   */
+  const alleZeit = !useDateRange && rangeDays === 0;
+  const verbrauch =
+    gemessen > 0
+      ? { usd: gemessen, hunterCredits: stats.jobs_hunter ?? 0 }
+      : alleZeit
+        ? estimateCosts(stats)
+        : { usd: 0, hunterCredits: stats.jobs_hunter ?? 0 };
+
+  /**
+   * Verbrauch PLUS Tarife.
+   *
+   * Bis 2026-08-05 zeigte das Dashboard 0,33 $ und nannte das "API-Kosten".
+   * Das war der gemessene Verbrauch -- und er ist der kleinere Teil der
+   * Wahrheit. Instantly taucht in api_usage gar nicht auf (ein Abo hat keinen
+   * zaehlbaren Aufruf), und bei Apollo und Hunter steht dort bewusst kein
+   * Betrag, weil der Wert eines Credits am gebuchten Paket haengt.
+   *
+   * Wer 0,33 $ neben einen Nutzen von 22998 EUR stellt, behauptet einen
+   * Faktor von siebzigtausend. Mit den Tarifen daneben steht dort eine Zahl,
+   * die der Kunde auf seiner Kreditkartenabrechnung wiederfindet.
+   */
+  const abosImFenster = Number(stats.subscription_window_usd ?? 0);
+  const abosMonatlich = Number(stats.subscription_monthly_usd ?? 0);
+  const costs = { usd: verbrauch.usd + abosImFenster, hunterCredits: verbrauch.hunterCredits };
   const roi = estimateRoi(stats);
+
+  /**
+   * Deckt die Messung das Fenster ueberhaupt ab?
+   *
+   * api_usage schreibt erst seit dem 2026-08-02, die Firmen gibt es seit dem
+   * 2026-07-13. Ein 90-Tage-Fenster stellt also einen Nutzen aus sechs Wochen
+   * neben Kosten aus wenigen Tagen. Das gehoert dazugesagt, statt die Luecke
+   * als Ergebnis auszugeben -- sie schliesst sich mit der Zeit von selbst.
+   */
+  const messungSeit = stats.api_cost_since ? new Date(stats.api_cost_since) : null;
+  const fensterTage = Number(stats.window_days ?? 0);
+  const messungJuenger =
+    messungSeit !== null &&
+    fensterTage > 0 &&
+    messungSeit.getTime() > Date.now() - fensterTage * 24 * 60 * 60 * 1000 + 60 * 60 * 1000;
   const hasActive = (stats.jobs_active ?? 0) > 0;
 
   const kpis: { label: string; value: number | string; sub?: string; hero?: boolean; href?: string }[] = [
@@ -342,19 +436,52 @@ export default async function Dashboard({
           solange es weder Deals noch offene Aufgaben gibt. */}
       <ForecastCards stats={pipelineStats} />
 
-      {/* ROI-Banner */}
-      {(stats.contacts_total ?? 0) > 0 && (
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-sky-200/70 bg-gradient-to-r from-sky-50 via-panel to-panel px-4 py-3 dark:border-sky-500/25 dark:from-sky-500/10">
-          <svg className="h-4 w-4 text-sky-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 3" />
-          </svg>
-          <p className="text-sm text-ink">
-            <span className="font-semibold">≈ {roi.hours} {t.dashboard.roiHours}</span> {t.dashboard.roiSaved}
+      {/* ROI-Banner.
+          Traegt seinen Zeitraum und seine Annahmen mit sich: eine Zahl, die
+          man nicht nachrechnen kann, glaubt man genau einmal. */}
+      {roi.hours > 0 && (
+        <div className="rounded-lg border border-sky-200/70 bg-gradient-to-r from-sky-50 via-panel to-panel px-4 py-3 dark:border-sky-500/25 dark:from-sky-500/10">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+            <svg className="h-4 w-4 shrink-0 text-sky-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 3" />
+            </svg>
+            <p className="text-sm text-ink">
+              <span className="font-semibold">≈ {roi.hours} {t.dashboard.roiHours}</span> {t.dashboard.roiSaved}
+              <span className="text-soft"> {useDateRange ? t.dashboard.roiInRange : t.dashboard.roiInDays(rangeDays)}</span>
+            </p>
+            <p className="text-sm text-soft">
+              · {t.dashboard.roiEquals}{" "}
+              <span className="font-medium text-emerald-600 dark:text-emerald-400">~{roi.value} €</span>{" "}
+              {t.dashboard.roiLaborCost}
+              {costs.usd > 0 && (
+                <>
+                  {", "}{t.dashboard.roiAt}{" "}
+                  <span className="font-medium text-ink">${costs.usd.toFixed(2)}</span>{" "}
+                  {abosImFenster > 0 ? t.dashboard.roiTotalCosts : t.dashboard.roiApiCosts}
+                </>
+              )}
+            </p>
+          </div>
+
+          {/* Die Rechnung im Klartext. */}
+          <p className="mt-1.5 pl-7 text-[11px] text-mute">
+            {t.dashboard.roiBasis(roi.contacts, MIN_PER_CONTACT, roi.icebreakers, MIN_PER_ICEBREAKER, HOURLY_EUR)}
+            {abosImFenster > 0 && " · " + t.dashboard.roiSubscriptions(abosMonatlich, fensterTage)}
           </p>
-          <p className="text-sm text-soft">
-            · {t.dashboard.roiEquals} <span className="font-medium text-emerald-600 dark:text-emerald-400">~{roi.value} €</span> {t.dashboard.roiLaborCost}
-            {", "}{t.dashboard.roiAt} <span className="font-medium text-ink">${costs.usd.toFixed(2)}</span> {t.dashboard.roiApiCosts}
-          </p>
+
+          {/* Zwei Vorbehalte, die die Zahl relativieren -- und die genau
+              deshalb danebenstehen und nicht weggelassen werden. */}
+          {abosImFenster === 0 && (
+            <p className="mt-1 pl-7 text-[11px] text-amber-600 dark:text-amber-500">
+              {t.dashboard.roiNoSubscriptions}{" "}
+              <Link href="/costs" className="underline underline-offset-2">{t.dashboard.roiEnterCosts}</Link>
+            </p>
+          )}
+          {messungJuenger && messungSeit && (
+            <p className="mt-1 pl-7 text-[11px] text-amber-600 dark:text-amber-500">
+              {t.dashboard.roiCostsSince(messungSeit.toLocaleDateString(lang === "de" ? "de-DE" : "en-US"))}
+            </p>
+          )}
         </div>
       )}
 
@@ -417,7 +544,9 @@ export default async function Dashboard({
                 {RANGE_OPTIONS.map((days) => (
                   <Link
                     key={days}
-                    href={days === DEFAULT_RANGE_DAYS ? "/" : `/?range=${days}`}
+                    href={
+                      days === DEFAULT_RANGE_DAYS ? "/" : days === 0 ? "/?range=all" : `/?range=${days}`
+                    }
                     className={
                       "px-2.5 py-1 text-xs font-medium transition-colors " +
                       // Bei aktiver Kalenderauswahl ist keiner der festen

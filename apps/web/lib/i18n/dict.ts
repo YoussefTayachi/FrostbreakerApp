@@ -88,6 +88,17 @@ const de = {
     roiLaborCost: "Personalkosten",
     roiAt: "bei",
     roiApiCosts: "API-Kosten",
+    roiTotalCosts: "Gesamtkosten",
+    roiInDays: (n: number) => (n === 0 ? "insgesamt" : `in den letzten ${n} Tagen`),
+    roiInRange: "im gewählten Zeitraum",
+    roiBasis: (kontakte: number, minK: number, aufhaenger: number, minA: number, satz: number) =>
+      `Gerechnet: ${kontakte} Kontakte mit E-Mail × ${minK} Min + ${aufhaenger} Aufhänger × ${minA} Min, zu ${satz} €/h. Kontakte ohne Adresse zählen nicht mit.`,
+    roiSubscriptions: (monatlich: number, tage: number) =>
+      `Kosten enthalten $${monatlich.toFixed(2)}/Monat Tarife, anteilig für ${tage} Tage.`,
+    roiNoSubscriptions: "Nur gemessener Verbrauch — deine Tarife für Instantly, Apollo und Co. fehlen darin.",
+    roiEnterCosts: "Jetzt eintragen",
+    roiCostsSince: (datum: string) =>
+      `Kosten werden erst seit ${datum} erfasst — für den Zeitraum davor fehlen sie, sie waren nicht null.`,
     instantlySent: "Versendet (Instantly)",
     instantlyReplies: "eindeutige Antworten",
     instantlyBounceRate: "Bounce-Rate",
@@ -109,7 +120,7 @@ const de = {
     tasksOverdue: "überfällig",
     tasksAllOnTime: "alles im Zeitplan",
     chartTitle: (days: number) => `Neue Leads: letzte ${days} Tage`,
-    rangeOptions: { "7": "7 Tage", "14": "14 Tage", "30": "30 Tage", "90": "90 Tage" } as Record<string, string>,
+    rangeOptions: { "7": "7 Tage", "14": "14 Tage", "30": "30 Tage", "90": "90 Tage", "0": "Gesamt" } as Record<string, string>,
     emailsSent: "E-Mails gesendet",
     replies: "Antworten",
     recentLeads: "Neueste Leads",
@@ -153,6 +164,16 @@ const de = {
     colCalls: "Aufrufe",
     colCost: "Kosten",
     tariffDependent: "tarifabhängig",
+    splitUsage: "Verbrauch",
+    splitPlans: "Tarife",
+    splitProRated: (monatlich: number, tage: number) =>
+      `$${monatlich.toFixed(2)}/Monat, anteilig für ${tage} Tage`,
+    subsTitle: "Was deine Tarife kosten",
+    subsHint:
+      "Instantly hat keinen zählbaren Aufruf, und was ein Apollo- oder Hunter-Credit wert ist, hängt am gebuchten Paket. Die App kann das nicht messen — trag ein, was du monatlich zahlst, dann stimmt die Kostenzahl auf dem Dashboard. Leer lassen heißt „weiß ich nicht“, 0 heißt „Free-Plan“.",
+    subsPerMonth: "/Monat",
+    subsTotal: "Zusammen",
+    subsSaved: "Tarife gespeichert",
     methodNote:
       "Jeder kostenpflichtige Aufruf schreibt beim Ausführen eine Zeile mit der tatsächlich verbrauchten Menge. Bei OpenAI sind das die von der API gemeldeten Tokens, ein Korrektur-Versuch zählt also doppelt. Bei Apollo zählt jede freigeschaltete Adresse, auch wenn der Datensatz danach verworfen wurde.",
   },
@@ -1726,6 +1747,17 @@ const en: Dictionary = {
     roiLaborCost: "in labor costs",
     roiAt: "at",
     roiApiCosts: "API costs",
+    roiTotalCosts: "total costs",
+    roiInDays: (n: number) => (n === 0 ? "in total" : `over the last ${n} days`),
+    roiInRange: "in the selected period",
+    roiBasis: (contacts: number, minC: number, icebreakers: number, minI: number, rate: number) =>
+      `Calculation: ${contacts} contacts with email × ${minC} min + ${icebreakers} icebreakers × ${minI} min, at €${rate}/h. Contacts without an address are not counted.`,
+    roiSubscriptions: (monthly: number, days: number) =>
+      `Costs include $${monthly.toFixed(2)}/month in plans, pro-rated for ${days} days.`,
+    roiNoSubscriptions: "Measured usage only — your plans for Instantly, Apollo and the rest are missing from this.",
+    roiEnterCosts: "Enter them now",
+    roiCostsSince: (date: string) =>
+      `Costs have only been recorded since ${date} — for the period before that they are missing, not zero.`,
     instantlySent: "Sent (Instantly)",
     instantlyReplies: "unique replies",
     instantlyBounceRate: "Bounce rate",
@@ -1747,7 +1779,7 @@ const en: Dictionary = {
     tasksOverdue: "overdue",
     tasksAllOnTime: "all on schedule",
     chartTitle: (days: number) => `New leads: last ${days} days`,
-    rangeOptions: { "7": "7 days", "14": "14 days", "30": "30 days", "90": "90 days" },
+    rangeOptions: { "7": "7 days", "14": "14 days", "30": "30 days", "90": "90 days", "0": "All time" },
     emailsSent: "emails sent",
     replies: "replies",
     recentLeads: "Latest leads",
@@ -1791,6 +1823,16 @@ const en: Dictionary = {
     colCalls: "Calls",
     colCost: "Cost",
     tariffDependent: "depends on plan",
+    splitUsage: "Usage",
+    splitPlans: "Plans",
+    splitProRated: (monthly: number, days: number) =>
+      `$${monthly.toFixed(2)}/month, pro-rated for ${days} days`,
+    subsTitle: "What your plans cost",
+    subsHint:
+      "Instantly has no countable call, and what an Apollo or Hunter credit is worth depends on the package you booked. The app cannot measure this — enter what you pay per month and the cost figure on the dashboard becomes correct. Leaving a field empty means \"I don't know\", 0 means \"free plan\".",
+    subsPerMonth: "/month",
+    subsTotal: "Together",
+    subsSaved: "Plans saved",
     methodNote:
       "Every paid call writes a row with the amount actually consumed as it runs. For OpenAI those are the tokens the API itself reports, so a correction attempt counts twice. For Apollo every revealed address counts, even when the record was discarded afterwards.",
   },

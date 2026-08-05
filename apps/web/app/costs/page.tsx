@@ -3,6 +3,7 @@ import { getCurrentWorkspace } from "@/lib/workspace/server";
 import { getLangServer } from "@/lib/i18n/lang";
 import { dict } from "@/lib/i18n/dict";
 import Link from "next/link";
+import Subscriptions from "./subscriptions";
 
 // Aufschluesselung der tatsaechlich verbrauchten API-Mengen.
 //
@@ -70,6 +71,24 @@ export default async function CostsPage({
   });
   const summary = (data as Summary | null) ?? { total_usd: 0, providers: [] };
 
+  // Die eingetragenen Monatstarife (Migration 0077). Sie sind der Teil der
+  // Kosten, den kein Zaehler messen kann -- Instantly hat gar keinen Aufruf,
+  // und was ein Apollo-Credit wert ist, haengt am gebuchten Paket.
+  const { data: subsRows } = await supabase
+    .from("provider_subscriptions")
+    .select("provider, monthly_usd")
+    .eq("workspace_id", ws.workspace.id);
+  const subs = Object.fromEntries(
+    ((subsRows ?? []) as { provider: string; monthly_usd: number }[]).map((r) => [
+      r.provider,
+      Number(r.monthly_usd),
+    ])
+  );
+  const subsMonthly = Object.values(subs).reduce((a, b) => a + b, 0);
+  // Anteilig auf denselben Zeitraum wie der gemessene Verbrauch darueber --
+  // sonst stuenden in einer Summe ein Monat und sieben Tage nebeneinander.
+  const subsInRange = subsMonthly * (rangeDays / 30);
+
   function formatUnits(units: Record<string, number> | null): string {
     if (!units) return "—";
     return Object.entries(units)
@@ -108,10 +127,23 @@ export default async function CostsPage({
       <div className="rounded-lg border border-edge/60 bg-panel p-5">
         <div className="text-xs uppercase tracking-wide text-faint">{C.totalLabel}</div>
         <div className="mt-1 text-3xl font-semibold text-strong">
-          ${summary.total_usd.toFixed(2)}
+          ${(summary.total_usd + subsInRange).toFixed(2)}
         </div>
+        {/* Die Summe getrennt ausweisen, nicht nur addieren: das eine ist
+            gemessen, das andere eingetragen. Wer sie nicht auseinanderhalten
+            kann, weiss nicht, welchem Teil er trauen darf. */}
+        <p className="mt-1 text-xs text-soft">
+          {C.splitUsage} <span className="tabular-nums text-strong">${summary.total_usd.toFixed(2)}</span>
+          {" · "}
+          {C.splitPlans} <span className="tabular-nums text-strong">${subsInRange.toFixed(2)}</span>
+          {subsMonthly > 0 && (
+            <span className="text-mute"> ({C.splitProRated(subsMonthly, rangeDays)})</span>
+          )}
+        </p>
         <p className="mt-2 text-xs leading-relaxed text-mute">{C.totalHint}</p>
       </div>
+
+      <Subscriptions initial={subs} />
 
       {summary.providers.length === 0 ? (
         <div className="rounded-lg border border-edge/60 bg-panel p-10 text-center text-faint">
