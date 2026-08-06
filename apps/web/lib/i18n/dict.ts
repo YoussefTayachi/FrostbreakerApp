@@ -494,6 +494,11 @@ const de = {
     verifyValid: "gültig",
     verifyInvalid: "ungültig",
     columns: "Spalten",
+    trafficRankBadge: (rang: number) => `Rang ${rang.toLocaleString("de-DE")}`,
+    trafficRankTitle: (quelle: string): string =>
+      quelle === "tranco"
+        ? "Popularitätsrang der Website laut Tranco (täglich aktualisiert, Top 1 Mio.). Kleiner = größer. Keine Besuchszahl."
+        : "Popularitätsrang der Website laut Apollo (Alexa-Altbestand, seit 2022 nicht mehr aktualisiert). Kleiner = größer. Keine Besuchszahl — und wo nichts steht, heißt das „unbekannt“, nicht „wenig“.",
     columnLabels: {
       title: "Position", email: "E-Mail", phone: "Telefon", sources: "Quellen",
       company_summary: "Firmenbeschreibung", status: "Status",
@@ -2213,6 +2218,11 @@ const en: Dictionary = {
     verifyValid: "valid",
     verifyInvalid: "invalid",
     columns: "Columns",
+    trafficRankBadge: (rank: number) => `Rank ${rank.toLocaleString("en-US")}`,
+    trafficRankTitle: (source: string): string =>
+      source === "tranco"
+        ? "Website popularity rank per Tranco (updated daily, top 1M). Lower = bigger. Not a visit count."
+        : "Website popularity rank per Apollo (legacy Alexa data, not updated since 2022). Lower = bigger. Not a visit count — and a missing rank means \"unknown\", not \"small\".",
     columnLabels: {
       title: "Title", email: "Email", phone: "Phone", sources: "Sources",
       company_summary: "Company summary", status: "Status",

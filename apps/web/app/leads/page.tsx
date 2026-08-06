@@ -16,7 +16,7 @@ export default async function LeadsPage() {
   const [contactsRes, searchesRes, suppressionRes] = await Promise.all([
     supabase
       .from("contacts")
-      .select("*, businesses(name, website, personalization, company_summary, search_id, address, phone_national, decisionmaker_status, hunter_status)")
+      .select("*, businesses(name, website, personalization, company_summary, search_id, address, phone_national, decisionmaker_status, hunter_status, traffic_rank, traffic_rank_source)")
       .eq("workspace_id", workspaceId)
       .order("created_at", { ascending: false })
       .limit(1000),

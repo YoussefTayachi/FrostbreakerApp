@@ -200,12 +200,35 @@ def prospeo_leads_today(ws: str) -> int:
     return res.count or 0
 
 
+def _rank_fields(
+    rank_of: Callable[[str], tuple[int | None, str | None]] | None, website: str
+) -> dict:
+    """Die drei Rang-Spalten fuer eine Firma, oder ein leeres Dictionary.
+
+    Leer statt None-Werte: eine Zeile ohne Rang soll gar keine
+    traffic_rank-Spalten mitschicken. So bleibt ein spaeter nachgetragener
+    Rang (etwa aus Tranco) unterscheidbar von einem, der aktiv als "nicht
+    vorhanden" geschrieben wurde.
+    """
+    if rank_of is None:
+        return {}
+    rank, source = rank_of(website)
+    if rank is None:
+        return {}
+    return {
+        "traffic_rank": rank,
+        "traffic_rank_source": source,
+        "traffic_rank_at": datetime.now(timezone.utc).isoformat(),
+    }
+
+
 def _store_people_pairs(
     search: dict,
     ws: str,
     pairs: list[dict],
     transport_field: str,
     summary_of: Callable[[str], str | None],
+    rank_of: Callable[[str], tuple[int | None, str | None]] | None = None,
 ) -> tuple[int, int]:
     """Personen-plus-Firma-Paare entdoppeln, filtern und schreiben.
 
@@ -222,6 +245,10 @@ def _store_people_pairs(
       summary_of       woher die Firmenbeschreibung kommt. Apollo holt sie
                        in einem eigenen, kostenlosen Aufruf ueber die Domain;
                        Prospeo liefert sie je Treffer gleich mit
+      rank_of          Popularitaetsrang und dessen Quelle je Website
+                       (Migration 0079). Optional, weil ihn nicht jeder Weg
+                       liefert: Google Maps kennt so etwas gar nicht, und
+                       Prospeo gibt ihn nur im Pro-Tarif heraus.
 
     Gibt (geschriebene Firmen, geschriebene Kontakte) zurueck. 0 Firmen heisst
     "geliefert, aber alles schon bekannt oder gesperrt" -- eine ganz andere
@@ -269,6 +296,10 @@ def _store_people_pairs(
             # Leer lassen, wenn nichts da ist: personalize hat dann weiterhin
             # den Website-Rueckfall.
             "company_summary": summary_of(w),
+            # Rang, Quelle und Zeitpunkt zusammen -- eine nackte Zahl liesse
+            # nicht erkennen, ob sie von heute stammt oder aus Alexas
+            # Altbestand (siehe Migration 0079).
+            **_rank_fields(rank_of, w),
         }
         for w in websites
     ]
@@ -372,8 +403,20 @@ def run_apollo(search: dict, ws: str) -> None:
     # von 45 Firmen eine Zeile. Ueber Apollos Firmen-Endpunkt waren es 35 von
     # 35 -- und er kostet keine Credits, weil Apollo nur Exporte abrechnet.
     websites = sorted({p["business"]["website"] for p in pairs if p["business"].get("website")})
-    summaries = apollo.fetch_company_summaries(
-        [domain_of(w) or "" for w in websites], api_key
+    # fetch_company_facts statt fetch_company_summaries: derselbe Aufruf,
+    # aber er gibt zusaetzlich das alexa_ranking heraus, das bis 2026-08-05
+    # weggeworfen wurde (Migration 0079).
+    #
+    # Der Aufruf KOSTET Credits -- 1 je Firma. Bis 2026-08-05 stand in
+    # apollo.py das Gegenteil, und deshalb wurde er nie verbucht. Eine
+    # Apollo-Suche kostet damit rund doppelt so viel, wie die Kostenseite
+    # bisher auswies: einmal fuer die Adressen, einmal fuer die Firmendaten.
+    facts = apollo.fetch_company_facts(
+        [domain_of(w) or "" for w in websites],
+        api_key,
+        on_charge=lambda n: usage.record(
+            ws, "apollo", "organizations/bulk_enrich", n, "credits", search_id=search["id"]
+        ),
     )
 
     companies, _contacts = _store_people_pairs(
@@ -381,7 +424,11 @@ def run_apollo(search: dict, ws: str) -> None:
         ws,
         pairs,
         transport_field="apollo_id",  # nur Transportfeld fuer bulk_match
-        summary_of=lambda w: summaries.get(domain_of(w) or ""),
+        summary_of=lambda w: (facts.get(domain_of(w) or "") or {}).get("summary"),
+        rank_of=lambda w: (
+            (facts.get(domain_of(w) or "") or {}).get("traffic_rank"),
+            "apollo_alexa",
+        ),
     )
     if companies == 0:
         # Hier ist die Ursache bekannt und die Filter sind unschuldig: Apollo

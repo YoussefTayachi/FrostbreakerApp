@@ -373,34 +373,126 @@ def _bulk_enrich_chunk(domains: list[str], api_key: str) -> dict[str, dict]:
     return out
 
 
-def fetch_company_summaries(domains: list[str], api_key: str) -> dict[str, str]:
-    """Firmenbeschreibungen zu Domains holen, Domain -> Text.
+# Domains, hinter denen keine EINZELNE Firma steht.
+#
+# Warum das noetig ist -- am 2026-08-05 im Bestand gefunden:
+#
+#   Restauracja Quattro Leczyca   facebook.com/restauracjaquattro...   Rang 13
+#   Style Cut Barbershop Kiel     instagram.com/style_cut_kiel         Rang 19
+#
+# Bei Firmen aus Google Maps ist die hinterlegte "Website" oft ein
+# Social-Media-Profil. Die Domain daraus ist facebook.com bzw. instagram.com,
+# und Apollo liefert dann brav die Daten DER PLATTFORM: Facebooks Rang,
+# Facebooks Beschreibung, Facebooks Mitarbeiterzahl. Ein Friseursalon stand so
+# als 19.-groesste Website der Welt in der Datenbank.
+#
+# Der Rang ist dabei das kleinere Uebel -- er sieht wenigstens absurd aus. Die
+# BESCHREIBUNG waere schlimmer: sie fliesst in den Aufhaenger, und "Facebook
+# is a social networking service" als Eroeffnungszeile an einen polnischen
+# Restaurantbesitzer ist die Sorte Fehler, die eine Kampagne verbrennt.
+#
+# Deshalb wird fuer solche Domains gar nicht erst gefragt: das spart zugleich
+# einen Credit je Abruf (1 Credit pro Firma, siehe BULK_ORG_URL).
+PLATFORM_DOMAINS = frozenset({
+    # Soziale Netzwerke
+    "facebook.com", "fb.com", "instagram.com", "linkedin.com", "twitter.com",
+    "x.com", "tiktok.com", "youtube.com", "pinterest.com", "threads.net",
+    "wa.me", "t.me", "linktr.ee",
+    # Baukaesten und Hoster, bei denen die Firma auf einer Unterseite sitzt
+    "wix.com", "wixsite.com", "wordpress.com", "blogspot.com", "weebly.com",
+    "squarespace.com", "jimdo.com", "jimdosite.com", "webnode.com",
+    "business.site", "sites.google.com", "google.com", "shopify.com",
+    "myshopify.com", "godaddysites.com", "strikingly.com", "carrd.co",
+    # Marktplaetze und Verzeichnisse
+    "etsy.com", "amazon.com", "amazon.de", "ebay.com", "ebay.de",
+    "yelp.com", "yelp.de", "tripadvisor.com", "tripadvisor.de",
+    "booking.com", "opentable.com", "lieferando.de", "ubereats.com",
+})
 
-    Warum das ueberhaupt gebraucht wird: Apollos Personensuche liefert im
-    organization-Objekt ausschliesslich den Namen und ein paar has_*-Flags,
-    also nichts, woraus sich eine Eroeffnungszeile schreiben liesse. Ohne
-    diesen Schritt faellt personalize auf den Website-Text zurueck -- und den
-    holen die meisten Shops nicht heraus: gemessen an einer echten Suche
-    antworteten 12 von 12 Seiten mit HTTP 429 auf unseren Crawler, am Ende
-    hatten nur 10 von 45 Firmen eine Zeile. Ueber diesen Endpunkt waren es
-    35 von 35.
 
-    Kostet keine Credits: Apollo rechnet nur Exporte ab (Freischalten von
-    Adressen), Firmendaten stehen nicht in der Verbrauchsuebersicht. Deshalb
-    ist der Aufruf hier unkritisch, auch fuer jede Firma einzeln.
+def is_platform_domain(domain: str | None) -> bool:
+    """Steht hinter dieser Domain eine Plattform statt einer Firma?
 
-    Wirft nicht bei einzelnen Fehlschlaegen: eine fehlende Beschreibung soll
-    die Suche nicht kippen, personalize hat weiterhin den Website-Fallback.
+    Prueft auch Unterdomains: 'de-de.facebook.com' und 'shop.wixsite.com'
+    zaehlen mit, sonst haette die Liste hunderte Eintraege.
     """
-    out: dict[str, str] = {}
-    clean = [d.strip().lower() for d in domains if d and d.strip()]
+    if not domain:
+        return False
+    d = domain.strip().lower().removeprefix("www.")
+    if d in PLATFORM_DOMAINS:
+        return True
+    return any(d.endswith("." + p) for p in PLATFORM_DOMAINS)
+
+
+def alexa_rank(org: dict) -> int | None:
+    """Apollos alexa_ranking als geprueften Rang, oder None.
+
+    Kleiner = groesser. Am 2026-08-05 an echten Domains nachgesehen:
+    shopify.com 134, thredup.com 19 072, mtailor.com 633 392 -- die Rangfolge
+    passt zur Wirklichkeit.
+
+    ACHTUNG, das gehoert zu jeder Verwendung dazu: Alexa wurde 2022
+    eingestellt. Was Apollo hier ausliefert, ist Altbestand. Fuer alles, was
+    seither gestartet oder deutlich gewachsen ist, fehlt der Wert oder er
+    stimmt nicht mehr -- chatarmin.com etwa hat gar keinen. Deshalb speichert
+    get_businesses zusaetzlich Quelle und Datum (Migration 0079), statt eine
+    nackte Zahl abzulegen, der man ihr Alter nicht ansieht.
+
+    None bei allem, was kein positiver Ganzzahlwert ist. Eine 0 waere kein
+    "sehr gross", sondern ein Uebertragungsfehler.
+    """
+    raw = org.get("alexa_ranking") if isinstance(org, dict) else None
+    if raw is None or isinstance(raw, bool):
+        return None
+    try:
+        rank = int(raw)
+    except (TypeError, ValueError):
+        return None
+    return rank if rank > 0 else None
+
+
+def fetch_company_facts(
+    domains: list[str],
+    api_key: str,
+    on_charge: Callable[[int], None] | None = None,
+) -> dict[str, dict]:
+    """Alles, was ein Apollo-Firmendatensatz fuer uns hergibt, je Domain.
+
+    Gibt {domain: {"summary": str|None, "traffic_rank": int|None}} zurueck.
+
+    Ein Aufruf statt zweier: _bulk_enrich_chunk liefert ohnehin das ganze
+    organization-Objekt, und bis 2026-08-05 wurde davon alles ausser der
+    Beschreibung weggeworfen -- auch das alexa_ranking, das jetzt als
+    Groessenanhaltspunkt in businesses.traffic_rank landet.
+
+    KOSTET CREDITS: 1 je zurueckgelieferter Firma (Apollos Preisdoku, im
+    Betrieb bestaetigt). Gemeldet wird ueber on_charge -- gezaehlt werden die
+    tatsaechlich gelieferten Firmen, nicht die angefragten Domains: fuer eine
+    Domain, die Apollo nicht kennt, wird auch nichts abgerechnet.
+
+    Wirft nicht bei einzelnen Fehlschlaegen: fehlende Zusatzdaten sollen die
+    Suche nicht kippen, personalize hat weiterhin den Website-Rueckfall.
+    """
+    out: dict[str, dict] = {}
+    # Plattform-Domains fliegen VOR dem Aufruf raus: Apollo wuerde sonst die
+    # Daten von Facebook oder Instagram zurueckgeben, und der Abruf kostet
+    # zusaetzlich einen Credit fuer eine Antwort, die niemand brauchen kann.
+    clean = [
+        d.strip().lower()
+        for d in domains
+        if d and d.strip() and not is_platform_domain(d)
+    ]
     for i in range(0, len(clean), BULK_ORG_CHUNK):
         chunk = clean[i : i + BULK_ORG_CHUNK]
         try:
-            for domain, org in _bulk_enrich_chunk(chunk, api_key).items():
-                summary = build_company_summary(org)
-                if summary:
-                    out[domain] = summary
+            found = _bulk_enrich_chunk(chunk, api_key)
+            if on_charge and found:
+                on_charge(len(found))
+            for domain, org in found.items():
+                out[domain] = {
+                    "summary": build_company_summary(org),
+                    "traffic_rank": alexa_rank(org),
+                }
         except ApolloPlanError:
             raise
         except Exception as exc:  # noqa: BLE001 -- Zusatzdaten, kein Arbeitsschritt
@@ -408,6 +500,24 @@ def fetch_company_summaries(domains: list[str], api_key: str) -> dict[str, str]:
         if i + BULK_ORG_CHUNK < len(clean):
             time.sleep(PAGE_PAUSE_S)
     return out
+
+
+def fetch_company_summaries(
+    domains: list[str],
+    api_key: str,
+    on_charge: Callable[[int], None] | None = None,
+) -> dict[str, str]:
+    """Nur die Beschreibungen. Duenne Huelle um fetch_company_facts.
+
+    Bleibt bestehen, weil sie das ist, was der Name verspricht -- und weil
+    Aufrufer, die nur den Text brauchen, sich nicht mit einem Dictionary je
+    Domain befassen sollen.
+    """
+    return {
+        domain: facts["summary"]
+        for domain, facts in fetch_company_facts(domains, api_key, on_charge).items()
+        if facts.get("summary")
+    }
 
 
 def _headers(api_key: str) -> dict:

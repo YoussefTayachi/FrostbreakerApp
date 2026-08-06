@@ -13,6 +13,8 @@ from worker.pipelines.apollo import (
     candidate_ids,
     enrich_people,
     explain_empty_result,
+    alexa_rank,
+    is_platform_domain,
     build_company_summary,
     fetch_company_summaries,
     MAX_SUMMARY_CHARS,
@@ -473,3 +475,79 @@ def test_company_summaries_pass_a_plan_error_through(monkeypatch):
     monkeypatch.setattr("worker.pipelines.apollo._bulk_enrich_chunk", blocked)
     with pytest.raises(ApolloPlanError):
         fetch_company_summaries(["a.com"], "key")
+
+
+class TestAlexaRank:
+    """Apollos alexa_ranking als Groessenanhaltspunkt (Migration 0079).
+
+    Am 2026-08-05 an echten Domains geprueft -- die Rangfolge passt:
+    shopify.com 134, thredup.com 19 072, mtailor.com 633 392.
+
+    Der Endpunkt (organizations/bulk_enrich) wird von run_apollo ohnehin bei
+    jeder Suche aufgerufen und kostet keine Credits. Das Feld wurde bis dahin
+    nur weggeworfen.
+    """
+
+    def test_nimmt_einen_positiven_rang(self):
+        assert alexa_rank({"alexa_ranking": 134}) == 134
+
+    def test_nimmt_auch_eine_zahl_als_zeichenkette(self):
+        assert alexa_rank({"alexa_ranking": "19072"}) == 19072
+
+    def test_fehlender_rang_ist_none_nicht_null(self):
+        """Kein Rang heisst "unbekannt", nicht "unbeliebt". Eine 0 wuerde in
+        der Sortierung als der groesste Laden der Welt erscheinen."""
+        assert alexa_rank({"alexa_ranking": None}) is None
+        assert alexa_rank({}) is None
+
+    def test_verwirft_null_und_negative_werte(self):
+        assert alexa_rank({"alexa_ranking": 0}) is None
+        assert alexa_rank({"alexa_ranking": -5}) is None
+
+    def test_verwirft_wahrheitswerte(self):
+        """bool ist in Python ein int -- ohne die ausdrueckliche Pruefung
+        wuerde True zu Rang 1 und die Firma zur groessten im Bestand."""
+        assert alexa_rank({"alexa_ranking": True}) is None
+        assert alexa_rank({"alexa_ranking": False}) is None
+
+    def test_verwirft_unbrauchbaren_text(self):
+        assert alexa_rank({"alexa_ranking": "k.A."}) is None
+
+    def test_kommt_mit_kaputtem_objekt_zurecht(self):
+        assert alexa_rank(None) is None
+        assert alexa_rank("nope") is None
+
+
+class TestPlattformDomains:
+    """Hinter facebook.com steht keine einzelne Firma.
+
+    Am 2026-08-05 im Bestand gefunden: ein polnisches Restaurant mit
+    facebook.com als "Website" bekam Facebooks Rang 13, zwei Kieler Friseure
+    mit instagram.com-Profilen Instagrams Rang 19.
+
+    Der Rang war dabei das kleinere Uebel -- die BESCHREIBUNG waere schlimmer
+    gewesen: sie fliesst in den Aufhaenger.
+    """
+
+    def test_erkennt_soziale_netzwerke(self):
+        assert is_platform_domain("facebook.com")
+        assert is_platform_domain("instagram.com")
+        assert is_platform_domain("linkedin.com")
+
+    def test_erkennt_unterdomains(self):
+        """Sonst muesste die Liste hunderte Laendervarianten enthalten."""
+        assert is_platform_domain("de-de.facebook.com")
+        assert is_platform_domain("shop.wixsite.com")
+
+    def test_ignoriert_www(self):
+        assert is_platform_domain("www.instagram.com")
+
+    def test_echte_firmendomains_bleiben_drin(self):
+        assert not is_platform_domain("mtailor.com")
+        assert not is_platform_domain("charite.de")
+        # Knifflig: enthaelt "amazon", ist aber eine eigene Firma.
+        assert not is_platform_domain("amazonas-shop.de")
+
+    def test_kommt_mit_leer_zurecht(self):
+        assert not is_platform_domain(None)
+        assert not is_platform_domain("")

@@ -40,6 +40,8 @@ type Contact = {
     address?: string | null;
     phone_national?: string | null;
     decisionmaker_status?: string | null;
+    traffic_rank?: number | null;
+    traffic_rank_source?: string | null;
     hunter_status?: string | null;
   } | null;
 };
@@ -75,6 +77,10 @@ type Group = {
   phone_national: string | null;
   decisionmaker_status: string | null;
   hunter_status: string | null;
+  /** Popularitaetsrang der Website, kleiner = groesser (Migration 0079).
+   *  Null heisst "unbekannt", NICHT "wenig Besucher". */
+  traffic_rank: number | null;
+  traffic_rank_source: string | null;
   contacts: Merged[];
 };
 
@@ -205,6 +211,8 @@ function groupContacts(contacts: Contact[]): Group[] {
         phone_national: b?.phone_national ?? null,
         decisionmaker_status: b?.decisionmaker_status ?? null,
         hunter_status: b?.hunter_status ?? null,
+        traffic_rank: b?.traffic_rank ?? null,
+        traffic_rank_source: b?.traffic_rank_source ?? null,
         contacts: [],
       };
       groups.set(key, g);
@@ -832,6 +840,18 @@ export default function LeadsTable({
                       {g.website && (
                         <span className="truncate text-xs text-faint">
                           {g.website.replace(/^https?:\/\//, "")}
+                        </span>
+                      )}
+                      {/* Popularitaetsrang, wo einer bekannt ist. Bewusst NUR
+                          dort: eine Plakette "—" an jeder zweiten Zeile waere
+                          Rauschen, und ein fehlender Rang heisst "unbekannt",
+                          nicht "unbedeutend" (siehe Migration 0079). */}
+                      {g.traffic_rank !== null && (
+                        <span
+                          title={L.trafficRankTitle(g.traffic_rank_source ?? "")}
+                          className="shrink-0 rounded-full border border-edge2 bg-chip px-1.5 py-0.5 text-[10px] tabular-nums text-mute"
+                        >
+                          {L.trafficRankBadge(g.traffic_rank)}
                         </span>
                       )}
                     </span>
