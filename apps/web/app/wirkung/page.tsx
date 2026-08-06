@@ -372,7 +372,11 @@ function CopySection({
                   <div className="divide-y divide-edge2/50">
                     {list.map((b) => {
                       const hasVariants = list.some((o) => o.step === b.step && o.variant !== b.variant);
-                      const isBest = best?.key === b.key && (b.meetings > 0 || b.interested > 0 || b.replies > 0);
+                      // bestBucket liefert nur noch etwas, wenn es einen echten Erfolg gab
+                      // (Termin oder interessierte Antwort) -- die zusaetzliche
+                      // Pruefung hier waere doppelt und stand vorher genau dem
+                      // im Weg: sie liess auch reine Absagen gewinnen.
+                      const isBest = best?.key === b.key;
                       return (
                         <div
                           key={b.key}

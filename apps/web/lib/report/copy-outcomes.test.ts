@@ -216,6 +216,24 @@ describe("bestBucket", () => {
     expect(bestBucket(buckets)?.step).toBe(1);
   });
 
+  /**
+   * Der Fehler, der am 2026-08-05 auf dem Bildschirm stand: markiert war
+   * "Schritt 1 B -- 2 Absagen, 0 interessiert" als BESTER SCHRITT, direkt
+   * unter der Warnung, dass die Antwortquote allein die falsche Zielgroesse
+   * ist. Ein Sieger ohne Sieg ist schlimmer als kein Sieger.
+   */
+  it("kuert keinen Sieger, wenn es nur Absagen gab", () => {
+    const out = [
+      ...sends(MIN_SAMPLE, { step: 0 }, "a"),
+      ...sends(MIN_SAMPLE, { step: 1 }, "b"),
+    ];
+    const replies = [
+      reply("b0", "not_interested", { step: 1 }),
+      reply("b1", "not_interested", { step: 1 }),
+    ];
+    expect(bestBucket(byCopy(out, replies, new Set()))).toBeNull();
+  });
+
   it("gibt null zurueck, wenn es nichts zu vergleichen gibt", () => {
     expect(bestBucket([])).toBeNull();
   });

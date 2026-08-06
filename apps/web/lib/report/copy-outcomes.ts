@@ -265,14 +265,28 @@ export function summarize(outbound: OutboundRow[], buckets: CopyBucket[]): CopyS
   };
 }
 
-/** Die staerkste Zeile je Kampagne -- fuer die Hervorhebung in der Anzeige.
- *  Termine schlagen interessierte Antworten, die schlagen Antworten. */
+/**
+ * Die staerkste Zeile je Kampagne -- fuer die Hervorhebung in der Anzeige.
+ *
+ * Termine schlagen interessierte Antworten. Sonst nichts.
+ *
+ * WARUM ANTWORTEN HIER NICHT ALS RUECKFALL DIENEN
+ *
+ * Sie taten es kurz, und das Ergebnis stand am 2026-08-05 auf dem Bildschirm:
+ * markiert war "Schritt 1 B -- 2 Absagen, 0 interessiert" als BESTER SCHRITT.
+ * Direkt unter der Warnung, dass die Antwortquote allein die falsche
+ * Zielgroesse ist. Die Anzeige widersprach damit dem Satz, den sie selbst
+ * darueber schreibt.
+ *
+ * Gibt es nirgends einen Termin und keine interessierte Antwort, gibt es
+ * eben keinen besten Schritt -- und dann wird auch keiner hervorgehoben.
+ * Ein Sieger ohne Sieg ist schlimmer als kein Sieger.
+ */
 export function bestBucket(buckets: CopyBucket[]): CopyBucket | null {
-  const usable = buckets.filter((b) => b.contacts > 0);
+  const usable = buckets.filter((b) => b.contacts > 0 && (b.meetings > 0 || b.interested > 0));
   if (usable.length === 0) return null;
   return usable.reduce((best, b) => {
     if (b.meetings !== best.meetings) return b.meetings > best.meetings ? b : best;
-    if (b.interested !== best.interested) return b.interested > best.interested ? b : best;
-    return b.replies > best.replies ? b : best;
+    return b.interested > best.interested ? b : best;
   });
 }
