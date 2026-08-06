@@ -153,6 +153,12 @@ export function byCopy(
     // stillschweigend Schritt 0 zuzuschlagen waere genau der Fehler, gegen den
     // parseStepRef null zurueckgibt.
     if (row.step === null || row.variant === null || !row.contactId) continue;
+    // Ohne lokale Kampagne ebenfalls nicht: das sind Mails aus Kampagnen, die
+    // bei Instantly geloescht wurden. Sie standen bis hierher als eigene
+    // Gruppe "(nur bei Instantly)" ganz oben in der Auswertung -- an der
+    // prominentesten Stelle also das, was am wenigsten aussagt. Gezaehlt
+    // werden sie weiterhin (siehe summarize), nur eben nicht als Zeile.
+    if (!row.campaignId) continue;
     ensure(row.campaignId, row.campaignName, row.step, row.variant).contacts.add(row.contactId);
   }
 
@@ -238,14 +244,35 @@ export function variantLabel(index: number): string {
 }
 
 export type CopySummary = {
-  /** Nachrichten ohne Zuordnung. Über 0 heisst: die Auswertung ist unvollstaendig. */
+  /** Nachrichten ohne Schritt/Fassung. Über 0 heisst: die Zuordnung fehlt. */
   unattributed: number;
+  /**
+   * Nachrichten aus Kampagnen, die es lokal nicht (mehr) gibt -- weil sie bei
+   * Instantly geloescht wurden. Sie erscheinen nicht mehr als eigene Zeile,
+   * verschwinden aber auch nicht stillschweigend: eine Zahl ohne Erklaerung
+   * waere hier schlimmer als eine unbequeme Zeile.
+   */
+  orphaned: number;
   buckets: number;
 };
 
 export function summarize(outbound: OutboundRow[], buckets: CopyBucket[]): CopySummary {
+  const attributed = outbound.filter((r) => r.step !== null && r.variant !== null);
   return {
-    unattributed: outbound.filter((r) => r.step === null || r.variant === null).length,
+    unattributed: outbound.length - attributed.length,
+    orphaned: attributed.filter((r) => !r.campaignId).length,
     buckets: buckets.length,
   };
+}
+
+/** Die staerkste Zeile je Kampagne -- fuer die Hervorhebung in der Anzeige.
+ *  Termine schlagen interessierte Antworten, die schlagen Antworten. */
+export function bestBucket(buckets: CopyBucket[]): CopyBucket | null {
+  const usable = buckets.filter((b) => b.contacts > 0);
+  if (usable.length === 0) return null;
+  return usable.reduce((best, b) => {
+    if (b.meetings !== best.meetings) return b.meetings > best.meetings ? b : best;
+    if (b.interested !== best.interested) return b.interested > best.interested ? b : best;
+    return b.replies > best.replies ? b : best;
+  });
 }

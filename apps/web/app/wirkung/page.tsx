@@ -13,6 +13,7 @@ import {
   type OutboundRow,
 } from "@/lib/report/effectiveness";
 import {
+  bestBucket,
   byCopy,
   summarize,
   variantLabel,
@@ -167,6 +168,7 @@ export default async function WirkungPage() {
   const copy = byCopy(copyRows, replyRows, meetings);
   const copySummary = summarize(copyRows, copy);
 
+
   return (
     <div className="fade-up max-w-3xl space-y-6">
       <div>
@@ -174,22 +176,14 @@ export default async function WirkungPage() {
         <p className="text-sm text-faint">{W.subtitle}</p>
       </div>
 
-      <div className="rounded-xl border border-edge2 bg-panel p-5">
-        <div className="flex flex-wrap items-baseline gap-x-6 gap-y-2">
-          <Stat label={W.contacted} value={String(total.contacted)} />
-          <Stat label={W.replied} value={String(total.replied)} />
-          <Stat
-            label={W.rate}
-            value={total.rate === null ? "—" : `${(total.rate * 100).toFixed(1)} %`}
-            strong
-          />
-        </div>
-        {/* Der wichtigste Satz der Seite, solange er zutrifft: eine Quote aus
-            zu wenigen Kontakten sieht praezise aus und bedeutet nichts. */}
-        {total.rate === null && <p className="mt-2 text-xs text-amber-600 dark:text-amber-500">{W.tooEarly(total.missing)}</p>}
-      </div>
+      <Funnel total={total} meetings={meetings.size} labels={W} />
 
-      <CopySection buckets={copy} unattributed={copySummary.unattributed} labels={W} />
+      <CopySection
+        buckets={copy}
+        unattributed={copySummary.unattributed}
+        orphaned={copySummary.orphaned}
+        labels={W}
+      />
 
       <Section title={W.bySearch} hint={W.bySearchHint} buckets={searches} empty={W.noData} labels={W} />
       <Section title={W.byWeekday} hint={W.byWeekdayHint} buckets={weekdays} empty={W.noData} labels={W} />
@@ -200,50 +194,146 @@ export default async function WirkungPage() {
   );
 }
 
+/* ══════════════════════════════════════════════════════════════════════
+   Gestaltung
+   ══════════════════════════════════════════════════════════════════════
+
+   Die Zahlen dieser Seite sind klein und die Quoten winzig -- ein bis zwei
+   Antworten auf zweihundert Kontakte. Das ist die eigentliche gestalterische
+   Aufgabe hier: ein Balken, der 1 % massstabsgetreu zeichnet, ist ein
+   unsichtbarer Strich, und eine Tabelle voller Striche liest niemand.
+
+   Deshalb zwei Kunstgriffe, beide bewusst:
+
+     1. Balken sind fuenffach ueberhoeht (RATE_SCALE). Sie taugen damit zum
+        VERGLEICHEN zweier Zeilen, nicht zum Ablesen -- die Zahl steht
+        daneben. Dieselbe Ueberhoehung wie in der Lead-Listen-Ansicht, damit
+        die Balken der Seite untereinander vergleichbar bleiben.
+
+     2. Die Zusammensetzung steht als farbige Chips daneben, nicht als
+        Balkenabschnitte. Bei zwei Absagen auf 149 Kontakte waere ein
+        Abschnitt 1,3 % breit und nicht erkennbar; als Chip mit einer Zwei
+        ist er sofort lesbar.
+
+   Farben tragen Bedeutung, nicht Dekoration: gruen = etwas Gutes ist
+   passiert, rot = ausdrueckliches Nein, grau = Maschine. Sie stehen nie
+   allein -- daneben steht immer die Zahl und das Wort.
+   ══════════════════════════════════════════════════════════════════════ */
+
+/** Ueberhoehung der Balken. Siehe Kommentar oben. */
+const RATE_SCALE = 5;
+
+function barWidth(rate: number): string {
+  return `${Math.max(2, Math.min(100, rate * 100 * RATE_SCALE))}%`;
+}
+
 /**
- * Was welcher Text gebracht hat.
+ * Der Trichter: angeschrieben, geantwortet, Termin.
  *
- * Als Tabelle und nicht als Balken wie die drei Abschnitte darunter: dort
- * steht je Zeile EINE Quote, hier stehen sechs Zahlen, die man
- * nebeneinanderlegen muss. Ein Balken je Zeile wuerde eine davon zur
- * Hauptsache erklaeren -- und genau diese Verkuerzung ist der Fehler, vor dem
- * der Hinweis ueber der Tabelle warnt.
+ * Drei Zahlen, die zusammengehoeren und einzeln nichts sagen. Als Kacheln
+ * nebeneinander wirkten sie wie drei unabhaengige Messwerte -- mit Pfeilen
+ * dazwischen sieht man, dass es dieselben Menschen sind, die schmaler werden.
+ */
+function Funnel({
+  total,
+  meetings,
+  labels: L,
+}: {
+  total: { contacted: number; replied: number; rate: number | null; missing: number };
+  meetings: number;
+  labels: { contacted: string; replied: string; meetings: string; rate: string; tooEarly: (n: number) => string };
+}) {
+  const steps = [
+    { label: L.contacted, value: total.contacted, tone: "text-ink" },
+    { label: L.replied, value: total.replied, tone: "text-sky-600 dark:text-sky-400" },
+    { label: L.meetings, value: meetings, tone: "text-emerald-600 dark:text-emerald-400" },
+  ];
+  return (
+    <div className="rounded-xl border border-edge2 bg-gradient-to-br from-panel to-panel2/40 p-5">
+      <div className="flex items-stretch gap-2">
+        {steps.map((s, i) => (
+          <Fragment key={s.label}>
+            {i > 0 && (
+              <div className="flex items-center text-mute" aria-hidden>
+                <svg viewBox="0 0 12 24" className="h-5 w-3" fill="none" stroke="currentColor" strokeWidth="1.5">
+                  <path d="M3 5l5 7-5 7" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </div>
+            )}
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-[11px] uppercase tracking-wide text-mute">{s.label}</p>
+              <p className={"mt-0.5 text-3xl font-semibold tabular-nums " + s.tone}>{s.value}</p>
+            </div>
+          </Fragment>
+        ))}
+        <div className="hidden min-w-0 flex-1 border-l border-edge2 pl-4 sm:block">
+          <p className="truncate text-[11px] uppercase tracking-wide text-mute">{L.rate}</p>
+          <p className="mt-0.5 text-3xl font-semibold tabular-nums text-soft">
+            {total.rate === null ? "—" : `${(total.rate * 100).toFixed(1)} %`}
+          </p>
+        </div>
+      </div>
+      {total.rate === null && (
+        <p className="mt-3 text-xs text-amber-600 dark:text-amber-500">{L.tooEarly(total.missing)}</p>
+      )}
+    </div>
+  );
+}
+
+/** Eine farbige Zahl mit Wort. Null wird zu einem Strich in Grau -- eine
+ *  grosse bunte 0 zieht Aufmerksamkeit auf ein Nichtereignis. */
+function Count({ n, label, tone }: { n: number; label: string; tone: string }) {
+  if (n === 0) {
+    return (
+      <span className="whitespace-nowrap text-[11px] text-mute">
+        — {label}
+      </span>
+    );
+  }
+  return (
+    <span className={"whitespace-nowrap text-[11px] font-medium " + tone}>
+      {n} {label}
+    </span>
+  );
+}
+
+/**
+ * Was welcher Text gebracht hat -- je Kampagne eine Karte.
  *
- * Die Sequenz steht in ihrer eigenen Reihenfolge, nicht nach Erfolg sortiert:
- * die Frage lautet "wo bricht es ab".
+ * Vorher stand hier EINE Tabelle ueber alle Kampagnen, mit
+ * Zwischenueberschriften als Zeilen. Das las sich wie eine Kontoauszugsliste:
+ * sieben Spalten, alles gleich gewichtet, kein Anhaltspunkt, wo man
+ * hinschauen soll. Jetzt ist jede Kampagne eine Karte, jeder Schritt eine
+ * Zeile mit Balken, und die beste Zeile je Kampagne ist hervorgehoben.
  */
 function CopySection({
   buckets,
   unattributed,
+  orphaned,
   labels: L,
 }: {
   buckets: CopyBucket[];
   unattributed: number;
+  orphaned: number;
   labels: {
     byCopy: string;
     byCopyHint: string;
     copyWarning: string;
     noAttribution: string;
-    externalCampaign: string;
     unattributed: (n: number) => string;
+    orphaned: (n: number) => string;
+    externalCampaign: string;
     step: string;
-    variant: string;
     contacts: string;
     replies: string;
     interested: string;
     notInterested: string;
-    questions: string;
     meetings: string;
     autoReplies: string;
     thin: (n: number) => string;
+    bestStep: string;
   };
 }) {
-  // Mehrere Kampagnen: die Zwischenueberschrift verhindert, dass "Schritt 0"
-  // aus zwei Kampagnen wie derselbe Text aussieht.
-  //
-  // Der Ersatzname fuer Kampagnen ohne lokale Zeile kommt aus dem
-  // Woerterbuch, nicht aus der Rechenfunktion -- die kennt die eingestellte
-  // Sprache nicht.
   const groups = new Map<string, CopyBucket[]>();
   for (const b of buckets) {
     const name = b.campaignName || L.externalCampaign;
@@ -261,92 +351,110 @@ function CopySection({
         <p className="mt-3 text-sm text-faint">{L.noAttribution}</p>
       ) : (
         <>
-          <p className="mt-3 rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-xs text-amber-700 dark:text-amber-500">
-            {L.copyWarning}
+          <p className="mt-3 flex gap-2 rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-xs text-amber-700 dark:text-amber-500">
+            <span aria-hidden>⚠</span>
+            <span>{L.copyWarning}</span>
           </p>
 
-          <div className="mt-3 overflow-x-auto">
-            <table className="w-full min-w-[560px] text-sm">
-              <thead>
-                <tr className="border-b border-edge2 text-[11px] uppercase tracking-wide text-mute">
-                  <th className="py-1.5 pr-3 text-left font-normal">{L.step}</th>
-                  <th className="px-2 py-1.5 text-right font-normal">{L.contacts}</th>
-                  <th className="px-2 py-1.5 text-right font-normal">{L.replies}</th>
-                  <th className="px-2 py-1.5 text-right font-normal">{L.interested}</th>
-                  <th className="px-2 py-1.5 text-right font-normal">{L.notInterested}</th>
-                  <th className="px-2 py-1.5 text-right font-normal">{L.autoReplies}</th>
-                  {/* Die Spalte, auf die es ankommt, steht rechts aussen und
-                      traegt als einzige Farbe. */}
-                  <th className="py-1.5 pl-2 text-right font-normal text-ink">{L.meetings}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {[...groups.entries()].map(([campaign, list]) => (
-                  <Fragment key={campaign}>
-                    <tr>
-                      <td colSpan={7} className="pt-3 pb-1 text-xs font-medium text-soft">
-                        {campaign}
-                      </td>
-                    </tr>
-                    {list.map((b) => (
-                      <tr key={b.key} className="border-t border-edge2/60">
-                        <td className="py-1.5 pr-3 text-ink">
-                          {L.step} {b.step + 1}
-                          {/* Der Buchstabe nur, wo es ueberhaupt mehrere
-                              Fassungen gibt -- sonst suggeriert ein "A" an
-                              jeder Zeile einen Test, den es nicht gibt. */}
-                          {list.some((o) => o.step === b.step && o.variant !== b.variant) && (
-                            <span className="ml-1.5 rounded bg-chip px-1.5 py-0.5 text-[11px] text-soft">
-                              {variantLabel(b.variant)}
+          <div className="mt-4 space-y-4">
+            {[...groups.entries()].map(([campaign, list]) => {
+              const best = bestBucket(list);
+              const totalContacts = list.reduce((n, b) => Math.max(n, b.contacts), 0);
+              return (
+                <div key={campaign} className="overflow-hidden rounded-lg border border-edge2/70">
+                  <div className="flex flex-wrap items-baseline justify-between gap-2 border-b border-edge2/70 bg-panel2/50 px-3 py-2">
+                    <h3 className="text-sm font-medium text-ink">{campaign}</h3>
+                    <span className="text-[11px] tabular-nums text-mute">
+                      {totalContacts} {L.contacts}
+                    </span>
+                  </div>
+
+                  <div className="divide-y divide-edge2/50">
+                    {list.map((b) => {
+                      const hasVariants = list.some((o) => o.step === b.step && o.variant !== b.variant);
+                      const isBest = best?.key === b.key && (b.meetings > 0 || b.interested > 0 || b.replies > 0);
+                      return (
+                        <div
+                          key={b.key}
+                          className={
+                            "px-3 py-2.5 transition-colors " +
+                            (isBest ? "bg-emerald-500/[0.06]" : "hover:bg-wash")
+                          }
+                        >
+                          <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+                            <span className="flex w-28 shrink-0 items-center gap-1.5 text-sm text-ink">
+                              {L.step} {b.step + 1}
+                              {hasVariants && (
+                                <span className="rounded bg-chip px-1.5 py-0.5 text-[10px] font-medium text-soft">
+                                  {variantLabel(b.variant)}
+                                </span>
+                              )}
                             </span>
-                          )}
-                        </td>
-                        <td className="px-2 py-1.5 text-right tabular-nums text-soft">{b.contacts}</td>
-                        <td className="px-2 py-1.5 text-right tabular-nums text-soft">
-                          {b.replies}
-                          {b.replyRate !== null && (
-                            <span className="ml-1 text-xs text-mute">
-                              {(b.replyRate * 100).toFixed(1)} %
+
+                            <span className="w-16 shrink-0 text-right text-xs tabular-nums text-mute">
+                              {b.contacts}
                             </span>
-                          )}
-                        </td>
-                        <td className="px-2 py-1.5 text-right tabular-nums text-soft">{b.interested || "—"}</td>
-                        <td className="px-2 py-1.5 text-right tabular-nums text-soft">{b.notInterested || "—"}</td>
-                        <td className="px-2 py-1.5 text-right tabular-nums text-mute">{b.autoReplies || "—"}</td>
-                        <td className="py-1.5 pl-2 text-right tabular-nums">
-                          {b.meetings > 0 ? (
-                            <span className="font-medium text-emerald-600 dark:text-emerald-400">{b.meetings}</span>
-                          ) : (
-                            <span className="text-mute">—</span>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                    {/* Die Grundlage je Zeile, wo sie noch zu duenn fuer eine
-                        Quote ist -- statt die Prozentzahl wegzulassen und
-                        nicht zu sagen, warum. */}
-                    {list.some((b) => b.replyRate === null) && (
-                      <tr>
-                        <td colSpan={7} className="pb-1 text-[11px] text-mute">
-                          {list
-                            .filter((b) => b.replyRate === null)
-                            .map((b) => `${L.step} ${b.step + 1}${
-                              list.some((o) => o.step === b.step && o.variant !== b.variant)
-                                ? " " + variantLabel(b.variant)
-                                : ""
-                            }: ${L.thin(b.contacts)}`)
-                            .join(" · ")}
-                        </td>
-                      </tr>
-                    )}
-                  </Fragment>
-                ))}
-              </tbody>
-            </table>
+
+                            {/* Der Balken: fuenffach ueberhoeht, taugt zum
+                                Vergleichen zweier Zeilen -- die Zahl steht
+                                daneben. */}
+                            <span className="h-2 min-w-16 flex-1 overflow-hidden rounded-full bg-chip">
+                              {b.replyRate !== null && b.replyRate > 0 && (
+                                <span
+                                  className="block h-full rounded-full bg-sky-500"
+                                  style={{ width: barWidth(b.replyRate) }}
+                                />
+                              )}
+                            </span>
+
+                            <span className="w-20 shrink-0 text-right text-xs tabular-nums text-soft">
+                              {b.replyRate === null ? (
+                                <span className="text-mute">{L.thin(b.contacts)}</span>
+                              ) : (
+                                <>
+                                  {b.replies} <span className="text-mute">· {(b.replyRate * 100).toFixed(1)} %</span>
+                                </>
+                              )}
+                            </span>
+
+                            {/* Die Termin-Pille steht rechts aussen und ist
+                                das Einzige, was gefuellt farbig ist. */}
+                            <span className="w-16 shrink-0 text-right">
+                              {b.meetings > 0 ? (
+                                <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[11px] font-semibold text-emerald-700 dark:text-emerald-400">
+                                  {b.meetings} ★
+                                </span>
+                              ) : (
+                                <span className="text-[11px] text-mute">—</span>
+                              )}
+                            </span>
+                          </div>
+
+                          <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 pl-28">
+                            <Count n={b.interested} label={L.interested} tone="text-emerald-600 dark:text-emerald-400" />
+                            <Count n={b.notInterested} label={L.notInterested} tone="text-red-600 dark:text-red-400" />
+                            <Count n={b.autoReplies} label={L.autoReplies} tone="text-mute" />
+                            {isBest && (
+                              <span className="ml-auto text-[10px] uppercase tracking-wide text-emerald-600 dark:text-emerald-500">
+                                {L.bestStep}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
           </div>
 
-          {unattributed > 0 && (
-            <p className="mt-2 text-xs text-amber-600 dark:text-amber-500">{L.unattributed(unattributed)}</p>
+          {/* Was NICHT in der Auswertung steht, steht wenigstens darunter. */}
+          {(orphaned > 0 || unattributed > 0) && (
+            <p className="mt-3 space-x-2 text-[11px] text-mute">
+              {orphaned > 0 && <span>{L.orphaned(orphaned)}</span>}
+              {unattributed > 0 && <span className="text-amber-600 dark:text-amber-500">{L.unattributed(unattributed)}</span>}
+            </p>
           )}
         </>
       )}
@@ -354,15 +462,13 @@ function CopySection({
   );
 }
 
-function Stat({ label, value, strong }: { label: string; value: string; strong?: boolean }) {
-  return (
-    <div>
-      <p className="text-[11px] uppercase tracking-wide text-mute">{label}</p>
-      <p className={"tabular-nums " + (strong ? "text-2xl font-semibold text-ink" : "text-2xl text-soft")}>{value}</p>
-    </div>
-  );
-}
-
+/**
+ * Die drei Aufschluesselungen nach Liste, Wochentag und Tageszeit.
+ *
+ * Balken wie bisher, aber eingefaerbt und mit hervorgehobenem Spitzenreiter --
+ * eine Reihe gleich grauer Balken beantwortet die Frage "wo soll ich
+ * hinschauen" nicht.
+ */
 function Section({
   title,
   hint,
@@ -376,6 +482,8 @@ function Section({
   empty: string;
   labels: { thin: (n: number) => string };
 }) {
+  const best = buckets.reduce<number>((m, b) => (b.rate !== null && b.rate > m ? b.rate : m), 0);
+
   return (
     <div className="rounded-xl border border-edge2 bg-panel p-5">
       <h2 className="font-medium text-ink">{title}</h2>
@@ -384,30 +492,47 @@ function Section({
       {buckets.length === 0 ? (
         <p className="mt-3 text-sm text-faint">{empty}</p>
       ) : (
-        <div className="mt-3 space-y-1.5">
-          {buckets.map((b) => (
-            <div key={b.key} className="flex items-center gap-3">
-              <span className="w-40 shrink-0 truncate text-sm text-ink">{b.label}</span>
-              {/* Der Balken zeigt die Quote nur dort, wo es eine gibt. Bei
-                  duenner Grundlage bleibt die Flaeche leer statt einen
-                  zufaelligen Ausschlag zu zeichnen. */}
-              <div className="h-2 flex-1 overflow-hidden rounded-full bg-chip">
-                {b.rate !== null && (
-                  <div
-                    className="h-full rounded-full bg-sky-500"
-                    style={{ width: `${Math.min(100, b.rate * 100 * 5)}%` }}
-                  />
-                )}
+        <div className="mt-3 space-y-1">
+          {buckets.map((b) => {
+            const leads = b.rate !== null && b.rate === best && best > 0;
+            return (
+              <div key={b.key} className="flex items-center gap-3 rounded-md px-1 py-1 transition-colors hover:bg-wash">
+                <span
+                  className={
+                    "w-40 shrink-0 truncate text-sm " + (leads ? "font-medium text-ink" : "text-soft")
+                  }
+                >
+                  {b.label}
+                </span>
+                <div className="h-2 flex-1 overflow-hidden rounded-full bg-chip">
+                  {/* Der Balken zeigt die Quote nur dort, wo es eine gibt. Bei
+                      duenner Grundlage bleibt die Flaeche leer statt einen
+                      zufaelligen Ausschlag zu zeichnen. */}
+                  {b.rate !== null && b.rate > 0 && (
+                    <div
+                      className={
+                        "h-full rounded-full " +
+                        (leads ? "bg-emerald-500" : "bg-sky-500/70")
+                      }
+                      style={{ width: barWidth(b.rate) }}
+                    />
+                  )}
+                </div>
+                <span className="w-28 shrink-0 text-right text-xs tabular-nums text-soft">
+                  {b.rate === null ? (
+                    <span className="text-mute">{labels.thin(b.contacts)}</span>
+                  ) : (
+                    <>
+                      {(b.rate * 100).toFixed(1)} %{" "}
+                      <span className="text-mute">
+                        · {b.replies}/{b.contacts}
+                      </span>
+                    </>
+                  )}
+                </span>
               </div>
-              <span className="w-28 shrink-0 text-right text-xs tabular-nums text-soft">
-                {b.rate === null ? (
-                  <span className="text-mute">{labels.thin(b.contacts)}</span>
-                ) : (
-                  `${(b.rate * 100).toFixed(1)} % · ${b.replies}/${b.contacts}`
-                )}
-              </span>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>

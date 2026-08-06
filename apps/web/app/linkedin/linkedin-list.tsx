@@ -6,7 +6,7 @@ import { renderLinkedInMessage } from "@/lib/crm/linkedin-message";
 import { useT } from "../language-provider";
 import { useToast } from "../toast-provider";
 import { useWorkspace } from "../workspace-provider";
-import LinkedInTemplate from "./linkedin-template";
+import LinkedInTemplate, { type LinkedInTemplateRow } from "./linkedin-template";
 import SourceBadge from "./source-badge";
 import type { LeadListSummary, LinkedInLead } from "./types";
 
@@ -21,12 +21,14 @@ export default function LinkedInList({
   list,
   leads,
   template: initialTemplate,
-  isCustomTemplate,
+  templates: initialTemplates,
+  initialTemplateId,
 }: {
   list: LeadListSummary;
   leads: LinkedInLead[];
   template: string;
-  isCustomTemplate: boolean;
+  templates: LinkedInTemplateRow[];
+  initialTemplateId: string | null;
 }) {
   const { t } = useT();
   const { push } = useToast();
@@ -34,7 +36,24 @@ export default function LinkedInList({
   const L = t.linkedin;
 
   const [template, setTemplate] = useState(initialTemplate);
+  const [templates, setTemplates] = useState(initialTemplates);
+  const [templateId, setTemplateId] = useState(initialTemplateId);
   const [templateOpen, setTemplateOpen] = useState(false);
+
+  /** Vorlage wechseln: Auswahl merken UND den Text im Feld austauschen. */
+  function selectTemplate(id: string) {
+    setTemplateId(id);
+    const next = templates.find((x) => x.id === id);
+    if (next) setTemplate(next.body);
+  }
+
+  /** Nach Anlegen, Umbenennen, Loeschen oder Standardwechsel. */
+  function applyTemplates(next: LinkedInTemplateRow[], selectId: string | null) {
+    setTemplates(next);
+    setTemplateId(selectId);
+    const chosen = next.find((x) => x.id === selectId);
+    if (chosen) setTemplate(chosen.body);
+  }
   const [hideContacted, setHideContacted] = useState(false);
   const [onlyWithoutEmail, setOnlyWithoutEmail] = useState(false);
   // Lokal abgehakt: die Serverdaten werden nicht neu geladen, damit die Zeile
@@ -178,9 +197,12 @@ export default function LinkedInList({
 
       {templateOpen && (
         <LinkedInTemplate
+          templates={templates}
+          selectedId={templateId}
+          onSelect={selectTemplate}
+          onTemplatesChange={applyTemplates}
           template={template}
           onTemplateChange={setTemplate}
-          isCustom={isCustomTemplate}
           previewValues={
             ordered[0]
               ? {

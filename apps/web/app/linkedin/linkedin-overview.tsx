@@ -2,7 +2,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useT } from "../language-provider";
-import LinkedInTemplate from "./linkedin-template";
+import LinkedInTemplate, { type LinkedInTemplateRow } from "./linkedin-template";
 import SourceBadge from "./source-badge";
 import type { LeadListSummary, LinkedInLead } from "./types";
 
@@ -17,15 +17,17 @@ import type { LeadListSummary, LinkedInLead } from "./types";
  */
 export default function LinkedInOverview({
   lists,
-  template,
-  isCustomTemplate,
+  template: initialTemplate,
+  templates: initialTemplates,
+  initialTemplateId,
   firstLead,
   truncated,
   maxRows,
 }: {
   lists: LeadListSummary[];
   template: string;
-  isCustomTemplate: boolean;
+  templates: LinkedInTemplateRow[];
+  initialTemplateId: string | null;
   /** Fuer die Live-Vorschau im Vorlagen-Editor -- echte Daten statt erfundener Beispielperson. */
   firstLead: LinkedInLead | null;
   truncated: boolean;
@@ -33,7 +35,24 @@ export default function LinkedInOverview({
 }) {
   const { t } = useT();
   const L = t.linkedin;
-  const [draft, setDraft] = useState(template);
+  const [draft, setDraft] = useState(initialTemplate);
+  const [templates, setTemplates] = useState(initialTemplates);
+  const [templateId, setTemplateId] = useState(initialTemplateId);
+
+  /** Vorlage wechseln: Auswahl merken UND den Text im Feld austauschen. */
+  function selectTemplate(id: string) {
+    setTemplateId(id);
+    const next = templates.find((x) => x.id === id);
+    if (next) setDraft(next.body);
+  }
+
+  /** Nach Anlegen, Umbenennen, Loeschen oder Standardwechsel. */
+  function applyTemplates(next: LinkedInTemplateRow[], selectId: string | null) {
+    setTemplates(next);
+    setTemplateId(selectId);
+    const chosen = next.find((x) => x.id === selectId);
+    if (chosen) setDraft(chosen.body);
+  }
 
   const totals = lists.reduce(
     (acc, l) => ({
@@ -59,9 +78,12 @@ export default function LinkedInOverview({
       </div>
 
       <LinkedInTemplate
+        templates={templates}
+        selectedId={templateId}
+        onSelect={selectTemplate}
+        onTemplatesChange={applyTemplates}
         template={draft}
         onTemplateChange={setDraft}
-        isCustom={isCustomTemplate}
         previewValues={
           firstLead
             ? {

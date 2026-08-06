@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { MIN_SAMPLE, byCopy, summarize, variantLabel, type OutboundRow, type ReplyRow } from "./copy-outcomes";
+import {
+  MIN_SAMPLE,
+  bestBucket,
+  byCopy,
+  summarize,
+  variantLabel,
+  type OutboundRow,
+  type ReplyRow,
+} from "./copy-outcomes";
 
 /** Erzeugt n Kontakte fuer eine Gruppe, damit MIN_SAMPLE erreichbar ist. */
 function sends(n: number, over: Partial<OutboundRow> = {}, prefix = "c"): OutboundRow[] {
@@ -138,14 +146,30 @@ describe("byCopy", () => {
   });
 
   /**
-   * Die Beschriftung gehoert ins Woerterbuch, nicht hierher: eine
-   * Rechenfunktion kennt die eingestellte Sprache nicht. Ein fest verdrahtetes
-   * "(nur bei Instantly)" stand am 2026-08-05 auf der englischen Oberflaeche
-   * mitten in der Tabelle.
+   * Kampagnen, die es bei Instantly nicht mehr gibt.
+   *
+   * Ihre Mails standen bis 2026-08-05 als eigene Gruppe "(nur bei Instantly)"
+   * GANZ OBEN in der Auswertung -- an der prominentesten Stelle also das, was
+   * am wenigsten aussagt. Youssef hat genau das als Erstes bemaengelt.
    */
-  it("erfindet fuer Kampagnen ohne lokale Zeile keinen Namen", () => {
-    const out = sends(1, { campaignId: null, campaignName: null });
-    expect(byCopy(out, [], new Set())[0].campaignName).toBe("");
+  it("laesst Kampagnen ohne lokale Zeile ganz weg", () => {
+    const out = [
+      ...sends(MIN_SAMPLE, { campaignId: "k1", campaignName: "Echte" }, "a"),
+      ...sends(MIN_SAMPLE, { campaignId: null, campaignName: null }, "b"),
+    ];
+    const buckets = byCopy(out, [], new Set());
+    expect(buckets).toHaveLength(1);
+    expect(buckets[0].campaignName).toBe("Echte");
+  });
+
+  it("zaehlt die weggelassenen trotzdem, statt sie stillschweigend zu schlucken", () => {
+    const out = [
+      ...sends(MIN_SAMPLE, { campaignId: "k1" }, "a"),
+      ...sends(7, { campaignId: null, campaignName: null }, "b"),
+    ];
+    const summary = summarize(out, byCopy(out, [], new Set()));
+    expect(summary.orphaned).toBe(7);
+    expect(summary.unattributed).toBe(0);
   });
 
   it("sortiert in Sequenzreihenfolge, nicht nach Erfolg", () => {
@@ -164,5 +188,35 @@ describe("variantLabel", () => {
     expect(variantLabel(0)).toBe("A");
     expect(variantLabel(1)).toBe("B");
     expect(variantLabel(2)).toBe("C");
+  });
+});
+
+describe("bestBucket", () => {
+  it("nimmt die Zeile mit den meisten Terminen", () => {
+    const out = [
+      ...sends(MIN_SAMPLE, { step: 0 }, "a"),
+      ...sends(MIN_SAMPLE, { step: 1 }, "b"),
+    ];
+    const replies = [
+      reply("a0", "interested", { step: 0 }),
+      reply("a1", "interested", { step: 0 }),
+      reply("b0", "interested", { step: 1 }),
+    ];
+    const buckets = byCopy(out, replies, new Set(["b0"]));
+    // Schritt 0 hat mehr interessierte Antworten, Schritt 1 hat den Termin.
+    expect(bestBucket(buckets)?.step).toBe(1);
+  });
+
+  it("faellt auf interessierte Antworten zurueck, wenn es keine Termine gibt", () => {
+    const out = [
+      ...sends(MIN_SAMPLE, { step: 0 }, "a"),
+      ...sends(MIN_SAMPLE, { step: 1 }, "b"),
+    ];
+    const buckets = byCopy(out, [reply("b0", "interested", { step: 1 })], new Set());
+    expect(bestBucket(buckets)?.step).toBe(1);
+  });
+
+  it("gibt null zurueck, wenn es nichts zu vergleichen gibt", () => {
+    expect(bestBucket([])).toBeNull();
   });
 });

@@ -5,6 +5,7 @@ import { dict } from "@/lib/i18n/dict";
 import { getDefaultLinkedInTemplate } from "@/lib/crm/linkedin-message";
 import LinkedInOverview from "./linkedin-overview";
 import LinkedInList from "./linkedin-list";
+import type { LinkedInTemplateRow } from "./linkedin-template";
 import type { LinkedInLead, LeadListSummary } from "./types";
 import HelpLink from "../help-link";
 
@@ -76,8 +77,15 @@ export default async function LinkedInPage({
   if (!ws) return <p className="text-faint">Kein Workspace gefunden.</p>;
   const workspaceId = ws.workspace.id;
 
-  const [{ data: workspaceRow }, { data }, { data: contacted }] = await Promise.all([
-    supabase.from("workspaces").select("linkedin_message_template").eq("id", workspaceId).single(),
+  const [{ data: templateRows }, { data }, { data: contacted }] = await Promise.all([
+    // Seit Migration 0080 liegen die Vorlagen in einer eigenen Tabelle statt
+    // als eine Textspalte am Workspace -- benannt, mehrere, eine davon
+    // vorausgewaehlt.
+    supabase
+      .from("linkedin_templates")
+      .select("id, name, body, is_default")
+      .eq("workspace_id", workspaceId)
+      .order("created_at"),
     supabase
       .from("contacts")
       .select(
@@ -170,8 +178,12 @@ export default async function LinkedInPage({
   // Reihenfolge der Uebersicht: wo am meisten Arbeit offen ist, zuerst.
   const lists = [...byList.values()].sort((a, b) => b.total - b.contacted - (a.total - a.contacted));
 
-  const template = workspaceRow?.linkedin_message_template ?? getDefaultLinkedInTemplate(lang);
-  const isCustom = Boolean(workspaceRow?.linkedin_message_template);
+  const templates = (templateRows ?? []) as LinkedInTemplateRow[];
+  // Vorausgewaehlt ist die als Standard markierte, sonst die erste. Gibt es
+  // noch gar keine, steht die Vorgabe aus dem Code im Feld -- der Nutzer
+  // sieht also nie ein leeres Blatt.
+  const initial = templates.find((x) => x.is_default) ?? templates[0] ?? null;
+  const template = initial?.body ?? getDefaultLinkedInTemplate(lang);
   const selected = params.list ? lists.find((l) => l.id === params.list) : undefined;
 
   return (
@@ -187,14 +199,16 @@ export default async function LinkedInPage({
         <LinkedInList
           list={selected}
           leads={leads.filter((l) => l.listId === selected.id)}
+          templates={templates}
+          initialTemplateId={initial?.id ?? null}
           template={template}
-          isCustomTemplate={isCustom}
         />
       ) : (
         <LinkedInOverview
           lists={lists}
+          templates={templates}
+          initialTemplateId={initial?.id ?? null}
           template={template}
-          isCustomTemplate={isCustom}
           firstLead={leads[0] ?? null}
           truncated={rows.length >= MAX_ROWS}
           maxRows={MAX_ROWS}
