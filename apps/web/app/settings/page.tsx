@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { cardCls } from "@/lib/ui";
-import { IconCost, IconLock, IconSend, IconSettings, IconShield, IconSparkle } from "../icons";
+import { IconCost, IconLock, IconSend, IconSettings, IconShield, IconSparkle, IconUsers } from "../icons";
 import { useT } from "../language-provider";
 import BillingSection from "./billing-section";
 import CustomFields from "./custom-fields";
@@ -27,6 +27,7 @@ const SECTIONS = [
   { href: "/settings/keys", icon: IconLock },
   { href: "/settings/automations", icon: IconSparkle },
   { href: "/settings/branding", icon: IconSettings },
+  { href: "/settings/team", icon: IconUsers },
   { href: "/blocklist", icon: IconShield },
   { href: "/costs", icon: IconCost },
 ] as const;

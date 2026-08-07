@@ -16,7 +16,7 @@ const de = {
     dashboard: "Dashboard", searches: "Suchen", leads: "Alle Leads",
     pipeline: "Pipeline", calls: "Anrufliste", linkedin: "LinkedIn", inbox: "Posteingang",
     aiAgent: "AI Agent", icebreaker: "Aufhänger", effectiveness: "Wirkung",
-    apiKeys: "API-Schlüssel", automations: "Automatisierungen", branding: "Branding", instantly: "Instantly", blocklist: "Blockliste", costs: "API-Kosten", settings: "Einstellungen", guide: "Anleitung",
+    apiKeys: "API-Schlüssel", automations: "Automatisierungen", branding: "Branding", team: "Team", instantly: "Instantly", blocklist: "Blockliste", costs: "API-Kosten", settings: "Einstellungen", guide: "Anleitung",
   },
   commandPalette: {
     placeholder: "Seiten oder Firmen suchen...",
@@ -989,6 +989,10 @@ const de = {
         title: "Branding",
         hint: "Name, Farbe und Logo für den Report, den dein Kunde zu sehen bekommt.",
       },
+      "/settings/team": {
+        title: "Team",
+        hint: "Eigene Zugänge für deine Leute, mit Rollen — statt eines geteilten Passworts.",
+      },
       "/blocklist": {
         title: "Sperrliste",
         hint: "Adressen und Domains, die nie wieder angeschrieben werden.",
@@ -1326,6 +1330,38 @@ const de = {
         notFound: "Kampagne nicht gefunden.",
       },
     },
+  },
+  // Team-Zugaenge, neu mit Migration 0081. Bis dahin gehoerte ein Workspace
+  // genau einem Konto -- fuer eine Agentur hiess das ein geteiltes Passwort.
+  team: {
+    title: "Team",
+    subtitle: "Wer an diesem Workspace arbeiten darf.",
+    inviteTitle: "Jemanden einladen",
+    inviteHint:
+      "Die Einladung gilt f\u00fcr die Adresse, nicht f\u00fcr ein Konto. Wer sich mit ihr anmeldet, landet direkt hier \u2014 ohne eigenen leeren Workspace. Sag der Person selbst Bescheid: wir verschicken daf\u00fcr keine Mail.",
+    emailPlaceholder: "name@agentur.de",
+    inviteButton: "Einladen",
+    invited: "Eingeladen. Die Person landet hier, sobald sie sich mit dieser Adresse anmeldet.",
+    alreadyMember: "Diese Adresse steht bereits in diesem Workspace.",
+    invalidEmail: "Das sieht nicht nach einer E-Mail-Adresse aus.",
+    listTitle: "Mitglieder",
+    loading: "Lädt …",
+    you: "(du)",
+    pending: "Einladung offen \u2014 noch nicht angemeldet",
+    remove: "Entfernen",
+    removeConfirm: "{email} aus diesem Workspace entfernen?",
+    removed: "Entfernt.",
+    lastAdmin: "Der letzte Admin kann nicht entfernt oder herabgestuft werden.",
+    lastAdminNote:
+      "Du bist der einzige Admin. Solange das so ist, l\u00e4sst sich dieser Zugang nicht entfernen oder herabstufen \u2014 sonst st\u00fcnde der Workspace ohne jemanden da, der noch einladen kann.",
+    memberNote: "Einladen, Rollen \u00e4ndern und Entfernen k\u00f6nnen nur Admins dieses Workspaces.",
+    roleAdmin: "Admin",
+    roleMember: "Mitglied",
+    rightsTitle: "Was die Rollen d\u00fcrfen",
+    adminRights:
+      "Alles aus Mitglied, dazu: einladen, Rollen \u00e4ndern, entfernen, Workspace umbenennen und die API-Schl\u00fcssel sehen und \u00e4ndern.",
+    memberRights:
+      "Suchen anlegen, Leads bearbeiten, Kampagnen starten, Postfach, Pipeline, Anrufliste und LinkedIn \u2014 alles Operative. Nicht: API-Schl\u00fcssel, Team und Abo.",
   },
   branding: {
     heading: "Branding & Report-Link",
@@ -1767,7 +1803,7 @@ const en: Dictionary = {
     dashboard: "Dashboard", searches: "Searches", leads: "All Leads",
     pipeline: "Pipeline", calls: "Call list", linkedin: "LinkedIn", inbox: "Inbox",
     aiAgent: "AI Agent", icebreaker: "Icebreakers", effectiveness: "Effect",
-    apiKeys: "API keys", automations: "Automations", branding: "Branding", instantly: "Instantly", blocklist: "Blocklist", costs: "API costs", settings: "Settings", guide: "Guide",
+    apiKeys: "API keys", automations: "Automations", branding: "Branding", team: "Team", instantly: "Instantly", blocklist: "Blocklist", costs: "API costs", settings: "Settings", guide: "Guide",
   },
   commandPalette: {
     placeholder: "Search pages or companies...",
@@ -2709,6 +2745,10 @@ const en: Dictionary = {
         title: "Branding",
         hint: "Name, colour and logo for the report your client gets to see.",
       },
+      "/settings/team": {
+        title: "Team",
+        hint: "Individual logins for your people, with roles — instead of one shared password.",
+      },
       "/blocklist": {
         title: "Blocklist",
         hint: "Addresses and domains that are never contacted again.",
@@ -3046,6 +3086,36 @@ const en: Dictionary = {
         notFound: "Campaign not found.",
       },
     },
+  },
+  team: {
+    title: "Team",
+    subtitle: "Who is allowed to work in this workspace.",
+    inviteTitle: "Invite someone",
+    inviteHint:
+      "The invitation is tied to the address, not to an account. Whoever signs up with it lands here directly \u2014 without an empty workspace of their own. Tell them yourself: we do not send an email for this.",
+    emailPlaceholder: "name@agency.com",
+    inviteButton: "Invite",
+    invited: "Invited. They land here as soon as they sign up with this address.",
+    alreadyMember: "That address is already in this workspace.",
+    invalidEmail: "That does not look like an email address.",
+    listTitle: "Members",
+    loading: "Loading …",
+    you: "(you)",
+    pending: "Invitation open \u2014 not signed up yet",
+    remove: "Remove",
+    removeConfirm: "Remove {email} from this workspace?",
+    removed: "Removed.",
+    lastAdmin: "The last admin cannot be removed or demoted.",
+    lastAdminNote:
+      "You are the only admin. While that is the case, this access cannot be removed or demoted \u2014 otherwise the workspace would be left without anyone who can still invite.",
+    memberNote: "Only admins of this workspace can invite, change roles and remove people.",
+    roleAdmin: "Admin",
+    roleMember: "Member",
+    rightsTitle: "What the roles can do",
+    adminRights:
+      "Everything a member can, plus: invite, change roles, remove, rename the workspace, and view and change the API keys.",
+    memberRights:
+      "Create searches, work on leads, start campaigns, inbox, pipeline, call list and LinkedIn \u2014 everything operational. Not: API keys, team and subscription.",
   },
   branding: {
     heading: "Branding & report link",

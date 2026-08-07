@@ -21,7 +21,7 @@ import {
   IconSend,
   IconSettings,
   IconShield,
-  IconSparkle,
+  IconSparkle, IconUsers,
 } from "./icons";
 import { useT } from "./language-provider";
 import { useWorkspace } from "./workspace-provider";
@@ -129,6 +129,7 @@ export default function Nav() {
         { href: "/settings/keys", label: t.nav.apiKeys, icon: IconLock },
         { href: "/settings/automations", label: t.nav.automations, icon: IconSparkle },
         { href: "/settings/branding", label: t.nav.branding, icon: IconPalette },
+        { href: "/settings/team", label: t.nav.team, icon: IconUsers },
         { href: "/blocklist", label: t.nav.blocklist, icon: IconShield },
         { href: "/costs", label: t.nav.costs, icon: IconCost },
       ],

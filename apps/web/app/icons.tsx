@@ -83,6 +83,17 @@ export function IconPalette({ className = "h-4 w-4" }: { className?: string }) {
   );
 }
 
+export function IconUsers({ className = "h-4 w-4" }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M16 20v-1.5a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4V20" />
+      <circle cx="9" cy="7" r="3.2" />
+      <path d="M22 20v-1.5a4 4 0 0 0-3-3.87" />
+      <path d="M16.5 4.13a4 4 0 0 1 0 5.74" />
+    </svg>
+  );
+}
+
 export function IconShield({ className = "h-4 w-4" }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
