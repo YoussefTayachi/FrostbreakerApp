@@ -32,6 +32,7 @@ abgelesen, Stand 2026-08):
 Docs: https://docs.apollo.io/reference/people-api-search
 """
 import logging
+import re
 import time
 from typing import Callable
 
@@ -626,11 +627,57 @@ def candidate_ids(people: list[dict]) -> list[str]:
     berechnet nichts, wenn nichts geliefert wird), aber er verbraucht ein
     Kontingent im Zehnerpaket und damit am Ende echte Credits fuer weniger
     Leads. Reihenfolge bleibt stabil, Duplikate fallen raus."""
-    out: list[str] = []
+    return [pid for pid, _ in candidate_pairs(people)]
+
+
+# Rechtsformen und Fuellwoerter, die denselben Betrieb unterschiedlich
+# schreiben lassen ("Acme B.V." / "Acme BV" / "Acme"). Bewusst kurz gehalten:
+# jeder Eintrag hier macht den Vergleich unschaerfer, und ein zu grober
+# Vergleich wirft echte neue Firmen weg.
+# Ohne Punkte notiert: die werden vorher ersatzlos entfernt, damit "B.V." und
+# "BV" auf demselben Wort landen (siehe normalize_company).
+_LEGAL_FORMS = {
+    "bv", "nv", "gmbh", "mbh", "ag", "kg", "kgaa", "ug", "og", "eg", "ev",
+    "ltd", "limited", "llc", "inc", "corp", "co", "plc", "sa", "srl", "sarl",
+    "oy", "ab", "as", "aps", "spa", "bvba", "sprl", "sl", "gbr", "ohg",
+}
+
+
+def normalize_company(name: str | None) -> str:
+    """Firmenname auf eine vergleichbare Form bringen.
+
+    Wird gebraucht, weil Apollos KOSTENLOSE Vorschau keine Domain liefert --
+    nachgemessen am 2026-08-09 enthaelt sie je Person nur
+    organization.name, kein primary_domain und keine organization_id. Der Name
+    ist damit das einzige Merkmal, an dem sich vor dem Bezahlen erkennen
+    laesst, ob eine Firma schon im Bestand ist.
+    """
+    if not name:
+        return ""
+    # Punkte ZUERST und ersatzlos: "B.V." muss zu "bv" werden, nicht zu "b v".
+    # Andernfalls faende der Vergleich genau die Schreibvariante nicht, fuer
+    # die er gedacht ist -- dieselbe Firma einmal mit und einmal ohne Punkte.
+    without_dots = name.lower().replace(".", "")
+    cleaned = re.sub(r"[^\w\s&]", " ", without_dots, flags=re.UNICODE)
+    words = [w for w in cleaned.split() if w and w not in _LEGAL_FORMS]
+    return " ".join(words)
+
+
+def candidate_pairs(people: list[dict]) -> list[tuple[str, str]]:
+    """Wie candidate_ids, aber mit dem normalisierten Firmennamen daneben.
+
+    Der Name kommt aus der Vorschau und kostet nichts -- genau deshalb kann
+    collect_people damit filtern, BEVOR bulk_match Credits verbraucht.
+    """
+    out: list[tuple[str, str]] = []
+    seen: set[str] = set()
     for person in people:
         pid = person.get("id")
-        if pid and person.get("has_email") and pid not in out:
-            out.append(pid)
+        if not pid or not person.get("has_email") or pid in seen:
+            continue
+        seen.add(pid)
+        org = person.get("organization") or {}
+        out.append((pid, normalize_company(org.get("name"))))
     return out
 
 
@@ -711,6 +758,8 @@ def collect_people(
     api_key: str,
     limit: int,
     on_charge: "Callable[[int], None] | None" = None,
+    known_companies: "set[str] | None" = None,
+    on_skip: "Callable[[int], None] | None" = None,
 ) -> list[dict]:
     """Zweistufig, weil Apollo es so vorgibt: erst kostenlos suchen, dann
     gezielt anreichern.
@@ -726,36 +775,94 @@ def collect_people(
     die beim Anreichern doch keine Domain oder Adresse liefern. Stufe 2 stoppt
     exakt beim Ziel, sodass die Credit-Kosten der Zahl der gelieferten Leads
     entsprechen und nicht der Zahl der Suchtreffer.
+
+    ═══════════════════════════════════════════════════════════════════════
+    known_companies: WARUM DER BESTAND SCHON IN STUFE 1 GEBRAUCHT WIRD
+    ═══════════════════════════════════════════════════════════════════════
+
+    Beobachtet am 2026-08-09 an einer echten Suche: Apollo lieferte genau eine
+    Person, sie wurde angereichert (1 Credit bulk_match, 1 Credit
+    organizations/bulk_enrich) -- und danach stellte _store_people_pairs fest,
+    dass ihre Firma langst im Bestand steht. Ergebnis: null Leads, zwei
+    Credits, und die Suche gab auf, obwohl Apollo fuer dieselben Filter
+    hunderte weitere Treffer hat.
+
+    Zwei Fehler in einem: es wurde fuer eine Dublette bezahlt, und es wurde
+    nicht weitergeblaettert. Beides behebt derselbe Griff -- die Vorschau ist
+    gratis, also gehoert der Abgleich dorthin und nicht hinter die Kasse.
+
+    Verglichen wird der Firmenname, nicht die Domain: die Vorschau liefert
+    keine (nachgemessen, siehe normalize_company). Das ist eine Naeherung an
+    die spaetere, domainbasierte Pruefung, und die beiden Fehlerrichtungen
+    wiegen sehr unterschiedlich:
+
+      Name verschieden, Domain gleich -> Kandidat wird angereichert und faellt
+        danach weg. Genau wie bisher, also kein Rueckschritt.
+      Name gleich, Domain verschieden -> ein echter neuer Lead wird
+        uebersprungen. Der einzige echte Verlust, aber folgenlos: die Schleife
+        blaettert weiter, bis die Zielzahl steht, es ruecken also andere nach.
+
+    Deshalb bleibt der Vergleich bewusst streng (exakter Treffer nach
+    Normalisierung) statt unscharf: lieber einmal zu viel bezahlen als einen
+    Lead verlieren, den es nur einmal gibt.
     """
     capped = min(limit, APOLLO_MAX_PER_SEARCH)
     if capped <= 0:
         return []
     target_candidates = capped * CANDIDATE_OVERFETCH
+    known = known_companies or set()
     ids: list[str] = []
     seen: set[str] = set()
+    skipped_known = 0
     page = 1
     while len(ids) < target_candidates and page <= (APOLLO_MAX_PER_SEARCH // PER_PAGE):
         people = search_people(filters, api_key, page)
         if not people:
             break
-        for pid in candidate_ids(people):
-            if pid not in seen:
-                seen.add(pid)
-                ids.append(pid)
+        for pid, company in candidate_pairs(people):
+            if pid in seen:
+                continue
+            seen.add(pid)
+            # Der eigentliche Griff: schon bekannte Firmen fallen HIER raus,
+            # vor dem kostenpflichtigen bulk_match. Die Schleife laeuft
+            # dadurch weiter, statt mit einer Handvoll Dubletten aufzuhoeren.
+            if company and company in known:
+                skipped_known += 1
+                continue
+            ids.append(pid)
         if len(people) < PER_PAGE:
             break  # letzte Seite
         page += 1
         if len(ids) < target_candidates:
             time.sleep(PAGE_PAUSE_S)
 
+    # Der Aufrufer braucht die Zahl, um im Leerfall die richtige Auskunft zu
+    # geben: "alles schon bekannt" ist etwas voellig anderes als "Filter zu
+    # eng", und die Ursachensuche wuerde sonst auf die falsche Faehrte fuehren.
+    if on_skip:
+        on_skip(skipped_known)
+
+    if skipped_known:
+        log.info(
+            "Apollo: %s Kandidaten uebersprungen, weil ihre Firma schon im Bestand ist "
+            "(vor dem Anreichern, also ohne Credits). %s neue Kandidaten auf %s Seiten.",
+            skipped_known, len(ids), page,
+        )
+
     if not ids:
         # Kein Fehler, aber die haeufigste Ursache fuer "Suche fertig, null
         # Leads" -- ohne diese Zeile bliebe voellig offen, ob Apollo nichts
         # fand oder die Anreicherung scheiterte.
-        log.warning(
-            "Apollo People-Search lieferte keine Person mit hinterlegter E-Mail "
-            "(Filter zu eng oder Zielgruppe in Apollo nicht vorhanden)."
-        )
+        if skipped_known:
+            log.warning(
+                "Apollo: alle %s Treffer mit Adresse gehoeren zu Firmen, die bereits im "
+                "Bestand sind. Keine Credits verbraucht.", skipped_known,
+            )
+        else:
+            log.warning(
+                "Apollo People-Search lieferte keine Person mit hinterlegter E-Mail "
+                "(Filter zu eng oder Zielgruppe in Apollo nicht vorhanden)."
+            )
         return []
     return enrich_people(ids, api_key, capped, on_charge=on_charge)
 

@@ -585,3 +585,116 @@ class TestPlattformDomains:
     def test_kommt_mit_leer_zurecht(self):
         assert not is_platform_domain(None)
         assert not is_platform_domain("")
+
+
+# ─────────────────────────────────────────────────────────────────────────
+# Bekannte Firmen VOR dem Anreichern aussortieren (2026-08-09)
+#
+# Anlass: eine echte Suche lieferte eine Person, reicherte sie an (2 Credits)
+# und verwarf sie danach als Dublette. Null Leads, obwohl Apollo fuer dieselben
+# Filter hunderte weitere Treffer hatte.
+# ─────────────────────────────────────────────────────────────────────────
+
+
+def test_normalize_company_ignoriert_rechtsform_und_zeichen():
+    from worker.pipelines.apollo import normalize_company
+
+    # Genau der Fall, der beim ersten Anlauf danebenging: ohne vorheriges
+    # Entfernen der Punkte wurde "B.V." zu "b v" und traf "BV" nicht.
+    assert normalize_company("Acme B.V.") == normalize_company("Acme BV")
+    assert normalize_company("Acme B.V.") == normalize_company("acme")
+    assert normalize_company("Müller & Sohn GmbH") == "müller & sohn"
+    assert normalize_company(None) == ""
+    assert normalize_company("   ") == ""
+
+
+def test_normalize_company_wirft_verschiedene_firmen_nicht_zusammen():
+    """Der gefaehrliche Fehler waere ein zu grober Vergleich: ein echter neuer
+    Lead duerfte nicht als Dublette gelten."""
+    from worker.pipelines.apollo import normalize_company
+
+    assert normalize_company("Acme Digital") != normalize_company("Acme Logistics")
+    assert normalize_company("Picqer") != normalize_company("Picqr")
+
+
+def test_candidate_pairs_liefert_firmenname_aus_der_vorschau():
+    from worker.pipelines.apollo import candidate_pairs
+
+    people = [
+        {"id": "a", "has_email": True, "organization": {"name": "Acme B.V."}},
+        {"id": "b", "has_email": False, "organization": {"name": "Ohne Adresse"}},
+        {"id": "c", "has_email": True},  # Vorschau ohne organization
+    ]
+    assert candidate_pairs(people) == [("a", "acme"), ("c", "")]
+
+
+def _fake_search(pages: dict[int, list[dict]], calls: list[int]):
+    def search_people(_filters, _key, page):
+        calls.append(page)
+        return pages.get(page, [])
+
+    return search_people
+
+
+def test_collect_people_blaettert_weiter_statt_bei_dubletten_aufzugeben(monkeypatch):
+    """DER gemeldete Fall: Seite 1 enthaelt nur eine bereits bekannte Firma.
+
+    Vorher endete die Suche damit -- mit zwei verbrauchten Credits und null
+    Leads. Jetzt muss Seite 2 geholt und die neue Firma angereichert werden.
+    """
+    from worker.pipelines import apollo
+
+    calls: list[int] = []
+    pages = {
+        1: [{"id": "alt", "has_email": True, "organization": {"name": "Bekannt BV"}}]
+        + [{"id": f"f{i}", "has_email": False} for i in range(99)],
+        2: [{"id": "neu", "has_email": True, "organization": {"name": "Frisch GmbH"}}],
+    }
+    monkeypatch.setattr(apollo, "search_people", _fake_search(pages, calls))
+    enriched: list[list[str]] = []
+    monkeypatch.setattr(
+        apollo, "enrich_people",
+        lambda ids, key, capped, on_charge=None: enriched.append(list(ids)) or [{"x": 1}],
+    )
+    monkeypatch.setattr(apollo.time, "sleep", lambda _s: None)
+
+    apollo.collect_people({}, "key", 1, known_companies={"bekannt"})
+
+    assert calls == [1, 2], "Seite 2 muss geholt werden"
+    # Entscheidend: die bekannte Firma taucht in der bezahlten Stufe NICHT auf.
+    assert enriched == [["neu"]]
+
+
+def test_collect_people_reichert_bekannte_firmen_gar_nicht_erst_an(monkeypatch):
+    """Sind ALLE Treffer bekannt, darf kein einziger Credit fliessen."""
+    from worker.pipelines import apollo
+
+    calls: list[int] = []
+    pages = {1: [{"id": "alt", "has_email": True, "organization": {"name": "Bekannt BV"}}]}
+    monkeypatch.setattr(apollo, "search_people", _fake_search(pages, calls))
+
+    def fail(*_a, **_k):
+        raise AssertionError("enrich_people darf hier nicht aufgerufen werden")
+
+    monkeypatch.setattr(apollo, "enrich_people", fail)
+    monkeypatch.setattr(apollo.time, "sleep", lambda _s: None)
+
+    assert apollo.collect_people({}, "key", 5, known_companies={"bekannt"}) == []
+
+
+def test_collect_people_ohne_bestand_verhaelt_sich_wie_bisher(monkeypatch):
+    """Ohne known_companies darf sich nichts aendern -- der Parameter ist
+    optional, und Prospeo/aeltere Aufrufer geben ihn nicht mit."""
+    from worker.pipelines import apollo
+
+    pages = {1: [{"id": "a", "has_email": True, "organization": {"name": "Bekannt BV"}}]}
+    monkeypatch.setattr(apollo, "search_people", _fake_search(pages, []))
+    enriched: list[list[str]] = []
+    monkeypatch.setattr(
+        apollo, "enrich_people",
+        lambda ids, key, capped, on_charge=None: enriched.append(list(ids)) or [{"x": 1}],
+    )
+    monkeypatch.setattr(apollo.time, "sleep", lambda _s: None)
+
+    apollo.collect_people({}, "key", 1)
+    assert enriched == [["a"]]

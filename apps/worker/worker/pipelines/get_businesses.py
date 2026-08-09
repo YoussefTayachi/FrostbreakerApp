@@ -376,6 +376,26 @@ def run_apollo(search: dict, ws: str) -> None:
     # Apollo rechnet pro freigeschalteter Adresse ab. Der Betrag bleibt leer:
     # was ein Credit in Euro wert ist, haengt am gebuchten Tarif und liesse
     # sich hier nur unterstellen (siehe worker/usage.py).
+    # Die Firmen, die dieser Workspace schon hat -- als normalisierte Namen.
+    #
+    # Sie gehen in die KOSTENLOSE Suchstufe, nicht erst in die Pruefung nach
+    # dem Anreichern. Vorher lief es andersherum, und das war teuer: am
+    # 2026-08-09 lieferte eine Suche genau eine Person, sie wurde angereichert
+    # (2 Credits) und danach als Dublette verworfen -- null Leads, und die
+    # Suche gab auf, obwohl Apollo fuer dieselben Filter hunderte weitere
+    # Treffer hatte.
+    #
+    # Der Name ist das einzige Merkmal, das Apollos Vorschau hergibt; die
+    # Domain kommt erst mit dem bezahlten Datensatz. Die Abwaegung dazu steht
+    # in apollo.collect_people.
+    known_companies = {
+        apollo.normalize_company(b.get("name"))
+        for b in businesses_to_skip(ws)
+        if b.get("name")
+    }
+    known_companies.discard("")
+
+    skipped: list[int] = []
     pairs = apollo.collect_people(
         filters,
         api_key,
@@ -383,8 +403,24 @@ def run_apollo(search: dict, ws: str) -> None:
         on_charge=lambda n: usage.record(
             ws, "apollo", "bulk_match", n, "credits", search_id=search["id"]
         ),
+        known_companies=known_companies,
+        on_skip=skipped.append,
     )
     if not pairs:
+        if skipped and skipped[0]:
+            # Wichtige Unterscheidung: hier sind die Filter NICHT schuld. Apollo
+            # hat geliefert, es war nur alles schon im Bestand. Die
+            # Ursachensuche unten wuerde stattdessen einen Filter beschuldigen
+            # und den Nutzer dazu bringen, eine funktionierende Suche
+            # umzubauen.
+            _note(
+                search["id"],
+                f"Apollo hat {skipped[0]} Treffer geliefert, aber alle gehören zu Firmen, "
+                "die du schon in der Liste hast. Es wurden keine Credits verbraucht. "
+                "Für neue Leads hilft ein anderer Filter — etwa ein weiteres Land, "
+                "andere Positionen oder ein zusätzliches Marktsegment.",
+            )
+            return
         # "Fertig, 0 Leads" ohne Begruendung ist die frustrierendste Auskunft,
         # die diese Suche geben kann -- der Nutzer sieht sechs Filter und weiss
         # nicht, welcher schuld war. Die Ursachensuche kostet keine Credits und

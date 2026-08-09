@@ -37,11 +37,17 @@ def filter_blocking(
 
 
 def businesses_to_skip(workspace_id: str) -> list[dict]:
-    """Firmen, die eine neue Suche ueberspringen soll (id, website, place_id)."""
+    """Firmen, die eine neue Suche ueberspringen soll (id, name, website, place_id).
+
+    name kam am 2026-08-09 dazu: Apollos kostenlose Vorschau liefert keine
+    Domain, nur den Firmennamen. Ohne ihn liesse sich eine Dublette erst nach
+    dem kostenpflichtigen Anreichern erkennen -- siehe
+    apollo.collect_people(known_companies).
+    """
     businesses = (
         sb()
         .table("businesses")
-        .select("id, website, place_id, search_id")
+        .select("id, name, website, place_id, search_id")
         .eq("workspace_id", workspace_id)
         .execute()
         .data
