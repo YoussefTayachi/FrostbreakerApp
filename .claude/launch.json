@@ -11,7 +11,7 @@
     {
       "name": "website",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["--prefix", "../system3_app_website", "run", "dev"],
+      "runtimeArgs": ["--prefix", "../Frostbreaker_Website", "run", "dev"],
       "port": 3000,
       "autoPort": true
     }
