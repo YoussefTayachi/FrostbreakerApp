@@ -86,9 +86,47 @@ export default async function CostsPage({
     ])
   );
   const subsMonthly = Object.values(subs).reduce((a, b) => a + b, 0);
-  // Anteilig auf denselben Zeitraum wie der gemessene Verbrauch darueber --
-  // sonst stuenden in einer Summe ein Monat und sieben Tage nebeneinander.
-  const subsInRange = subsMonthly * (rangeDays / 30);
+
+  /**
+   * Anteilig auf denselben Zeitraum wie der gemessene Verbrauch darueber --
+   * sonst stuenden in einer Summe ein Monat und sieben Tage nebeneinander.
+   *
+   * Gedeckelt am Alter des Workspace, aus demselben Grund wie in Migration
+   * 0088: ein sechs Stunden altes Konto hat kein Abo fuer dreissig Tage
+   * bezahlt. Ohne die Deckelung zeigte der Knopf "30 Tage" hier 70,00 $ fuer
+   * einen Tag Arbeit, und "1 Jahr" haette daraus 850 $ gemacht -- allein
+   * durch das Umschalten eines Filters.
+   */
+  const { data: wsRow } = await supabase
+    .from("workspaces")
+    .select("created_at")
+    .eq("id", ws.workspace.id)
+    .single();
+  const wsAlterTage = wsRow?.created_at
+    ? (Date.now() - new Date(wsRow.created_at).getTime()) / 86_400_000
+    : rangeDays;
+  const abrechnungsTage = Math.max(1, Math.min(rangeDays, wsAlterTage));
+  const subsInRange = subsMonthly * (abrechnungsTage / 30);
+  const anteilFaktor = abrechnungsTage / 30;
+
+  /**
+   * Credits pro geliefertem Lead.
+   *
+   * Die Frage, die diese Zeile beantwortet, lautete: "133 Credits bei 63
+   * Kontakten -- wurden da Credits verschwendet?" Die Antwort steckt in der
+   * Rechenart der Anbieter: Apollo und Prospeo berechnen die Adresse der
+   * Person UND den Firmendatensatz, also rund zwei Credits je Lead. Das stand
+   * bisher nur in einem Kommentar im Worker.
+   */
+  const kreditAnbieter = new Set(["apollo", "prospeo", "hunter"]);
+  const creditsInRange = summary.providers
+    .filter((p) => kreditAnbieter.has(p.provider))
+    .reduce((sum, p) => sum + (p.units?.credits ?? 0), 0);
+  const { count: leadsInRange } = await supabase
+    .from("contacts")
+    .select("id", { count: "exact", head: true })
+    .eq("workspace_id", ws.workspace.id)
+    .gte("created_at", from);
 
   function formatUnits(units: Record<string, number> | null): string {
     if (!units) return "—";
@@ -138,7 +176,10 @@ export default async function CostsPage({
           {" · "}
           {C.splitPlans} <span className="tabular-nums text-strong">${subsInRange.toFixed(2)}</span>
           {subsMonthly > 0 && (
-            <span className="text-mute"> ({C.splitProRated(subsMonthly, rangeDays)})</span>
+            <span className="text-mute">
+              {" "}
+              ({C.splitProRated(subsMonthly, Math.round(abrechnungsTage))})
+            </span>
           )}
         </p>
         <p className="mt-2 text-xs leading-relaxed text-mute">{C.totalHint}</p>
@@ -172,6 +213,15 @@ export default async function CostsPage({
                   <td className="px-5 py-3 text-right text-strong">
                     {p.cost_usd > 0 ? (
                       "$" + Number(p.cost_usd).toFixed(2)
+                    ) : subs[p.provider] != null ? (
+                      /* Der eingetragene Tarif gehoert dorthin, wo der Nutzer
+                         ihn sucht. Vorher stand in der Apollo-Zeile
+                         "tarifabhaengig", obwohl 65 $/Monat eingetragen waren
+                         -- der Betrag lag nur oben in der Gesamtsumme. Das
+                         las sich wie "deine Eingabe ist nicht angekommen". */
+                      <span className="text-xs text-soft">
+                        {C.planShare("$" + (subs[p.provider] * anteilFaktor).toFixed(2))}
+                      </span>
                     ) : (
                       // Kein Betrag heisst nicht "kostenlos", sondern "haengt
                       // am Tarif" -- das muss dastehen, sonst liest sich eine
@@ -184,6 +234,16 @@ export default async function CostsPage({
             </tbody>
           </table>
         </div>
+      )}
+
+      {creditsInRange > 0 && (leadsInRange ?? 0) > 0 && (
+        <p className="rounded-lg border border-edge/60 bg-panel px-4 py-3 text-xs leading-relaxed text-soft">
+          {C.creditsPerLead(
+            Math.round(creditsInRange).toLocaleString(lang === "de" ? "de-DE" : "en-US"),
+            leadsInRange ?? 0,
+            (creditsInRange / (leadsInRange ?? 1)).toFixed(1)
+          )}
+        </p>
       )}
 
       <p className="text-xs leading-relaxed text-mute">{C.methodNote}</p>

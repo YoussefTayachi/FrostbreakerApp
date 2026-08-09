@@ -1095,10 +1095,20 @@ export default function LeadsTable({
                   />
                 );
               })()}
+              {/* "active" statt "pending", solange eine Website da ist und
+                  der Aufhaenger fehlt: Der Schritt IST dann in Arbeit -- der
+                  Job dafuer wird beim Anlegen der Firma mit eingereiht. Der
+                  graue Punkt ohne Zeile darunter sah dagegen aus wie "wird
+                  nicht gemacht", und genau so hat ein Kunde ihn am
+                  2026-08-09 gelesen. Die Seite laedt sich dazu alle fuenf
+                  Sekunden nach (siehe searches/[id]/page.tsx), der Zustand
+                  loest sich also vor seinen Augen auf. */}
               <PipelineStep
                 label={L.pipelinePersonalize}
-                state={drawer.personalization ? "done" : drawer.website ? "pending" : "empty"}
-                detail={drawer.personalization ? L.pipelinePersonalizeDone : undefined}
+                state={drawer.personalization ? "done" : drawer.website ? "active" : "empty"}
+                detail={
+                  drawer.personalization ? L.pipelinePersonalizeDone : drawer.website ? L.pipelinePersonalizeRunning : undefined
+                }
               />
             </div>
 

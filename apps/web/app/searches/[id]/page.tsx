@@ -8,6 +8,8 @@ import { searchSourceBadgeClass, searchSourceLabel } from "@/lib/search-source";
 import LeadsTable from "../../leads/leads-table";
 import SearchSettings from "./search-settings";
 import CampaignLinkCard from "./campaign-link-card";
+import AutoRefresh from "../../auto-refresh";
+import LocalTime from "../../local-time";
 
 export default async function SearchDetailPage({
   params,
@@ -27,7 +29,14 @@ export default async function SearchDetailPage({
   // wird, statt Daten aus dem falschen Workspace anzuzeigen -- RLS wuerde den
   // Zugriff technisch erlauben (gehoert ja demselben Account), aber es waere hier
   // der falsche Kontext.
-  const [searchRes, contactsRes, suppressionRes, instantlyKeyRes, localCampaignRes] = await Promise.all([
+  const [
+    searchRes,
+    contactsRes,
+    suppressionRes,
+    instantlyKeyRes,
+    localCampaignRes,
+    offeneAufhaengerRes,
+  ] = await Promise.all([
     supabase.from("searches").select("*").eq("id", id).eq("workspace_id", workspaceId).single(),
     supabase
       .from("contacts")
@@ -46,6 +55,23 @@ export default async function SearchDetailPage({
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle(),
+    /**
+     * Firmen dieser Suche, die noch auf ihren Aufhaenger warten.
+     *
+     * Genau das war die Frage eines Kunden am 2026-08-09: Er sah im
+     * Seitenpanel den grauen Punkt bei "AI personalization" und schloss
+     * daraus, die Personalisierung laufe gar nicht. Tatsaechlich war sie 46
+     * Sekunden nach dem Start fertig -- seine Seite hat sich nur nie wieder
+     * gemeldet. Die Bedingung hier ist dieselbe, nach der das Panel den
+     * Punkt zeichnet: Website vorhanden, Aufhaenger noch nicht.
+     */
+    supabase
+      .from("businesses")
+      .select("id", { count: "exact", head: true })
+      .eq("workspace_id", workspaceId)
+      .eq("search_id", id)
+      .is("personalization", null)
+      .not("website", "is", null),
   ]);
   const search = searchRes.data;
 
@@ -55,8 +81,18 @@ export default async function SearchDetailPage({
 
   const contacts = filterSuppressed(contactsRes.data ?? [], suppressionRes.data ?? []);
 
+  // Solange die Suche laeuft oder noch ein Aufhaenger fehlt, holt sich die
+  // Seite alle fuenf Sekunden den neuen Stand. Nach zehn Minuten hoert sie
+  // auf: was dann noch fehlt, kommt nicht mehr von allein, und ein Tab, der
+  // bis zum Abend weiterlaedt, hilft niemandem.
+  const nochInArbeit =
+    search.status === "pending" ||
+    search.status === "running" ||
+    (offeneAufhaengerRes.count ?? 0) > 0;
+
   return (
     <div className="fade-up space-y-6">
+      {nochInArbeit && <AutoRefresh maxMs={10 * 60 * 1000} />}
       <div>
         <Link href="/searches" className="text-xs text-faint hover:text-ink">
           {t.searchDetail.back}
@@ -77,7 +113,16 @@ export default async function SearchDetailPage({
           </span>
         </div>
         <p className="text-sm text-faint">
-          {search.query} · {search.location} · {formatDate(search.created_at, lang, { dateStyle: "long", timeStyle: "short" })}
+          {search.query} · {search.location} ·{" "}
+          <LocalTime
+            iso={search.created_at}
+            lang={lang}
+            opts={{ dateStyle: "long", timeStyle: "short" }}
+            serverFormatted={formatDate(search.created_at, lang, {
+              dateStyle: "long",
+              timeStyle: "short",
+            })}
+          />
         </p>
       </div>
       <CampaignLinkCard

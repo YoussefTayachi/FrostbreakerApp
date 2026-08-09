@@ -26,15 +26,23 @@ import { useWorkspace } from "../workspace-provider";
 
 /** Die Anbieter mit ihrem ueblichen Einstiegstarif als Platzhalter -- eine
  *  Orientierung, kein voreingetragener Wert. Wer nichts eintraegt, bekommt
- *  auch keine erfundene Zahl. */
-const PROVIDERS: { key: string; label: string; hint: string }[] = [
+ *  auch keine erfundene Zahl.
+ *
+ *  `measured` markiert die drei Anbieter mit echtem Stueckpreis: ihr Verbrauch
+ *  steht ohnehin schon in api_usage. Wer hier zusaetzlich einen Monatsbetrag
+ *  eintraegt, zahlt in der Summe doppelt. Genau so passiert: 5 $/Monat fuer
+ *  OpenAI eingetragen, waehrend die 0,11 $ tatsaechlicher Tokenverbrauch
+ *  bereits gemessen danebenstanden. Das Feld bleibt trotzdem bedienbar --
+ *  eine Grundgebuehr neben dem Verbrauch gibt es wirklich --, aber es sagt
+ *  jetzt dazu, was es anrichtet. */
+const PROVIDERS: { key: string; label: string; hint: string; measured?: boolean }[] = [
   { key: "instantly", label: "Instantly", hint: "~37" },
   { key: "apollo", label: "Apollo.io", hint: "~49" },
   { key: "prospeo", label: "Prospeo", hint: "~39" },
   { key: "hunter", label: "Hunter.io", hint: "~34" },
-  { key: "neverbounce", label: "NeverBounce", hint: "~0" },
-  { key: "openai", label: "OpenAI", hint: "~0" },
-  { key: "google_maps", label: "Google Maps", hint: "~0" },
+  { key: "neverbounce", label: "NeverBounce", hint: "~0", measured: true },
+  { key: "openai", label: "OpenAI", hint: "~0", measured: true },
+  { key: "google_maps", label: "Google Maps", hint: "~0", measured: true },
 ];
 
 export default function Subscriptions({
@@ -55,6 +63,12 @@ export default function Subscriptions({
     const n = Number(values[p.key]);
     return sum + (Number.isFinite(n) && values[p.key] !== "" ? n : 0);
   }, 0);
+
+  // Anbieter, die pro Aufruf gemessen werden und trotzdem einen Monatsbetrag
+  // tragen -- ihre Kosten stecken dann zweimal in der Summe.
+  const doppelt = PROVIDERS.filter(
+    (p) => p.measured && values[p.key] !== "" && Number(values[p.key]) > 0
+  ).map((p) => p.label);
 
   async function save() {
     setSaving(true);
@@ -104,7 +118,17 @@ export default function Subscriptions({
       <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {PROVIDERS.map((p) => (
           <label key={p.key} className="flex flex-col gap-1">
-            <span className="text-xs text-soft">{p.label}</span>
+            <span className="flex items-center gap-1.5 text-xs text-soft">
+              {p.label}
+              {p.measured && (
+                <span
+                  title={C.subsMeasuredWarning}
+                  className="rounded border border-amber-500/40 bg-amber-500/10 px-1 py-px text-[10px] font-medium text-amber-700 dark:text-amber-400"
+                >
+                  {C.subsMeasuredBadge}
+                </span>
+              )}
+            </span>
             <div className="flex items-center gap-1.5">
               <span className="text-xs text-mute">$</span>
               <input
@@ -122,6 +146,15 @@ export default function Subscriptions({
           </label>
         ))}
       </div>
+
+      {/* Ein Hinweis am Feld reicht nicht, wenn der Betrag schon drinsteht --
+          dann ist die Doppelzaehlung bereits passiert und muss benannt
+          werden, nicht bloss angedeutet. */}
+      {doppelt.length > 0 && (
+        <p className="mt-3 rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs leading-relaxed text-amber-800 dark:text-amber-300">
+          {C.subsMeasuredWarning} ({doppelt.join(", ")})
+        </p>
+      )}
 
       <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
         <p className="text-sm text-soft">

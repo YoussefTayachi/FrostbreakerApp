@@ -223,37 +223,27 @@ def _rank_fields(
     }
 
 
-def _store_people_pairs(
-    search: dict,
-    ws: str,
-    pairs: list[dict],
-    transport_field: str,
-    summary_of: Callable[[str], str | None],
-    rank_of: Callable[[str], tuple[int | None, str | None]] | None = None,
-) -> tuple[int, int]:
-    """Personen-plus-Firma-Paare entdoppeln, filtern und schreiben.
+def _surviving_pairs(ws: str, pairs: list[dict]) -> tuple[dict[str, dict], dict[str, list[dict]]]:
+    """Was von den gelieferten Paaren ueberhaupt gespeichert wird.
 
-    Herausgezogen aus run_apollo, als Prospeo als vierter Weg dazukam. Der
-    Ablauf ist fuer beide Wege identisch, und eine zweite Kopie waere die
-    Sorte Verdopplung, die genau so lange gleich bleibt, bis jemand nur eine
-    der beiden Stellen repariert.
+    Herausgezogen aus _store_people_pairs, weil die Antwort VOR dem Bezahlen
+    gebraucht wird und nicht erst danach.
+    ═══════════════════════════════════════════════════════════════════════
+    Bis zum 2026-08-09 lief die Reihenfolge andersherum: Apollo lieferte die
+    Paare, der Worker kaufte fuer jede gelieferte Firma den Firmendatensatz
+    (1 Credit je Firma) -- und erst danach warf _store_people_pairs die
+    Dubletten, gesperrten Domains und Sperrlisten-Treffer weg. Bezahlt war da
+    laengst alles.
 
-    Was sich zwischen den Anbietern UNTERSCHEIDET und deshalb von aussen
-    hereingereicht wird:
+    Nachgezaehlt an einem echten Konto: 61 gekaufte Firmendatensaetze, 55
+    gespeicherte Firmen. Sechs Credits fuer Zeilen, die nie eine Ansicht
+    erreicht haben; bei einer der Suchen waren es 4 von 10. Der Filter stand
+    hinter der Kasse.
 
-      transport_field  das Feld, das nur dem Anreichern diente (apollo_id
-                       bzw. prospeo_id) und nicht in die Datenbank gehoert
-      summary_of       woher die Firmenbeschreibung kommt. Apollo holt sie
-                       in einem eigenen, kostenlosen Aufruf ueber die Domain;
-                       Prospeo liefert sie je Treffer gleich mit
-      rank_of          Popularitaetsrang und dessen Quelle je Website
-                       (Migration 0079). Optional, weil ihn nicht jeder Weg
-                       liefert: Google Maps kennt so etwas gar nicht, und
-                       Prospeo gibt ihn nur im Pro-Tarif heraus.
-
-    Gibt (geschriebene Firmen, geschriebene Kontakte) zurueck. 0 Firmen heisst
-    "geliefert, aber alles schon bekannt oder gesperrt" -- eine ganz andere
-    Auskunft als "nichts gefunden", und der Aufrufer formuliert sie selbst.
+    Auf der Personenseite laesst sich derselbe Griff NICHT anwenden: Apollos
+    kostenlose Vorschau gibt die Domain nicht heraus (siehe
+    apollo.collect_people), die Sperrliste kann also erst nach dem
+    Freischalten greifen. Was hier gespart wird, sind die Firmendaten.
     """
     # Gegen bereits bekannte Firmen sperren (Website als Schluessel, weil
     # weder Apollo noch Prospeo eine Google-place_id kennen).
@@ -278,6 +268,51 @@ def _store_people_pairs(
             continue
         by_website.setdefault(website, biz)
         contacts_by_website.setdefault(website, []).append(contact)
+    return by_website, contacts_by_website
+
+
+def _store_people_pairs(
+    search: dict,
+    ws: str,
+    pairs: list[dict],
+    transport_field: str,
+    summary_of: Callable[[str], str | None],
+    rank_of: Callable[[str], tuple[int | None, str | None]] | None = None,
+    surviving: tuple[dict[str, dict], dict[str, list[dict]]] | None = None,
+) -> tuple[int, int]:
+    """Personen-plus-Firma-Paare entdoppeln, filtern und schreiben.
+
+    Herausgezogen aus run_apollo, als Prospeo als vierter Weg dazukam. Der
+    Ablauf ist fuer beide Wege identisch, und eine zweite Kopie waere die
+    Sorte Verdopplung, die genau so lange gleich bleibt, bis jemand nur eine
+    der beiden Stellen repariert.
+
+    Was sich zwischen den Anbietern UNTERSCHEIDET und deshalb von aussen
+    hereingereicht wird:
+
+      transport_field  das Feld, das nur dem Anreichern diente (apollo_id
+                       bzw. prospeo_id) und nicht in die Datenbank gehoert
+      summary_of       woher die Firmenbeschreibung kommt. Apollo holt sie
+                       in einem eigenen, kostenlosen Aufruf ueber die Domain;
+                       Prospeo liefert sie je Treffer gleich mit
+      rank_of          Popularitaetsrang und dessen Quelle je Website
+                       (Migration 0079). Optional, weil ihn nicht jeder Weg
+                       liefert: Google Maps kennt so etwas gar nicht, und
+                       Prospeo gibt ihn nur im Pro-Tarif heraus.
+
+      surviving        bereits ermitteltes Ergebnis von _surviving_pairs. Der
+                       Apollo-Weg braucht es schon vorher, um nur noch die
+                       Firmen anzureichern, die auch gespeichert werden --
+                       ohne diesen Durchreichweg wuerde derselbe Filter
+                       zweimal laufen und dabei zweimal die Sperrliste laden.
+
+    Gibt (geschriebene Firmen, geschriebene Kontakte) zurueck. 0 Firmen heisst
+    "geliefert, aber alles schon bekannt oder gesperrt" -- eine ganz andere
+    Auskunft als "nichts gefunden", und der Aufrufer formuliert sie selbst.
+    """
+    by_website, contacts_by_website = (
+        surviving if surviving is not None else _surviving_pairs(ws, pairs)
+    )
 
     if not by_website:
         return 0, 0
@@ -453,7 +488,15 @@ def run_apollo(search: dict, ws: str) -> None:
     # geprueften Seiten mit HTTP 429 auf unseren Crawler, am Ende hatten 10
     # von 45 Firmen eine Zeile. Ueber Apollos Firmen-Endpunkt waren es 35 von
     # 35 -- und er kostet keine Credits, weil Apollo nur Exporte abrechnet.
-    websites = sorted({p["business"]["website"] for p in pairs if p["business"].get("website")})
+    #
+    # ERST FILTERN, DANN BEZAHLEN. Angereichert werden nur die Firmen, die
+    # auch in der Datenbank landen -- nicht alles, was Apollo geliefert hat.
+    # Vorher lief der Aufruf ueber saemtliche Treffer, und die Dubletten und
+    # Sperrlisten-Firmen flogen erst danach raus: an einem echten Konto 61
+    # gekaufte Firmendatensaetze fuer 55 gespeicherte Firmen (siehe
+    # _surviving_pairs).
+    surviving = _surviving_pairs(ws, pairs)
+    websites = sorted(surviving[0])
     # fetch_company_facts statt fetch_company_summaries: derselbe Aufruf,
     # aber er gibt zusaetzlich das alexa_ranking heraus, das bis 2026-08-05
     # weggeworfen wurde (Migration 0079).
@@ -480,6 +523,11 @@ def run_apollo(search: dict, ws: str) -> None:
             (facts.get(domain_of(w) or "") or {}).get("traffic_rank"),
             "apollo_alexa",
         ),
+        # Derselbe Filterlauf, der oben ueber die Anreicherung entschieden
+        # hat. Ein zweiter Durchlauf koennte inzwischen anders ausfallen --
+        # etwa weil eine parallele Suche dieselbe Firma gerade angelegt hat --
+        # und dann waeren Credits fuer Daten bezahlt, die niemand speichert.
+        surviving=surviving,
     )
     if companies == 0:
         # Hier ist die Ursache bekannt und die Filter sind unschuldig: Apollo

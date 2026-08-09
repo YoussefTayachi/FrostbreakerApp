@@ -80,6 +80,11 @@ const de = {
     },
     hunterCredits: "Hunter-Credits",
     costsMeasured: "gemessen · Details",
+    // Die Kachel zeigt Messung UND eingetragene Tarife in einer Zahl. Stand
+    // hier nur "gemessen", behauptete sie, 32,77 $ gemessen zu haben, wovon
+    // 32,67 $ ein eingetipptes Monatsabo waren. Der gemessene Teil gehoert
+    // deshalb beziffert daneben.
+    costsMeasuredPlusPlans: (gemessen: string) => `davon ${gemessen} gemessen · Details`,
     rangeFrom: "Von",
     rangeTo: "Bis",
     rangeReset: "Zurücksetzen",
@@ -164,9 +169,15 @@ const de = {
     empty: "Für diesen Zeitraum ist noch kein Verbrauch erfasst.",
     colProvider: "Anbieter",
     colUnits: "Verbrauch",
-    colCalls: "Aufrufe",
+    // "Aufrufe" wurde als "Leads" gelesen: 19 Aufrufe neben 133 Credits neben
+    // 63 Leads ergab keinen Reim. Ein Aufruf ist ein Paket von bis zu zehn
+    // Datensaetzen -- das gehoert in die Ueberschrift.
+    colCalls: "Aufrufe (Pakete à ≤10)",
     colCost: "Kosten",
     tariffDependent: "tarifabhängig",
+    planShare: (betrag: string) => `${betrag} Tarif (eingetragen)`,
+    creditsPerLead: (credits: string, leads: number, proLead: string) =>
+      `${credits} Credits für ${leads} Leads in diesem Zeitraum — ${proLead} pro Lead. Apollo und Prospeo berechnen zweimal: einmal die Adresse der Person, einmal den Firmendatensatz.`,
     splitUsage: "Verbrauch",
     splitPlans: "Tarife",
     splitProRated: (monatlich: number, tage: number) =>
@@ -177,6 +188,9 @@ const de = {
     subsPerMonth: "/Monat",
     subsTotal: "Zusammen",
     subsSaved: "Tarife gespeichert",
+    subsMeasuredBadge: "wird gemessen",
+    subsMeasuredWarning:
+      "Diese Anbieter rechnen pro Aufruf ab und stehen bereits mit ihrem tatsächlichen Verbrauch in der Tabelle unten. Ein Monatsbetrag hier kommt oben zusätzlich dazu — trag ihn nur ein, wenn du eine Grundgebühr zahlst, die unabhängig vom Verbrauch anfällt.",
     methodNote:
       "Jeder kostenpflichtige Aufruf schreibt beim Ausführen eine Zeile mit der tatsächlich verbrauchten Menge. Bei OpenAI sind das die von der API gemeldeten Tokens, ein Korrektur-Versuch zählt also doppelt. Bei Apollo zählt jede freigeschaltete Adresse, auch wenn der Datensatz danach verworfen wurde.",
   },
@@ -570,6 +584,7 @@ const de = {
     pipelineVerifiedByApollo: "Von Apollo bereits verifiziert geliefert",
     pipelinePersonalize: "KI-Personalisierung",
     pipelinePersonalizeDone: "Eröffnungszeile generiert",
+    pipelinePersonalizeRunning: "wird gerade erzeugt — dauert meist unter einer Minute",
     companySummaryHeading: "Firmenbeschreibung",
     personalizationHeading: "Personalisierung",
     contactsHeading: (n: number) => `Kontakte (${n})`,
@@ -1974,6 +1989,7 @@ const en: Dictionary = {
     },
     hunterCredits: "Hunter credits",
     costsMeasured: "measured · details",
+    costsMeasuredPlusPlans: (measured: string) => `${measured} of it measured · details`,
     rangeFrom: "From",
     rangeTo: "To",
     rangeReset: "Reset",
@@ -2058,9 +2074,12 @@ const en: Dictionary = {
     empty: "No usage recorded for this range yet.",
     colProvider: "Provider",
     colUnits: "Usage",
-    colCalls: "Calls",
+    colCalls: "Calls (batches of ≤10)",
     colCost: "Cost",
     tariffDependent: "depends on plan",
+    planShare: (amount: string) => `${amount} plan (entered)`,
+    creditsPerLead: (credits: string, leads: number, perLead: string) =>
+      `${credits} credits for ${leads} leads in this range — ${perLead} per lead. Apollo and Prospeo charge twice: once for the person's address, once for the company record.`,
     splitUsage: "Usage",
     splitPlans: "Plans",
     splitProRated: (monthly: number, days: number) =>
@@ -2071,6 +2090,9 @@ const en: Dictionary = {
     subsPerMonth: "/month",
     subsTotal: "Together",
     subsSaved: "Plans saved",
+    subsMeasuredBadge: "measured",
+    subsMeasuredWarning:
+      "These providers bill per call and already appear with their actual usage in the table below. A monthly amount here is added on top — only enter it if you pay a base fee that applies regardless of usage.",
     methodNote:
       "Every paid call writes a row with the amount actually consumed as it runs. For OpenAI those are the tokens the API itself reports, so a correction attempt counts twice. For Apollo every revealed address counts, even when the record was discarded afterwards.",
   },
@@ -2449,6 +2471,7 @@ const en: Dictionary = {
     pipelineVerifiedByApollo: "Delivered already verified by Apollo",
     pipelinePersonalize: "AI personalization",
     pipelinePersonalizeDone: "Opening line generated",
+    pipelinePersonalizeRunning: "being generated — usually takes under a minute",
     companySummaryHeading: "Company summary",
     personalizationHeading: "Personalization",
     contactsHeading: (n: number) => `Contacts (${n})`,

@@ -5,6 +5,7 @@ import { getLangServer, formatDate } from "@/lib/i18n/lang";
 import { dict } from "@/lib/i18n/dict";
 import { searchSourceBadgeClass, searchSourceLabel } from "@/lib/search-source";
 import AutoRefresh from "../auto-refresh";
+import LocalTime from "../local-time";
 import {
   CancelButton,
   EmptyTrashButton,
@@ -167,7 +168,12 @@ export default async function SearchesPage() {
                     )}
                   </div>
                   <p className="mt-0.5 text-xs text-faint">
-                    {s.location} · {formatDate(s.created_at, lang)}
+                    {s.location} ·{" "}
+                    <LocalTime
+                      iso={s.created_at}
+                      lang={lang}
+                      serverFormatted={formatDate(s.created_at, lang)}
+                    />
                   </p>
                 </div>
                 <Metric value={s.businesses} label={t.searches.metricBusinesses} />

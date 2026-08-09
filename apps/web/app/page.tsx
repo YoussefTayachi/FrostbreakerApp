@@ -6,6 +6,7 @@ import { dict } from "@/lib/i18n/dict";
 import { searchSourceBadgeClass, searchSourceLabel } from "@/lib/search-source";
 import NewSearchForm from "./new-search-form";
 import AutoRefresh from "./auto-refresh";
+import LocalTime from "./local-time";
 import ActivityChart from "./activity-chart";
 import CountUp from "./count-up";
 import DateRangePicker from "./date-range-picker";
@@ -295,7 +296,25 @@ export default async function Dashboard({
     { label: t.dashboard.kpis.contacts, value: stats.contacts_total ?? 0 },
     { label: t.dashboard.kpis.withEmail, value: stats.contacts_with_email ?? 0 },
     { label: t.dashboard.kpis.personalized, value: stats.personalized ?? 0, hero: true },
-    { label: t.dashboard.kpis.apiCosts, value: "$" + costs.usd.toFixed(2), sub: gemessen > 0 ? t.dashboard.costsMeasured : t.dashboard.costsEstimated, href: "/costs" },
+    {
+      label: t.dashboard.kpis.apiCosts,
+      value: "$" + costs.usd.toFixed(2),
+      /**
+       * "gemessen" darf nur dastehen, wenn die Zahl auch gemessen ist.
+       *
+       * Am 2026-08-09 stand hier "$32,77 gemessen", wovon 32,67 $ ein
+       * eingetipptes Monatsabo waren und 11 Cent die Messung. Sobald Tarife
+       * mitzaehlen, wird der gemessene Teil deshalb beziffert -- eine Kachel,
+       * die ihre eigene Herkunft falsch angibt, ist schlimmer als gar keine.
+       */
+      sub:
+        abosImFenster > 0
+          ? t.dashboard.costsMeasuredPlusPlans("$" + verbrauch.usd.toFixed(2))
+          : gemessen > 0
+            ? t.dashboard.costsMeasured
+            : t.dashboard.costsEstimated,
+      href: "/costs",
+    },
   ];
   const onboardingDoneCount = onboardingSteps.filter((s) => s.done).length;
 
@@ -642,7 +661,13 @@ export default async function Dashboard({
                   {s.target_email_count ? `🎯 ${s.target_email_count}` : s.max_results}
                 </td>
                 <td className="px-5 py-2.5"><StatusBadge status={s.status} labels={t.common.statusLabels} /></td>
-                <td className="px-5 py-2.5 text-faint">{formatDate(s.created_at, lang)}</td>
+                <td className="px-5 py-2.5 text-faint">
+                  <LocalTime
+                    iso={s.created_at}
+                    lang={lang}
+                    serverFormatted={formatDate(s.created_at, lang)}
+                  />
+                </td>
               </tr>
             ))}
             {searches.length === 0 && (
