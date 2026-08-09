@@ -59,8 +59,9 @@ export default function LinkedInOverview({
       total: acc.total + l.total,
       open: acc.open + (l.total - l.contacted),
       withoutEmail: acc.withoutEmail + l.withoutEmail,
+      followUpsDue: acc.followUpsDue + l.followUpsDue,
     }),
-    { total: 0, open: 0, withoutEmail: 0 }
+    { total: 0, open: 0, withoutEmail: 0, followUpsDue: 0 }
   );
 
   return (
@@ -68,6 +69,15 @@ export default function LinkedInOverview({
       {truncated && (
         <p className="rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-xs text-amber-700 dark:text-amber-500">
           {L.truncatedRows(maxRows)}
+        </p>
+      )}
+
+      {/* Die Zeile steht ueber allem anderen und nur dann, wenn wirklich etwas
+          faellig ist: sie ist die einzige Auskunft auf dieser Seite, die
+          einen Termin hat. */}
+      {totals.followUpsDue > 0 && (
+        <p className="rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-xs font-medium text-amber-700 dark:text-amber-500">
+          {L.followUpsDueBanner(totals.followUpsDue)}
         </p>
       )}
 
@@ -165,6 +175,14 @@ function ListCard({ list }: { list: LeadListSummary }) {
       {list.note && <p className="mb-2 line-clamp-2 text-[11px] text-mute">{list.note}</p>}
 
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px]">
+        {/* Zuerst, weil es das Einzige ist, was heute dringend ist: hier
+            wartet eine Antwort-Pruefung, die sonst nur auffaellt, wenn man
+            die Liste zufaellig oeffnet. */}
+        {list.followUpsDue > 0 && (
+          <span className="font-medium text-amber-600 dark:text-amber-400">
+            {L.cardFollowUpsDue(list.followUpsDue)}
+          </span>
+        )}
         <span className="font-medium text-ink">{L.cardOpen(open)}</span>
         {list.withoutEmail > 0 && (
           <span className="text-sky-600 dark:text-sky-400">{L.cardOnlyLinkedIn(list.withoutEmail)}</span>

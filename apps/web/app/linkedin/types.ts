@@ -28,6 +28,21 @@ export type LinkedInLead = {
   /** ID der Suche, aus der dieser Kontakt stammt. */
   listId: string;
   alreadyContacted: boolean;
+  /**
+   * Faelligkeit der offenen Nachfass-Aufgabe ("nachschauen, ob geantwortet
+   * wurde"), oder null. Entsteht beim Protokollieren einer gesendeten
+   * Nachricht und schliesst sich, sobald eine Antwort oder ein "keine
+   * Antwort" eingetragen wird.
+   */
+  followUpDueAt: string | null;
+  /**
+   * Ob diese Erinnerung jetzt faellig ist. Bewusst auf dem Server entschieden
+   * und nicht im Browser aus followUpDueAt abgeleitet: ein "jetzt" im Client
+   * weicht beim ersten Rendern vom "jetzt" des Servers ab, und da die
+   * Faelligkeit die Sortierung und die Abzeichen steuert, waere das ein
+   * Hydration-Unterschied im Markup.
+   */
+  followUpDue: boolean;
 };
 
 /** Eine Lead-Liste (= eine Suche) mit den Zahlen, die vor dem Hineinklicken zaehlen. */
@@ -43,4 +58,6 @@ export type LeadListSummary = {
   withoutEmail: number;
   withIcebreaker: number;
   contacted: number;
+  /** Faellige Nachfass-Aufgaben in dieser Liste -- die eigentliche Arbeit von heute. */
+  followUpsDue: number;
 };

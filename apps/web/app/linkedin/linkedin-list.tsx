@@ -1,5 +1,5 @@
 "use client";
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { renderLinkedInMessage } from "@/lib/crm/linkedin-message";
@@ -42,6 +42,35 @@ const REPLY_BADGE: Record<ReplyOutcome, string> = {
   meeting_booked: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
   not_interested: "bg-chip text-mute",
 };
+
+/**
+ * Tage bis zur Erinnerung "nachschauen, ob geantwortet wurde".
+ *
+ * Fest und nicht einstellbar: LinkedIn liefert der App keine Antworten, also
+ * ist jede Zahl hier eine Faustregel und keine Messung. Drei Tage sind lang
+ * genug, dass eine Antwort realistisch da sein kann, und kurz genug, dass ein
+ * Gespraech noch an die Nachricht anknuepft. Wer laenger wartet, faengt
+ * ohnehin von vorne an.
+ *
+ * Bewusst nicht als automation_rule wie die Kette: die Kette laeuft
+ * zeitgesteuert ueber alle Kontakte, diese Aufgabe entsteht dagegen genau in
+ * dem Moment, in dem die Information entsteht -- beim Protokollieren. Das
+ * braucht keinen Tageslauf und geht nicht verloren, wenn er abgeschaltet ist.
+ */
+const FOLLOW_UP_DAYS = 3;
+
+/**
+ * Tag und Monat direkt aus dem ISO-String, ohne toLocaleDateString.
+ *
+ * Grund ist die Hydration: Server und Browser haben unterschiedliche
+ * Standardsprachen und Zeitzonen, und ein Datum, das sich zwischen beiden
+ * Durchlaeufen unterscheidet, erzeugt eine Warnung und ein kurzes Umspringen
+ * im Text. Der Preis ist, dass hier UTC steht -- bei einer Erinnerung, die
+ * auf den Tag genau gemeint ist, faellt das nicht ins Gewicht.
+ */
+function formatDay(iso: string): string {
+  return `${iso.slice(8, 10)}.${iso.slice(5, 7)}.`;
+}
 
 const OUTCOME_BY_STATUS: Record<string, ReplyOutcome | undefined> = {
   replied: "interested",
@@ -101,13 +130,52 @@ export default function LinkedInList({
   // Antworten getrennt von justLogged: eine Antwort ist kein "abgehakt",
   // sondern ein anderer Zustand -- und die Zeile soll zeigen, welcher.
   const [justReplied, setJustReplied] = useState<Map<string, ReplyOutcome>>(new Map());
+  // Ueberschreibt den Serverstand von lead.followUpDueAt: null heisst
+  // "geschlossen", ein Datum heisst "neu gesetzt". Wie justLogged bewusst
+  // lokal, damit die Zeile beim Abarbeiten nicht unter dem Cursor wegspringt.
+  const [followUpOverride, setFollowUpOverride] = useState<Map<string, string | null>>(new Map());
+  const [onlyFollowUpsDue, setOnlyFollowUpsDue] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
+
+  const followUpOf = useCallback(
+    (lead: LinkedInLead) =>
+      followUpOverride.has(lead.id) ? followUpOverride.get(lead.id)! : lead.followUpDueAt,
+    [followUpOverride]
+  );
+
+  /** Sobald in dieser Sitzung etwas passiert ist, ist nichts mehr faellig:
+   *  entweder wurde die Erinnerung abgehakt (null) oder gerade neu auf drei
+   *  Tage gesetzt. Beides ist "nicht jetzt". */
+  const isDue = useCallback(
+    (lead: LinkedInLead) => (followUpOverride.has(lead.id) ? false : lead.followUpDue),
+    [followUpOverride]
+  );
+
+  /** Offene Nachfass-Aufgaben dieses Kontakts abschliessen.
+   *  Ueber die Merkmale statt ueber die id: die Oberflaeche kennt die id
+   *  nicht, und "alle offenen" ist ohnehin die richtige Menge. */
+  const closeFollowUp = useCallback(async (leadId: string) => {
+    await createClient()
+      .from("activities")
+      .update({ completed_at: new Date().toISOString() })
+      .eq("contact_id", leadId)
+      .eq("channel", "linkedin")
+      .eq("type", "task")
+      .is("completed_at", null);
+    setFollowUpOverride((prev) => new Map(prev).set(leadId, null));
+  }, []);
 
   // Arbeitsreihenfolge: offen vor erledigt, fertiger Icebreaker vor keinem,
   // und ohne E-Mail-Adresse zuerst -- fuer die ist LinkedIn der einzige Weg.
   const ordered = useMemo(
     () =>
       [...leads].sort((a, b) => {
+        // Faellige Nachfassungen ganz nach oben: das ist die Arbeit, die heute
+        // ansteht, und sie steckt sonst irgendwo im erledigten Teil der Liste
+        // -- also genau dort, wo niemand mehr hinschaut.
+        const aDue = isDue(a) ? 0 : 1;
+        const bDue = isDue(b) ? 0 : 1;
+        if (aDue !== bDue) return aDue - bDue;
         const aDone = a.alreadyContacted ? 1 : 0;
         const bDone = b.alreadyContacted ? 1 : 0;
         if (aDone !== bDone) return aDone - bDone;
@@ -116,20 +184,26 @@ export default function LinkedInList({
         if (aReady !== bReady) return aReady - bReady;
         return (a.email ? 1 : 0) - (b.email ? 1 : 0);
       }),
-    [leads]
+    [leads, isDue]
   );
 
   const visible = useMemo(
     () =>
       ordered.filter((lead) => {
+        if (onlyFollowUpsDue && !isDue(lead)) return false;
         if (onlyWithoutEmail && lead.email) return false;
-        if (hideContacted && (lead.alreadyContacted || justLogged.has(lead.id))) return false;
+        // Wer auf eine Antwort-Pruefung wartet, bleibt sichtbar, auch wenn
+        // "bereits angeschriebene ausblenden" an ist: sonst versteckt genau
+        // dieser Filter die Aufgabe, um die es hier geht.
+        if (hideContacted && (lead.alreadyContacted || justLogged.has(lead.id)) && !isDue(lead))
+          return false;
         return true;
       }),
-    [ordered, onlyWithoutEmail, hideContacted, justLogged]
+    [ordered, onlyWithoutEmail, onlyFollowUpsDue, hideContacted, justLogged, isDue]
   );
 
   const doneCount = leads.filter((l) => l.alreadyContacted || justLogged.has(l.id)).length;
+  const dueCount = leads.filter(isDue).length;
 
   async function copy(text: string) {
     try {
@@ -186,9 +260,49 @@ export default function LinkedInList({
       if (statusError) push(t.common.error + statusError.message, "error");
     }
 
+    // Erinnerung setzen: in FOLLOW_UP_DAYS Tagen nachschauen, ob geantwortet
+    // wurde. Ohne sie muesste der Nutzer selbst im Kopf behalten, wen er wann
+    // angeschrieben hat, und auf gut Glueck in LinkedIn nachsehen -- die App
+    // bekommt von dort nichts mit.
+    //
+    // Die Aufgabe taucht dadurch auch in /calls auf (die Ansicht laedt alle
+    // offenen Aktivitaeten mit due_at, nicht nur Anrufe) und blockiert
+    // Schritt 3 der Kette, bis sie erledigt ist -- erst nachschauen, dann
+    // anrufen. Beides faellt ohne eine Zeile Zusatzarbeit an.
+    const dueAt = new Date(Date.now() + FOLLOW_UP_DAYS * 86_400_000).toISOString();
+    const existing = followUpOf(lead);
+    const followUpError = existing
+      ? // "Erneut protokolliert" heisst: die Uhr laeuft neu. Eine zweite
+        // Aufgabe waere eine Doppelung in der Arbeitsliste.
+        (
+          await supabase
+            .from("activities")
+            .update({ due_at: dueAt })
+            .eq("contact_id", lead.id)
+            .eq("channel", "linkedin")
+            .eq("type", "task")
+            .is("completed_at", null)
+        ).error
+      : (
+          await supabase.from("activities").insert({
+            workspace_id: workspaceId,
+            contact_id: lead.id,
+            business_id: null,
+            type: "task",
+            channel: "linkedin",
+            subject: L.followUpSubject,
+            due_at: dueAt,
+          })
+        ).error;
+
+    // Die Nachricht IST protokolliert -- nur die Erinnerung fehlt. Das ist
+    // eine Meldung wert, aber kein Grund, den Erfolg zurueckzunehmen.
+    if (followUpError) push(t.common.error + followUpError.message, "error");
+    else setFollowUpOverride((prev) => new Map(prev).set(lead.id, dueAt));
+
     setJustLogged((prev) => new Set(prev).add(lead.id));
     setBusyId(null);
-    push(L.logged, "success");
+    push(followUpError ? L.logged : L.loggedWithFollowUp(FOLLOW_UP_DAYS), "success");
   }
 
   /**
@@ -255,9 +369,30 @@ export default function LinkedInList({
       .eq("id", lead.id);
     if (statusError) push(t.common.error + statusError.message, "error");
 
+    // Die Frage "hat er geantwortet?" ist beantwortet -- die Erinnerung dazu
+    // hat sich erledigt.
+    await closeFollowUp(lead.id);
+
     setJustReplied((prev) => new Map(prev).set(lead.id, outcome));
     setBusyId(null);
     push(L.replyLogged, "success");
+  }
+
+  /**
+   * "Keine Antwort" -- die Erinnerung abhaken, ohne den Status anzufassen.
+   *
+   * Der Kontakt bleibt damit 'contacted' und faellt genau dorthin, wo er
+   * hingehoert: in Schritt 3 der Kette (Anruf nach sieben Tagen) und, sobald
+   * das Warmup durch ist, in die Mail-Kampagne. Das ist der Normalfall dieses
+   * Ablaufs, und deshalb braucht er einen eigenen Knopf statt eines
+   * Umwegs ueber die Aufgabenliste.
+   */
+  async function dismissFollowUp(lead: LinkedInLead) {
+    if (busyId) return;
+    setBusyId(lead.id);
+    await closeFollowUp(lead.id);
+    setBusyId(null);
+    push(L.followUpDismissed, "success");
   }
 
   return (
@@ -281,6 +416,18 @@ export default function LinkedInList({
 
         <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-edge2/60 pt-3 text-xs">
           <span className="text-soft">{L.progress(doneCount, leads.length)}</span>
+          {/* Der Filter erscheint nur, wenn es etwas zu filtern gibt -- eine
+              Auswahl, die immer null Treffer hat, ist eine Sackgasse. */}
+          {dueCount > 0 && (
+            <label className="flex items-center gap-1.5 font-medium text-amber-600 dark:text-amber-400">
+              <input
+                type="checkbox"
+                checked={onlyFollowUpsDue}
+                onChange={(e) => setOnlyFollowUpsDue(e.target.checked)}
+              />
+              {L.filterFollowUpsDue(dueCount)}
+            </label>
+          )}
           <label className="flex items-center gap-1.5 text-faint">
             <input
               type="checkbox"
@@ -340,10 +487,13 @@ export default function LinkedInList({
               template={template}
               done={lead.alreadyContacted || justLogged.has(lead.id)}
               replied={justReplied.get(lead.id) ?? OUTCOME_BY_STATUS[lead.outreach_status] ?? null}
+              followUpAt={followUpOf(lead)}
+              followUpDue={isDue(lead)}
               busy={busyId === lead.id}
               onCopy={copy}
               onLog={logSent}
               onReply={logReply}
+              onDismissFollowUp={dismissFollowUp}
             />
           ))}
         </div>
@@ -357,20 +507,28 @@ function LeadRow({
   template,
   done,
   replied,
+  followUpAt,
+  followUpDue,
   busy,
   onCopy,
   onLog,
   onReply,
+  onDismissFollowUp,
 }: {
   lead: LinkedInLead;
   template: string;
   done: boolean;
   /** Eingetragenes Antwort-Ergebnis, oder null wenn noch keine Antwort da ist. */
   replied: ReplyOutcome | null;
+  /** Faelligkeit der offenen Erinnerung, oder null. */
+  followUpAt: string | null;
+  /** Ob diese Erinnerung jetzt dran ist (auf dem Server entschieden). */
+  followUpDue: boolean;
   busy: boolean;
   onCopy: (text: string) => void;
   onLog: (lead: LinkedInLead, message: string) => void;
   onReply: (lead: LinkedInLead, outcome: ReplyOutcome) => void;
+  onDismissFollowUp: (lead: LinkedInLead) => void;
 }) {
   const { t } = useT();
   const L = t.linkedin;
@@ -403,9 +561,35 @@ function LeadRow({
     <div
       className={
         "rounded-xl border bg-panel p-4 transition-opacity " +
-        (done ? "border-edge/40 opacity-60" : "border-edge/60")
+        // Faellige Erinnerung schlaegt "erledigt": die Zeile ist gerade
+        // wieder Arbeit, sie darf nicht ausgegraut zwischen den anderen
+        // stehen.
+        (followUpDue
+          ? "border-amber-500/50"
+          : done
+            ? "border-edge/40 opacity-60"
+            : "border-edge/60")
       }
     >
+      {followUpAt && (
+        <p
+          className={
+            "mb-3 flex flex-wrap items-center gap-x-2 text-[11px] " +
+            (followUpDue ? "font-medium text-amber-600 dark:text-amber-400" : "text-faint")
+          }
+        >
+          {followUpDue ? L.followUpDue : L.followUpPlanned(formatDay(followUpAt))}
+          {followUpDue && (
+            <button
+              onClick={() => onDismissFollowUp(lead)}
+              disabled={busy}
+              className="underline underline-offset-2 transition-opacity hover:opacity-70 disabled:opacity-40"
+            >
+              {L.followUpNoAnswer}
+            </button>
+          )}
+        </p>
+      )}
       <div className="mb-3 flex flex-wrap items-start justify-between gap-2">
         <div className="min-w-0">
           <p className="truncate text-sm font-medium text-ink">
@@ -478,7 +662,10 @@ function LeadRow({
           disabled={busy}
           className="rounded-lg border border-edge2 px-3 py-1.5 text-xs text-soft transition-colors hover:border-sky-500/60 hover:text-sky-600 disabled:opacity-40 dark:hover:text-sky-400"
         >
-          {replied ? L.replyChange : L.replyButton}
+          {/* Das Zeichen sagt, dass hier etwas aufgeht -- ohne es sah der
+              Knopf aus, als wuerde er direkt etwas eintragen, und die drei
+              Ergebnisse dahinter fand man nicht. */}
+          {replied ? L.replyChange : L.replyButton} <span aria-hidden>{replyOpen ? "▴" : "▾"}</span>
         </button>
         {lead.business_id && (
           <Link

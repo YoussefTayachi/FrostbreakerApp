@@ -77,7 +77,7 @@ export default async function LinkedInPage({
   if (!ws) return <p className="text-faint">Kein Workspace gefunden.</p>;
   const workspaceId = ws.workspace.id;
 
-  const [{ data: templateRows }, { data }, { data: contacted }] = await Promise.all([
+  const [{ data: templateRows }, { data }, { data: contacted }, { data: followUpRows }] = await Promise.all([
     // Seit Migration 0080 liegen die Vorlagen in einer eigenen Tabelle statt
     // als eine Textspalte am Workspace -- benannt, mehrere, eine davon
     // vorausgewaehlt.
@@ -116,15 +116,50 @@ export default async function LinkedInPage({
       // Kontakte ohne Suche.
       .is("businesses.searches.deleted_at", null)
       .limit(MAX_ROWS),
+    // ERLEDIGTE LinkedIn-Aktivitaeten = tatsaechlich angeschrieben.
+    //
+    // completed_at war hier bis zum 2026-08-09 nicht eingeschraenkt, und das
+    // war falsch: Schritt 2 der Kette (Migration 0074) legt eine OFFENE
+    // Aufgabe mit channel='linkedin' an -- "diesen Kontakt anschreiben". Ohne
+    // den Filter galt der Kontakt in dem Moment als angeschrieben, wurde von
+    // "Bereits angeschriebene ausblenden" verborgen und zaehlte im Fortschritt
+    // mit. Die Aufgabe, jemanden anzuschreiben, blendete ihn also aus der
+    // Liste aus, in der man ihn anschreiben sollte.
     supabase
       .from("activities")
       .select("contact_id")
       .eq("workspace_id", workspaceId)
       .eq("channel", "linkedin")
+      .not("completed_at", "is", null)
+      .not("contact_id", "is", null),
+    // Offene Nachfass-Aufgaben: "nachschauen, ob geantwortet wurde".
+    //
+    // LinkedIn liefert keine Antworten an die App -- ohne diese Erinnerung
+    // muesste der Nutzer selbst im Kopf behalten, wen er wann angeschrieben
+    // hat, und taeglich auf gut Glueck in LinkedIn nachsehen. Genau das
+    // passiert im Alltag nicht.
+    supabase
+      .from("activities")
+      .select("contact_id, due_at")
+      .eq("workspace_id", workspaceId)
+      .eq("channel", "linkedin")
+      .eq("type", "task")
+      .is("completed_at", null)
+      .not("due_at", "is", null)
       .not("contact_id", "is", null),
   ]);
 
   const contactedIds = new Set((contacted ?? []).map((a) => a.contact_id as string));
+  const nowIso = new Date().toISOString();
+  // Bei mehreren offenen Aufgaben gewinnt die frueheste -- sie ist die, die
+  // als naechstes faellig wird.
+  const followUps = new Map<string, string>();
+  for (const a of followUpRows ?? []) {
+    const id = a.contact_id as string;
+    const due = a.due_at as string;
+    const current = followUps.get(id);
+    if (!current || due < current) followUps.set(id, due);
+  }
 
   // Cast an der Vertrauensgrenze wie in /leads, /inbox und /calls: der
   // Supabase-Client ist untypisiert und leitet 1:1-Relationen bei
@@ -145,6 +180,8 @@ export default async function LinkedInPage({
     personalization: r.businesses?.personalization ?? null,
     listId: r.businesses!.searches.id,
     alreadyContacted: contactedIds.has(r.id),
+    followUpDueAt: followUps.get(r.id) ?? null,
+    followUpDue: (followUps.get(r.id) ?? "") !== "" && followUps.get(r.id)! <= nowIso,
   }));
 
   // Gruppieren und je Gruppe die Zahlen bilden, die vor dem Hineinklicken
@@ -166,6 +203,7 @@ export default async function LinkedInPage({
         withoutEmail: 0,
         withIcebreaker: 0,
         contacted: 0,
+        followUpsDue: 0,
       };
       byList.set(id, entry);
     }
@@ -173,6 +211,11 @@ export default async function LinkedInPage({
     if (!row.email) entry.withoutEmail++;
     if (row.businesses?.personalization) entry.withIcebreaker++;
     if (contactedIds.has(row.id)) entry.contacted++;
+    // Nur die faelligen zaehlen, nicht alle geplanten: die Zahl auf der Karte
+    // soll "hier ist jetzt etwas zu tun" heissen, nicht "hier passiert
+    // irgendwann etwas".
+    const due = followUps.get(row.id);
+    if (due && due <= nowIso) entry.followUpsDue++;
   }
 
   // Reihenfolge der Uebersicht: wo am meisten Arbeit offen ist, zuerst.

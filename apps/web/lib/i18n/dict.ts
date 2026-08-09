@@ -709,6 +709,11 @@ const de = {
     cardOnlyLinkedIn: (n: number) => `${n} ohne E-Mail`,
     cardWithIcebreaker: (n: number) => `${n} mit Icebreaker`,
     cardProgress: (done: number, total: number) => `${done} von ${total} angeschrieben`,
+    cardFollowUpsDue: (n: number) => `${n} × Antwort prüfen`,
+    followUpsDueBanner: (n: number) =>
+      n === 1
+        ? "Bei 1 Kontakt ist die Antwort-Prüfung fällig — schau kurz auf LinkedIn nach."
+        : `Bei ${n} Kontakten ist die Antwort-Prüfung fällig — schau kurz auf LinkedIn nach.`,
     truncatedRows: (max: number) =>
       `Es wurden ${max} Profile geladen — die Zahlen unten können dadurch zu niedrig sein.`,
     // Detailansicht
@@ -774,6 +779,16 @@ const de = {
     } as Record<string, string>,
     replySubject: "Antwort auf LinkedIn",
     replyLogged: "Antwort eingetragen",
+    // Erinnerung: LinkedIn meldet der App keine Antworten. Ohne diese Aufgabe
+    // muesste der Nutzer selbst nachhalten, wen er wann angeschrieben hat.
+    followUpSubject: "Antwort auf LinkedIn prüfen",
+    followUpPlanned: (day: string) => `Nachfassen am ${day}`,
+    followUpDue: "Antwort prüfen — heute fällig.",
+    followUpNoAnswer: "Keine Antwort",
+    followUpDismissed: "Abgehakt — der Kontakt bleibt in der Kette.",
+    filterFollowUpsDue: (n: number) => `${n} × Antwort prüfen`,
+    loggedWithFollowUp: (days: number) =>
+      `Protokolliert. In ${days} Tagen wird an die Antwort-Prüfung erinnert.`,
     replyEffect:
       "Dieser Kontakt bekommt danach keine Kalt-Mail mehr — weder in einer neuen Kampagne noch beim Nachreichen von Leads, und die Kette plant für ihn keinen nächsten Schritt.",
     openLead: "Lead öffnen",
@@ -2493,6 +2508,11 @@ const en: Dictionary = {
     cardOnlyLinkedIn: (n: number) => `${n} without email`,
     cardWithIcebreaker: (n: number) => `${n} with icebreaker`,
     cardProgress: (done: number, total: number) => `${done} of ${total} contacted`,
+    cardFollowUpsDue: (n: number) => `${n} × check for a reply`,
+    followUpsDueBanner: (n: number) =>
+      n === 1
+        ? "1 contact is due for a reply check — take a quick look on LinkedIn."
+        : `${n} contacts are due for a reply check — take a quick look on LinkedIn.`,
     truncatedRows: (max: number) =>
       `Loaded ${max} profiles — the counts below may therefore be too low.`,
     backToLists: "All lead lists",
@@ -2554,6 +2574,14 @@ const en: Dictionary = {
     } as Record<string, string>,
     replySubject: "Reply on LinkedIn",
     replyLogged: "Reply logged",
+    followUpSubject: "Check for a reply on LinkedIn",
+    followUpPlanned: (day: string) => `Follow up on ${day}`,
+    followUpDue: "Check for a reply — due today.",
+    followUpNoAnswer: "No reply",
+    followUpDismissed: "Cleared — the contact stays in the chain.",
+    filterFollowUpsDue: (n: number) => `${n} × check for a reply`,
+    loggedWithFollowUp: (days: number) =>
+      `Logged. You'll be reminded to check for a reply in ${days} days.`,
     replyEffect:
       "This contact will not receive a cold email after this — not in a new campaign, not when leads are topped up, and the chain plans no next step for them.",
     openLead: "Open lead",
