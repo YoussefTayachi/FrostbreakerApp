@@ -82,16 +82,21 @@ export default async function RootLayout({ children }: { children: React.ReactNo
                 <CommandPaletteTrigger />
                 <Nav />
                 <div className="mt-auto border-t border-edge/60 pt-4">
-                  <div className="flex items-center justify-between px-2">
-                    <div className="min-w-0">
-                      <p className="truncate text-xs text-faint">{user.email}</p>
-                      <div className="pt-1">
-                        <LogoutButton />
+                  {/* Konto und Abmelden untereinander statt nebeneinander:
+                      der Knopf hat jetzt einen Rahmen und braucht die ganze
+                      Breite, sonst quetscht ihn eine lange Adresse. */}
+                  <div className="px-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="min-w-0 truncate text-xs text-faint" title={user.email}>
+                        {user.email}
+                      </p>
+                      <div className="flex shrink-0 items-center gap-1.5">
+                        <LanguageToggle />
+                        <ThemeToggle />
                       </div>
                     </div>
-                    <div className="flex items-center gap-1.5">
-                      <LanguageToggle />
-                      <ThemeToggle />
+                    <div className="mt-2">
+                      <LogoutButton />
                     </div>
                   </div>
                 </div>
@@ -102,6 +107,11 @@ export default async function RootLayout({ children }: { children: React.ReactNo
                   <div className="min-w-0 flex-1">
                     <WorkspaceSwitcher />
                   </div>
+                  {/* Auf dem Handy die EINZIGE Abmeldung: die Seitenleiste,
+                      in der sie sonst steht, ist unter md ausgeblendet. Bis
+                      zum 2026-08-09 kam man mobil ueberhaupt nicht aus dem
+                      Konto heraus. */}
+                  <LogoutButton compact />
                 </header>
                 <main className="mx-auto max-w-7xl px-8 py-7">{children}</main>
               </div>

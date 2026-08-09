@@ -28,6 +28,8 @@ const de = {
     triggerLabel: "Suche...",
   },
   logout: "Abmelden",
+  loggingOut: "Wird abgemeldet...",
+  logoutTitle: "Meldet dieses Konto auf allen Geräten ab.",
   workspace: {
     switcherLabel: "Workspaces",
     newWorkspace: "Neuer Workspace",
@@ -1865,6 +1867,8 @@ const en: Dictionary = {
     triggerLabel: "Search...",
   },
   logout: "Log out",
+  loggingOut: "Logging out...",
+  logoutTitle: "Signs this account out on all devices.",
   workspace: {
     switcherLabel: "Workspaces",
     newWorkspace: "New workspace",
