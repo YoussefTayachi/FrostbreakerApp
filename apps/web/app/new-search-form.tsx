@@ -11,6 +11,7 @@ import { missingProviders } from "@/lib/search-requirements";
 import {
   APOLLO_DEFAULT_SENIORITIES,
   APOLLO_EMPLOYEE_RANGES,
+  APOLLO_MARKET_SEGMENTS,
   APOLLO_SENIORITIES,
   hasAnyApolloFilter,
   type ApolloFilters,
@@ -291,6 +292,7 @@ type Preset = {
   // Interne Technologie-IDs (nicht die Anbieter-Slugs), damit eine Vorlage
   // beim Wechsel zwischen Corporate und Apollo gueltig bleibt.
   technologies?: string[];
+  marketSegments?: string[];
 };
 
 const presetsKey = (workspaceId: string) => `fb_search_presets_${workspaceId}`;
@@ -522,6 +524,10 @@ export default function NewSearchForm({
   // Interne IDs aus lib/technologies.ts, erst beim Absenden in die Slugs des
   // jeweiligen Anbieters uebersetzt.
   const [technologies, setTechnologies] = useState<string[]>([]);
+  // Apollos "Market Segments". Leer als Vorgabe: anders als bei den
+  // Senioritaeten gibt es hier keine sinnvolle Vorauswahl -- jedes Segment
+  // schneidet hart, und wer nichts anhakt, will alle.
+  const [marketSegments, setMarketSegments] = useState<string[]>([]);
   /**
    * Prospeos Filter liegen als EIN Objekt, nicht als ein Dutzend Einzel-
    * Zustaende wie bei Apollo: es sind mehr als doppelt so viele Felder, und
@@ -560,8 +566,9 @@ export default function NewSearchForm({
       // Filter-Gleichheitspruefung in matching_prior_search_ids gegen aeltere
       // Suchen unnoetig scheitern lassen.
       ...(apolloTech.length > 0 ? { technologies: apolloTech } : {}),
+      ...(marketSegments.length > 0 ? { market_segments: marketSegments } : {}),
     };
-  }, [personTitles, apolloCountries, apolloSeniorities, headcount, keywords, technologies]);
+  }, [personTitles, apolloCountries, apolloSeniorities, headcount, keywords, technologies, marketSegments]);
 
   // Trefferzahl vor dem Absenden. Der Aufruf kostet keine Credits (nur das
   // Anreichern kostet, und das passiert hier nicht), darf also bei jeder
@@ -772,6 +779,7 @@ export default function NewSearchForm({
       setKeywords(preset.keywords);
       const techIds = preset.technologies ?? [];
       setTechnologies(techIds);
+      setMarketSegments(preset.marketSegments ?? []);
       if (preset.noWebsite || preset.maxRating !== "") setAdvancedOpen(true);
       // Sichtbar machen, was die Vorlage still mitgesetzt hat -- der
       // Technologie-Block ist sonst zugeklappt.
@@ -795,7 +803,7 @@ export default function NewSearchForm({
       name, mode, query, location, radius, targetEmails,
       noWebsite: painPointNoWebsite, maxRating: painPointMaxRating,
       industry, city, state: usState, country, headcount, keywords,
-      personTitles, apolloCountries, apolloSeniorities, technologies,
+      personTitles, apolloCountries, apolloSeniorities, technologies, marketSegments,
     };
     const next = [...presets.filter((p) => p.name !== name), preset];
     localStorage.setItem(presetsKey(workspaceId), JSON.stringify(next));
@@ -1176,6 +1184,38 @@ export default function NewSearchForm({
               />
             </label>
             <SubmitButton loading={loading} />
+          </div>
+
+          {/* Marktsegmente stehen direkt unter den Stichwoertern, weil sie bei
+              Apollo im selben Block "Industry & Keywords" liegen -- wer die
+              Suche dort nachbaut, findet sie an derselben Stelle wieder. */}
+          <div>
+            <span className="text-sm font-medium text-soft">{t.newSearchForm.apolloSegments}</span>
+            <div className="mt-1.5 flex flex-wrap gap-1.5">
+              {APOLLO_MARKET_SEGMENTS.map((segment) => {
+                const active = marketSegments.includes(segment);
+                return (
+                  <button
+                    key={segment}
+                    type="button"
+                    onClick={() =>
+                      setMarketSegments((prev) =>
+                        prev.includes(segment) ? prev.filter((v) => v !== segment) : [...prev, segment]
+                      )
+                    }
+                    className={
+                      "rounded-lg border px-2.5 py-1 text-xs transition-colors " +
+                      (active
+                        ? "border-violet-500/60 bg-violet-500/10 text-violet-700 dark:text-violet-300"
+                        : "border-edge2 text-faint hover:border-edge3 hover:text-ink")
+                    }
+                  >
+                    {t.newSearchForm.apolloSegmentLabels[segment] ?? segment}
+                  </button>
+                );
+              })}
+            </div>
+            <p className="mt-1 text-xs text-mute">{t.newSearchForm.apolloSegmentsHint}</p>
           </div>
 
           <label className={labelCls + " w-full"}>

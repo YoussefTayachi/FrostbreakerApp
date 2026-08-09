@@ -74,6 +74,28 @@ describe("employeeRange", () => {
   });
 });
 
+describe("market_segments", () => {
+  it("uebergibt Apollos eigene Schreibweise, Reihenfolge stabil", () => {
+    // Am 2026-08-09 gegen die echte API gemessen: der Parameter heisst
+    // market_segments, "ecommerce" steht ohne Bindestrich.
+    // Reihenfolge folgt APOLLO_MARKET_SEGMENTS, nicht der Klickreihenfolge --
+    // sonst waere der Body nicht vergleichbar und matching_prior_search_ids
+    // haelte zwei gleiche Suchen fuer verschieden.
+    const body = buildApolloSearchBody({ market_segments: ["saas", "ecommerce", "non_profit"] });
+    expect(body.market_segments).toEqual(["ecommerce", "non_profit", "saas"]);
+  });
+
+  it("verwirft unbekannte Werte", () => {
+    const body = buildApolloSearchBody({ keywords: "agency", market_segments: ["healthcare", "b2b"] });
+    expect(body.market_segments).toEqual(["b2b"]);
+  });
+
+  it("setzt das Feld gar nicht, wenn nichts gewaehlt ist", () => {
+    const body = buildApolloSearchBody({ keywords: "agency" });
+    expect(body.market_segments).toBeUndefined();
+  });
+});
+
 describe("hasAnyApolloFilter", () => {
   it("erkennt jeden einzelnen Filter als ausreichend", () => {
     expect(hasAnyApolloFilter({ person_titles: "CEO" })).toBe(true);
@@ -81,6 +103,15 @@ describe("hasAnyApolloFilter", () => {
     expect(hasAnyApolloFilter({ keywords: "agency" })).toBe(true);
     expect(hasAnyApolloFilter({ headcount: "11-20" })).toBe(true);
     expect(hasAnyApolloFilter({ technologies: ["shopify"] })).toBe(true);
+    expect(hasAnyApolloFilter({ market_segments: ["saas"] })).toBe(true);
+  });
+
+  it("zaehlt ein unbekanntes Marktsegment NICHT als Filter", () => {
+    // Apollo verwirft unbekannte Werte stillschweigend. Wuerde die
+    // Oberflaeche sie als Filter zaehlen, liesse sie eine Suche zu, die in
+    // Wahrheit ungefiltert ist.
+    expect(hasAnyApolloFilter({ market_segments: ["healthcare"] })).toBe(false);
+    expect(hasAnyApolloFilter({ market_segments: [] })).toBe(false);
   });
 
   it("zaehlt eine reine Senioritaets-Auswahl NICHT als Filter", () => {

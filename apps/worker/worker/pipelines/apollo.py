@@ -172,6 +172,49 @@ def _employee_range(headcount: str | None) -> str | None:
     return f"{low},{high}"
 
 
+# Apollos "Market Segments" aus dem Bereich "Industry & Keywords".
+#
+# Diese Werte sind am 2026-08-09 gegen die echte API gemessen, nicht geraten.
+# Noetig war das, weil Apollos API-Referenz den Filter nicht auffuehrt -- sie
+# listet nicht einmal q_organization_keyword_tags, das hier seit Langem laeuft.
+# Und ein Parametername, den Apollo nicht kennt, wird STILL IGNORIERT statt
+# abgelehnt: genau der Fall, der weiter unten schon einmal auftrat
+# (q_organization_domains, siehe Kommentar bei q_organization_domains_list).
+#
+#   organization_market_segments     4278 -> 4278   ignoriert
+#   q_organization_market_segments   4278 -> 4278   ignoriert
+#   market_segments                  4278 -> 1409   WIRKT
+#
+# Jeder Wert einzeln geprueft (Basis 2443): b2b 2159, b2c 1003, b2b2c 4,
+# ecommerce 261, fintech 23, d2c 571, non_profit 2, saas 766, consulting 1634,
+# services 2437, retail 910. Mehrere Werte sind ein ODER: saas 766 +
+# consulting 1634 zusammen 1796, also Vereinigung.
+#
+# Schreibweisen sind Apollos: "ecommerce" ohne Bindestrich, "non_profit" mit
+# Unterstrich. Muss mit APOLLO_MARKET_SEGMENTS in apps/web/lib/apollo-query.ts
+# uebereinstimmen.
+APOLLO_MARKET_SEGMENTS = [
+    "b2b", "b2c", "b2b2c", "ecommerce", "fintech", "d2c",
+    "non_profit", "saas", "consulting", "services", "retail",
+]
+
+
+def _market_segments(raw: object) -> list[str]:
+    """Nur Apollos eigene elf Werte durchlassen.
+
+    Anders als bei den Technologie-Slugs wird hier gegengeprueft: die Liste hat
+    elf Eintraege statt zehntausend, sie aendert sich praktisch nie, und ein
+    unbekannter Wert wuerde nicht etwa die Suche eingrenzen, sondern von Apollo
+    stillschweigend verworfen -- der Trefferzaehler haette dann einen Filter
+    gezaehlt, den die Suche nicht anwendet.
+
+    Reihenfolge folgt der Konstanten, damit der Body testbar bleibt.
+    """
+    if not isinstance(raw, list):
+        return []
+    return [s for s in APOLLO_MARKET_SEGMENTS if s in raw]
+
+
 def _technology_uids(raw: object) -> list[str]:
     """Technologie-Slugs aus dem Formular saeubern.
 
@@ -248,7 +291,12 @@ def build_people_search_body(filters: dict, page: int, per_page: int = PER_PAGE)
     technologies = _technology_uids(filters.get("technologies"))
     if technologies:
         body["currently_using_any_of_technology_uids"] = technologies
-    if not (titles or locations or keywords or employee_range or domains or technologies):
+    # Mehrere Segmente sind bei Apollo ein ODER (nachgemessen, siehe
+    # APOLLO_MARKET_SEGMENTS) -- genau richtig fuer "B2B oder SaaS".
+    segments = _market_segments(filters.get("market_segments"))
+    if segments:
+        body["market_segments"] = segments
+    if not (titles or locations or keywords or employee_range or domains or technologies or segments):
         raise ValueError("Apollo-Suche braucht mindestens einen Filter")
     return body
 
@@ -719,6 +767,11 @@ def collect_people(
 # Apollo nicht kennt, kommentarlos null liefert statt einen Fehler zu melden.
 _DIAGNOSABLE_FILTERS = [
     ("currently_using_any_of_technology_uids", "der Technologie-Filter"),
+    # Direkt dahinter, weil einzelne Segmente ueberraschend scharf schneiden:
+    # in der Messung vom 2026-08-09 blieben bei "non_profit" 2 von 2443
+    # Treffern uebrig, bei "b2b2c" 4. Wer das anhakt, ohne es zu ahnen, sucht
+    # sonst lange beim falschen Filter.
+    ("market_segments", "die Marktsegmente"),
     ("q_organization_keyword_tags", "die Stichwörter"),
     ("person_titles", "die Positionen"),
     ("organization_locations", "die Länderauswahl"),

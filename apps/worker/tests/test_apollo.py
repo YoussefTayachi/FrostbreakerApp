@@ -82,6 +82,40 @@ def test_build_body_ignores_technologies_that_are_not_a_list():
     assert "currently_using_any_of_technology_uids" not in body
 
 
+def test_market_segments_are_passed_through_in_apollos_own_spelling():
+    """Die Werte sind Apollos, nicht unsere -- "ecommerce" ohne Bindestrich.
+
+    Am 2026-08-09 gegen die echte API gemessen: der Parameter heisst
+    market_segments (organization_market_segments wird still ignoriert).
+    """
+    body = build_people_search_body(
+        {"market_segments": ["saas", "ecommerce", "non_profit"]}, page=1
+    )
+    # Reihenfolge folgt APOLLO_MARKET_SEGMENTS, nicht der Klickreihenfolge --
+    # nur so ist der Body zwischen Zaehler und Worker vergleichbar.
+    assert body["market_segments"] == ["ecommerce", "non_profit", "saas"]
+
+
+def test_market_segments_alone_are_a_sufficient_filter():
+    """"Alle SaaS-Firmen in den USA" ist eine vollwertige Zielgruppe."""
+    body = build_people_search_body({"market_segments": ["saas"]}, page=1)
+    assert body["market_segments"] == ["saas"]
+
+
+def test_build_body_drops_unknown_market_segments():
+    """Apollo verwirft unbekannte Werte stillschweigend. Kaemen sie durch,
+    zaehlte der Trefferzaehler einen Filter, den die Suche nicht anwendet."""
+    body = build_people_search_body(
+        {"keywords": "ecommerce", "market_segments": ["healthcare", "b2b"]}, page=1
+    )
+    assert body["market_segments"] == ["b2b"]
+
+
+def test_build_body_ignores_market_segments_that_are_not_a_list():
+    body = build_people_search_body({"keywords": "ecommerce", "market_segments": "saas"}, page=1)
+    assert "market_segments" not in body
+
+
 def test_build_body_rejects_filterless_search():
     """Ohne inhaltlichen Filter wuerde Apollo einen beliebigen Querschnitt
     seiner Datenbank liefern -- teuer und wertlos."""

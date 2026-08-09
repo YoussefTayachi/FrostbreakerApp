@@ -35,6 +35,44 @@ export const APOLLO_EMPLOYEE_RANGES = [
   "501-1000", "1001-2000", "2001-5000", "5001-10000", "10001+",
 ];
 
+/**
+ * Apollos "Market Segments" aus dem Bereich "Industry & Keywords".
+ *
+ * ═══════════════════════════════════════════════════════════════════════
+ * WIE DIESE WERTE ZUSTANDE KOMMEN
+ * ═══════════════════════════════════════════════════════════════════════
+ *
+ * Nicht geraten, sondern am 2026-08-09 gegen die echte API gemessen. Das war
+ * noetig, weil Apollos API-Referenz den Filter ueberhaupt nicht auffuehrt --
+ * sie listet nicht einmal q_organization_keyword_tags, das die App seit
+ * Langem erfolgreich nutzt. Und ein Parametername, den Apollo nicht kennt,
+ * wird STILL IGNORIERT statt abgelehnt (derselbe Fall wie seinerzeit
+ * q_organization_domains, siehe apollo.py). Der Zaehler haette dann eine Zahl
+ * versprochen, die die Suche nicht einloest.
+ *
+ * Messung mit gleicher Basisanfrage, nur der Segment-Parameter variiert:
+ *
+ *   organization_market_segments     4278 -> 4278   ignoriert
+ *   q_organization_market_segments   4278 -> 4278   ignoriert
+ *   market_segments                  4278 -> 1409   WIRKT
+ *
+ * Danach jeder einzelne Wert einzeln geprueft (Basis 2443): b2b 2159,
+ * b2c 1003, b2b2c 4, ecommerce 261, fintech 23, d2c 571, non_profit 2,
+ * saas 766, consulting 1634, services 2437, retail 910. Kein Wert blieb auf
+ * der Basis stehen, alle elf werden also erkannt.
+ *
+ * Mehrere Werte sind ein ODER: saas 766 + consulting 1634 zusammen 1796 --
+ * mehr als jeder einzelne, also Vereinigung und nicht Schnitt. Ein UND waere
+ * hier auch sinnlos, kaum eine Firma ist gleichzeitig SaaS und Retail.
+ *
+ * Die Schreibweisen sind Apollos, nicht unsere: "ecommerce" ohne Bindestrich,
+ * "non_profit" mit Unterstrich. Spiegelt APOLLO_MARKET_SEGMENTS im Worker.
+ */
+export const APOLLO_MARKET_SEGMENTS = [
+  "b2b", "b2c", "b2b2c", "ecommerce", "fintech", "d2c",
+  "non_profit", "saas", "consulting", "services", "retail",
+] as const;
+
 /** Die Filter, wie sie in searches.filters liegen. */
 export type ApolloFilters = {
   person_titles?: string | null;
@@ -43,6 +81,7 @@ export type ApolloFilters = {
   headcount?: string | null;
   keywords?: string | null;
   technologies?: string[] | null;
+  market_segments?: string[] | null;
 };
 
 export type ApolloSearchBody = Record<string, unknown>;
@@ -79,8 +118,17 @@ export function hasAnyApolloFilter(filters: ApolloFilters): boolean {
     (filters.apollo_locations?.length ?? 0) > 0 ||
     commaList(filters.keywords).length > 0 ||
     employeeRange(filters.headcount) !== null ||
-    (filters.technologies?.length ?? 0) > 0
+    (filters.technologies?.length ?? 0) > 0 ||
+    validMarketSegments(filters.market_segments).length > 0
   );
+}
+
+/** Nur Apollos eigene elf Werte durchlassen. Ein unbekannter Wert wuerde von
+ *  Apollo stillschweigend ignoriert -- dann zaehlte die Oberflaeche mit einem
+ *  Filter, den die Suche gar nicht anwendet. */
+function validMarketSegments(raw: string[] | null | undefined): string[] {
+  if (!Array.isArray(raw)) return [];
+  return APOLLO_MARKET_SEGMENTS.filter((s) => raw.includes(s));
 }
 
 /**
@@ -122,5 +170,9 @@ export function buildApolloSearchBody(
   if (technologies.length > 0) {
     body.currently_using_any_of_technology_uids = [...new Set(technologies.map((t) => t.trim()))];
   }
+  // Mehrere Segmente sind bei Apollo ein ODER (nachgemessen, siehe
+  // APOLLO_MARKET_SEGMENTS) -- genau richtig fuer "B2B oder SaaS".
+  const segments = validMarketSegments(filters.market_segments);
+  if (segments.length > 0) body.market_segments = segments;
   return body;
 }
