@@ -14,6 +14,25 @@ export function localeOf(lang: Lang): string {
   return LOCALE[lang];
 }
 
+/**
+ * Datum und Uhrzeit mit frei waehlbarem Format.
+ *
+ * Lag bis zum 2026-08-09 in lib/i18n/lang.ts und wird von dort weiterhin
+ * re-exportiert -- die zwanzig Server-Komponenten, die es benutzen, mussten
+ * dafuer nicht angefasst werden. Umgezogen ist es, weil auch eine
+ * "use client"-Komponente es braucht (app/local-time.tsx), und lang.ts
+ * importiert next/headers: ein Client-Modul, das daraus einen WERT holt,
+ * laesst den Produktions-Build scheitern. Typen sind unkritisch, die
+ * verschwinden beim Uebersetzen -- deshalb steht der Import oben so da.
+ */
+export function formatDate(
+  iso: string,
+  lang: Lang,
+  opts: Intl.DateTimeFormatOptions = { dateStyle: "short", timeStyle: "short" }
+): string {
+  return new Date(iso).toLocaleString(LOCALE[lang], opts);
+}
+
 /** "vor 5 Minuten", "vor 3 Tagen", ab einer Woche das Datum. */
 export function formatRelative(iso: string | null, lang: Lang): string {
   if (!iso) return "";

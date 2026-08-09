@@ -1,6 +1,12 @@
 "use client";
 import { useEffect, useState } from "react";
-import { formatDate, type Lang } from "@/lib/i18n/lang";
+// formatDate aus lib/format-time, NICHT aus lib/i18n/lang: letzteres
+// importiert next/headers, und ein Wert-Import daraus laesst den
+// Produktions-Build scheitern ("You're importing a component that needs
+// next/headers"). Der Typ darf von dort kommen, Typen werden beim
+// Uebersetzen entfernt.
+import { formatDate } from "@/lib/format-time";
+import type { Lang } from "@/lib/i18n/lang";
 
 /**
  * Ein Zeitstempel in der Zeitzone des BETRACHTERS.

@@ -9,10 +9,8 @@ export async function getLangServer(): Promise<Lang> {
   return v === "de" ? "de" : "en";
 }
 
-export function formatDate(
-  iso: string,
-  lang: Lang,
-  opts: Intl.DateTimeFormatOptions = { dateStyle: "short", timeStyle: "short" }
-): string {
-  return new Date(iso).toLocaleString(lang === "en" ? "en-US" : "de-DE", opts);
-}
+// Die Umsetzung steht in lib/format-time.ts, damit auch Client-Komponenten
+// sie benutzen koennen: diese Datei importiert next/headers und ist deshalb
+// server-only. Hier nur weitergereicht, damit die bestehenden Aufrufer
+// unveraendert bleiben.
+export { formatDate } from "@/lib/format-time";
