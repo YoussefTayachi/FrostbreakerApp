@@ -25,7 +25,7 @@ from worker.search_state import BUSINESS_WITH_SEARCH, search_is_deleted
 MODEL = "gpt-4.1-mini"
 MAX_SITE_CHARS = 6000
 
-DEFAULT_PROMPT = (
+DEFAULT_PROMPT_DE = (
     "Deine Aufgabe ist es, einen einzelnen, vertrieblich messerscharfen Aufhänger "
     "(Icebreaker) für eine Cold-Email zu generieren, der beweist, dass du die Welt "
     "des potenziellen Kunden tatsächlich verstehst.\n"
@@ -61,6 +61,57 @@ DEFAULT_PROMPT = (
     "ausdrücklich eine andere Sprache."
 )
 
+# Inhaltsgleich zu DEFAULT_PROMPT_DE, nur auf Englisch. Muss mit
+# DEFAULT_PROMPT_EN in apps/web/lib/personalization-defaults.ts
+# uebereinstimmen -- die Web-Oberflaeche zeigt denselben Text als
+# Ausgangspunkt an, und ein Unterschied waere fuer den Nutzer unsichtbar.
+DEFAULT_PROMPT_EN = (
+    "Your task is to generate a single, commercially razor-sharp opening line "
+    "(icebreaker) for a cold email that proves you genuinely understand the "
+    "prospect's world.\n"
+    "Rules for the icebreaker:\n"
+    "- Use only specific, verifiable facts from the research and other data fields "
+    "(role, company, niche, location, history, offerings, projects, etc.).\n"
+    "- Tone: direct, confident, business-like. A bit of edge is completely fine. "
+    "No slang, no hype.\n"
+    "- Do NOT mention LinkedIn, Google, \"I saw\", \"I noticed\", \"I found\", or any "
+    "other reference to your research process. Just state the fact directly.\n"
+    "- Do NOT include the prospect's name, your own name, greetings, or sign-offs.\n"
+    "- Do NOT ever type:\"—, --,-\" like: \"— thought I'd reach out\".\n"
+    "- You may hint at commercial interest, dynamics, or leverage (e.g. outlasting "
+    "competitors, choosing tailored solutions over mass-market ones, doubling down "
+    "on a niche, protecting capacity), but you must NOT describe or pitch your own "
+    "service or solution.\n"
+    "- The sentence should feel like a sharp observation you'd make right before a "
+    "serious sales question.\n"
+    "- Be specific. Avoid vague praise. Anchor the statement in something time-bound, "
+    "location-bound, or model-bound (e.g. what changed, what they doubled down on, "
+    "what they kept going while others stopped).\n"
+    "Follow the output format exactly every time.\n"
+    "-Always write in the informal \"you\" form and make the icebreaker sound personal.\n"
+    "-End the icebreaker by implying that's why you're reaching out, using varied "
+    "phrasing, e.g.: \"Thought I'd reach out\", \"That's why I wanted to connect\", "
+    "\"That's why I wanted to drop you a line\", etc.\n\n"
+    "Write in English by default, unless these instructions explicitly require "
+    "another language."
+)
+
+DEFAULT_LANGUAGE = "de"
+VALID_LANGUAGES = {"de", "en"}
+
+# Wie die Sprache dem Modell gesagt wird. Auf Englisch formuliert, aus
+# demselben Grund wie der uebrige constraint_block: Formvorgaben befolgt das
+# Modell in Englisch verlaesslicher.
+_LANGUAGE_NAMES = {"de": "German", "en": "English"}
+
+
+def default_prompt(language: str) -> str:
+    return DEFAULT_PROMPT_EN if language == "en" else DEFAULT_PROMPT_DE
+
+
+# Rueckwaertskompatibler Alias fuer Aufrufer ohne Sprachwahl.
+DEFAULT_PROMPT = DEFAULT_PROMPT_DE
+
 DEFAULT_MAX_WORDS = 22
 # Gedankenstriche statt der frueheren Lob-Woerter ("Respekt", "bewundern",
 # "stolz", ...): ein Gedankenstrich mitten im Satz ist inzwischen das
@@ -72,7 +123,7 @@ DEFAULT_SOURCE = "company_summary"
 VALID_SOURCES = {"company_summary", "website_text", "both"}
 
 
-def constraint_block(max_words: int, banned_words: list[str]) -> str:
+def constraint_block(max_words: int, banned_words: list[str], language: str = DEFAULT_LANGUAGE) -> str:
     """Die harten Vorgaben, die dem Modell BEIM ERSTEN VERSUCH gesagt werden.
 
     DER FEHLER, DEN DAS BEHEBT
@@ -99,6 +150,14 @@ def constraint_block(max_words: int, banned_words: list[str]) -> str:
         "",
         "",
         "HARD LIMITS (these override anything above):",
+        # Die Sprache steht hier und nicht nur im Prompt darueber, aus genau
+        # demselben Grund wie die Wortgrenze: sie ist eine Einstellung des
+        # Workspaces. Sie dort zu setzen und dann darauf zu hoffen, dass der
+        # Nutzer sie zusaetzlich in seinen selbst geschriebenen Prompt
+        # schreibt, waeren zwei Wahrheiten fuer dieselbe Sache -- und der
+        # gemeldete Fehler war genau das.
+        f"- Write the icebreaker in {_LANGUAGE_NAMES.get(language, 'German')}. "
+        "This overrides any language used in the instructions above.",
         f"- Maximum {max_words} words. Count them before you answer. "
         "Going over is the single most common failure here.",
     ]
@@ -333,7 +392,8 @@ def load_agent_config(workspace_id: str) -> dict:
         .table("workspaces")
         .select(
             "personalization_prompt, personalization_source, "
-            "personalization_max_words, personalization_banned_words"
+            "personalization_max_words, personalization_banned_words, "
+            "personalization_language"
         )
         .eq("id", workspace_id)
         .single()
@@ -350,11 +410,20 @@ def load_agent_config(workspace_id: str) -> dict:
         if banned_raw
         else list(DEFAULT_BANNED_WORDS)
     )
+    language = row.get("personalization_language") or DEFAULT_LANGUAGE
+    if language not in VALID_LANGUAGES:
+        language = DEFAULT_LANGUAGE
     return {
-        "system_prompt": (row.get("personalization_prompt") or "").strip() or DEFAULT_PROMPT,
+        # Ohne eigenen Prompt gilt der Standard IN DER GEWAEHLTEN SPRACHE.
+        # Vorher stand hier fest DEFAULT_PROMPT (deutsch) -- daher kamen
+        # deutsche Icebreaker fuer einen Workspace, dessen Oberflaeche den
+        # englischen Prompt anzeigte. Siehe Migration 0083.
+        "system_prompt": (row.get("personalization_prompt") or "").strip()
+        or default_prompt(language),
         "source": source,
         "max_words": row.get("personalization_max_words") or DEFAULT_MAX_WORDS,
         "banned_words": banned_words,
+        "language": language,
     }
 
 
@@ -363,8 +432,16 @@ def run(job: dict) -> None:
 
     ws = job["workspace_id"]
     business_id = job["payload"]["business_id"]
+    # force=true kommt ausschliesslich von "neu erzeugen" in der Pruefliste
+    # (requeue_personalization, Migration 0084). Ohne diese Unterscheidung war
+    # der Knopf wirkungslos: er wird nur auf Zeilen geklickt, die schon einen
+    # Text haben, also griff die Abkuerzung unten immer. Der Job lief an,
+    # kehrte sofort um und galt als erledigt.
+    force = bool(job["payload"].get("force"))
     biz = sb().table("businesses").select(BUSINESS_WITH_SEARCH).eq("id", business_id).single().execute().data
-    if biz.get("personalization"):
+    if biz.get("personalization") and not force:
+        # Schutz gegen doppeltes Bezahlen, wenn ein Pipeline-Job ein zweites
+        # Mal ankommt (Neustart des Workers, wiederholte Zustellung).
         return
     if search_is_deleted(biz):
         return  # Suche im Papierkorb -- keine OpenAI-Kosten fuer unsichtbare Leads
@@ -380,7 +457,9 @@ def run(job: dict) -> None:
     search_id = biz.get("search_id")
     # Die Vorgaben gehoeren IN den Prompt, nicht nur in die Nachpruefung --
     # siehe constraint_block.
-    system_prompt = cfg["system_prompt"] + constraint_block(cfg["max_words"], cfg["banned_words"])
+    system_prompt = cfg["system_prompt"] + constraint_block(
+        cfg["max_words"], cfg["banned_words"], cfg["language"]
+    )
     line = generate(
         biz["name"], context, api_key, system_prompt,
         workspace_id=ws, search_id=search_id,

@@ -1445,6 +1445,11 @@ const de = {
   aiAgent: {
     title: "AI Agent",
     subtitle: "Steuere, wie der Icebreaker generiert wird: Datenquelle, Regeln und Ton vollständig anpassbar.",
+    languageHeading: "Sprache der Icebreaker",
+    languageSubtitle: "In welcher Sprache sollen die Aufhänger geschrieben werden?",
+    languageOptions: { de: "Deutsch", en: "Englisch" } as Record<string, string>,
+    languageHint:
+      "Unabhängig von der Sprache der Oberfläche — eine deutsche Ansicht und amerikanische Zielkunden sind der Normalfall. Die Vorgabe gilt auch für einen selbst geschriebenen Prompt.",
     sourceHeading: "Datenquelle",
     sourceSubtitle: "Worauf soll sich die Personalisierung stützen?",
     sourceOptions: [
@@ -3247,6 +3252,11 @@ const en: Dictionary = {
   aiAgent: {
     title: "AI Agent",
     subtitle: "Control how the icebreaker is generated: data source, rules and tone fully customizable.",
+    languageHeading: "Icebreaker language",
+    languageSubtitle: "Which language should the opening lines be written in?",
+    languageOptions: { de: "German", en: "English" } as Record<string, string>,
+    languageHint:
+      "Independent of the interface language — a German interface with US prospects is the normal case. The setting also applies to a prompt you wrote yourself.",
     sourceHeading: "Data source",
     sourceSubtitle: "What should the personalization be based on?",
     sourceOptions: [

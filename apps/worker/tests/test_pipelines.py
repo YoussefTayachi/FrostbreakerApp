@@ -602,3 +602,168 @@ def test_constraint_block_haengt_an_den_prompt_an_ohne_ihn_zu_verdraengen():
     ganzer = DEFAULT_PROMPT + constraint_block(20, ["—"])
     assert ganzer.startswith(DEFAULT_PROMPT)
     assert "Maximum 20 words" in ganzer
+
+
+# ─────────────────────────────────────────────────────────────────────────
+# Sprache der Icebreaker (Migration 0083) und "neu erzeugen" (0084)
+#
+# Beide Fehler wurden am 2026-08-09 gemeldet: deutsche Aufhaenger trotz
+# englisch eingestelltem Agenten, und ein wirkungsloser "neu erzeugen"-Knopf.
+# ─────────────────────────────────────────────────────────────────────────
+
+
+def test_constraint_block_schreibt_die_sprache_vor():
+    """Die Sprache gehoert in den Block und nicht nur in den Prompt darueber.
+
+    Sonst gilt sie fuer einen selbst geschriebenen Prompt nicht -- und die
+    Einstellung im Workspace waere eine Zusage, die niemand einloest.
+    """
+    from worker.pipelines.personalize import constraint_block
+
+    assert "Write the icebreaker in English" in constraint_block(22, [], "en")
+    assert "Write the icebreaker in German" in constraint_block(22, [], "de")
+
+
+def test_constraint_block_ist_ohne_sprachangabe_deutsch():
+    """Rueckfall auf die bisherige Wirklichkeit: vor 0083 erzeugte der Worker
+    ausnahmslos deutsche Texte."""
+    from worker.pipelines.personalize import constraint_block
+
+    assert "Write the icebreaker in German" in constraint_block(22, [])
+
+
+def test_default_prompt_folgt_der_sprache():
+    from worker.pipelines import personalize
+
+    assert personalize.default_prompt("en") == personalize.DEFAULT_PROMPT_EN
+    assert personalize.default_prompt("de") == personalize.DEFAULT_PROMPT_DE
+    # Unbekannte Werte duerfen nicht zu einem leeren Prompt fuehren.
+    assert personalize.default_prompt("fr") == personalize.DEFAULT_PROMPT_DE
+
+
+def _fake_workspace_row(monkeypatch, row: dict):
+    from worker.pipelines import personalize
+
+    class FakeResult:
+        data = row
+
+    class FakeQuery:
+        def select(self, *a, **k):
+            return self
+
+        def eq(self, *a, **k):
+            return self
+
+        def single(self):
+            return self
+
+        def execute(self):
+            return FakeResult()
+
+    class FakeSb:
+        def table(self, *a, **k):
+            return FakeQuery()
+
+    monkeypatch.setattr(personalize, "sb", lambda: FakeSb())
+
+
+def test_load_agent_config_nimmt_den_englischen_standard(monkeypatch):
+    """DER gemeldete Fehler: personalization_prompt war bei allen acht
+    Workspaces null, und der Worker setzte dafuer fest den deutschen Standard
+    ein -- auch dort, wo die Oberflaeche den englischen anzeigte."""
+    from worker.pipelines import personalize
+
+    _fake_workspace_row(monkeypatch, {"personalization_language": "en"})
+    cfg = personalize.load_agent_config("ws-1")
+    assert cfg["language"] == "en"
+    assert cfg["system_prompt"] == personalize.DEFAULT_PROMPT_EN
+
+
+def test_load_agent_config_faellt_auf_deutsch_zurueck(monkeypatch):
+    """Ohne gesetzte Sprache bleibt alles wie bisher -- sonst haette die
+    Migration still die Sprache laufender Kampagnen umgestellt."""
+    from worker.pipelines import personalize
+
+    _fake_workspace_row(monkeypatch, {})
+    cfg = personalize.load_agent_config("ws-1")
+    assert cfg["language"] == "de"
+    assert cfg["system_prompt"] == personalize.DEFAULT_PROMPT_DE
+
+
+def test_load_agent_config_verwirft_unbekannte_sprache(monkeypatch):
+    from worker.pipelines import personalize
+
+    _fake_workspace_row(monkeypatch, {"personalization_language": "fr"})
+    assert personalize.load_agent_config("ws-1")["language"] == "de"
+
+
+def test_eigener_prompt_schlaegt_den_standard_aber_nicht_die_sprache(monkeypatch):
+    """Wer selbst schreibt, bekommt seinen Text -- die Sprachvorgabe kommt
+    trotzdem ueber den constraint_block dazu."""
+    from worker.pipelines import personalize
+
+    _fake_workspace_row(
+        monkeypatch, {"personalization_prompt": "Schreib was Nettes.", "personalization_language": "en"}
+    )
+    cfg = personalize.load_agent_config("ws-1")
+    assert cfg["system_prompt"] == "Schreib was Nettes."
+    block = personalize.constraint_block(cfg["max_words"], cfg["banned_words"], cfg["language"])
+    assert "Write the icebreaker in English" in block
+
+
+def _run_with_existing_icebreaker(monkeypatch, payload: dict) -> list[str]:
+    """run() mit einer Firma, die bereits einen Aufhaenger hat.
+
+    Gibt zurueck, wie weit der Lauf gekommen ist. Die Spur ist
+    search_is_deleted: es ist die naechste Anweisung nach der Abkuerzung, und
+    es beendet den Lauf danach sofort -- also ohne OpenAI-Aufruf und ohne
+    Schreibzugriff.
+    """
+    from worker.pipelines import personalize
+
+    trace: list[str] = []
+
+    class FakeResult:
+        data = {"personalization": "Ein alter Aufhaenger.", "name": "Testfirma"}
+
+    class FakeQuery:
+        def select(self, *a, **k):
+            return self
+
+        def eq(self, *a, **k):
+            return self
+
+        def single(self):
+            return self
+
+        def execute(self):
+            return FakeResult()
+
+    class FakeSb:
+        def table(self, *a, **k):
+            return FakeQuery()
+
+    monkeypatch.setattr(personalize, "sb", lambda: FakeSb())
+
+    def spy(_biz):
+        trace.append("kam_bis_search_is_deleted")
+        return True  # danach steigt run() aus, ohne etwas zu kosten
+
+    monkeypatch.setattr(personalize, "search_is_deleted", spy)
+    personalize.run({"workspace_id": "ws-1", "payload": payload})
+    return trace
+
+
+def test_pipeline_job_ueberspringt_vorhandenen_aufhaenger(monkeypatch):
+    """Der Schutz gegen doppeltes Bezahlen bleibt: kommt ein Pipeline-Job ein
+    zweites Mal an (Neustart, wiederholte Zustellung), passiert nichts."""
+    trace = _run_with_existing_icebreaker(monkeypatch, {"business_id": "b-1"})
+    assert trace == []
+
+
+def test_force_erzeugt_auch_bei_vorhandenem_aufhaenger_neu(monkeypatch):
+    """DER gemeldete Fehler: "neu erzeugen" wird ausschliesslich auf Zeilen
+    geklickt, die schon einen Text haben -- die Abkuerzung griff also immer.
+    Der Job lief an, kehrte sofort um und galt als erledigt."""
+    trace = _run_with_existing_icebreaker(monkeypatch, {"business_id": "b-1", "force": True})
+    assert trace == ["kam_bis_search_is_deleted"]

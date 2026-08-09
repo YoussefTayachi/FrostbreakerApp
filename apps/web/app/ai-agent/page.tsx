@@ -38,6 +38,20 @@ export default function AiAgentPage() {
   const { push } = useToast();
   const { workspaceId: wsId } = useWorkspace();
   const [systemPrompt, setSystemPrompt] = useState("");
+  /**
+   * Sprache der erzeugten Icebreaker -- NICHT die Sprache der Oberflaeche.
+   *
+   * Bis zum 2026-08-09 gab es dieses Feld nicht, und der angezeigte
+   * Standardprompt richtete sich nach `lang`, also danach, in welcher Sprache
+   * jemand die App gerade bedient. Beim Speichern wurde ein unveraenderter
+   * Standardprompt als null abgelegt, und der Worker setzte dafuer seinen
+   * eigenen ein -- fest auf Deutsch. Wer die Oberflaeche auf Englisch stellte,
+   * sah also den englischen Prompt und bekam deutsche Texte.
+   *
+   * Beides gehoert getrennt: eine deutsche Oberflaeche und amerikanische
+   * Zielkunden sind der Normalfall, nicht die Ausnahme.
+   */
+  const [outputLang, setOutputLang] = useState<"de" | "en">("de");
   const [source, setSource] = useState<string>("company_summary");
   const [maxWords, setMaxWords] = useState(DEFAULT_MAX_WORDS);
   const [bannedWordsText, setBannedWordsText] = useState(DEFAULT_BANNED_WORDS.join(", "));
@@ -58,12 +72,16 @@ export default function AiAgentPage() {
     supabase
       .from("workspaces")
       .select(
-        "personalization_prompt, personalization_source, personalization_max_words, personalization_banned_words"
+        // Ein Literal, keine Konkatenation: Supabase leitet die Feldtypen aus
+        // dem String ab und faellt sonst auf GenericStringError zurueck.
+        "personalization_prompt, personalization_source, personalization_max_words, personalization_banned_words, personalization_language"
       )
       .eq("id", wsId)
       .single()
       .then(({ data }) => {
         if (!data) return;
+        const saved: "de" | "en" = data.personalization_language === "en" ? "en" : "de";
+        setOutputLang(saved);
         setSource(data.personalization_source || "company_summary");
         setMaxWords(data.personalization_max_words || DEFAULT_MAX_WORDS);
         setBannedWordsText(data.personalization_banned_words || DEFAULT_BANNED_WORDS.join(", "));
@@ -71,7 +89,9 @@ export default function AiAgentPage() {
           setSystemPrompt(data.personalization_prompt);
           setSelectedTemplateId("custom");
         } else {
-          setSystemPrompt(getDefaultPrompt(lang));
+          // Der gespeicherte Wert, nicht der State: setOutputLang oben wirkt
+          // erst im naechsten Rendern.
+          setSystemPrompt(getDefaultPrompt(saved));
           setSelectedTemplateId("default");
         }
       });
@@ -87,14 +107,15 @@ export default function AiAgentPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [wsId]);
 
-  // Wenn die Standard-Vorlage aktiv ist, zeigt das Textfeld den Prompt in der
-  // aktuellen UI-Sprache. Beim Sprachwechsel live mitziehen.
+  // Der angezeigte Standardprompt folgt der AUSGABESPRACHE, nicht der Sprache
+  // der Oberflaeche. Vorher haing er an `lang` -- daher stand dort Englisch,
+  // waehrend der Worker Deutsch erzeugte.
   useEffect(() => {
     if (selectedTemplateId === "default") {
-      setSystemPrompt(getDefaultPrompt(lang));
+      setSystemPrompt(getDefaultPrompt(outputLang));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [lang]);
+  }, [outputLang]);
 
   // Reconcile: falls ein gespeicherter Custom-Prompt zu einer geladenen Vorlage passt,
   // die passende Karte als aktiv markieren statt generisch "Eigene Vorlage".
@@ -117,7 +138,7 @@ export default function AiAgentPage() {
 
   function selectDefault() {
     setSelectedTemplateId("default");
-    setSystemPrompt(getDefaultPrompt(lang));
+    setSystemPrompt(getDefaultPrompt(outputLang));
     setMaxWords(DEFAULT_MAX_WORDS);
     setBannedWordsText(DEFAULT_BANNED_WORDS.join(", "));
   }
@@ -176,7 +197,12 @@ export default function AiAgentPage() {
     const { error } = await supabase
       .from("workspaces")
       .update({
-        personalization_prompt: systemPrompt.trim() === getDefaultPrompt(lang).trim() ? null : systemPrompt.trim(),
+        // null heisst "nimm den Standard". Welcher Standard das ist, sagt
+        // jetzt personalization_language -- vorher ging genau diese Auskunft
+        // beim Speichern verloren und der Worker riet Deutsch.
+        personalization_prompt:
+          systemPrompt.trim() === getDefaultPrompt(outputLang).trim() ? null : systemPrompt.trim(),
+        personalization_language: outputLang,
         personalization_source: source,
         personalization_max_words: maxWords,
         personalization_banned_words:
@@ -219,6 +245,9 @@ export default function AiAgentPage() {
         max_words: maxWords,
         banned_words: bannedWordsText.split(",").map((w) => w.trim()).filter(Boolean),
         lang,
+        // Ungespeichert mitgeschickt: der Test soll zeigen, was die aktuelle
+        // Auswahl bewirkt, nicht was zuletzt gespeichert wurde.
+        output_lang: outputLang,
       }),
     });
     const body = await res.json();
@@ -240,6 +269,39 @@ export default function AiAgentPage() {
           {t.aiAgent.subtitle}{" "}
           <HelpLink section="agent" label={t.guide.helpLink} />
         </p>
+      </div>
+
+      {/* Vor der Datenquelle, weil diese Auswahl den Prompt-Text weiter unten
+          umschaltet -- eine Einstellung, die sichtbar etwas anderes veraendert,
+          gehoert davor und nicht dahinter. */}
+      <div className="rounded-lg border border-edge/60 bg-panel p-6">
+        <h2 className="mb-1 font-medium text-ink">{t.aiAgent.languageHeading}</h2>
+        <p className="mb-3 text-sm text-faint">{t.aiAgent.languageSubtitle}</p>
+        <div className="grid gap-2 sm:grid-cols-2">
+          {(["de", "en"] as const).map((code) => (
+            <label
+              key={code}
+              className={
+                "cursor-pointer rounded-lg border p-3 text-sm transition-colors " +
+                (outputLang === code
+                  ? "border-sky-500/60 bg-sky-500/5"
+                  : "border-edge2 hover:border-edge3")
+              }
+            >
+              <div className="flex items-center gap-2">
+                <input
+                  type="radio"
+                  name="outputLang"
+                  checked={outputLang === code}
+                  onChange={() => setOutputLang(code)}
+                  className="h-3.5 w-3.5 accent-sky-500"
+                />
+                <span className="font-medium text-ink">{t.aiAgent.languageOptions[code]}</span>
+              </div>
+            </label>
+          ))}
+        </div>
+        <p className="mt-2 text-xs text-mute">{t.aiAgent.languageHint}</p>
       </div>
 
       <div className="rounded-lg border border-edge/60 bg-panel p-6">

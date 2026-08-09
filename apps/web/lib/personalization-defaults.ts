@@ -37,6 +37,54 @@ export function getDefaultPrompt(lang: "de" | "en"): string {
   return lang === "en" ? DEFAULT_PROMPT_EN : DEFAULT_PROMPT_DE;
 }
 
+const LANGUAGE_NAMES: Record<string, string> = { de: "German", en: "English" };
+
+/**
+ * Muss mit constraint_block() in personalize.py uebereinstimmen.
+ *
+ * ═══════════════════════════════════════════════════════════════════════
+ * WARUM ES DIESE FUNKTION HIER GEBEN MUSS
+ * ═══════════════════════════════════════════════════════════════════════
+ *
+ * Der Live-Test im AI-Agent-Tab schickte bis zum 2026-08-09 nur den reinen
+ * Systemprompt an das Modell -- ohne diesen Block. Er pruefte damit etwas
+ * anderes, als spaeter tatsaechlich lief, und zwar an der empfindlichsten
+ * Stelle: die Wortgrenze stand im Test gar nicht im Prompt, sondern wurde nur
+ * hinterher bemaengelt.
+ *
+ * Beim gemeldeten Sprachfehler war das der Grund, warum die Sache so
+ * verwirrend aussah: der Live-Test bekam den im Formular ANGEZEIGTEN
+ * (englischen) Prompt direkt geschickt und lieferte Englisch -- der Worker las
+ * die Datenbank, fand dort null und nahm Deutsch. Zwei Wege, zwei Sprachen,
+ * dieselbe Schaltflaeche.
+ *
+ * Auf Englisch formuliert, unabhaengig von der Zielsprache: das Modell befolgt
+ * Formvorgaben in Englisch verlaesslicher.
+ */
+export function constraintBlock(
+  maxWords: number,
+  bannedWords: string[],
+  language: "de" | "en"
+): string {
+  const lines = [
+    "",
+    "",
+    "HARD LIMITS (these override anything above):",
+    `- Write the icebreaker in ${LANGUAGE_NAMES[language] ?? "German"}. ` +
+      "This overrides any language used in the instructions above.",
+    `- Maximum ${maxWords} words. Count them before you answer. ` +
+      "Going over is the single most common failure here.",
+  ];
+  const chars = bannedWords.map((w) => w.trim()).filter(Boolean);
+  if (chars.length > 0) lines.push("- Never use these characters: " + chars.join(" "));
+  lines.push(
+    "- Any example phrasings above are examples, NOT templates. Never reuse " +
+      "one word for word; end differently every time.",
+    "- Output the line itself only: no quotes, no label, no preamble."
+  );
+  return lines.join("\n");
+}
+
 // Rueckwaertskompatibler Alias, falls irgendwo noch ohne Sprachauswahl importiert wird.
 export const DEFAULT_PROMPT = DEFAULT_PROMPT_DE;
 

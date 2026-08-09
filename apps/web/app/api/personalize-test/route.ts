@@ -2,7 +2,12 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentWorkspace } from "@/lib/workspace/server";
 import { getApiKey } from "@/lib/api-keys";
-import { sanitizeBannedPunctuation, validateIcebreaker, wordCount } from "@/lib/personalization-defaults";
+import {
+  constraintBlock,
+  sanitizeBannedPunctuation,
+  validateIcebreaker,
+  wordCount,
+} from "@/lib/personalization-defaults";
 import { extractOutputText } from "@/lib/openai";
 
 const MAX_SITE_CHARS = 6000;
@@ -70,7 +75,11 @@ export async function POST(req: Request) {
   const source: string = body.source ?? "company_summary";
   const maxWords: number = Number(body.max_words) || 22;
   const bannedWords: string[] = Array.isArray(body.banned_words) ? body.banned_words : [];
+  // lang = Sprache der Oberflaeche, steuert nur die Beschriftung der
+  // Regelverstoesse. outputLang = Sprache des Icebreakers. Die beiden zu
+  // vermengen war der gemeldete Fehler (siehe Migration 0083).
   const lang: "de" | "en" = body.lang === "en" ? "en" : "de";
+  const outputLang: "de" | "en" = body.output_lang === "en" ? "en" : "de";
 
   if (!businessId || !systemPrompt) {
     return NextResponse.json({ error: "business_id und system_prompt sind Pflicht" }, { status: 400 });
@@ -108,7 +117,13 @@ export async function POST(req: Request) {
   }
 
   const userContent = `Unternehmen: ${biz.name}\n\n${context}`;
-  const first = await callModel(apiKey, systemPrompt, userContent);
+  // Derselbe Anhang, den auch der Worker an JEDEN Prompt haengt. Fehlte er
+  // hier, pruefte der Live-Test einen anderen Prompt als den, der spaeter
+  // laeuft -- und genau daran war der Sprachfehler so schwer zu sehen: der
+  // Test bekam den angezeigten englischen Prompt und lieferte Englisch,
+  // waehrend der Worker aus der Datenbank Deutsch nahm.
+  const effectivePrompt = systemPrompt + constraintBlock(maxWords, bannedWords, outputLang);
+  const first = await callModel(apiKey, effectivePrompt, userContent);
   if (first.error) return NextResponse.json({ error: first.error }, { status: 502 });
 
   let text = first.text ?? "";
@@ -125,7 +140,7 @@ export async function POST(req: Request) {
       lang === "en"
         ? `Your last attempt violated the following rule(s): ${problems.join("; ")}. Please correct it and answer again with only the text itself.`
         : `Dein letzter Versuch hat folgende Regel(n) verletzt: ${problems.join("; ")}. Bitte korrigiere und antworte erneut nur mit dem Text selbst.`;
-    const retry = await callModel(apiKey, systemPrompt, userContent + "\n\n" + correctionNote);
+    const retry = await callModel(apiKey, effectivePrompt, userContent + "\n\n" + correctionNote);
     if (retry.text) {
       text = sanitizeBannedPunctuation(retry.text, bannedWords);
       problems = validateIcebreaker(text, maxWords, bannedWords, lang);
