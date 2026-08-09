@@ -1555,6 +1555,7 @@ const de = {
     settingsHint: (max: number, banned: string) => `Höchstens ${max} Wörter · verboten: ${banned}`,
     settingsLink: "Vorgaben ändern",
     states: {
+      all: "Alle",
       failing: "Fehlerhaft",
       stale: "Veraltet markiert",
       clean: "Sauber",
@@ -1571,6 +1572,19 @@ const de = {
     words: (n: number, max: number) => `${n} von ${max} Wörtern`,
     queued: (n: number) => `${n} zur Neuerzeugung eingereiht. Der Worker arbeitet sie in den nächsten Minuten ab.`,
     queuedNone: "Für diese Firmen läuft schon ein Auftrag.",
+    regenerateAllHint:
+      "Erzeugt alle Aufhänger im aktiven Filter neu — mit den Vorgaben, die heute gelten. Jeder Aufhänger ist ein Modellaufruf.",
+    regenerateAllConfirm: (n: number) =>
+      `${n} Aufhänger neu erzeugen lassen? Das sind ${n} Modellaufrufe und dauert einige Minuten. Die bisherigen Texte werden überschrieben.`,
+    regenerating: (n: number) =>
+      n === 1
+        ? "1 Aufhänger wird gerade neu erzeugt — die Liste aktualisiert sich von selbst."
+        : `${n} Aufhänger werden gerade neu erzeugt — die Liste aktualisiert sich von selbst.`,
+    regeneratingRow: "wird neu erzeugt",
+    regenerateTimeout:
+      "Einige Aufhänger sind nach vier Minuten noch nicht fertig. Häufigste Ursache: kein OpenAI-Guthaben. Lade die Seite später neu.",
+    alreadyExportedWarning: (n: number) =>
+      `Achtung: ${n} dieser Kontakte wurden bereits an Instantly übergeben. Dort liegt eine Kopie des alten Textes — die Mail geht mit dem alten Aufhänger raus.`,
     accepted: (n: number) => `${n} abgehakt.`,
     savedWithProblems: "Gespeichert — verstößt weiter gegen die Vorgaben.",
     saved: "Gespeichert.",
@@ -3362,6 +3376,7 @@ const en: Dictionary = {
     settingsHint: (max: number, banned: string) => `Max ${max} words · banned: ${banned}`,
     settingsLink: "Change the rules",
     states: {
+      all: "All",
       failing: "Failing",
       stale: "Stale flag",
       clean: "Clean",
@@ -3378,6 +3393,19 @@ const en: Dictionary = {
     words: (n: number, max: number) => `${n} of ${max} words`,
     queued: (n: number) => `${n} queued for regeneration. The worker will get through them in the next few minutes.`,
     queuedNone: "A job is already running for these companies.",
+    regenerateAllHint:
+      "Regenerates every icebreaker in the active filter using the rules that apply today. Each one is a model call.",
+    regenerateAllConfirm: (n: number) =>
+      `Regenerate ${n} icebreakers? That is ${n} model calls and takes a few minutes. The current texts will be overwritten.`,
+    regenerating: (n: number) =>
+      n === 1
+        ? "1 icebreaker is being regenerated — the list updates on its own."
+        : `${n} icebreakers are being regenerated — the list updates on its own.`,
+    regeneratingRow: "regenerating",
+    regenerateTimeout:
+      "Some icebreakers are still not done after four minutes. Most common cause: no OpenAI credit. Reload the page later.",
+    alreadyExportedWarning: (n: number) =>
+      `Careful: ${n} of these contacts were already pushed to Instantly. A copy of the old text lives there — the email will go out with the old icebreaker.`,
     accepted: (n: number) => `${n} cleared.`,
     savedWithProblems: "Saved — still violates the rules.",
     saved: "Saved.",

@@ -32,6 +32,14 @@ type ReviewResponse = {
 
 const STATES: IcebreakerState[] = ["failing", "stale", "clean"];
 
+/** Takt der Nachfrage, waehrend Neuerzeugungen laufen. Ein Modellaufruf
+ *  braucht ueblicherweise zwei bis fuenf Sekunden. */
+const POLL_MS = 4000;
+/** Nach so vielen Durchlaeufen (= 4 Minuten) wird aufgegeben. Ohne Grenze
+ *  bliebe eine Zeile, die der Worker nie anfasst -- etwa weil das
+ *  OpenAI-Guthaben leer ist -- fuer immer als "wird erzeugt" stehen. */
+const POLL_LIMIT = 60;
+
 const STATE_CLS: Record<IcebreakerState, string> = {
   failing: "border-red-500/60 bg-red-500/10 text-red-600 dark:text-red-400",
   stale: "border-amber-500/60 bg-amber-500/10 text-amber-700 dark:text-amber-500",
@@ -50,6 +58,25 @@ export default function IcebreakerReview() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [editing, setEditing] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
+  /**
+   * Zeilen, deren Neuerzeugung eingereiht ist, mit ihrem Text VON VORHER.
+   *
+   * ═══════════════════════════════════════════════════════════════════════
+   * WARUM ES DIESEN ZUSTAND BRAUCHT
+   * ═══════════════════════════════════════════════════════════════════════
+   *
+   * "Neu erzeugen" reiht einen Job ein, den ein Worker ein paar Sekunden
+   * spaeter abarbeitet. Die Liste lud aber SOFORT nach dem Klick neu -- also
+   * zu einem Zeitpunkt, an dem noch der alte Text in der Datenbank stand.
+   * Sichtbar aenderte sich nichts, und ein erfolgreicher Klick sah aus wie
+   * ein wirkungsloser. Genau so wurde es auch gemeldet.
+   *
+   * Der alte Text ist die Abbruchbedingung: sobald ein anderer dasteht, ist
+   * der Job durch. Das ist verlaesslicher als den Job-Status abzufragen --
+   * die Zeile zeigt dann garantiert schon das Ergebnis und nicht nur ein
+   * "fertig", dem die Anzeige noch hinterherhinkt.
+   */
+  const [pending, setPending] = useState<Map<string, string>>(new Map());
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -70,6 +97,50 @@ export default function IcebreakerReview() {
   useEffect(() => {
     load();
   }, [load]);
+
+  /**
+   * Solange etwas eingereiht ist, alle paar Sekunden nachsehen.
+   *
+   * Vier Sekunden, weil ein Modellaufruf ueblicherweise zwei bis fuenf
+   * braucht: haeufiger fragen belastet nur, seltener fuehlt sich haengend an.
+   * Der Takt endet von selbst, sobald die letzte Zeile einen neuen Text
+   * traegt -- kein Zaehler, kein Zeitlimit, das man raten muesste.
+   *
+   * Zeilen, die der Worker gar nicht anfasst (kein OpenAI-Guthaben, Firma
+   * ohne Datenbasis), blieben so allerdings ewig als "wird erzeugt" stehen.
+   * Deshalb doch eine Obergrenze: nach POLL_LIMIT Durchlaeufen wird die
+   * Markierung geraeumt und die Zeile zeigt wieder ihren echten Zustand.
+   */
+  useEffect(() => {
+    if (pending.size === 0) return;
+    let rounds = 0;
+    const timer = setInterval(async () => {
+      rounds += 1;
+      if (rounds > POLL_LIMIT) {
+        setPending(new Map());
+        push(R.regenerateTimeout, "error");
+        return;
+      }
+      await load();
+    }, POLL_MS);
+    return () => clearInterval(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pending.size === 0]);
+
+  // Fertig ist, wessen Text sich geaendert hat. Laeuft nach jedem Laden.
+  useEffect(() => {
+    if (!data || pending.size === 0) return;
+    const byId = new Map(data.items.map((v) => [v.id, v.text]));
+    setPending((prev) => {
+      const next = new Map(prev);
+      for (const [id, before] of prev) {
+        const now = byId.get(id);
+        // Verschwundene Zeile (Suche geloescht) ebenfalls raeumen.
+        if (now === undefined || now !== before) next.delete(id);
+      }
+      return next.size === prev.size ? prev : next;
+    });
+  }, [data]);
 
   /**
    * Nach jeder Aktion neu laden statt lokal nachzupflegen.
@@ -94,6 +165,22 @@ export default function IcebreakerReview() {
         return;
       }
       done(result.queued ?? result.accepted ?? 0);
+      // Eingereihte Neuerzeugungen merken, BEVOR neu geladen wird -- der
+      // alte Text ist danach nicht mehr zu haben.
+      if (Array.isArray(result.ids) && result.ids.length > 0 && data) {
+        const byId = new Map(data.items.map((v) => [v.id, v.text]));
+        setPending((prev) => {
+          const next = new Map(prev);
+          for (const id of result.ids as string[]) {
+            const before = byId.get(id);
+            if (before !== undefined) next.set(id, before);
+          }
+          return next;
+        });
+      }
+      if (typeof result.alreadyExported === "number" && result.alreadyExported > 0) {
+        push(R.alreadyExportedWarning(result.alreadyExported), "error");
+      }
       await load();
     } finally {
       setBusy(false);
@@ -131,6 +218,10 @@ export default function IcebreakerReview() {
   // Auswaehlbar sind nur die sichtbaren -- eine Sammelaktion darf nichts
   // anfassen, was gerade nicht auf dem Schirm steht.
   const selectedVisible = visible.filter((v) => selected.has(v.id));
+  // Was "Alle neu erzeugen" treffen wuerde: genau die Menge hinter dem
+  // aktiven Chip. Der Server rechnet sie noch einmal selbst nach; diese Zahl
+  // ist nur die Ansage im Knopf und in der Rueckfrage.
+  const visibleCount = visible.length;
 
   function toggle(id: string) {
     setSelected((prev) => {
@@ -163,6 +254,21 @@ export default function IcebreakerReview() {
 
       {summary && (
         <div className="flex flex-wrap items-center gap-2">
+          {/* "Alle" als eigener Chip: den Zustand gab es intern schon, aber
+              man erreichte ihn nur, indem man den aktiven Chip ein zweites
+              Mal klickte -- also durch Ausprobieren. */}
+          <button
+            onClick={() => setFilter("all")}
+            className={
+              "flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition-colors " +
+              (filter === "all"
+                ? "border-sky-500/60 bg-sky-500/10 text-sky-700 dark:text-sky-300"
+                : "border-edge2 bg-chip text-soft hover:border-edge3 hover:text-ink")
+            }
+          >
+            {R.states.all}
+            <span className="tabular-nums">{summary.total}</span>
+          </button>
           {STATES.map((s) => (
             <button
               key={s}
@@ -177,6 +283,37 @@ export default function IcebreakerReview() {
               <span className="tabular-nums">{summary[s]}</span>
             </button>
           ))}
+        </div>
+      )}
+
+      {/* Fortschritt, solange etwas laeuft. Ohne diese Zeile sah ein
+          erfolgreicher Klick aus wie ein wirkungsloser: der Worker braucht
+          Sekunden, die Liste lud aber sofort neu und zeigte den alten Text. */}
+      {pending.size > 0 && (
+        <div className="sticky top-2 z-10 rounded-lg border border-sky-500/40 bg-sky-500/5 px-4 py-2.5 text-sm text-sky-700 dark:text-sky-300">
+          {R.regenerating(pending.size)}
+        </div>
+      )}
+
+      {/* Alles auf einmal -- der Fall "die Vorgaben haben sich grundlegend
+          geaendert", etwa nach dem Umstellen der Sprache. Ohne ihn muesste
+          man je Zeile ein Kaestchen anhaken. */}
+      {summary && visibleCount > 0 && (
+        <div className="flex flex-wrap items-center gap-2 rounded-lg border border-edge2 bg-panel px-4 py-3">
+          <p className="flex-1 text-xs text-faint">{R.regenerateAllHint}</p>
+          <button
+            onClick={() => {
+              if (!confirm(R.regenerateAllConfirm(visibleCount))) return;
+              act(
+                { action: "regenerateAll", ...(filter === "all" ? {} : { state: filter }) },
+                (n) => push(n > 0 ? R.queued(n) : R.queuedNone, n > 0 ? "success" : "error")
+              );
+            }}
+            disabled={busy || pending.size > 0}
+            className={primaryBtnCls + " !px-3 !py-1.5 !text-xs"}
+          >
+            {R.regenerateAll(visibleCount)}
+          </button>
         </div>
       )}
 
@@ -237,23 +374,40 @@ export default function IcebreakerReview() {
 
       <div className="space-y-2">
         {visible.map((v) => (
-          <div key={v.id} className="rounded-lg border border-edge/60 bg-panel px-4 py-3">
+          <div
+            key={v.id}
+            className={
+              "rounded-lg border bg-panel px-4 py-3 " +
+              (pending.has(v.id) ? "border-sky-500/50" : "border-edge/60")
+            }
+          >
             <div className="flex items-start gap-3">
               <input
                 type="checkbox"
                 checked={selected.has(v.id)}
                 onChange={() => toggle(v.id)}
+                disabled={pending.has(v.id)}
                 className="mt-1 shrink-0"
               />
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="truncate text-sm font-medium text-ink">{v.name ?? "—"}</span>
-                  <span className={"rounded-full border px-2 py-0.5 text-[11px] font-medium " + STATE_CLS[v.state]}>
-                    {R.states[v.state]}
-                  </span>
-                  <span className="text-[11px] tabular-nums text-mute">
-                    {R.words(v.words, data!.settings.maxWords)}
-                  </span>
+                  {pending.has(v.id) ? (
+                    // Der Zustand von vorhin ist waehrend der Neuerzeugung
+                    // keine Auskunft mehr, nur noch eine Ablenkung.
+                    <span className="rounded-full border border-sky-500/50 bg-sky-500/10 px-2 py-0.5 text-[11px] font-medium text-sky-700 dark:text-sky-300">
+                      {R.regeneratingRow}
+                    </span>
+                  ) : (
+                    <>
+                      <span className={"rounded-full border px-2 py-0.5 text-[11px] font-medium " + STATE_CLS[v.state]}>
+                        {R.states[v.state]}
+                      </span>
+                      <span className="text-[11px] tabular-nums text-mute">
+                        {R.words(v.words, data!.settings.maxWords)}
+                      </span>
+                    </>
+                  )}
                 </div>
 
                 {editing === v.id ? (
@@ -287,7 +441,7 @@ export default function IcebreakerReview() {
                   </ul>
                 )}
 
-                {editing !== v.id && (
+                {editing !== v.id && !pending.has(v.id) && (
                   <div className="mt-2 flex flex-wrap gap-3 text-xs">
                     <button
                       onClick={() => {

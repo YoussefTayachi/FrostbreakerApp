@@ -8,6 +8,7 @@ import {
   sortVerdicts,
   summarizeReview,
   type IcebreakerRow,
+  type IcebreakerState,
   type ReviewSettings,
 } from "@/lib/personalization/review";
 import { validateIcebreaker } from "@/lib/personalization-defaults";
@@ -63,6 +64,39 @@ async function loadSettings(
     .eq("id", workspaceId)
     .single();
   return reviewSettingsFromWorkspace(data, lang);
+}
+
+/**
+ * Wie viele der betroffenen Firmen stecken schon in einer Instantly-Kampagne?
+ *
+ * ═══════════════════════════════════════════════════════════════════════
+ * DIE EINZIGE STELLE, AN DER "NEU ERZEUGEN" NICHT DURCHSCHLAEGT
+ * ═══════════════════════════════════════════════════════════════════════
+ *
+ * Die LinkedIn-Liste und die Lead-Ansichten lesen businesses.personalization
+ * bei jedem Aufruf frisch -- dort ist ein neuer Text sofort da. Instantly
+ * dagegen bekommt beim Export eine KOPIE als lead-Variable. Wird der Text
+ * danach neu erzeugt, aendert sich unsere Zeile, die Kopie bei Instantly
+ * nicht: die Mail geht mit dem alten Aufhaenger raus.
+ *
+ * Das laesst sich hier nicht heilen (Instantlys API kennt kein Aktualisieren
+ * einer bereits uebergebenen Lead-Variable, und ein Loeschen samt neu Anlegen
+ * wuerde den Sendestatus verlieren). Also wird es wenigstens gesagt -- eine
+ * stille Abweichung zwischen dem, was in der App steht, und dem, was beim
+ * Empfaenger ankommt, ist der schlimmere Zustand.
+ */
+async function countExported(
+  supabase: SupabaseClient,
+  workspaceId: string,
+  businessIds: string[]
+): Promise<number> {
+  if (businessIds.length === 0) return 0;
+  // Ueber die Kontakte: campaign_leads haengt am Kontakt, nicht an der Firma.
+  const { count } = await supabase
+    .from("campaign_leads")
+    .select("contact_id, contacts!inner(business_id)", { count: "exact", head: true })
+    .in("contacts.business_id", businessIds);
+  return count ?? 0;
 }
 
 export async function GET(req: Request) {
@@ -217,7 +251,59 @@ export async function POST(req: Request) {
       p_business_ids: ids,
     });
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-    return NextResponse.json({ ok: true, queued: queued ?? 0 });
+    return NextResponse.json({
+      ok: true,
+      queued: queued ?? 0,
+      // Die Oberflaeche braucht die IDs, um die Zeilen als "wird neu erzeugt"
+      // zu markieren und auf das Ergebnis zu warten -- der Worker ist ein
+      // paar Sekunden unterwegs, und ohne diese Rueckmeldung sieht ein
+      // erfolgreicher Klick aus wie ein wirkungsloser.
+      ids,
+      alreadyExported: await countExported(supabase, ctx.workspaceId, ids),
+    });
+  }
+
+  if (action === "regenerateAll") {
+    /**
+     * Alles neu erzeugen -- der Fall "die Vorgaben haben sich grundlegend
+     * geaendert", etwa nach dem Umstellen der Sprache.
+     *
+     * Ohne diesen Weg muesste man 55 Kaestchen anhaken, und bei einem
+     * groesseren Bestand waere es gar nicht mehr zu machen.
+     *
+     * Welche Zeilen betroffen sind, wird HIER berechnet und nicht vom
+     * Aufrufer uebernommen -- dieselbe Begruendung wie bei acceptStale: eine
+     * Liste aus dem Browser kann veraltet sein. Der optionale Zustandsfilter
+     * spiegelt genau die Chips der Ansicht, damit "alle" bedeutet, was dort
+     * gerade zu sehen ist.
+     */
+    const settings = await loadSettings(supabase, ctx.workspaceId, lang);
+    const state = body?.state as IcebreakerState | undefined;
+
+    const { data, error } = await supabase
+      .from("businesses")
+      .select(`${SELECT}, searches!inner(deleted_at)`)
+      .eq("workspace_id", ctx.workspaceId)
+      .is("searches.deleted_at", null)
+      .not("personalization", "is", null)
+      .limit(MAX_ROWS);
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+    const verdicts = reviewIcebreakers((data ?? []) as unknown as IcebreakerRow[], settings);
+    const targets = (state ? verdicts.filter((v) => v.state === state) : verdicts).map((v) => v.id);
+    if (targets.length === 0) return NextResponse.json({ ok: true, queued: 0, alreadyExported: 0 });
+
+    const { data: queued, error: rpcError } = await supabase.rpc("requeue_personalization", {
+      p_business_ids: targets,
+    });
+    if (rpcError) return NextResponse.json({ error: rpcError.message }, { status: 500 });
+    return NextResponse.json({
+      ok: true,
+      queued: queued ?? 0,
+      ids: targets,
+      alreadyExported: await countExported(supabase, ctx.workspaceId, targets),
+      truncated: (data?.length ?? 0) >= MAX_ROWS,
+    });
   }
 
   return NextResponse.json({ error: "unbekannte Aktion" }, { status: 400 });
