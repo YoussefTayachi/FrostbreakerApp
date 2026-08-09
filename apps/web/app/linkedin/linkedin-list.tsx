@@ -11,6 +11,45 @@ import SourceBadge from "./source-badge";
 import type { LeadListSummary, LinkedInLead } from "./types";
 
 /**
+ * Die drei Ergebnisse einer LinkedIn-Antwort und ihre Entsprechung in
+ * contacts.outreach_status. Beide Wertelisten sind vorgegeben -- links
+ * activities.outcome (Migration 0033), rechts contacts.outreach_status
+ * (Migration 0018); diese Tabelle ist die Uebersetzung, nicht die Erfindung.
+ *
+ * Alle drei Zielzustaende schliessen den Kontakt aus jedem weiteren
+ * Kalt-Versand aus (siehe isColdContactable in lib/contacts.ts). Das ist
+ * beabsichtigt: auch "interessiert" bedeutet, dass ab jetzt ein Mensch
+ * antwortet und keine Kampagne.
+ */
+const REPLY_STATUS = {
+  interested: "replied",
+  meeting_booked: "meeting_booked",
+  not_interested: "not_interested",
+} as const;
+
+type ReplyOutcome = keyof typeof REPLY_STATUS;
+const REPLY_OUTCOMES = Object.keys(REPLY_STATUS) as ReplyOutcome[];
+
+/**
+ * Rueckweg fuer die Anzeige: welcher Status wurde beim letzten Mal
+ * eingetragen. Bewusst keine Umkehrung von REPLY_STATUS zur Laufzeit --
+ * 'customer' hat keinen Gegenpart und soll auch keinen bekommen, das ist
+ * kein Ergebnis einer LinkedIn-Nachricht.
+ */
+/** Farbe je Ergebnis: gruen = Termin, blau = lebendiger Lead, grau = durch. */
+const REPLY_BADGE: Record<ReplyOutcome, string> = {
+  interested: "bg-sky-500/10 text-sky-600 dark:text-sky-300",
+  meeting_booked: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
+  not_interested: "bg-chip text-mute",
+};
+
+const OUTCOME_BY_STATUS: Record<string, ReplyOutcome | undefined> = {
+  replied: "interested",
+  meeting_booked: "meeting_booked",
+  not_interested: "not_interested",
+};
+
+/**
  * Zweite Stufe: die Profile genau einer Lead-Liste.
  *
  * Der Ablauf bricht bewusst nicht aus der App aus: kopieren -> Profil im
@@ -59,6 +98,9 @@ export default function LinkedInList({
   // Lokal abgehakt: die Serverdaten werden nicht neu geladen, damit die Zeile
   // nicht unter dem Cursor wegspringt, waehrend man die Liste abarbeitet.
   const [justLogged, setJustLogged] = useState<Set<string>>(new Set());
+  // Antworten getrennt von justLogged: eine Antwort ist kein "abgehakt",
+  // sondern ein anderer Zustand -- und die Zeile soll zeigen, welcher.
+  const [justReplied, setJustReplied] = useState<Map<string, ReplyOutcome>>(new Map());
   const [busyId, setBusyId] = useState<string | null>(null);
 
   // Arbeitsreihenfolge: offen vor erledigt, fertiger Icebreaker vor keinem,
@@ -149,6 +191,75 @@ export default function LinkedInList({
     push(L.logged, "success");
   }
 
+  /**
+   * Antwort auf LinkedIn festhalten.
+   *
+   * ═══════════════════════════════════════════════════════════════════════
+   * WARUM DAS MEHR IST ALS EIN PROTOKOLL-EINTRAG
+   * ═══════════════════════════════════════════════════════════════════════
+   *
+   * Diese Funktion ist die einzige Stelle, an der ein Mensch der App sagen
+   * kann, dass jemand ausserhalb der App geantwortet hat -- bei E-Mail
+   * uebernimmt das der Inbox-Sync, bei LinkedIn gibt es keine Schnittstelle.
+   *
+   * Der Status, den sie setzt, wirkt an drei Stellen weiter, ohne dass dort
+   * irgendwo "LinkedIn" steht:
+   *
+   *   1. Kampagnen-Versand   isColdContactable() schliesst 'replied',
+   *                          'meeting_booked' und 'not_interested' aus --
+   *                          beim Anlegen UND beim Nachreichen. Genau das
+   *                          verhindert die Mail an jemanden, der auf
+   *                          LinkedIn schon geantwortet hat.
+   *   2. Kette (0074)        alle drei Schritte laufen nur ueber Kontakte mit
+   *                          outreach_status = 'contacted'. Wer antwortet,
+   *                          faellt sofort aus der Kette.
+   *   3. Pipeline           'meeting_booked' ist dieselbe Stufe, die auch der
+   *                          Mailweg setzt.
+   *
+   * Die drei Ergebnisse sind nicht frei erfunden: activities.outcome kennt
+   * sie seit Migration 0033. Ein einzelner Knopf "hat geantwortet" waere
+   * weniger Arbeit gewesen und haette die Information weggeworfen, die den
+   * Unterschied zwischen einem Lead und einer Absage ausmacht.
+   */
+  async function logReply(lead: LinkedInLead, outcome: ReplyOutcome) {
+    if (busyId) return;
+    setBusyId(lead.id);
+    const now = new Date().toISOString();
+    const supabase = createClient();
+
+    const { error } = await supabase.from("activities").insert({
+      workspace_id: workspaceId,
+      contact_id: lead.id,
+      business_id: null,
+      type: "message",
+      channel: "linkedin",
+      subject: L.replySubject,
+      outcome,
+      occurred_at: now,
+      completed_at: now,
+    });
+
+    if (error) {
+      setBusyId(null);
+      push(t.common.error + error.message, "error");
+      return;
+    }
+
+    // Anders als bei logSent wird hier auch heruntergestuft: wer bisher als
+    // 'replied' galt und jetzt absagt, ist 'not_interested'. Eine Antwort ist
+    // immer die neuere Information -- sie kommt von einem Menschen, der die
+    // Nachricht gerade gelesen hat.
+    const { error: statusError } = await supabase
+      .from("contacts")
+      .update({ outreach_status: REPLY_STATUS[outcome] })
+      .eq("id", lead.id);
+    if (statusError) push(t.common.error + statusError.message, "error");
+
+    setJustReplied((prev) => new Map(prev).set(lead.id, outcome));
+    setBusyId(null);
+    push(L.replyLogged, "success");
+  }
+
   return (
     <div className="space-y-4">
       {/* Kopf: wo bin ich, und wie weit bin ich hier */}
@@ -228,9 +339,11 @@ export default function LinkedInList({
               lead={lead}
               template={template}
               done={lead.alreadyContacted || justLogged.has(lead.id)}
+              replied={justReplied.get(lead.id) ?? OUTCOME_BY_STATUS[lead.outreach_status] ?? null}
               busy={busyId === lead.id}
               onCopy={copy}
               onLog={logSent}
+              onReply={logReply}
             />
           ))}
         </div>
@@ -243,19 +356,25 @@ function LeadRow({
   lead,
   template,
   done,
+  replied,
   busy,
   onCopy,
   onLog,
+  onReply,
 }: {
   lead: LinkedInLead;
   template: string;
   done: boolean;
+  /** Eingetragenes Antwort-Ergebnis, oder null wenn noch keine Antwort da ist. */
+  replied: ReplyOutcome | null;
   busy: boolean;
   onCopy: (text: string) => void;
   onLog: (lead: LinkedInLead, message: string) => void;
+  onReply: (lead: LinkedInLead, outcome: ReplyOutcome) => void;
 }) {
   const { t } = useT();
   const L = t.linkedin;
+  const [replyOpen, setReplyOpen] = useState(false);
 
   const rendered = useMemo(
     () =>
@@ -309,10 +428,18 @@ function LeadRow({
               {L.badgeNoIcebreaker}
             </span>
           )}
-          {done && (
-            <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-medium text-emerald-600 dark:text-emerald-400">
-              {L.badgeContacted}
+          {/* Die Antwort verdraengt "angeschrieben": beides nebeneinander waere
+              zwar korrekt, aber die Antwort ist die Auskunft, die zaehlt. */}
+          {replied ? (
+            <span className={"rounded-full px-2 py-0.5 text-[10px] font-medium " + REPLY_BADGE[replied]}>
+              {L.replyBadge[replied]}
             </span>
+          ) : (
+            done && (
+              <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-medium text-emerald-600 dark:text-emerald-400">
+                {L.badgeContacted}
+              </span>
+            )
           )}
         </div>
       </div>
@@ -346,6 +473,13 @@ function LeadRow({
         >
           {busy ? t.common.saving : done ? L.logAgain : L.logSent}
         </button>
+        <button
+          onClick={() => setReplyOpen((v) => !v)}
+          disabled={busy}
+          className="rounded-lg border border-edge2 px-3 py-1.5 text-xs text-soft transition-colors hover:border-sky-500/60 hover:text-sky-600 disabled:opacity-40 dark:hover:text-sky-400"
+        >
+          {replied ? L.replyChange : L.replyButton}
+        </button>
         {lead.business_id && (
           <Link
             href={`/leads?business=${lead.business_id}`}
@@ -355,6 +489,33 @@ function LeadRow({
           </Link>
         )}
       </div>
+
+      {replyOpen && (
+        <div className="mt-2 rounded-lg border border-edge2/70 bg-chip/40 px-3 py-2.5">
+          <p className="text-[11px] leading-relaxed text-faint">{L.replyPrompt}</p>
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {REPLY_OUTCOMES.map((outcome) => (
+              <button
+                key={outcome}
+                onClick={() => {
+                  onReply(lead, outcome);
+                  setReplyOpen(false);
+                }}
+                disabled={busy}
+                className={
+                  "rounded-lg border px-2.5 py-1 text-[11px] font-medium transition-colors disabled:opacity-40 " +
+                  (replied === outcome
+                    ? "border-sky-500/60 text-sky-600 dark:text-sky-400"
+                    : "border-edge2 text-soft hover:border-edge3 hover:text-ink")
+                }
+              >
+                {L.replyOutcome[outcome]}
+              </button>
+            ))}
+          </div>
+          <p className="mt-2 text-[11px] leading-relaxed text-faint">{L.replyEffect}</p>
+        </div>
+      )}
     </div>
   );
 }

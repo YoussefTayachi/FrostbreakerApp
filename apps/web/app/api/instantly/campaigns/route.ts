@@ -4,7 +4,7 @@ import { requireInstantlyContext, instantlyRequest, InstantlyApiError } from "@/
 import { campaignStats, type StatsRow } from "@/lib/instantly/campaign-stats";
 import { getBillingStatus } from "@/lib/billing";
 import { filterSuppressed } from "@/lib/suppression";
-import { pickPrimaryContactPerBusiness, splitBySendability } from "@/lib/contacts";
+import { pickPrimaryContactPerBusiness, splitByEngagement, splitBySendability } from "@/lib/contacts";
 import {
   buildCampaignSchedule,
   buildCampaignSequence,
@@ -112,13 +112,16 @@ export async function POST(req: Request) {
   };
 
   // Sicherheitsnetz gegen versehentliches erneutes Anschreiben: Blockliste
-  // (suppression_list) UND Kontakte, die per KI-Klassifizierung schon explizit
-  // "kein Interesse" geantwortet haben, werden nie in eine neue Kampagne
-  // aufgenommen -- unabhaengig davon, aus welcher Suche/wann sie urspruenglich
-  // gefunden wurden. Vorher wurden hier ausnahmslos alle Kontakte mit E-Mail
-  // uebernommen, auch bereits blockierte/abgelehnte.
+  // (suppression_list) UND Kontakte, die bereits reagiert haben, werden nie in
+  // eine neue Kampagne aufgenommen -- unabhaengig davon, aus welcher Suche/wann
+  // sie urspruenglich gefunden wurden. Vorher wurden hier ausnahmslos alle
+  // Kontakte mit E-Mail uebernommen, auch bereits blockierte/abgelehnte.
   const withEmail = ((contacts ?? []) as unknown as ContactRow[]).filter((c) => !!c.email);
-  const notDeclined = withEmail.filter((c) => c.outreach_status !== "not_interested");
+  // Bis zum 2026-08-09 stand hier nur 'not_interested'. Wer geantwortet oder
+  // einen Termin hatte, landete in jeder neuen Kampagne derselben Suche wieder
+  // -- inklusive derer, die auf LinkedIn geantwortet hatten. isColdContactable
+  // deckt alle vier Faelle ab, siehe lib/contacts.ts.
+  const { contactable: notDeclined } = splitByEngagement(withEmail);
   // Als ungueltig erkannte Adressen nie versenden: sie bouncen garantiert und
   // beschaedigen die Absender-Reputation der ganzen Domain, nicht nur diese
   // eine Kampagne. Genau dafuer wird vorher verifiziert.

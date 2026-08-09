@@ -2,7 +2,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { pickPrimaryContactPerBusiness, splitBySendability } from "@/lib/contacts";
+import { pickPrimaryContactPerBusiness, splitByEngagement, splitBySendability } from "@/lib/contacts";
 import { filterSuppressed } from "@/lib/suppression";
 import { useT } from "../../../language-provider";
 import { useToast } from "../../../toast-provider";
@@ -92,7 +92,10 @@ export default function NewCampaignPage() {
         email_verification_status: string | null;
         businesses: { website: string | null } | null;
       }[];
-      const notDeclined = rows.filter((c) => c.outreach_status !== "not_interested");
+      // Dieselbe Regel wie im Server-Pfad (lib/contacts.ts): wer schon
+      // reagiert hat -- auch auf LinkedIn -- zaehlt hier nicht mit, sonst
+      // verspricht die Vorschau mehr Empfaenger, als danach rausgehen.
+      const { contactable: notDeclined } = splitByEngagement(rows);
       const { sendable, unsendable } = splitBySendability(
         filterSuppressed(notDeclined, suppressionRes.data ?? [])
       );

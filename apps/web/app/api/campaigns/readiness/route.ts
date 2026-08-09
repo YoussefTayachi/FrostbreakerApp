@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentWorkspace } from "@/lib/workspace/server";
 import { runDeliverabilityCheck } from "@/lib/deliverability";
-import { pickPrimaryContactPerBusiness, splitBySendability } from "@/lib/contacts";
+import { pickPrimaryContactPerBusiness, splitByEngagement, splitBySendability } from "@/lib/contacts";
 import { filterSuppressed } from "@/lib/suppression";
 import { assessCampaign, stepFacts, type DomainAuth, type ReadinessFacts } from "@/lib/campaign-readiness";
 import { reviewIcebreaker, reviewSettingsFromWorkspace } from "@/lib/personalization/review";
@@ -104,7 +104,9 @@ export async function POST(req: Request) {
   };
 
   const rows = (contactRows ?? []) as unknown as Row[];
-  const notDeclined = rows.filter((c) => c.outreach_status !== "not_interested");
+  // Dieselbe Regel wie beim tatsaechlichen Anlegen (lib/contacts.ts) -- eine
+  // Vorschau, die mehr zaehlt als spaeter rausgeht, ist keine Vorschau.
+  const { contactable: notDeclined } = splitByEngagement(rows);
   const { sendable } = splitBySendability(filterSuppressed(notDeclined, suppression ?? []));
   const finalLeads = pickPrimaryContactPerBusiness(sendable) as unknown as Row[];
 

@@ -62,6 +62,48 @@ export function splitBySendability<T extends { email_verification_status: string
   return { sendable, unsendable };
 }
 
+/**
+ * Zustaende, in denen eine Kalt-Mail nicht mehr rausgehen darf -- KANALUNABHAENGIG.
+ *
+ *   replied         hat geantwortet, egal ueber welchen Weg
+ *   meeting_booked  Termin steht; eine Kaltakquise-Mail waere jetzt peinlich
+ *   customer        kauft bereits
+ *   not_interested  hat abgesagt
+ *
+ * Der eigentliche Grund fuer diese Liste ist der Mehrkanal-Fall: wer auf
+ * LinkedIn geantwortet hat, steht danach auf 'replied' -- und faellt damit
+ * automatisch aus jeder E-Mail-Kampagne, ohne dass irgendwo das Wort
+ * "LinkedIn" vorkommt. Genau deshalb haengt die Regel am Status und nicht an
+ * einem Kanal-Merkmal: der naechste Kanal (Telefon) braucht dann keine zweite
+ * Regel, und keine Auswertung muss zwei Wahrheiten kennen.
+ *
+ * 'contacted' fehlt hier bewusst: angeschrieben heisst nicht reagiert. Wer per
+ * LinkedIn kontaktiert wurde und schweigt, SOLL die Mail bekommen -- das ist
+ * der ganze Sinn der Kette.
+ *
+ * Bis hierhin filterte nur die Kampagnen-Erstellung, und die nur
+ * 'not_interested'. Wer geantwortet hatte, landete in jeder neuen Kampagne
+ * derselben Suche erneut.
+ */
+const ENGAGED_STATUS = new Set(["replied", "meeting_booked", "customer", "not_interested"]);
+
+export function isColdContactable(status: string | null | undefined): boolean {
+  return !ENGAGED_STATUS.has(status ?? "new");
+}
+
+/** Trennt in "darf kalt angeschrieben werden" und "hat schon reagiert",
+ *  damit der Aufrufer die aussortierte Menge benennen kann. */
+export function splitByEngagement<T extends { outreach_status: string }>(
+  contacts: T[]
+): { contactable: T[]; engaged: T[] } {
+  const contactable: T[] = [];
+  const engaged: T[] = [];
+  for (const c of contacts) {
+    (isColdContactable(c.outreach_status) ? contactable : engaged).push(c);
+  }
+  return { contactable, engaged };
+}
+
 export function rankContactTitle(title: string | null | undefined): number {
   if (!title) return 5;
   for (const { pattern, rank } of TITLE_RANK) {

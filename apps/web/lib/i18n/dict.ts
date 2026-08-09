@@ -757,6 +757,25 @@ const de = {
     logAgain: "Erneut protokollieren",
     logged: "Kontaktaufnahme protokolliert",
     activitySubject: "LinkedIn-Nachricht",
+    // Antwort eintragen: der einzige Weg, wie eine Reaktion auf LinkedIn in
+    // die App kommt -- es gibt dort keine Schnittstelle, die das liefert.
+    replyButton: "Antwort eintragen",
+    replyChange: "Antwort ändern",
+    replyPrompt: "Was ist bei der Antwort herausgekommen?",
+    replyOutcome: {
+      interested: "Interessiert",
+      meeting_booked: "Termin vereinbart",
+      not_interested: "Kein Interesse",
+    } as Record<string, string>,
+    replyBadge: {
+      interested: "hat geantwortet",
+      meeting_booked: "Termin",
+      not_interested: "abgesagt",
+    } as Record<string, string>,
+    replySubject: "Antwort auf LinkedIn",
+    replyLogged: "Antwort eingetragen",
+    replyEffect:
+      "Dieser Kontakt bekommt danach keine Kalt-Mail mehr — weder in einer neuen Kampagne noch beim Nachreichen von Leads, und die Kette plant für ihn keinen nächsten Schritt.",
     openLead: "Lead öffnen",
     emptyState:
       "Keine Kontakte mit LinkedIn-Profil. Die Profile kommen aus Apollo und der KI-Recherche — starte eine Suche, dann füllt sich die Liste.",
@@ -2520,6 +2539,23 @@ const en: Dictionary = {
     logAgain: "Log again",
     logged: "Outreach logged",
     activitySubject: "LinkedIn message",
+    replyButton: "Log a reply",
+    replyChange: "Change reply",
+    replyPrompt: "What came out of the reply?",
+    replyOutcome: {
+      interested: "Interested",
+      meeting_booked: "Meeting booked",
+      not_interested: "Not interested",
+    } as Record<string, string>,
+    replyBadge: {
+      interested: "replied",
+      meeting_booked: "meeting",
+      not_interested: "declined",
+    } as Record<string, string>,
+    replySubject: "Reply on LinkedIn",
+    replyLogged: "Reply logged",
+    replyEffect:
+      "This contact will not receive a cold email after this — not in a new campaign, not when leads are topped up, and the chain plans no next step for them.",
     openLead: "Open lead",
     emptyState:
       "No contacts with a LinkedIn profile. Profiles come from Apollo and the AI research step — start a search and this list fills up.",

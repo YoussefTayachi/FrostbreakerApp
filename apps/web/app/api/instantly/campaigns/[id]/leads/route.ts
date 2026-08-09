@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { requireInstantlyContext, instantlyRequest, InstantlyApiError } from "@/lib/instantly";
 import { loadOwnedCampaign } from "@/lib/instantly/campaigns";
-import { splitBySendability } from "@/lib/contacts";
+import { pickPrimaryContactPerBusiness, splitByEngagement, splitBySendability } from "@/lib/contacts";
+import { filterSuppressed } from "@/lib/suppression";
 
 /**
  * Fuegt Kontakte hinzu, die seit dem Erstellen (oder dem letzten Aufruf hier)
@@ -12,6 +13,20 @@ import { splitBySendability } from "@/lib/contacts";
  * campaign_leads ist die lokale Quelle fuer "schon hinzugefuegt" (Instantlys
  * eigenes Dedupe-Verhalten bei doppeltem /leads/add ist nicht dokumentiert
  * genug, um sich blind darauf zu verlassen).
+ *
+ * ═══════════════════════════════════════════════════════════════════════
+ * WARUM HIER DIESELBEN VIER FILTER STEHEN WIE BEIM ANLEGEN
+ * ═══════════════════════════════════════════════════════════════════════
+ *
+ * Bis zum 2026-08-09 pruefte dieser Pfad einzig die E-Mail-Verifizierung. Die
+ * Kampagnen-Erstellung pruefte vier Dinge. Das Ergebnis: was beim Anlegen
+ * ausgeschlossen wurde, kam eine Woche spaeter ueber das Lead-Abo doch noch
+ * raus -- Sperrliste, Absagen und alle vier Mitarbeitenden derselben Firma
+ * inklusive. Der Nachreiche-Pfad ist der Pfad, der bei einem Abo am
+ * haeufigsten laeuft; er war der ungeschuetzteste.
+ *
+ * Die Reihenfolge ist dieselbe wie in campaigns/route.ts, und die Regeln
+ * selbst stehen in lib/contacts.ts -- damit es keine zweite Wahrheit gibt.
  */
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -33,15 +48,18 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     return NextResponse.json({ error: "Diese Kampagne hat keine verknuepfte Suche." }, { status: 400 });
   }
 
-  const [{ data: contacts }, { data: alreadyAdded }] = await Promise.all([
+  const [{ data: contacts }, { data: alreadyAdded }, { data: suppression }] = await Promise.all([
     supabase
       .from("contacts")
-      .select("id, email, first_name, last_name, email_verification_status, businesses!inner(name, personalization, search_id)")
+      .select(
+        "id, email, first_name, last_name, title, business_id, is_primary, outreach_status, email_verification_status, businesses!inner(name, website, personalization, search_id)"
+      )
       .eq("workspace_id", ctx.workspace.id)
       .in("businesses.search_id", searchIds)
       .not("email", "is", null)
       .limit(5000),
     supabase.from("campaign_leads").select("contact_id").eq("campaign_id", local.id),
+    supabase.from("suppression_list").select("email, domain").eq("workspace_id", ctx.workspace.id),
   ]);
 
   type ContactRow = {
@@ -49,18 +67,47 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     email: string | null;
     first_name: string | null;
     last_name: string | null;
+    title: string | null;
+    business_id: string | null;
+    is_primary: boolean;
+    outreach_status: string;
     email_verification_status: string | null;
-    businesses: { name: string | null; personalization: string | null } | null;
+    businesses: { name: string | null; website: string | null; personalization: string | null } | null;
   };
 
+  const all = (contacts ?? []) as unknown as ContactRow[];
   const addedIds = new Set((alreadyAdded ?? []).map((r) => r.contact_id));
-  const fresh = ((contacts ?? []) as unknown as ContactRow[]).filter((c) => !!c.email && !addedIds.has(c.id));
+  // Firmen, aus denen bereits jemand in dieser Kampagne steckt. Ohne diese
+  // Menge wuerde pickPrimaryContactPerBusiness unten "eine Person je Firma"
+  // nur innerhalb der NEUEN Kontakte garantieren -- und damit bei einer Firma,
+  // deren Chefin schon angeschrieben ist, zusaetzlich den Vertriebsleiter
+  // aufnehmen. Fuer die Empfaengerin sieht das aus, als wuerde die Firma
+  // durchtelefoniert.
+  const coveredBusinesses = new Set(
+    all.filter((c) => addedIds.has(c.id) && c.business_id).map((c) => c.business_id as string)
+  );
+
+  const fresh = all.filter(
+    (c) => !!c.email && !addedIds.has(c.id) && !(c.business_id && coveredBusinesses.has(c.business_id))
+  );
+  // Wer bereits reagiert hat, bekommt keine Kalt-Mail mehr -- kanalunabhaengig.
+  // Das ist die Stelle, an der eine LinkedIn-Antwort den Mailversand stoppt:
+  // sie setzt outreach_status auf 'replied', und der faellt hier raus.
+  const { contactable, engaged } = splitByEngagement(fresh);
   // Gleiche Regel wie beim Anlegen der Kampagne: ungueltige Adressen duerfen
   // auch beim Nachreichen nicht in den Versand rutschen.
-  const { sendable: newRows, unsendable } = splitBySendability(fresh);
+  const { sendable, unsendable } = splitBySendability(
+    filterSuppressed(contactable, suppression ?? [])
+  );
+  const newRows = pickPrimaryContactPerBusiness(sendable);
 
   if (newRows.length === 0) {
-    return NextResponse.json({ ok: true, added: 0, skipped_unverified: unsendable.length });
+    return NextResponse.json({
+      ok: true,
+      added: 0,
+      skipped_unverified: unsendable.length,
+      skipped_engaged: engaged.length,
+    });
   }
 
   const leads = newRows.map((c) => ({
@@ -89,7 +136,12 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     { onConflict: "campaign_id,contact_id", ignoreDuplicates: true }
   );
 
-  return NextResponse.json({ ok: true, added: newRows.length, skipped_unverified: unsendable.length });
+  return NextResponse.json({
+    ok: true,
+    added: newRows.length,
+    skipped_unverified: unsendable.length,
+    skipped_engaged: engaged.length,
+  });
 }
 
 /** Instantlys Lead-Objekt, nur die Felder, die wir hier tatsaechlich lesen. */
