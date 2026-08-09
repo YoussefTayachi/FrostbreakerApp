@@ -1087,6 +1087,33 @@ const de = {
       removed: "Mailbox entfernt",
       deleteConfirm: (email: string) => `${email} wirklich entfernen?`,
       warmupScore: "Warmup-Score",
+      // Aufwaerm-Fortschritt. Die 14 Tage sind dieselbe Zahl, die auch die
+      // Anleitung und die Website nennen -- eine zweite Empfehlung waere
+      // genau die Sorte Widerspruch, die niemand aufloest.
+      warmupDay: (d: number, target: number) => `Aufwärmen: Tag ${d} von ${target}`,
+      warmupReady: "Aufgewärmt — bereit für den Versand",
+      warmupPaused: "Aufwärmen pausiert",
+      warmupUnknown: "Aufwärmen läuft (Startzeitpunkt unbekannt)",
+      warmupBlockedTitle: "Instantly hat das Aufwärmen für dieses Postfach gesperrt",
+      warmupBlockedWhy:
+        "Das passiert, wenn ein Postfach Warmup-Mails anderer Nutzer abweist — meistens, weil die DNS-Einträge (SPF, DKIM, DMARC) fehlen oder falsch sind. Solange die Sperre besteht, wärmt dieses Postfach nicht auf.",
+      warmupBlockedSteps: [
+        "Zuerst die DNS-Einträge prüfen — ohne das sperrt Instantly gleich wieder.",
+        "In Instantly unter „Email Accounts“ auf das rote Flammen-Symbol neben diesem Postfach klicken.",
+        "„Request Reactivation Code“ wählen. Der Code geht an genau diese Adresse.",
+        "Den Code im Postfach abholen (auch im Spam nachsehen) und in Instantly eintragen.",
+      ] as string[],
+      warmupBlockedNoApi:
+        "Der Code lässt sich nicht von hier aus anfordern: Instantly bietet dafür keine Schnittstelle an, nur die eigene Oberfläche.",
+      warmupOpenInstantly: "In Instantly öffnen",
+      warmupCheckDns: "DNS-Einträge prüfen",
+      warmupSummaryReady: (ready: number, total: number) => `${ready} von ${total} Postfächern sendebereit`,
+      warmupSummaryWarming: (n: number) => `${n} wärmen noch auf`,
+      warmupSummaryAllReadyOn: (date: string) => `alle bereit ab ${date}`,
+      warmupSummaryBlocked: (n: number) =>
+        n === 1
+          ? "1 Postfach ist von Instantly gesperrt und wärmt nicht auf — siehe unten."
+          : `${n} Postfächer sind von Instantly gesperrt und wärmen nicht auf — siehe unten.`,
       startWarmup: "Warmup starten",
       pauseWarmup: "Warmup pausieren",
       warmupEnabled: "Warmup gestartet",
@@ -2917,6 +2944,30 @@ const en: Dictionary = {
       removed: "Mailbox removed",
       deleteConfirm: (email: string) => `Really remove ${email}?`,
       warmupScore: "Warmup score",
+      warmupDay: (d: number, target: number) => `Warmup: day ${d} of ${target}`,
+      warmupReady: "Warmed up — ready to send",
+      warmupPaused: "Warmup paused",
+      warmupUnknown: "Warmup running (start time unknown)",
+      warmupBlockedTitle: "Instantly disabled warmup for this mailbox",
+      warmupBlockedWhy:
+        "This happens when a mailbox bounces warmup emails from other users — usually because DNS records (SPF, DKIM, DMARC) are missing or wrong. While the block is in place, this mailbox is not warming up.",
+      warmupBlockedSteps: [
+        "Check the DNS records first — without that Instantly will block it again right away.",
+        "In Instantly, open “Email Accounts” and click the red flame icon next to this mailbox.",
+        "Choose “Request Reactivation Code”. The code goes to this exact address.",
+        "Pick the code up in that mailbox (check spam too) and enter it in Instantly.",
+      ] as string[],
+      warmupBlockedNoApi:
+        "The code cannot be requested from here: Instantly offers no API for it, only their own interface.",
+      warmupOpenInstantly: "Open in Instantly",
+      warmupCheckDns: "Check DNS records",
+      warmupSummaryReady: (ready: number, total: number) => `${ready} of ${total} mailboxes ready to send`,
+      warmupSummaryWarming: (n: number) => `${n} still warming up`,
+      warmupSummaryAllReadyOn: (date: string) => `all ready from ${date}`,
+      warmupSummaryBlocked: (n: number) =>
+        n === 1
+          ? "1 mailbox is blocked by Instantly and is not warming up — see below."
+          : `${n} mailboxes are blocked by Instantly and are not warming up — see below.`,
       startWarmup: "Start warmup",
       pauseWarmup: "Pause warmup",
       warmupEnabled: "Warmup started",
