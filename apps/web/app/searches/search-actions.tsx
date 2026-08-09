@@ -45,6 +45,48 @@ export function TrashButton({ searchId }: { searchId: string }) {
   );
 }
 
+/**
+ * Laufende Suche abbrechen.
+ *
+ * Getrennt vom Loeschen, obwohl beides "weg damit" heisst: der Papierkorb
+ * ruehrt den laufenden Job nicht an. Er wuerde weiterlaufen, weiter Credits
+ * verbrauchen und am Ende Leads in eine Suche schreiben, die niemand mehr
+ * sieht. Genau dieser Fall war der Anlass -- 100 statt 10 Leads angeklickt.
+ *
+ * Der Knopf erscheint nur, solange etwas laeuft; danach gibt es nichts mehr
+ * abzubrechen und die Zeile zeigt wieder nur "Löschen".
+ */
+export function CancelButton({ searchId }: { searchId: string }) {
+  const router = useRouter();
+  const { t } = useT();
+  const { push } = useToast();
+  return (
+    <button
+      title={t.searchActions.cancelTitle}
+      onClick={async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (!confirm(t.searchActions.cancelConfirm)) return;
+        const { data, error } = await createClient().rpc("cancel_search", {
+          p_search_id: searchId,
+        });
+        if (error) {
+          push(t.common.error + error.message, "error");
+          return;
+        }
+        // false heisst: die Suche war schon fertig, als geklickt wurde. Das
+        // ist kein Fehler, aber es waere irrefuehrend, "abgebrochen" zu
+        // melden -- gleich sieht der Nutzer die fertigen Leads.
+        router.refresh();
+        push(data ? t.searchActions.cancelled : t.searchActions.cancelTooLate, data ? "success" : "error");
+      }}
+      className="rounded-lg border border-amber-500/50 px-3 py-2 text-sm font-medium text-amber-700 transition-colors hover:bg-amber-500/10 dark:text-amber-500"
+    >
+      {t.searchActions.cancel}
+    </button>
+  );
+}
+
 export function RestoreButton({ searchId }: { searchId: string }) {
   const router = useRouter();
   const { t } = useT();

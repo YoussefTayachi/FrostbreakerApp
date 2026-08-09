@@ -31,6 +31,7 @@ from worker.keys import get_api_key
 from worker.pipelines import apollo, prospeo
 from worker.pipelines.discover import discover_companies, parse_discover_company
 from worker.queue import enqueue
+from worker.search_state import SearchCancelled, search_is_cancelled
 from worker import usage
 from worker.suppression import domain_of, is_suppressed, load_suppression
 
@@ -405,7 +406,21 @@ def run_apollo(search: dict, ws: str) -> None:
         ),
         known_companies=known_companies,
         on_skip=skipped.append,
+        # Wird vor jedem bulk_match-Paket gefragt. Das ist der einzige Punkt,
+        # an dem ein Abbruch noch Geld spart -- danach ist alles bezahlt.
+        should_stop=lambda: search_is_cancelled(search["id"]),
     )
+    # Nach der Suche noch einmal: die teuren Folgeschritte (Firmendaten,
+    # Aufhaenger je Lead) sollen gar nicht erst anlaufen. Was bis hierher
+    # gefunden wurde, wird trotzdem gespeichert -- dafuer ist bereits bezahlt,
+    # und es wegzuwerfen waere die zweite Verschwendung nach der ersten.
+    if search_is_cancelled(search["id"]):
+        _store_people_pairs(
+            search, ws, pairs,
+            transport_field="apollo_id",
+            summary_of=lambda _w: None,
+        )
+        raise SearchCancelled(search["id"])
     if not pairs:
         if skipped and skipped[0]:
             # Wichtige Unterscheidung: hier sind die Filter NICHT schuld. Apollo

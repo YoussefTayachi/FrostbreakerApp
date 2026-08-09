@@ -34,3 +34,50 @@ def search_is_deleted(business: dict) -> bool:
     if related is None:
         return False
     return related.get("deleted_at") is not None
+
+
+class SearchCancelled(Exception):
+    """Der Nutzer hat diese Suche abgebrochen, waehrend sie lief.
+
+    Kein Fehler, sondern eine Anweisung. main.py faengt sie ab und schliesst
+    den Job als 'cancelled' -- nicht als 'failed', denn ein gescheiterter Job
+    wird vom Queue-Retry (Migration 0047) spaeter erneut versucht, und ein
+    abgebrochener Lauf, der von selbst wieder anlaeuft, waere die teuerste
+    denkbare Auslegung von "Abbrechen".
+    """
+
+
+def search_is_cancelled(search_id: str) -> bool:
+    """Fragt den aktuellen Zustand der Suche ab.
+
+    Bewusst eine eigene Abfrage und kein Wert, der beim Start eingesammelt
+    wird: der Abbruch passiert ja WAEHREND der Job laeuft. Ein zu Beginn
+    gelesener Status waere immer der von vorhin.
+
+    Die Abfrage kostet wenige Millisekunden und steht direkt vor Schritten,
+    die Sekunden dauern und Credits verbrauchen -- sie faellt damit nicht ins
+    Gewicht. Bei einem Netzfehler wird bewusst False geliefert: im Zweifel
+    weiterarbeiten ist besser, als eine bezahlte Suche wegen eines
+    Verbindungsproblems abzubrechen.
+    """
+    from worker.db import sb  # lokal, damit Tests das Modul ohne DB laden koennen
+
+    try:
+        row = (
+            sb()
+            .table("searches")
+            .select("status")
+            .eq("id", search_id)
+            .single()
+            .execute()
+            .data
+        )
+    except Exception:  # noqa: BLE001 -- Begruendung siehe Docstring
+        return False
+    return bool(row) and row.get("status") == "cancelled"
+
+
+def raise_if_cancelled(search_id: str) -> None:
+    """Prueffpunkt fuer die teuren Schleifen."""
+    if search_is_cancelled(search_id):
+        raise SearchCancelled(search_id)

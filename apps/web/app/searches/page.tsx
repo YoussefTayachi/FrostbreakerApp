@@ -5,7 +5,13 @@ import { getLangServer, formatDate } from "@/lib/i18n/lang";
 import { dict } from "@/lib/i18n/dict";
 import { searchSourceBadgeClass, searchSourceLabel } from "@/lib/search-source";
 import AutoRefresh from "../auto-refresh";
-import { EmptyTrashButton, HardDeleteButton, RestoreButton, TrashButton } from "./search-actions";
+import {
+  CancelButton,
+  EmptyTrashButton,
+  HardDeleteButton,
+  RestoreButton,
+  TrashButton,
+} from "./search-actions";
 
 type SearchRow = {
   id: string;
@@ -181,6 +187,13 @@ export default async function SearchesPage() {
                     >
                       {t.searches.failed}
                     </span>
+                  ) : s.status === "cancelled" ? (
+                    // Muss VOR dem !== "completed"-Zweig stehen, sonst zeigt
+                    // eine abgebrochene Suche fuer immer "wird gesucht" an.
+                    <span className="flex items-center gap-1.5 text-xs text-amber-700 dark:text-amber-500">
+                      <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+                      {t.searches.cancelled}
+                    </span>
                   ) : s.status !== "completed" ? (
                     <span className="flex items-center gap-1.5 text-xs text-blue-600 dark:text-blue-300">
                       <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-blue-400" />
@@ -206,6 +219,12 @@ export default async function SearchesPage() {
                     </span>
                   )}
                 </div>
+                {/* Nur solange etwas laeuft -- danach gibt es nichts mehr
+                    abzubrechen, und ein Knopf, der immer nur "zu spaet"
+                    meldet, ist eine Falle. */}
+                {(s.status === "pending" || s.status === "running") && (
+                  <CancelButton searchId={s.id} />
+                )}
                 <TrashButton searchId={s.id} />
               </div>
               {errorBySearch.has(s.id) && (

@@ -47,6 +47,16 @@ def complete_job(job_id: str) -> None:
     sb().table("jobs").update({"status": "completed"}).eq("id", job_id).execute()
 
 
+def cancel_job(job_id: str) -> None:
+    """Der Nutzer hat abgebrochen -- kein Fehler, also auch kein Retry.
+
+    Bewusst nicht ueber fail_job: das reiht mit Backoff erneut ein, und ein
+    abgebrochener Suchlauf, der von selbst wieder anlaeuft, waere die teuerste
+    denkbare Auslegung von "Abbrechen" (Migration 0086).
+    """
+    sb().table("jobs").update({"status": "cancelled"}).eq("id", job_id).execute()
+
+
 # Wie lange ein Job zurueckgestellt wird, wenn beim Anbieter das Guthaben alle
 # ist. Eine Stunde, weil niemand ein Konto binnen Minuten auflaedt -- und weil
 # der Job bis dahin nichts anderes tut, als denselben Fehler zu erzeugen.

@@ -150,6 +150,7 @@ const de = {
     searchingBusinesses: "Firmen werden gesucht",
     enriching: "Anreicherung",
     done: "Fertig",
+    cancelled: "Abgebrochen",
     emptyState: "Noch keine Suchen: starte deine erste im Dashboard.",
     trash: "Papierkorb",
   },
@@ -305,6 +306,14 @@ const de = {
   },
   searchActions: {
     trashTitle: "In den Papierkorb",
+    // Abbrechen ist NICHT Loeschen: der Papierkorb ruehrt den laufenden Job
+    // nicht an, er wuerde weiter Credits verbrauchen (Migration 0086).
+    cancel: "Abbrechen",
+    cancelTitle: "Stoppt die laufende Suche, bevor weitere Credits verbraucht werden.",
+    cancelConfirm:
+      "Suche wirklich abbrechen? Bereits gefundene Leads bleiben erhalten, es werden aber keine weiteren mehr geholt.",
+    cancelled: "Suche abgebrochen. Es werden keine weiteren Credits verbraucht.",
+    cancelTooLate: "Die Suche war schon fertig — es gab nichts mehr abzubrechen.",
     delete: "Löschen",
     restore: "Wiederherstellen",
     hardDeleteConfirm: "Liste und alle zugehörigen Leads endgültig löschen? Das kann nicht rückgängig gemacht werden.",
@@ -2008,6 +2017,7 @@ const en: Dictionary = {
     searchingBusinesses: "Searching for companies",
     enriching: "Enriching",
     done: "Done",
+    cancelled: "Cancelled",
     emptyState: "No searches yet: start your first one from the dashboard.",
     trash: "Trash",
   },
@@ -2158,6 +2168,12 @@ const en: Dictionary = {
   },
   searchActions: {
     trashTitle: "Move to trash",
+    cancel: "Cancel",
+    cancelTitle: "Stops the running search before it spends more credits.",
+    cancelConfirm:
+      "Really cancel this search? Leads found so far are kept, but no further ones will be fetched.",
+    cancelled: "Search cancelled. No further credits will be spent.",
+    cancelTooLate: "The search had already finished — there was nothing left to cancel.",
     delete: "Delete",
     restore: "Restore",
     hardDeleteConfirm: "Permanently delete this list and all its leads? This cannot be undone.",

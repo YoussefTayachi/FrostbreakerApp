@@ -712,6 +712,7 @@ def enrich_people(
     api_key: str,
     wanted: int,
     on_charge: "Callable[[int], None] | None" = None,
+    should_stop: "Callable[[], bool] | None" = None,
 ) -> list[dict]:
     """Kandidaten anreichern, bis wanted verwertbare Leads zusammen sind.
 
@@ -733,6 +734,17 @@ def enrich_people(
     out: list[dict] = []
     idx = 0
     while idx < len(apollo_ids) and len(out) < wanted:
+        # Der einzige Ort, an dem ein Abbruch wirklich Geld spart. Jedes Paket
+        # unten kostet bis zu zehn Credits; alles davor (Suche, Blaettern) ist
+        # gratis, alles danach ist bereits bezahlt.
+        #
+        # Dass zwischen zwei Pruefungen noch ein Paket durchgeht, laesst sich
+        # nicht vermeiden -- ein laufender HTTP-Aufruf ist nicht zurueckholbar.
+        # Deshalb sitzt die Pruefung hier und nicht eine Ebene hoeher: aus
+        # "100 Leads" werden so hoechstens zehn statt hundert.
+        if should_stop and should_stop():
+            log.info("Apollo bulk_match abgebrochen nach %s von %s Leads.", len(out), wanted)
+            break
         need = wanted - len(out)
         chunk = apollo_ids[idx : idx + min(BULK_MATCH_CHUNK, need)]
         idx += len(chunk)
@@ -760,6 +772,7 @@ def collect_people(
     on_charge: "Callable[[int], None] | None" = None,
     known_companies: "set[str] | None" = None,
     on_skip: "Callable[[int], None] | None" = None,
+    should_stop: "Callable[[], bool] | None" = None,
 ) -> list[dict]:
     """Zweistufig, weil Apollo es so vorgibt: erst kostenlos suchen, dann
     gezielt anreichern.
@@ -832,6 +845,11 @@ def collect_people(
             ids.append(pid)
         if len(people) < PER_PAGE:
             break  # letzte Seite
+        # Blaettern kostet nichts, aber Zeit: eine abgebrochene Suche soll
+        # nicht noch zehn Seiten lang weiterlaufen, bevor sie es merkt.
+        if should_stop and should_stop():
+            log.info("Apollo-Suche auf Seite %s abgebrochen.", page)
+            break
         page += 1
         if len(ids) < target_candidates:
             time.sleep(PAGE_PAUSE_S)
@@ -864,7 +882,7 @@ def collect_people(
                 "(Filter zu eng oder Zielgruppe in Apollo nicht vorhanden)."
             )
         return []
-    return enrich_people(ids, api_key, capped, on_charge=on_charge)
+    return enrich_people(ids, api_key, capped, on_charge=on_charge, should_stop=should_stop)
 
 
 # Welcher Filter wird bei der Ursachensuche versuchsweise weggelassen, und wie

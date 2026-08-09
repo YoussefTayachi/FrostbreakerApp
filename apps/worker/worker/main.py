@@ -15,6 +15,7 @@ from datetime import datetime, timedelta, timezone
 from worker import queue
 from worker.db import sb
 from worker.pipelines import find_decisionmaker, get_businesses, hunt_persons, personalize
+from worker.search_state import SearchCancelled
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 log = logging.getLogger("worker")
@@ -152,6 +153,16 @@ def main() -> None:
                     queue.clear_provider_alert(job["workspace_id"], provider)
                 except Exception:
                     log.warning("Anbieter-Alarm konnte nicht aufgeloest werden", exc_info=True)
+        except SearchCancelled:
+            # Vom Nutzer gewollt, kein Fehler. Muss VOR dem allgemeinen
+            # except stehen, sonst landet der Abbruch in fail_job -- und der
+            # reiht mit Backoff erneut ein, laesst die Suche also von selbst
+            # wieder anlaufen und weiter Credits verbrauchen.
+            log.info("Job %s vom Nutzer abgebrochen", job["id"])
+            try:
+                queue.cancel_job(job["id"])
+            except Exception:
+                log.exception("Abbruch fuer Job %s konnte nicht gespeichert werden", job["id"])
         except Exception as exc:
             log.exception("Job %s fehlgeschlagen", job["id"])
             # Auch das Wegschreiben des Fehlers geht ueber das Netz. Scheitert

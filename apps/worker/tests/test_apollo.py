@@ -654,7 +654,7 @@ def test_collect_people_blaettert_weiter_statt_bei_dubletten_aufzugeben(monkeypa
     enriched: list[list[str]] = []
     monkeypatch.setattr(
         apollo, "enrich_people",
-        lambda ids, key, capped, on_charge=None: enriched.append(list(ids)) or [{"x": 1}],
+        lambda ids, key, capped, on_charge=None, should_stop=None: enriched.append(list(ids)) or [{"x": 1}],
     )
     monkeypatch.setattr(apollo.time, "sleep", lambda _s: None)
 
@@ -692,9 +692,74 @@ def test_collect_people_ohne_bestand_verhaelt_sich_wie_bisher(monkeypatch):
     enriched: list[list[str]] = []
     monkeypatch.setattr(
         apollo, "enrich_people",
-        lambda ids, key, capped, on_charge=None: enriched.append(list(ids)) or [{"x": 1}],
+        lambda ids, key, capped, on_charge=None, should_stop=None: enriched.append(list(ids)) or [{"x": 1}],
     )
     monkeypatch.setattr(apollo.time, "sleep", lambda _s: None)
 
     apollo.collect_people({}, "key", 1)
     assert enriched == [["a"]]
+
+
+# ─────────────────────────────────────────────────────────────────────────
+# Suche abbrechen (Migration 0086)
+#
+# Der Zweck ist ausschliesslich, Credits zu sparen. Deshalb pruefen die Tests
+# nicht "wurde abgebrochen", sondern "wie viele Pakete wurden noch bezahlt".
+# ─────────────────────────────────────────────────────────────────────────
+
+
+def test_abbruch_stoppt_vor_dem_naechsten_bezahlten_paket(monkeypatch):
+    """100 angeforderte Leads, Abbruch nach dem ersten Paket.
+
+    Ohne Prueffpunkt liefen alle zehn Pakete durch (100 Credits). Erwartet
+    wird genau ein bezahltes Paket -- das laufende laesst sich nicht
+    zurueckholen, alle weiteren schon.
+    """
+    billed: list[int] = []
+    stop = {"now": False}
+
+    def fake_chunk(ids, api_key):
+        billed.append(len(ids))
+        stop["now"] = True  # waehrend des ersten Pakets bricht der Nutzer ab
+        return [_match(i) for i in ids]
+
+    monkeypatch.setattr("worker.pipelines.apollo._bulk_match_chunk", fake_chunk)
+    monkeypatch.setattr("worker.pipelines.apollo.time.sleep", lambda _s: None)
+
+    out = enrich_people(
+        [f"p{i}" for i in range(100)], "key", 100, should_stop=lambda: stop["now"]
+    )
+    assert billed == [10], f"nur das laufende Paket darf bezahlt werden, war: {billed}"
+    assert len(out) == 10, "was bezahlt wurde, wird auch behalten"
+
+
+def test_ohne_abbruch_laeuft_alles_durch(monkeypatch):
+    """Die Gegenprobe: der Prueffpunkt darf im Normalfall nichts kuerzen."""
+    billed: list[int] = []
+    monkeypatch.setattr(
+        "worker.pipelines.apollo._bulk_match_chunk",
+        lambda ids, api_key: billed.append(len(ids)) or [_match(i) for i in ids],
+    )
+    monkeypatch.setattr("worker.pipelines.apollo.time.sleep", lambda _s: None)
+
+    enrich_people([f"p{i}" for i in range(25)], "key", 25, should_stop=lambda: False)
+    assert sum(billed) == 25
+
+
+def test_abbruch_behaelt_was_bereits_bezahlt_wurde(monkeypatch):
+    """Bezahlte Leads wegzuwerfen waere die zweite Verschwendung nach der
+    ersten -- der Nutzer wollte die Suche stoppen, nicht sein Guthaben."""
+    monkeypatch.setattr(
+        "worker.pipelines.apollo._bulk_match_chunk",
+        lambda ids, api_key: [_match(i) for i in ids],
+    )
+    monkeypatch.setattr("worker.pipelines.apollo.time.sleep", lambda _s: None)
+
+    calls = {"n": 0}
+
+    def stop_after_two() -> bool:
+        calls["n"] += 1
+        return calls["n"] > 2
+
+    out = enrich_people([f"p{i}" for i in range(50)], "key", 50, should_stop=stop_after_two)
+    assert len(out) == 20, "zwei Pakete a 10 wurden bezahlt und bleiben erhalten"
