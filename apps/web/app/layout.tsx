@@ -74,14 +74,27 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             <ToastProvider>
             <CommandPalette />
             <div className="flex min-h-screen">
-              <aside className="fixed inset-y-0 left-0 z-20 hidden w-64 flex-col border-r border-edge/60 bg-panel2 px-4 py-5 md:flex">
-                <div className="mb-4 flex items-center gap-2 px-2">
+              {/* Drei Zonen, und nur die mittlere scrollt.
+                  Bis zum 2026-08-09 war die Leiste ein einziger Block: die
+                  Navigation ist mit jeder neuen Ansicht gewachsen, bis sie bei
+                  100 % Zoom hoeher war als das Fenster. Weil das aside fixiert
+                  ist und nichts ueberlief, wurde der Fuss schlicht abgeschnitten
+                  -- Konto, Sprache, Nachtmodus und Abmelden waren erst ab 90 %
+                  Zoom zu sehen, also ausgerechnet nicht in der Standardansicht.
+                  Kopf und Fuss stehen deshalb fest (shrink-0), dazwischen darf
+                  gescrollt werden. min-h-0 ist dabei der Punkt, an dem es sonst
+                  scheitert: ohne das weigert sich ein Flex-Kind, kleiner als
+                  sein Inhalt zu werden, und der Fuss wandert wieder hinaus. */}
+              <aside className="fixed inset-y-0 left-0 z-20 hidden w-64 flex-col overflow-hidden border-r border-edge/60 bg-panel2 px-4 py-4 md:flex">
+                <div className="mb-3 flex shrink-0 items-center gap-2 px-2">
                   <span className="text-3xl font-extrabold tracking-tighter text-[#0EA5E9]">frostbreaker</span>
                 </div>
-                <WorkspaceSwitcher className="mb-3" />
+                <WorkspaceSwitcher className="mb-3 shrink-0" />
                 <CommandPaletteTrigger />
-                <Nav />
-                <div className="mt-auto border-t border-edge/60 pt-4">
+                <div className="-mr-1 min-h-0 flex-1 overflow-y-auto pr-1">
+                  <Nav />
+                </div>
+                <div className="mt-3 shrink-0 border-t border-edge/60 pt-3">
                   {/* Konto und Abmelden untereinander statt nebeneinander:
                       der Knopf hat jetzt einen Rahmen und braucht die ganze
                       Breite, sonst quetscht ihn eine lange Adresse. */}

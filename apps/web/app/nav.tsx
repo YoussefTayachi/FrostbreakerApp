@@ -145,7 +145,10 @@ export default function Nav() {
   }
 
   return (
-    <nav className="flex flex-col gap-3">
+    // Der Abstand zwischen den Gruppen ist bewusst knapp: er muss die Gruppen
+    // noch trennen, darf die Liste aber nicht ueber die Fensterhoehe treiben
+    // (siehe Kommentar zur Seitenleiste in layout.tsx).
+    <nav className="flex flex-col gap-2">
       {groups.map(({ parent, children }) => (
         <div key={parent.href} className="flex flex-col gap-0.5">
           <NavRow entry={parent} active={isActive(parent.href)} />
@@ -170,7 +173,12 @@ function NavRow({ entry, active, sub }: { entry: NavEntry; active: boolean; sub?
       href={entry.href}
       className={
         "relative flex items-center gap-2.5 rounded-lg transition-all duration-200 " +
-        (sub ? "px-2.5 py-1.5 text-[13px] " : "px-3 py-2.5 text-sm ") +
+        // Zeilenhoehe ausdruecklich gesetzt, nicht geerbt: text-[13px] legt in
+        // Tailwind nur die Schriftgroesse fest, die Hoehe kaeme sonst aus der
+        // Vererbung (1.5 => ~20px) und machte jede Untereintragszeile vier
+        // Pixel hoeher, als sie sein muss. Mal zwoelf Untereintraege ist genau
+        // das der Unterschied zwischen "passt ins Fenster" und "passt nicht".
+        (sub ? "px-2.5 py-1 text-[13px] leading-4 " : "px-3 py-2 text-sm leading-5 ") +
         (active
           ? "border border-edge/60 bg-panel font-medium text-ink shadow-sm"
           : "border border-transparent text-soft hover:bg-chip hover:text-ink")

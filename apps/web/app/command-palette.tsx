@@ -22,7 +22,7 @@ export function CommandPaletteTrigger() {
   return (
     <button
       onClick={() => window.dispatchEvent(new Event("open-command-palette"))}
-      className="mb-3 flex items-center gap-2.5 rounded-lg border border-edge/60 bg-panel px-3 py-2 text-left text-sm text-faint transition-colors hover:border-edge2 hover:text-ink"
+      className="mb-3 flex shrink-0 items-center gap-2.5 rounded-lg border border-edge/60 bg-panel px-3 py-2 text-left text-sm text-faint transition-colors hover:border-edge2 hover:text-ink"
     >
       <IconSearch className="h-4 w-4 shrink-0" />
       <span className="flex-1">{t.commandPalette.triggerLabel}</span>
