@@ -39,6 +39,7 @@ from typing import Callable
 import httpx
 from tenacity import retry, retry_if_exception, stop_after_attempt, wait_exponential
 
+from worker import apollo_cache
 from worker.http_safety import raise_for_status_safe
 
 # api_search, NICHT mixed_people/search: letzteres ist der Endpunkt hinter
@@ -531,6 +532,15 @@ def fetch_company_facts(
         for d in domains
         if d and d.strip() and not is_platform_domain(d)
     ]
+    # Firmendaten kosten dasselbe wie Personendaten: 1 Credit je Firma. Ohne
+    # diesen Griff waere nur die Haelfte der Rechnung geloest.
+    cached_orgs = apollo_cache.get_many(api_key, "organization", clean)
+    out.update(cached_orgs)
+    clean = [d for d in clean if d not in cached_orgs]
+    if cached_orgs:
+        log.info("Apollo: %s Firmen aus dem Cache (keine Credits).", len(cached_orgs))
+
+    fresh_orgs: dict[str, dict] = {}
     for i in range(0, len(clean), BULK_ORG_CHUNK):
         chunk = clean[i : i + BULK_ORG_CHUNK]
         try:
@@ -542,12 +552,15 @@ def fetch_company_facts(
                     "summary": build_company_summary(org),
                     "traffic_rank": alexa_rank(org),
                 }
+                fresh_orgs[domain] = out[domain]
         except ApolloPlanError:
             raise
         except Exception as exc:  # noqa: BLE001 -- Zusatzdaten, kein Arbeitsschritt
             log.warning("Apollo-Firmendaten fuer %s Domains fehlgeschlagen: %s", len(chunk), exc)
         if i + BULK_ORG_CHUNK < len(clean):
             time.sleep(PAGE_PAUSE_S)
+
+    apollo_cache.put_many(api_key, "organization", fresh_orgs)
     return out
 
 
@@ -732,6 +745,27 @@ def enrich_people(
     unterschaetzt die Rechnung.
     """
     out: list[dict] = []
+
+    # Was dieses Apollo-Konto fuer diese Personen schon bezahlt hat, kommt aus
+    # der eigenen Ablage statt noch einmal von Apollo. Bewusst hier und nicht
+    # als Vorfilter beim Aufrufer: ein Treffer heisst "gratis", nicht
+    # "ueberspringen" -- der Lead soll ja trotzdem beim Nutzer ankommen.
+    cached = apollo_cache.get_many(api_key, "person", apollo_ids)
+    if cached:
+        for pid in apollo_ids:
+            if len(out) >= wanted:
+                break
+            hit = cached.get(pid)
+            if hit:
+                out.append(hit)
+        log.info(
+            "Apollo: %s von %s Personen aus dem Cache (keine Credits).",
+            len(out), len(apollo_ids),
+        )
+    # Nur der Rest kostet noch etwas.
+    apollo_ids = [pid for pid in apollo_ids if pid not in cached]
+
+    fresh: dict[str, dict] = {}
     idx = 0
     while idx < len(apollo_ids) and len(out) < wanted:
         # Der einzige Ort, an dem ein Abbruch wirklich Geld spart. Jedes Paket
@@ -756,12 +790,24 @@ def enrich_people(
                 parsed = parse_apollo_person(match)
                 if parsed:
                     out.append(parsed)
+                    # Ab in den Cache: beim naechsten Mal ist diese Person
+                    # gratis, egal aus welchem Workspace desselben Kontos.
+                    #
+                    # Die ID steckt in parsed["contact"], nicht eine Ebene
+                    # hoeher -- parse_apollo_person liefert das Paar aus Firma
+                    # und Person. Eine Ebene daneben war der Cache still leer
+                    # und haette nie etwas gespart.
+                    pid = (parsed.get("contact") or {}).get("apollo_id")
+                    if pid:
+                        fresh[pid] = parsed
         except ApolloPlanError:
             raise
         except Exception as exc:  # noqa: BLE001 -- absichtlich breit, s. Docstring
             log.warning("Apollo bulk_match fuer %s Personen fehlgeschlagen: %s", len(chunk), exc)
         if idx < len(apollo_ids) and len(out) < wanted:
             time.sleep(PAGE_PAUSE_S)
+
+    apollo_cache.put_many(api_key, "person", fresh)
     return out[:wanted]
 
 

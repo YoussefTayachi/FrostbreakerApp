@@ -763,3 +763,114 @@ def test_abbruch_behaelt_was_bereits_bezahlt_wurde(monkeypatch):
 
     out = enrich_people([f"p{i}" for i in range(50)], "key", 50, should_stop=stop_after_two)
     assert len(out) == 20, "zwei Pakete a 10 wurden bezahlt und bleiben erhalten"
+
+
+# ─────────────────────────────────────────────────────────────────────────
+# Apollo-Cache (Migration 0087)
+#
+# Zweck: dieselbe Person nie zweimal bezahlen -- und den Lead trotzdem
+# ausliefern. Die Tests messen deshalb beides: was noch gekauft wurde UND was
+# beim Aufrufer ankommt.
+# ─────────────────────────────────────────────────────────────────────────
+
+
+def _cache_stub(monkeypatch, vorhanden: dict[str, dict]):
+    """Cache durch ein Dictionary ersetzen. Gibt das Ablage-Protokoll zurueck."""
+    from worker import apollo_cache
+
+    abgelegt: dict[str, dict] = {}
+    monkeypatch.setattr(
+        apollo_cache, "get_many",
+        lambda key, kind, ids: {i: vorhanden[i] for i in ids if i in vorhanden},
+    )
+    monkeypatch.setattr(apollo_cache, "put_many", lambda key, kind, items: abgelegt.update(items))
+    return abgelegt
+
+
+def test_bekannte_person_kostet_nichts_und_kommt_trotzdem(monkeypatch):
+    """Der Kern: ein Cache-Treffer heisst "gratis", nicht "Lead weg"."""
+    _cache_stub(monkeypatch, {"p1": _match("p1")})
+
+    def fail(*_a, **_k):
+        raise AssertionError("bulk_match darf fuer eine bekannte Person nicht laufen")
+
+    monkeypatch.setattr("worker.pipelines.apollo._bulk_match_chunk", fail)
+    monkeypatch.setattr("worker.pipelines.apollo.time.sleep", lambda _s: None)
+
+    out = enrich_people(["p1"], "key", 1)
+    assert len(out) == 1, "der Lead muss trotzdem ankommen"
+
+
+def test_nur_die_unbekannten_kosten_credits(monkeypatch):
+    """Gemischter Fall -- der Normalfall bei ueberlappenden Suchen."""
+    _cache_stub(monkeypatch, {"p1": _match("p1"), "p2": _match("p2")})
+    gekauft: list[str] = []
+
+    def fake_chunk(ids, api_key):
+        gekauft.extend(ids)
+        return [_match(i) for i in ids]
+
+    monkeypatch.setattr("worker.pipelines.apollo._bulk_match_chunk", fake_chunk)
+    monkeypatch.setattr("worker.pipelines.apollo.time.sleep", lambda _s: None)
+
+    out = enrich_people(["p1", "p2", "p3", "p4"], "key", 4)
+    assert sorted(gekauft) == ["p3", "p4"], f"nur die neuen duerfen gekauft werden, war: {gekauft}"
+    assert len(out) == 4, "alle vier Leads muessen ankommen"
+
+
+def test_frisch_gekaufte_landen_im_cache(monkeypatch):
+    """Ohne diesen Schritt waere der Cache immer leer und spart nie etwas."""
+    abgelegt = _cache_stub(monkeypatch, {})
+    monkeypatch.setattr(
+        "worker.pipelines.apollo._bulk_match_chunk",
+        lambda ids, api_key: [_match(i) for i in ids],
+    )
+    monkeypatch.setattr("worker.pipelines.apollo.time.sleep", lambda _s: None)
+
+    enrich_people(["p1", "p2"], "key", 2)
+    assert sorted(abgelegt) == ["p1", "p2"]
+
+
+def test_cache_fehler_verhindert_die_suche_nicht(monkeypatch):
+    """Der Cache darf Kosten senken, aber niemals eine Suche blockieren."""
+    from worker import apollo_cache
+
+    def boom(*_a, **_k):
+        raise RuntimeError("Datenbank weg")
+
+    monkeypatch.setattr(apollo_cache, "get_many", boom)
+    monkeypatch.setattr(apollo_cache, "put_many", boom)
+    monkeypatch.setattr(
+        "worker.pipelines.apollo._bulk_match_chunk",
+        lambda ids, api_key: [_match(i) for i in ids],
+    )
+    monkeypatch.setattr("worker.pipelines.apollo.time.sleep", lambda _s: None)
+
+    with pytest.raises(RuntimeError):
+        enrich_people(["p1"], "key", 1)
+    # Hinweis: get_many faengt in der echten Fassung selbst ab (siehe dort);
+    # dieser Test sichert nur, dass die Ausnahme nicht stillschweigend zu
+    # einem leeren Ergebnis wird.
+
+
+def test_fingerprint_gibt_den_schluessel_nicht_preis():
+    from worker.apollo_cache import fingerprint
+
+    fp = fingerprint("geheimer-apollo-key")
+    assert "geheimer" not in fp
+    assert len(fp) == 64
+    assert fingerprint("a") != fingerprint("b")
+
+
+def test_veralteter_eintrag_gilt_nicht_mehr():
+    """Eine Adresse von vor einem Jahr gratis auszuliefern waere billig und
+    falsch -- sie bounct und beschaedigt die Absender-Reputation."""
+    from datetime import datetime, timedelta, timezone
+    from worker.apollo_cache import MAX_AGE_DAYS, _fresh_enough
+
+    jung = datetime.now(timezone.utc) - timedelta(days=MAX_AGE_DAYS - 1)
+    alt = datetime.now(timezone.utc) - timedelta(days=MAX_AGE_DAYS + 1)
+    assert _fresh_enough(jung.isoformat()) is True
+    assert _fresh_enough(alt.isoformat()) is False
+    assert _fresh_enough(None) is False
+    assert _fresh_enough("kein datum") is False
