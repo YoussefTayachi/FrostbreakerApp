@@ -1,5 +1,6 @@
 "use client";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
@@ -250,9 +251,16 @@ const PLAYBOOKS: Playbook[] = [
   { id: "zahnaerzte_low_rating", query: "Zahnarzt", noWebsite: false, maxRating: 4 },
 ];
 
-// Eigene, benannte Suchvorlagen. Bewusst im localStorage statt in der
-// Datenbank: es gibt keinen Bedarf, sie zwischen Geraeten zu teilen, und so
-// bleibt die Aenderung ohne Migration und ohne zusaetzliche RLS-Regeln.
+// Eigene, benannte Suchvorlagen.
+//
+// Seit Migration 0085 in der Datenbank (search_presets). Vorher lagen sie im
+// localStorage, mit der Begruendung "es gibt keinen Bedarf, sie zwischen
+// Geraeten zu teilen". Das hat sich als falsch erwiesen: ein Kunde legte eine
+// Vorlage an und fand sie nicht wieder -- sie hing an seinem Browserprofil und
+// war damit an jedem anderen Rechner unsichtbar, ohne dass irgendetwas kaputt
+// gewesen waere. Seit 0081 arbeiten ausserdem mehrere Personen in einem
+// Workspace, und eine Vorlage, die nur ihr Urheber sieht, hilft einem Team
+// nicht.
 type SearchMode = "maps" | "corporate" | "apollo" | "prospeo";
 
 /** Anbietername, wie ihn der Nutzer in den Einstellungen sieht -- 'google_maps'
@@ -266,6 +274,8 @@ const PROVIDER_LABELS: Record<string, string> = {
 };
 
 type Preset = {
+  /** Fehlt nur bei Vorlagen, die noch nicht aus der Datenbank kamen. */
+  id?: string;
   name: string;
   mode: SearchMode;
   query: string;
@@ -295,6 +305,8 @@ type Preset = {
   marketSegments?: string[];
 };
 
+/** Der alte Ablageort. Wird nur noch EINMAL gelesen, um zu uebernehmen, was
+ *  dort noch liegt -- siehe adoptLocalPresets(). */
 const presetsKey = (workspaceId: string) => `fb_search_presets_${workspaceId}`;
 
 // Gemessene Trefferquote fuer E-Mail-Funde ueber die KI-Websuche liegt laut
@@ -376,13 +388,58 @@ const APOLLO_KEYWORD_SUGGESTIONS = [
   "marketing & advertising", "construction", "real estate", "financial services",
 ];
 
-function loadPresets(workspaceId: string): Preset[] {
+/**
+ * Was im Browser dieses Geraets noch liegt, in die Datenbank heben.
+ *
+ * Ohne diesen Schritt waere die Umstellung fuer jeden, der schon Vorlagen
+ * hatte, ein Datenverlust -- und zwar ein stiller: die Liste waere danach
+ * einfach leer. Es laeuft genau einmal je Geraet, weil der Schluessel danach
+ * entfernt wird.
+ *
+ * onConflict: eine gleichnamige Vorlage in der Datenbank gewinnt. Wer auf zwei
+ * Rechnern arbeitet, hat dort moeglicherweise die neuere Fassung; die durch
+ * eine alte lokale Kopie zu ersetzen waere schlimmer als sie stehen zu lassen.
+ *
+ * Der localStorage-Eintrag wird erst nach erfolgreichem Schreiben entfernt.
+ * Andersherum waere ein Fehlschlag genau der Datenverlust, den die Funktion
+ * verhindern soll.
+ */
+async function adoptLocalPresets(supabase: SupabaseClient, workspaceId: string): Promise<boolean> {
+  let local: Preset[] = [];
   try {
     const raw = localStorage.getItem(presetsKey(workspaceId));
-    return raw ? (JSON.parse(raw) as Preset[]) : [];
+    if (!raw) return false;
+    local = JSON.parse(raw) as Preset[];
   } catch {
-    return [];
+    // Unlesbarer Eintrag: nichts zu retten, aber auch nichts kaputtzumachen.
+    localStorage.removeItem(presetsKey(workspaceId));
+    return false;
   }
+  if (!Array.isArray(local) || local.length === 0) {
+    localStorage.removeItem(presetsKey(workspaceId));
+    return false;
+  }
+
+  // Vorhandene Namen abfragen und lokal filtern, statt upsert mit onConflict:
+  // der Eindeutigkeitsindex steht auf lower(trim(name)), also einem Ausdruck,
+  // und PostgREST kann in on_conflict nur Spalten benennen. Ein upsert waere
+  // hier stumm an einem Detail des Index gescheitert.
+  const { data: existing } = await supabase
+    .from("search_presets")
+    .select("name")
+    .eq("workspace_id", workspaceId);
+  const taken = new Set((existing ?? []).map((r) => r.name.trim().toLowerCase()));
+
+  const rows = local
+    .filter((p) => p?.name?.trim() && !taken.has(p.name.trim().toLowerCase()))
+    .map(({ name, ...config }) => ({ workspace_id: workspaceId, name: name.trim(), config }));
+
+  if (rows.length > 0) {
+    const { error } = await supabase.from("search_presets").insert(rows);
+    if (error) return false;
+  }
+  localStorage.removeItem(presetsKey(workspaceId));
+  return rows.length > 0;
 }
 
 const inputCls =
@@ -547,7 +604,32 @@ export default function NewSearchForm({
   const [presets, setPresets] = useState<Preset[]>([]);
   const [loading, setLoading] = useState(false);
 
-  useEffect(() => setPresets(loadPresets(workspaceId)), [workspaceId]);
+  /**
+   * Vorlagen laden. Vorher einmal einsammeln, was auf diesem Geraet noch im
+   * localStorage liegt -- sonst waere die Umstellung fuer jeden mit
+   * bestehenden Vorlagen ein stiller Datenverlust.
+   */
+  const loadPresets = useCallback(async () => {
+    if (!workspaceId) return;
+    const supabase = createClient();
+    await adoptLocalPresets(supabase, workspaceId);
+    const { data } = await supabase
+      .from("search_presets")
+      .select("id, name, config")
+      .eq("workspace_id", workspaceId)
+      .order("created_at", { ascending: true });
+    setPresets(
+      (data ?? []).map((row) => ({
+        ...(row.config as Omit<Preset, "name" | "id">),
+        id: row.id,
+        name: row.name,
+      }))
+    );
+  }, [workspaceId]);
+
+  useEffect(() => {
+    void loadPresets();
+  }, [loadPresets]);
 
   // Genau das Objekt, das beim Absenden in searches.filters landet. Der
   // Trefferzaehler schickt dieses Objekt -- so zaehlt er zwangslaeufig
@@ -796,27 +878,51 @@ export default function NewSearchForm({
     if (pb.noWebsite || pb.maxRating !== "") setAdvancedOpen(true);
   }
 
-  function savePreset() {
+  async function savePreset() {
     const name = prompt(t.newSearchForm.presetNamePrompt)?.trim();
     if (!name) return;
-    const preset: Preset = {
-      name, mode, query, location, radius, targetEmails,
+    const config = {
+      mode, query, location, radius, targetEmails,
       noWebsite: painPointNoWebsite, maxRating: painPointMaxRating,
       industry, city, state: usState, country, headcount, keywords,
       personTitles, apolloCountries, apolloSeniorities, technologies, marketSegments,
     };
-    const next = [...presets.filter((p) => p.name !== name), preset];
-    localStorage.setItem(presetsKey(workspaceId), JSON.stringify(next));
-    setPresets(next);
+    const supabase = createClient();
+    // Gleicher Name = ueberschreiben, wie bisher. Der Abgleich passiert hier
+    // und nicht per ilike in der Abfrage: ein Name wie "50% mehr" enthaelt
+    // Platzhalterzeichen und wuerde dort die falsche Zeile treffen.
+    const existing = presets.find((p) => p.name.trim().toLowerCase() === name.toLowerCase());
+
+    const { error } = existing?.id
+      ? await supabase
+          .from("search_presets")
+          .update({ config, updated_at: new Date().toISOString() })
+          .eq("id", existing.id)
+      : await supabase.from("search_presets").insert({ workspace_id: workspaceId, name, config });
+
+    if (error) {
+      push(t.common.error + error.message, "error");
+      return;
+    }
+    await loadPresets();
     setSelectedPlaybook("own:" + name);
     push(t.newSearchForm.presetSaved, "success");
   }
 
-  function deleteSelectedPreset() {
+  async function deleteSelectedPreset() {
     const name = selectedPlaybook.slice(4);
-    const next = presets.filter((p) => p.name !== name);
-    localStorage.setItem(presetsKey(workspaceId), JSON.stringify(next));
-    setPresets(next);
+    const target = presets.find((p) => p.name === name);
+    if (!target?.id) return;
+    const { error } = await createClient()
+      .from("search_presets")
+      .delete()
+      .eq("id", target.id)
+      .eq("workspace_id", workspaceId);
+    if (error) {
+      push(t.common.error + error.message, "error");
+      return;
+    }
+    await loadPresets();
     setSelectedPlaybook("");
     push(t.newSearchForm.presetDeleted, "success");
   }
