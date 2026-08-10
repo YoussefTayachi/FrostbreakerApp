@@ -355,10 +355,58 @@ const APOLLO_TITLE_SUGGESTIONS = [
 // eigene Such-URL nutzt stattdessen qOrganizationKeywordTags -- also einfache
 // Strings, genau das Feld, das wir schon fuellen. Diese Vorschlaege sind
 // Apollos eigene Schreibweise (klein).
-const APOLLO_KEYWORD_SUGGESTIONS = [
-  "ecommerce", "supplements", "nutrition", "health & wellness", "cosmetics",
-  "retail", "computer software", "information technology & services", "internet",
-  "marketing & advertising", "construction", "real estate", "financial services",
+//
+// ═══════════════════════════════════════════════════════════════════════
+// JEDES STICHWORT IST GEMESSEN, KEINES GERATEN
+// ═══════════════════════════════════════════════════════════════════════
+//
+// Ein Kunde am 2026-08-10: "Hier waere es top, wenn es mehr Auswahl geben
+// wuerde wie z.B. fashion, cbd, tierfutter etc. (was e-commerce gaengig ist)."
+//
+// Ein Stichwort, das Apollo nicht als Tag kennt, liefert null Treffer -- der
+// Nutzer haelt dann seinen Filter fuer zu eng und baut eine funktionierende
+// Suche um. Deshalb wurde jeder Eintrag hier vor der Aufnahme gegen Apollos
+// People-Search gehalten (ueber den Apollo-MCP, Suchen kosten keine Credits).
+//
+// Messung am 2026-08-10, gleiche Basis fuer alle: organization_locations
+// Niederlande + Deutschland, person_seniorities owner/founder/c_suite,
+// contact_email_status verified. Ohne Stichwort: 229.651 Treffer.
+//
+//   fitness 33449 · food & beverages 7023 · ecommerce 5749 · fashion 5373
+//   apparel 4203 · furniture 3983 · home decor 3606 · consumer electronics 3356
+//   beauty 2872 · jewelry 2207 · sporting goods 1511 · coffee 1348
+//   footwear 1046 · skincare 703 · toys 661 · pet food 403
+//   pet supplies 233 · baby products 202 · cbd 135
+//
+// Die Zahlen sind Groessenordnungen, keine Zusagen: der Tag trifft auch
+// Firmennamen (bei "fashion" etwa eine Firma namens "Fashion Solution"), und
+// eine andere Laenderauswahl verschiebt alles. Wer sie aktualisiert, misst
+// bitte mit derselben Basis, sonst vergleicht er zwei verschiedene Dinge.
+//
+// Zwei Gruppen statt einer Reihe: mit einunddreissig Chips nebeneinander
+// findet niemand mehr "cbd". Die Trennung folgt dem, wonach gesucht wird --
+// ein Shop-Sortiment ist etwas anderes als eine Branche.
+const APOLLO_KEYWORD_GROUPS = [
+  {
+    id: "ecommerce" as const,
+    keywords: [
+      "ecommerce", "fashion", "apparel", "footwear", "jewelry",
+      "cosmetics", "beauty", "skincare",
+      "supplements", "nutrition", "health & wellness", "cbd",
+      "food & beverages", "coffee",
+      "pet food", "pet supplies", "baby products", "toys",
+      "furniture", "home decor", "sporting goods", "fitness",
+      "consumer electronics",
+    ],
+  },
+  {
+    id: "industries" as const,
+    keywords: [
+      "retail", "computer software", "information technology & services",
+      "internet", "marketing & advertising", "construction", "real estate",
+      "financial services",
+    ],
+  },
 ];
 
 /**
@@ -1363,34 +1411,43 @@ export default function NewSearchForm({
               className={inputCls}
             />
           </label>
-          <div className="-mt-1 flex flex-wrap gap-1.5">
-            {APOLLO_KEYWORD_SUGGESTIONS.map((kw) => {
-              const active = parseList(keywords).some((v) => v.toLowerCase() === kw);
-              return (
-                <button
-                  key={kw}
-                  type="button"
-                  onClick={() =>
-                    setKeywords((prev) => {
-                      const list = parseList(prev);
-                      const next = active
-                        ? list.filter((v) => v.toLowerCase() !== kw)
-                        : [...list, kw];
-                      return next.join(", ");
-                    })
-                  }
-                  className={
-                    "rounded-lg border px-2 py-0.5 text-[11px] transition-colors " +
-                    (active
-                      ? "border-violet-500/60 bg-violet-500/10 text-violet-700 dark:text-violet-300"
-                      : "border-edge2 text-faint hover:border-edge3 hover:text-ink")
-                  }
-                >
-                  {active ? "✓ " : "+ "}
-                  {kw}
-                </button>
-              );
-            })}
+          <div className="-mt-1 space-y-2">
+            {APOLLO_KEYWORD_GROUPS.map((gruppe) => (
+              <div key={gruppe.id}>
+                <span className="text-[10px] uppercase tracking-wide text-mute">
+                  {t.newSearchForm.keywordGroups[gruppe.id]}
+                </span>
+                <div className="mt-1 flex flex-wrap gap-1.5">
+                  {gruppe.keywords.map((kw) => {
+                    const active = parseList(keywords).some((v) => v.toLowerCase() === kw);
+                    return (
+                      <button
+                        key={kw}
+                        type="button"
+                        onClick={() =>
+                          setKeywords((prev) => {
+                            const list = parseList(prev);
+                            const next = active
+                              ? list.filter((v) => v.toLowerCase() !== kw)
+                              : [...list, kw];
+                            return next.join(", ");
+                          })
+                        }
+                        className={
+                          "rounded-lg border px-2 py-0.5 text-[11px] transition-colors " +
+                          (active
+                            ? "border-violet-500/60 bg-violet-500/10 text-violet-700 dark:text-violet-300"
+                            : "border-edge2 text-faint hover:border-edge3 hover:text-ink")
+                        }
+                      >
+                        {active ? "✓ " : "+ "}
+                        {kw}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
           </div>
 
           {/* Anklicken statt abtippen: Apollo gleicht Titel unscharf ab, ein

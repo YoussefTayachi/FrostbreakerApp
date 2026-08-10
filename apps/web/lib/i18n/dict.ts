@@ -437,6 +437,10 @@ const de = {
     apolloKeywordsPlaceholder: "z.B. supplements, nutrition, ecommerce",
     apolloTitles: "Entscheider-Positionen (mit Komma trennen)",
     apolloTitlesPlaceholder: "z.B. Founder, CEO, Head of Marketing",
+    keywordGroups: {
+      ecommerce: "E-Commerce-Nischen",
+      industries: "Weitere Branchen",
+    },
     apolloCountries: "Länder (Mehrfachauswahl)",
     apolloSeniorities: "Hierarchiestufe (Apollos eigene Werte)",
     apolloSenioritiesHint: "Nur diese Stufen werden angefragt. Je niedriger die Stufe, desto mehr Treffer, aber auch mehr Credits für Leute ohne Entscheidungsbefugnis.",
@@ -2359,6 +2363,10 @@ const en: Dictionary = {
     apolloKeywordsPlaceholder: "e.g. supplements, nutrition, ecommerce",
     apolloTitles: "Decision-maker titles (comma-separated)",
     apolloTitlesPlaceholder: "e.g. Founder, CEO, Head of Marketing",
+    keywordGroups: {
+      ecommerce: "E-commerce niches",
+      industries: "Other industries",
+    },
     apolloCountries: "Countries (multi-select)",
     apolloSeniorities: "Seniority (Apollo's own values)",
     apolloSenioritiesHint: "Only these levels are requested. The lower the level, the more hits, but also more credits spent on people without buying authority.",
