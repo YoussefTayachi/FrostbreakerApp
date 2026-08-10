@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { OUTREACH_STAGES, stageRank } from "@/lib/crm/stages";
@@ -396,6 +397,17 @@ export default function LeadsTable({
   const { t } = useT();
   const { push } = useToast();
   const { workspaceId } = useWorkspace();
+
+  /**
+   * Name der Lead-Liste, aus der eine Firma stammt.
+   *
+   * Nur auf "Alle Leads" gefuellt: dort laufen alle Listen zusammen, und wer
+   * dort jemanden findet, sieht sonst nicht, woher er kommt. Die
+   * Suchdetailseite reicht searches gar nicht erst herein -- dort waere die
+   * Antwort die Ueberschrift der Seite.
+   */
+  const listeVon = (searchId: string | null): string | null =>
+    (searchId && searches?.find((s) => s.id === searchId)?.query) || null;
   const L = t.leads;
   const ALL_COLUMNS = ALL_COLUMN_IDS.map((id) => ({ id, label: L.columnLabels[id] }));
 
@@ -856,6 +868,23 @@ export default function LeadsTable({
                       )}
                     </span>
                   </button>
+                  {/* Zu welcher Lead-Liste gehoert dieser Treffer?
+                      Auf "Alle Leads" laufen alle Listen zusammen -- wer dort
+                      jemanden findet, sieht sonst nicht, woher er stammt, und
+                      muss die Listen einzeln durchsehen. Nur hier sichtbar:
+                      auf der Detailseite einer Suche waere die Antwort die
+                      Ueberschrift. Als eigener Link neben dem Knopf, nicht
+                      darin -- ein <a> in einem <button> ist ungueltig. */}
+                  {listeVon(g.search_id) && (
+                    <Link
+                      href={"/searches/" + g.search_id}
+                      onClick={(e) => e.stopPropagation()}
+                      title={L.fromListTitle}
+                      className="hidden max-w-40 shrink-0 truncate rounded-full border border-edge2 bg-chip px-2 py-0.5 text-[10px] text-mute transition-colors hover:border-edge3 hover:text-ink sm:block"
+                    >
+                      {listeVon(g.search_id)}
+                    </Link>
+                  )}
                   <span className="shrink-0 text-xs text-faint">
                     {g.contacts.length} {g.contacts.length === 1 ? L.contactSingular : L.contactPlural}
                     {" · "}
@@ -1022,6 +1051,17 @@ export default function LeadsTable({
                       className="text-xs text-sky-600 underline-offset-4 hover:underline dark:text-sky-300">
                       {drawer.website.replace(/^https?:\/\//, "")}
                     </a>
+                  )}
+                  {listeVon(drawer.search_id) && (
+                    <p className="mt-0.5 text-[11px] text-mute">
+                      {L.fromList}{" "}
+                      <Link
+                        href={"/searches/" + drawer.search_id}
+                        className="text-soft underline decoration-dotted underline-offset-2 hover:text-ink"
+                      >
+                        {listeVon(drawer.search_id)}
+                      </Link>
+                    </p>
                   )}
                 </div>
               </div>

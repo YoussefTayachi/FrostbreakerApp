@@ -158,6 +158,42 @@ const de = {
     cancelled: "Abgebrochen",
     emptyState: "Noch keine Suchen: starte deine erste im Dashboard.",
     trash: "Papierkorb",
+    noMatches: "Keine Liste passt zu diesen Filtern.",
+    filterPlaceholder: "Name, Suchbegriff oder Ort …",
+    filterAllSources: "Alle Quellen",
+    filterAllStatuses: "Alle Status",
+    filterReset: "Filter zurücksetzen",
+    countShown: (gezeigt: number, gesamt: number) =>
+      gezeigt === gesamt ? `${gesamt} Listen` : `${gezeigt} von ${gesamt} Listen`,
+    folderAll: "Alle",
+    folderNone: "Ohne Ordner",
+    folderNew: "+ Ordner",
+    folderNamePrompt: "Name des neuen Ordners:",
+    folderRenamePrompt: "Neuer Name des Ordners:",
+    folderRename: "Ordner umbenennen",
+    folderDelete: "Ordner löschen",
+    folderCreated: (name: string) => `Ordner „${name}" angelegt.`,
+    folderDeleted: (name: string) => `Ordner „${name}" gelöscht.`,
+    folderDeleteConfirm: (name: string, anzahl: number) =>
+      anzahl === 0
+        ? `Ordner „${name}" löschen?`
+        : `Ordner „${name}" löschen? Die ${anzahl} Listen darin bleiben erhalten und landen unter „Ohne Ordner".`,
+    selectRow: "Liste auswählen",
+    selectedCount: (n: number) => (n === 1 ? "1 ausgewählt" : `${n} ausgewählt`),
+    moveTo: "In Ordner verschieben",
+    clearSelection: "Auswahl aufheben",
+    movedToast: (n: number) => (n === 1 ? "Liste verschoben." : `${n} Listen verschoben.`),
+    archive: "Archivieren",
+    archiveTitle:
+      "Blendet die Liste hier aus. Leads, LinkedIn, Kampagnen und der Dublettenschutz bleiben unverändert — anders als beim Löschen.",
+    archiveSection: "Archiv",
+    archiveHint:
+      "Archivierte Listen sind nur hier ausgeblendet. Ihre Leads bleiben in „Alle Leads“, in LinkedIn und in der Kampagnen-Auswahl nutzbar, und ihre Firmen zählen weiter im Dublettenschutz. Ein laufendes Abo wird beim Archivieren angehalten.",
+    unarchive: "Zurückholen",
+    archivedToast: (n: number) =>
+      n === 1 ? "Liste archiviert. Ein Abo wurde dabei angehalten." : `${n} Listen archiviert.`,
+    unarchivedToast: (n: number) =>
+      n === 1 ? "Liste zurückgeholt." : `${n} Listen zurückgeholt.`,
   },
   costs: {
     title: "API-Kosten",
@@ -320,6 +356,8 @@ const de = {
   },
   searchActions: {
     trashTitle: "In den Papierkorb",
+    trashConfirm:
+      "Diese Liste in den Papierkorb legen?\n\nDamit verschwindet sie aus „Alle Leads\", aus LinkedIn und aus der Kampagnen-Auswahl, ein Abo wird abgeschaltet — und ihre noch nicht kontaktierten Firmen zählen nicht mehr im Dublettenschutz: eine spätere Suche kann sie erneut kaufen (bei Apollo rund 2 Credits pro Lead).\n\nWenn du nur aufräumen willst, nimm stattdessen „Archivieren\".",
     // Abbrechen ist NICHT Loeschen: der Papierkorb ruehrt den laufenden Job
     // nicht an, er wuerde weiter Credits verbrauchen (Migration 0086).
     cancel: "Abbrechen",
@@ -565,6 +603,8 @@ const de = {
       meeting_booked: "Meeting gebucht", customer: "Kunde", not_interested: "Kein Interesse",
     } as Record<string, string>,
     searchFilterPrefix: "Suche: ",
+    fromList: "Aus Lead-Liste:",
+    fromListTitle: "Lead-Liste, aus der diese Firma stammt — klicken zum Öffnen.",
     onlyWithEmail: "Nur mit E-Mail",
     onlyWithPhone: "Nur mit Telefonnummer",
     onlyWithPhoneTitle: "Zeigt nur Firmen mit einer Telefonnummer: eigene Durchwahl des Kontakts oder Firmennummer.",
@@ -2105,6 +2145,41 @@ const en: Dictionary = {
     cancelled: "Cancelled",
     emptyState: "No searches yet: start your first one from the dashboard.",
     trash: "Trash",
+    noMatches: "No list matches these filters.",
+    filterPlaceholder: "Name, query or location …",
+    filterAllSources: "All sources",
+    filterAllStatuses: "All statuses",
+    filterReset: "Reset filters",
+    countShown: (shown: number, total: number) =>
+      shown === total ? `${total} lists` : `${shown} of ${total} lists`,
+    folderAll: "All",
+    folderNone: "No folder",
+    folderNew: "+ Folder",
+    folderNamePrompt: "Name of the new folder:",
+    folderRenamePrompt: "New folder name:",
+    folderRename: "Rename folder",
+    folderDelete: "Delete folder",
+    folderCreated: (name: string) => `Folder "${name}" created.`,
+    folderDeleted: (name: string) => `Folder "${name}" deleted.`,
+    folderDeleteConfirm: (name: string, count: number) =>
+      count === 0
+        ? `Delete folder "${name}"?`
+        : `Delete folder "${name}"? The ${count} lists inside are kept and move to "No folder".`,
+    selectRow: "Select list",
+    selectedCount: (n: number) => (n === 1 ? "1 selected" : `${n} selected`),
+    moveTo: "Move to folder",
+    clearSelection: "Clear selection",
+    movedToast: (n: number) => (n === 1 ? "List moved." : `${n} lists moved.`),
+    archive: "Archive",
+    archiveTitle:
+      "Hides the list here. Leads, LinkedIn, campaigns and duplicate protection stay untouched — unlike deleting.",
+    archiveSection: "Archive",
+    archiveHint:
+      "Archived lists are hidden here only. Their leads stay usable in \"All Leads\", in LinkedIn and in the campaign picker, and their companies still count for duplicate protection. A running subscription is stopped when archiving.",
+    unarchive: "Restore",
+    archivedToast: (n: number) =>
+      n === 1 ? "List archived. A subscription was stopped." : `${n} lists archived.`,
+    unarchivedToast: (n: number) => (n === 1 ? "List restored." : `${n} lists restored.`),
   },
   costs: {
     title: "API costs",
@@ -2259,6 +2334,8 @@ const en: Dictionary = {
   },
   searchActions: {
     trashTitle: "Move to trash",
+    trashConfirm:
+      "Move this list to the trash?\n\nIt disappears from \"All Leads\", from LinkedIn and from the campaign picker, a subscription is switched off — and its companies that have not been contacted yet stop counting for duplicate protection: a later search can buy them again (around 2 Apollo credits per lead).\n\nIf you only want to tidy up, use \"Archive\" instead.",
     cancel: "Cancel",
     cancelTitle: "Stops the running search before it spends more credits.",
     cancelConfirm:
@@ -2491,6 +2568,8 @@ const en: Dictionary = {
       meeting_booked: "Meeting booked", customer: "Customer", not_interested: "Not interested",
     },
     searchFilterPrefix: "Search: ",
+    fromList: "From lead list:",
+    fromListTitle: "Lead list this company came from — click to open.",
     onlyWithEmail: "Only with email",
     onlyWithPhone: "Only with phone",
     onlyWithPhoneTitle: "Shows only companies with a phone number: the contact's own line or the company number.",

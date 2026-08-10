@@ -16,6 +16,21 @@ export function TrashButton({ searchId }: { searchId: string }) {
       onClick={async (e) => {
         e.preventDefault();
         e.stopPropagation();
+        /**
+         * Nachfragen, und zwar mit den Folgen im Text.
+         *
+         * Ein Kunde hat am 2026-08-10 zum Loeschen gegriffen, weil er
+         * aufraeumen wollte -- und erst danach gemerkt, dass die Liste damit
+         * auch aus LinkedIn und Instantly verschwindet. Was er ueberhaupt
+         * nicht sehen konnte: die Firmen der Liste zaehlen danach im
+         * Dublettenschutz nicht mehr mit (worker/dedupe.py), jede
+         * unkontaktierte ist also wieder einkaufbar -- bei Apollo rund zwei
+         * Credits pro Lead. Der Knopf hiess "Loeschen" und kostete Geld.
+         *
+         * Der Dialog nennt beides und weist auf das Archiv hin, das seit
+         * Migration 0089 genau fuer diesen Wunsch da ist.
+         */
+        if (!confirm(t.searchActions.trashConfirm)) return;
         // schedule wird beim Loeschen mit zurueckgesetzt, damit der Worker
         // keine Abo-Suche im Papierkorb weiterlaufen laesst. Beim Rueckgaengig
         // bleibt es deshalb bewusst auf "none": das Abo muss neu gesetzt werden.
