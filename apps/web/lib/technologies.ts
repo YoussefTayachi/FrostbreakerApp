@@ -163,3 +163,23 @@ export function resolveTechnologies(ids: string[], provider: TechProvider): stri
   }
   return [...bySlug];
 }
+
+/**
+ * Die Gegenrichtung: Anbieter-Slugs zurueck in interne IDs.
+ *
+ * Gebraucht, seit sich aus einer gelaufenen Suche eine Vorlage machen laesst
+ * (lib/search-presets.ts): in searches.filters stehen die Slugs des Anbieters,
+ * das Formular arbeitet aber mit den internen IDs.
+ *
+ * Slugs, zu denen es keinen Eintrag gibt, fallen weg. Das ist kein Verlust,
+ * der hier entsteht -- er ist schon beim Speichern der Suche passiert, denn
+ * resolveTechnologies laesst genau dieselben Faelle fallen.
+ */
+export function technologyIdsFromSlugs(slugs: string[], provider: TechProvider): string[] {
+  const ids = new Set<string>();
+  for (const slug of slugs) {
+    const tech = TECHNOLOGIES.find((t) => t[provider] === slug);
+    if (tech) ids.add(tech.id);
+  }
+  return [...ids];
+}

@@ -11,6 +11,37 @@
 // Stellen gebraucht (Formular und Zaehler-Route). Eine dritte Kopie waere genau
 // die Sorte stiller Abweichung, die diese Datei verhindern soll.
 
+/**
+ * Apollos organization_locations erwartet ausgeschriebene englische Namen,
+ * nicht ISO-Codes -- deshalb eine eigene Zuordnung statt der lokalisierten
+ * Labels aus dem Woerterbuch (die je nach UI-Sprache "Deutschland" oder
+ * "Germany" waeren und Apollo im ersten Fall nichts liefern).
+ *
+ * Stand bis zum 2026-08-10 im Formular. Umgezogen, weil die Rueckrechnung
+ * (Name -> Code) beim Erzeugen einer Vorlage aus einer gelaufenen Suche
+ * gebraucht wird und eine zweite Kopie genau die stille Abweichung waere, vor
+ * der der Kopfkommentar dieser Datei warnt.
+ */
+export const APOLLO_COUNTRY_NAMES: Record<string, string> = {
+  AT: "Austria", DE: "Germany", CH: "Switzerland", GB: "United Kingdom",
+  US: "United States", NL: "Netherlands", FR: "France", IT: "Italy", ES: "Spain",
+};
+
+/** Gegenrichtung fuer den Weg aus searches.filters zurueck ins Formular.
+ *  Unbekannte Namen fallen weg: Apollo kennt mehr Laender, als das Formular
+ *  anbietet, und ein Code, den die Auswahl nicht hat, waere ein Haken, den
+ *  niemand sieht und niemand wieder loswird. */
+export function apolloCountryCodes(names: string[]): string[] {
+  const codes = new Set<string>();
+  for (const name of names) {
+    const code = Object.keys(APOLLO_COUNTRY_NAMES).find(
+      (c) => APOLLO_COUNTRY_NAMES[c].toLowerCase() === name.trim().toLowerCase()
+    );
+    if (code) codes.add(code);
+  }
+  return [...codes];
+}
+
 /** Apollos vollstaendige, gueltige Werte fuer person_seniorities. Ein Wert
  *  ausserhalb dieser Liste ist bei Apollo eine ungueltige Anfrage, keine
  *  Geschmacksfrage. Spiegelt APOLLO_SENIORITIES im Worker. */

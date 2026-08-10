@@ -1,8 +1,8 @@
 "use client";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { citySuggestionsFor, usStateForCity } from "@/lib/locations";
 import ProspeoFilterForm from "./prospeo-filters";
@@ -10,6 +10,7 @@ import { hasAnyProspeoFilter, type ProspeoFilters } from "@/lib/prospeo-query";
 import { resolveTechnologies, technologiesFor, type TechGroup } from "@/lib/technologies";
 import { missingProviders } from "@/lib/search-requirements";
 import {
+  APOLLO_COUNTRY_NAMES,
   APOLLO_DEFAULT_SENIORITIES,
   APOLLO_EMPLOYEE_RANGES,
   APOLLO_MARKET_SEGMENTS,
@@ -17,6 +18,7 @@ import {
   hasAnyApolloFilter,
   type ApolloFilters,
 } from "@/lib/apollo-query";
+import { searchRowToPresetConfig, type PresetConfig, type SearchMode } from "@/lib/search-presets";
 import { useT } from "./language-provider";
 import { useToast } from "./toast-provider";
 
@@ -261,7 +263,10 @@ const PLAYBOOKS: Playbook[] = [
 // gewesen waere. Seit 0081 arbeiten ausserdem mehrere Personen in einem
 // Workspace, und eine Vorlage, die nur ihr Urheber sieht, hilft einem Team
 // nicht.
-type SearchMode = "maps" | "corporate" | "apollo" | "prospeo";
+// SearchMode und das Vorlagenformat stehen seit dem 2026-08-10 in
+// lib/search-presets.ts: seitdem entsteht eine Vorlage auch auf der
+// Suchdetailseite, und zwei Definitionen desselben Formats waeren genau die
+// Abweichung, die man erst bemerkt, wenn eine Vorlage halb geladen wird.
 
 /** Anbietername, wie ihn der Nutzer in den Einstellungen sieht -- 'google_maps'
  *  als roher Provider-Schluessel waere in einer Fehlermeldung unbrauchbar. */
@@ -273,37 +278,9 @@ const PROVIDER_LABELS: Record<string, string> = {
   openai: "OpenAI",
 };
 
-type Preset = {
-  /** Fehlt nur bei Vorlagen, die noch nicht aus der Datenbank kamen. */
-  id?: string;
-  name: string;
-  mode: SearchMode;
-  query: string;
-  location: string;
-  radius: number;
-  targetEmails: number;
-  // Presets von vor der Ziel-E-Mail-Umstellung hatten stattdessen die rohe
-  // Firmenzahl gespeichert -- applyPlaybook faellt beim Lesen darauf zurueck.
-  maxResults?: number;
-  noWebsite: boolean;
-  maxRating: number | "";
-  industry: string;
-  city: string;
-  // Optional, weil Vorlagen aus einer aelteren Version das Feld noch nicht
-  // haben -- die liegen im localStorage und werden nicht migriert.
-  state?: string;
-  country: string;
-  headcount: string;
-  keywords: string;
-  // Nur fuer den Apollo-Modus; aeltere Vorlagen kennen die Felder nicht.
-  personTitles?: string;
-  apolloCountries?: string[];
-  apolloSeniorities?: string[];
-  // Interne Technologie-IDs (nicht die Anbieter-Slugs), damit eine Vorlage
-  // beim Wechsel zwischen Corporate und Apollo gueltig bleibt.
-  technologies?: string[];
-  marketSegments?: string[];
-};
+/** Die gespeicherte Vorlage: der Inhalt von config plus die beiden Spalten
+ *  daneben. id fehlt nur bei Vorlagen, die noch nicht aus der Datenbank kamen. */
+type Preset = PresetConfig & { id?: string; name: string };
 
 /** Der alte Ablageort. Wird nur noch EINMAL gelesen, um zu uebernehmen, was
  *  dort noch liegt -- siehe adoptLocalPresets(). */
@@ -345,14 +322,10 @@ const APOLLO_MAX_TARGET = 1000;
 // und nicht ein paar hundert. Wer mehr will, tippt die Zahl bewusst hoch.
 const APOLLO_DEFAULT_TARGET = 5;
 
-// Apollos organization_locations erwartet ausgeschriebene englische Namen, nicht
-// ISO-Codes -- deshalb eine eigene Zuordnung statt der lokalisierten Labels aus
-// dem Woerterbuch (die je nach UI-Sprache "Deutschland" oder "Germany" waeren
-// und Apollo im ersten Fall nichts liefern).
-const APOLLO_COUNTRY_NAMES: Record<string, string> = {
-  AT: "Austria", DE: "Germany", CH: "Switzerland", GB: "United Kingdom",
-  US: "United States", NL: "Netherlands", FR: "France", IT: "Italy", ES: "Spain",
-};
+// APOLLO_COUNTRY_NAMES steht jetzt in lib/apollo-query.ts (oben importiert):
+// die Gegenrichtung Name -> Code wird beim Erzeugen einer Vorlage aus einer
+// gelaufenen Suche gebraucht, und beide Richtungen muessen zwingend dieselbe
+// Zuordnung benutzen.
 
 // Vorbelegung mit den ueblichen Entscheider-Titeln im DACH- und US-Raum. Frei
 // editierbar -- die Senioritaets-Einschraenkung greift zusaetzlich,
@@ -838,34 +811,85 @@ export default function NewSearchForm({
     router.refresh();
   }
 
+  /**
+   * Ein gespeichertes Konfigurat ins Formular uebernehmen.
+   *
+   * Herausgezogen aus applyPlaybook, weil es seit dem 2026-08-10 einen zweiten
+   * Weg hierher gibt: "Suche wiederholen" auf der Suchdetailseite belegt das
+   * Formular aus einer bereits gelaufenen Suche vor (siehe useEffect unten).
+   * Beide Wege muessen dieselben Felder setzen -- ein vergessener Setter waere
+   * ein Filter, den der Nutzer zu sehen glaubt und der nicht gilt.
+   */
+  const applyPresetConfig = useCallback((preset: PresetConfig) => {
+    setMode(preset.mode);
+    setQuery(preset.query);
+    setLocation(preset.location);
+    setRadius(preset.radius);
+    setTargetEmails(preset.targetEmails ?? preset.maxResults ?? 10);
+    setPainPointNoWebsite(preset.noWebsite);
+    setPainPointMaxRating(preset.maxRating);
+    setIndustry(preset.industry);
+    setCity(preset.city);
+    setUsState(preset.state ?? "");
+    setCountry(preset.country);
+    setPersonTitles(preset.personTitles ?? APOLLO_DEFAULT_TITLES);
+    setApolloCountries(preset.apolloCountries ?? ["AT", "DE"]);
+    setApolloSeniorities(preset.apolloSeniorities ?? APOLLO_DEFAULT_SENIORITIES);
+    setHeadcount(preset.headcount);
+    setKeywords(preset.keywords);
+    const techIds = preset.technologies ?? [];
+    setTechnologies(techIds);
+    setMarketSegments(preset.marketSegments ?? []);
+    // Leeres Objekt statt gar nichts: eine Vorlage von vor dem 2026-08-10 hat
+    // kein prospeoFilters, und die Filter der zuvor angesehenen Vorlage
+    // stehenzulassen waere schlimmer als ein leeres Formular -- der Nutzer
+    // wuerde mit Filtern suchen, die er in dieser Vorlage nie gesehen hat.
+    setProspeoFilters(preset.prospeoFilters ?? {});
+    // Sichtbar machen, was die Vorlage still mitgesetzt hat -- beide Bloecke
+    // sind sonst zugeklappt.
+    if (preset.noWebsite || preset.maxRating !== "") setAdvancedOpen(true);
+    if (techIds.length > 0) setTechOpen(true);
+  }, []);
+
+  /**
+   * "Suche wiederholen": /?wiederholen=<such-id>
+   *
+   * Die Suchdetailseite schickt hierher, wenn jemand eine gelaufene Suche noch
+   * einmal starten will. Die Filter kommen aus der Suche selbst, nicht aus
+   * einer Vorlage -- man muss also nichts gespeichert haben, um zu wiederholen.
+   *
+   * Der Riegel ueber useRef ist der Punkt, an dem es sonst teuer wird: der
+   * Effekt haengt an Werten, die sich bei jedem Rendern neu ergeben koennen,
+   * und ohne ihn liefe die Abfrage in einer Schleife. Einmal je ID genuegt.
+   */
+  const wiederholenId = useSearchParams().get("wiederholen");
+  const wiederholtFuer = useRef<string | null>(null);
+  useEffect(() => {
+    if (!wiederholenId || !workspaceId || wiederholtFuer.current === wiederholenId) return;
+    wiederholtFuer.current = wiederholenId;
+    void (async () => {
+      const { data } = await createClient()
+        .from("searches")
+        .select("source, query, location, radius_m, max_results, target_email_count, filters")
+        .eq("id", wiederholenId)
+        .eq("workspace_id", workspaceId)
+        .maybeSingle();
+      if (!data) return;
+      applyPresetConfig(searchRowToPresetConfig(data));
+      setSelectedPlaybook("");
+      // Ohne diese Zeile fuellt sich ein Formular weiter unten auf der Seite,
+      // und der Nutzer landet nach dem Klick auf einem Dashboard, das
+      // unveraendert aussieht.
+      document.getElementById("neue-suche")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    })();
+  }, [wiederholenId, workspaceId, applyPresetConfig]);
+
   function applyPlaybook(id: string) {
     setSelectedPlaybook(id);
     if (id.startsWith("own:")) {
       const preset = presets.find((p) => p.name === id.slice(4));
       if (!preset) return;
-      setMode(preset.mode);
-      setQuery(preset.query);
-      setLocation(preset.location);
-      setRadius(preset.radius);
-      setTargetEmails(preset.targetEmails ?? preset.maxResults ?? 10);
-      setPainPointNoWebsite(preset.noWebsite);
-      setPainPointMaxRating(preset.maxRating);
-      setIndustry(preset.industry);
-      setCity(preset.city);
-      setUsState(preset.state ?? "");
-      setCountry(preset.country);
-      setPersonTitles(preset.personTitles ?? APOLLO_DEFAULT_TITLES);
-      setApolloCountries(preset.apolloCountries ?? ["AT", "DE"]);
-      setApolloSeniorities(preset.apolloSeniorities ?? APOLLO_DEFAULT_SENIORITIES);
-      setHeadcount(preset.headcount);
-      setKeywords(preset.keywords);
-      const techIds = preset.technologies ?? [];
-      setTechnologies(techIds);
-      setMarketSegments(preset.marketSegments ?? []);
-      if (preset.noWebsite || preset.maxRating !== "") setAdvancedOpen(true);
-      // Sichtbar machen, was die Vorlage still mitgesetzt hat -- der
-      // Technologie-Block ist sonst zugeklappt.
-      if (techIds.length > 0) setTechOpen(true);
+      applyPresetConfig(preset);
       return;
     }
     const pb = PLAYBOOKS.find((p) => p.id === id);
@@ -881,11 +905,17 @@ export default function NewSearchForm({
   async function savePreset() {
     const name = prompt(t.newSearchForm.presetNamePrompt)?.trim();
     if (!name) return;
-    const config = {
+    const config: PresetConfig = {
       mode, query, location, radius, targetEmails,
       noWebsite: painPointNoWebsite, maxRating: painPointMaxRating,
       industry, city, state: usState, country, headcount, keywords,
       personTitles, apolloCountries, apolloSeniorities, technologies, marketSegments,
+      // Bis zum 2026-08-10 fehlte diese Zeile. Eine Prospeo-Vorlage speicherte
+      // damit den Modus und sonst nichts -- beim Laden stand das Formular im
+      // richtigen Reiter mit leeren Filtern da, ohne jeden Hinweis darauf, dass
+      // etwas fehlt. Prospeo hat die meisten Filter von allen vier Wegen; es
+      // war ausgerechnet der Weg, bei dem sich das Merken am meisten lohnt.
+      prospeoFilters,
     };
     const supabase = createClient();
     // Gleicher Name = ueberschreiben, wie bisher. Der Abgleich passiert hier

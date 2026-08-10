@@ -614,8 +614,10 @@ export default async function Dashboard({
         </div>
       </div>
 
-      {/* Neue Suche */}
-      <section className="rounded-lg border border-edge/60 bg-panel p-5 shadow-sm">
+      {/* Neue Suche. Die id ist das Ziel von "Suche wiederholen" auf der
+          Suchdetailseite -- ohne sie fuellt sich das Formular ausserhalb des
+          Sichtbereichs, und der Klick sieht folgenlos aus. */}
+      <section id="neue-suche" className="scroll-mt-4 rounded-lg border border-edge/60 bg-panel p-5 shadow-sm">
         <h2 className="mb-1 text-sm font-medium text-ink">{t.dashboard.newSearch}</h2>
         <p className="mb-4 text-sm text-faint">{t.dashboard.newSearchHint}</p>
         <NewSearchForm workspaceId={workspaceId} apiKeyProviders={apiKeyProviders} />

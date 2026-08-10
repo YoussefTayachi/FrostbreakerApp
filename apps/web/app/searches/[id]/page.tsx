@@ -10,6 +10,8 @@ import SearchSettings from "./search-settings";
 import CampaignLinkCard from "./campaign-link-card";
 import AutoRefresh from "../../auto-refresh";
 import LocalTime from "../../local-time";
+import SaveAsPreset from "./save-as-preset";
+import UsedFilters from "./used-filters";
 
 export default async function SearchDetailPage({
   params,
@@ -124,6 +126,17 @@ export default async function SearchDetailPage({
             })}
           />
         </p>
+        {/* Beides beantwortet dieselbe Kundenfrage vom 2026-08-10 -- "was
+            hatte ich nochmal ausgewaehlt": einmal zum Nachlesen, einmal zum
+            Wiederverwenden. */}
+        <UsedFilters row={search} lang={lang} />
+        <div className="mt-2">
+          <SaveAsPreset
+            searchId={search.id}
+            row={search}
+            suggestedName={search.name ?? search.query ?? ""}
+          />
+        </div>
       </div>
       <CampaignLinkCard
         searchId={search.id}
