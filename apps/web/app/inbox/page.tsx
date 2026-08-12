@@ -142,19 +142,41 @@ export default function InboxPage() {
   const load = useCallback(async () => {
     if (!workspaceId) return;
     const supabase = createClient();
-    const [msgRes, supRes] = await Promise.all([
+    const spalten =
+      "id, contact_id, from_email, eaccount, direction, subject, body, ai_interest, sent_at, created_at, read_at, instantly_email_id, " +
+      "contacts(id, full_name, email, title, outreach_status, business_id, businesses(name, website))";
+    const [msgRes, ungelesenRes, supRes] = await Promise.all([
       supabase
         .from("messages")
-        .select(
-          "id, contact_id, from_email, eaccount, direction, subject, body, ai_interest, sent_at, created_at, read_at, instantly_email_id, " +
-            "contacts(id, full_name, email, title, outreach_status, business_id, businesses(name, website))"
-        )
+        .select(spalten)
         .eq("workspace_id", workspaceId)
         .order("sent_at", { ascending: false })
         .limit(1000),
+      /**
+       * Ungelesene Eingaenge zusaetzlich und ohne Fenster.
+       *
+       * Das Badge in der Seitenleiste zaehlt serverseitig ueber ALLE
+       * Nachrichten, die Liste hier laedt nur die neuesten 1000. Am
+       * Produktivstand nachgemessen (2026-08-12): eine ungelesene Antwort
+       * stand auf Platz 2141 von 2782 -- das Badge zeigte sie an, oeffnen
+       * liess sie sich nicht. Diese zweite Abfrage holt genau die Zeilen, um
+       * die es dabei geht; es sind naturgemaess wenige.
+       */
+      supabase
+        .from("messages")
+        .select(spalten)
+        .eq("workspace_id", workspaceId)
+        .eq("direction", "inbound")
+        .is("read_at", null)
+        .order("sent_at", { ascending: false })
+        .limit(200),
       supabase.from("suppression_list").select("email,domain").eq("workspace_id", workspaceId),
     ]);
-    setMessages((msgRes.data ?? []) as unknown as Msg[]);
+    const zusammen = new Map<string, Msg>();
+    for (const m of [...(msgRes.data ?? []), ...(ungelesenRes.data ?? [])] as unknown as Msg[]) {
+      zusammen.set(m.id, m);
+    }
+    setMessages([...zusammen.values()]);
     setSuppression(supRes.data ?? []);
     setLoading(false);
   }, [workspaceId]);
