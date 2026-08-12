@@ -145,10 +145,17 @@ body {
      bei #f7fafc war die Fläche vom Seitengrund nicht zu unterscheiden, der
      Rahmen musste die ganze Trennung allein tragen. */
   --fb-inset: #f1f5f9;
-  /* Fell. Zwei Töne, damit Schnauze und Ohrinneres sich absetzen, ohne dass
-     eine dritte Farbe nötig wird. */
-  --fb-fur: #e3eefa;
-  --fb-fur-lit: #f6fbff;
+  /* Der Körper des Hologramms: drei Stufen von der Lichtkante oben bis zur
+     Schattenseite unten. Im Hellen ist er mattes Eisglas, im Dunklen leuchtet
+     er von innen — dieselbe Zeichnung, zwei Materialien. */
+  --fb-holo-hi: #ffffff;
+  --fb-holo-mid: #dcf0f5;
+  --fb-holo-lo: #b6dfe9;
+  --fb-holo-a1: 0.95;
+  --fb-holo-a2: 0.8;
+  --fb-holo-a3: 0.75;
+  --fb-holo-halo-a: 0.3;
+  --fb-scan-a: 0.05;
 }
 
 .dark .fb-hud {
@@ -159,8 +166,14 @@ body {
   --fb-grid: rgba(56, 189, 248, 0.05);
   --fb-glow: rgba(45, 212, 191, 0.22);
   --fb-inset: #0b1016;
-  --fb-fur: #1b2733;
-  --fb-fur-lit: #24333f;
+  --fb-holo-hi: #eafffb;
+  --fb-holo-mid: #6fd9d6;
+  --fb-holo-lo: #10505c;
+  --fb-holo-a1: 0.8;
+  --fb-holo-a2: 0.68;
+  --fb-holo-a3: 0.64;
+  --fb-holo-halo-a: 0.55;
+  --fb-scan-a: 0.16;
 }
 
 /* Messfeld-Beschriftung: klein, Monoschrift, weit gesperrt. Der Unterschied
@@ -268,6 +281,33 @@ body {
 }
 .fb-look { animation: fbLook 1.8s ease-in-out infinite; }
 
+/* Er schwebt.
+   Sechs Sekunden für einen Zug und eine knappe Vierteldrehung Neigung: das
+   liest sich als getragen, nicht als wackelnd. Schneller wirkt es nervös,
+   größer wirkt es wie ein Fehler im Layout. */
+@keyframes fbFloat {
+  0%, 100% { transform: translateY(-1.6%) rotate(-0.7deg); }
+  50% { transform: translateY(1.8%) rotate(0.7deg); }
+}
+.fb-float { animation: fbFloat 6s ease-in-out infinite; transform-origin: 50% 60%; }
+
+/* Der Schatten unter ihm atmet gegenläufig: kleiner und blasser, wenn er
+   oben ist. Ohne das steht das Licht am Boden still und verrät, dass da
+   nichts schwebt. */
+@keyframes fbShadow {
+  0%, 100% { transform: scaleX(0.86); opacity: 0.5; }
+  50% { transform: scaleX(1.06); opacity: 0.9; }
+}
+.fb-shadow { animation: fbShadow 6s ease-in-out infinite; transform-origin: center; }
+
+/* Die Scanlinien wandern langsam nach unten. Der Weg ist genau eine
+   Musterhöhe, dadurch springt der Übergang nicht. */
+@keyframes fbScanDrift {
+  from { transform: translateY(0); }
+  to { transform: translateY(3px); }
+}
+.fb-scanlines { animation: fbScanDrift 2.6s linear infinite; }
+
 /* Laufender Vorgang: ein Streifen wandert einmal je Sekunde durch die Fläche.
    Ersetzt den Spinner -- ein Spinner sagt "es passiert etwas", dieser Streifen
    sagt "es wird gelesen". */
@@ -294,7 +334,7 @@ body {
 
 @media (prefers-reduced-motion: reduce) {
   .fb-seg, .fb-ignite, .fb-breathe, .fb-rotate, .fb-rotate-fast, .fb-wake,
-  .fb-blink, .fb-look { animation: none; }
+  .fb-blink, .fb-look, .fb-float, .fb-shadow, .fb-scanlines { animation: none; }
   .fb-scan::after { animation: none; opacity: 0.5; }
 }
 

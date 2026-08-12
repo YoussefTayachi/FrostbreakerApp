@@ -21,3 +21,11 @@ out/
 .DS_Store
 .idea/
 .vscode/
+
+# Agenten-Werkzeug, lokal installiert (npx skills add ...).
+# Gehoert nicht ins Repo: es ist Werkzeug des Entwicklers, keine Anwendung.
+# 1,3 MB fremder Anweisungen, die bei jedem Checkout mitkaemen und die
+# niemand hier gelesen hat.
+.agents/
+.claude/skills/
+skills-lock.json
