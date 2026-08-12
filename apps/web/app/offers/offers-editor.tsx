@@ -370,7 +370,7 @@ export default function OffersEditor({ initial }: { initial: Offer[] }) {
       )}
 
       {aktuell && (
-        <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_248px]">
+        <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_308px]">
           {/* ── Links: hier wird geschrieben ─────────────────────────── */}
           <div className="min-w-0 space-y-5">
             <Karte label={O.languageHeading}>
@@ -528,7 +528,7 @@ export default function OffersEditor({ initial }: { initial: Offer[] }) {
 
           {/* ── Rechts: was daraus folgt ─────────────────────────────── */}
           <aside className="lg:sticky lg:top-4 lg:self-start">
-            <div className="fb-ticks relative overflow-hidden rounded-xl border border-edge/60 bg-panel p-5">
+            <div className="fb-ticks relative overflow-hidden rounded-xl border border-edge/60 bg-panel p-6">
               <div className="fb-grid-bg absolute inset-0" aria-hidden />
               <div className="relative">
                 <p className="fb-label mb-4 text-mute">{O.coreLabel}</p>
@@ -557,7 +557,7 @@ export default function OffersEditor({ initial }: { initial: Offer[] }) {
                   <button
                     onClick={speichern}
                     disabled={busy || !geaendert}
-                    className="min-h-10 w-full rounded-lg text-sm font-medium text-white shadow-sm transition-all hover:brightness-110 active:scale-[0.98] disabled:opacity-40 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500"
+                    className="min-h-11 w-full rounded-lg text-[15px] font-medium text-white shadow-sm transition-all hover:brightness-110 active:scale-[0.98] disabled:opacity-40 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500"
                     style={{ background: geaendert ? "var(--fb-frost)" : "var(--color-edge3)" }}
                   >
                     {geaendert ? t.common.save : t.common.savedOk}
@@ -566,7 +566,7 @@ export default function OffersEditor({ initial }: { initial: Offer[] }) {
                   {fehlend.length === 0 ? (
                     <Link
                       href="/instantly/campaigns/new"
-                      className="flex min-h-10 w-full items-center justify-center rounded-lg border text-sm font-medium transition-all hover:brightness-110"
+                      className="flex min-h-11 w-full items-center justify-center rounded-lg border text-[15px] font-medium transition-all hover:brightness-110"
                       style={{
                         borderColor: "color-mix(in srgb, var(--fb-ready) 50%, transparent)",
                         color: "var(--fb-ready)",
@@ -576,13 +576,13 @@ export default function OffersEditor({ initial }: { initial: Offer[] }) {
                       {O.toCampaign}
                     </Link>
                   ) : (
-                    <p className="text-center text-[11px] leading-relaxed text-faint">
+                    <p className="text-center text-xs leading-relaxed text-faint">
                       {O.coreMissing(fehlend.length)}
                     </p>
                   )}
                 </div>
 
-                <div className="mt-4 flex items-center justify-between border-t border-edge/60 pt-3 text-[11px]">
+                <div className="mt-4 flex items-center justify-between border-t border-edge/60 pt-3 text-xs">
                   {!aktuell.is_default ? (
                     <button
                       onClick={alsStandard}

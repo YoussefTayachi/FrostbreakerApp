@@ -25,8 +25,15 @@ import Thaw from "../thaw";
  * Feldnamen steht.
  */
 
-const R = 52;
-const STROKE = 8;
+/**
+ * Groesse des Rings.
+ *
+ * Die rechte Spalte hat den Platz, also nutzt sie ihn: bei 132 Pixeln stand
+ * die Anzeige verloren neben einer 700 Pixel breiten Formularspalte, und die
+ * Figur in der Mitte war zu klein, um ein Gesicht zu sein.
+ */
+const R = 68;
+const STROKE = 10;
 /**
  * Luecke zwischen den Segmenten.
  *
@@ -36,7 +43,7 @@ const STROKE = 8;
  * Fortschrittsanzeige.
  */
 const GAP_DEG = 10;
-const SIZE = 132;
+const SIZE = 172;
 const CIRC = 2 * Math.PI * R;
 const SEG = CIRC / OFFER_TEXT_FIELDS.length;
 const GAP = (GAP_DEG / 360) * CIRC;
@@ -141,10 +148,10 @@ export default function OfferCore({
             klein: sie beantwortet "wie weit", er beantwortet "und jetzt?".
             Ein Prozentwert allein hat noch nie jemanden dazu gebracht, ein
             drittes Feld auszufuellen. */}
-        <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-1">
-          <Thaw state={ready ? "ready" : filled.size === 0 ? "cold" : "listening"} size={40} />
+        <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-1.5">
+          <Thaw state={ready ? "ready" : filled.size === 0 ? "cold" : "listening"} size={76} />
           <span
-            className="fb-num text-[13px] font-semibold leading-none"
+            className="fb-num text-[15px] font-semibold leading-none"
             style={{ color: ready ? "var(--fb-ready)" : "var(--fb-frost)" }}
           >
             {percent}%
@@ -154,12 +161,12 @@ export default function OfferCore({
 
       {/* Was THAW gerade braucht. Eine Zeile, kein Gespraech -- sie sagt
           immer genau das, was als Naechstes zu tun ist. */}
-      <p className="mt-3 min-h-8 px-1 text-center text-[11px] leading-4 text-faint">{say}</p>
+      <p className="mt-3.5 min-h-9 px-1 text-center text-[12.5px] leading-[1.45] text-soft">{say}</p>
 
       {/* Die Legende beantwortet, was der Ring zeigt: welches Segment welches
           Feld ist. Anklickbar, damit der Ring nicht nur meldet, sondern
           hinführt. */}
-      <ul className="mt-4 w-full space-y-1">
+      <ul className="mt-4 w-full space-y-0.5">
         {OFFER_TEXT_FIELDS.map((field) => {
           const an = filled.has(field);
           const pflicht = required.has(field);
@@ -168,11 +175,11 @@ export default function OfferCore({
               <button
                 type="button"
                 onClick={() => onJump(field)}
-                className="group flex w-full items-center gap-2 rounded-md px-1.5 py-1 text-left transition-colors hover:bg-chip focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500"
+                className="group flex min-h-8 w-full items-center gap-2.5 rounded-md px-2 py-1 text-left transition-colors hover:bg-chip focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500"
               >
                 <span
                   aria-hidden
-                  className="h-1.5 w-1.5 shrink-0 rounded-full transition-colors"
+                  className="h-2 w-2 shrink-0 rounded-full transition-colors"
                   style={{
                     background: an
                       ? ready
@@ -185,7 +192,7 @@ export default function OfferCore({
                 />
                 <span
                   className={
-                    "flex-1 truncate text-[12px] leading-4 transition-colors " +
+                    "flex-1 truncate text-[13px] leading-4 transition-colors " +
                     (an ? "text-soft" : "text-mute group-hover:text-faint")
                   }
                 >

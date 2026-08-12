@@ -145,6 +145,10 @@ body {
      bei #f7fafc war die Fläche vom Seitengrund nicht zu unterscheiden, der
      Rahmen musste die ganze Trennung allein tragen. */
   --fb-inset: #f1f5f9;
+  /* Fell. Zwei Töne, damit Schnauze und Ohrinneres sich absetzen, ohne dass
+     eine dritte Farbe nötig wird. */
+  --fb-fur: #e3eefa;
+  --fb-fur-lit: #f6fbff;
 }
 
 .dark .fb-hud {
@@ -155,6 +159,8 @@ body {
   --fb-grid: rgba(56, 189, 248, 0.05);
   --fb-glow: rgba(45, 212, 191, 0.22);
   --fb-inset: #0b1016;
+  --fb-fur: #1b2733;
+  --fb-fur-lit: #24333f;
 }
 
 /* Messfeld-Beschriftung: klein, Monoschrift, weit gesperrt. Der Unterschied
@@ -244,6 +250,24 @@ body {
 }
 .fb-wake { animation: fbWake 0.55s cubic-bezier(0.2, 0.7, 0.3, 1) both; transform-origin: center; }
 
+/* Das Blinzeln.
+   Der ganze Unterschied zwischen einer Zeichnung und etwas, das da ist --
+   und es kostet 120 Millisekunden alle sieben Sekunden. Länger oder häufiger
+   wäre nervös; ein Gesicht, das gar nicht blinzelt, wirkt tot. */
+@keyframes fbBlink {
+  0%, 95.5%, 100% { transform: scaleY(1); }
+  97%, 98% { transform: scaleY(0.08); }
+}
+.fb-blink { animation: fbBlink 7.2s ease-in-out infinite; transform-origin: center; }
+
+/* Beim Arbeiten wandert der Blick. Zwei Pixel reichen -- es soll aussehen,
+   als lese er, nicht als suche er den Ausgang. */
+@keyframes fbLook {
+  0%, 100% { transform: translateX(-1.1px); }
+  50% { transform: translateX(1.1px); }
+}
+.fb-look { animation: fbLook 1.8s ease-in-out infinite; }
+
 /* Laufender Vorgang: ein Streifen wandert einmal je Sekunde durch die Fläche.
    Ersetzt den Spinner -- ein Spinner sagt "es passiert etwas", dieser Streifen
    sagt "es wird gelesen". */
@@ -269,7 +293,8 @@ body {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .fb-seg, .fb-ignite, .fb-breathe, .fb-rotate, .fb-rotate-fast, .fb-wake { animation: none; }
+  .fb-seg, .fb-ignite, .fb-breathe, .fb-rotate, .fb-rotate-fast, .fb-wake,
+  .fb-blink, .fb-look { animation: none; }
   .fb-scan::after { animation: none; opacity: 0.5; }
 }
 

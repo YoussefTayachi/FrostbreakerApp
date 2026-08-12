@@ -124,7 +124,7 @@ export default function GenerateSequence({
               sich die beiden Flaechen wie ein Vorgang anfuehlen und nicht wie
               zwei Werkzeuge: dort sammelt er, hier schreibt er. */}
           <div className="flex items-start gap-3">
-            <Thaw state={busy ? "working" : fertig > 0 ? "ready" : "listening"} size={38} className="mt-0.5 shrink-0" />
+            <Thaw state={busy ? "working" : fertig > 0 ? "ready" : "listening"} size={52} className="shrink-0" />
             <div>
               <p className="fb-label mb-1.5" style={{ color: "var(--fb-frost)" }}>
                 {G.eyebrow}

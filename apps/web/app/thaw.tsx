@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * THAW -- der Kern, der in der App mitarbeitet.
+ * THAW -- der Eisbär, der in der App mitarbeitet.
  *
  * ═══════════════════════════════════════════════════════════════════════
  * WARUM DIE APP EINE FIGUR BEKOMMT
@@ -9,51 +9,57 @@
  *
  * Das Angebot auszufuellen und eine Sequenz schreiben zu lassen ist der
  * einzige Teil der App, in dem der Nutzer nicht verwaltet, sondern etwas
- * entstehen laesst. Genau dort lohnt sich ein Gegenueber: ein Fortschritts-
- * balken meldet einen Zustand, ein Gegenueber sagt, was es braucht -- und man
- * fuellt das dritte Feld aus, weil jemand darauf wartet.
+ * entstehen laesst. Genau dort lohnt sich ein Gegenueber: ein
+ * Fortschrittsbalken meldet einen Zustand, ein Gegenueber sagt, was es
+ * braucht -- und man fuellt das dritte Feld aus, weil jemand darauf wartet.
+ *
+ * Ein Maskottchen ist dafuer das richtige Mittel, nicht das falsche. Duolingos
+ * Eule, Mailchimps Freddie und der Octocat tragen ganze Produkte. Was
+ * scheitert, ist ein BELIEBIGES Maskottchen -- eines, das genauso gut zu einer
+ * Buchhaltungssoftware gehoeren koennte.
  *
  * ═══════════════════════════════════════════════════════════════════════
- * WARUM AUSGERECHNET DIESE FORM UND DIESER NAME
+ * WARUM EIN EISBAER UND WARUM DIESER
  * ═══════════════════════════════════════════════════════════════════════
- *
- * Kein Gesicht, kein Maskottchen, keine Sprechblase mit Zwinkersmiley -- das
- * waere in einem Werkzeug, mit dem jemand seinen Umsatz macht, in der zweiten
- * Woche peinlich. Stattdessen ein Eiskristall mit einer Iris: sechs Arme, die
- * sich langsam drehen, und ein Kern, der sich oeffnet, wenn er genug weiss.
  *
  * Der Name stand schon im Code, bevor es die Figur gab: das Workspace-Cookie
  * heisst thaw_ws. Frostbreaker ist das Werkzeug, THAW ist das, was es tut --
- * einen kalten Kontakt auftauen. Die Farbe folgt derselben Linie: Frost,
- * solange etwas fehlt, Mint, sobald es reicht.
+ * einen kalten Kontakt auftauen. Ein Eisbaer ist genau die Figur, die im Eis
+ * zu Hause ist und trotzdem hindurchbricht.
+ *
+ * Eigene Zeichnung, kein nachgebautes Vorbild: die Vorlage aus dem Gespraech
+ * (Volibear) gehoert Riot Games und haette in einer verkauften Anwendung
+ * nichts zu suchen. Uebernommen ist nur das, was frei ist -- die Idee vom
+ * Eisbaeren. Die Ausfuehrung ist bewusst geometrisch und nah an der uebrigen
+ * Instrumentenflaeche: Haarlinien, zwei Fell-Toene, die Frost/Mint-Skala aus
+ * globals.css. Das Frostzeichen auf der Stirn ist derselbe Kristall, der
+ * vorher allein in der Mitte des Rings stand.
  *
  * ═══════════════════════════════════════════════════════════════════════
- * DIE ZURUECKHALTUNG IST TEIL DES ENTWURFS
+ * WAS ER TUT UND WAS NICHT
  * ═══════════════════════════════════════════════════════════════════════
  *
- * Im Ruhezustand atmet er, sonst nichts. Vier Sekunden je Zug, kaum sichtbar.
- * Ein Maskottchen, das dauernd zappelt, ist beim dritten Oeffnen der Seite nur
- * noch im Weg -- und es ist genau der Grund, warum Figuren in
- * Geschaeftssoftware meistens ein Fehler sind. Bewegung gibt es nur an den
- * drei Stellen, an denen wirklich etwas passiert: aufwachen, arbeiten,
- * fertig.
+ * Er blinzelt alle sieben Sekunden, und im Ruhezustand ist das alles. Beim
+ * Arbeiten wandert sein Blick, beim Fertigsein hebt sich der Mundwinkel und
+ * die Augen schlagen von Frost auf Mint um. Mehr nicht -- keine Winkanimation,
+ * kein Huepfen, keine Sprechblase. Eine Figur, die staendig zappelt, ist beim
+ * dritten Oeffnen der Seite nur noch im Weg, und genau daran scheitern
+ * Maskottchen in Geschaeftssoftware.
  */
 
 export type ThawState =
-  /** Nichts oder fast nichts bekannt. */
+  /** Nichts oder fast nichts bekannt -- Augen halb zu. */
   | "cold"
-  /** Es fehlt noch etwas Notwendiges. */
+  /** Es fehlt noch etwas Notwendiges -- er hoert zu. */
   | "listening"
-  /** Alles Notwendige da. */
+  /** Alles Notwendige da -- Augen in Mint, Mundwinkel oben. */
   | "ready"
-  /** Schreibt gerade. */
+  /** Schreibt gerade -- der Blick wandert. */
   | "working";
-
-const ARMS = [0, 60, 120, 180, 240, 300];
 
 export default function Thaw({
   state,
-  size = 40,
+  size = 64,
   className = "",
 }: {
   state: ThawState;
@@ -61,73 +67,103 @@ export default function Thaw({
   className?: string;
 }) {
   const warm = state === "ready";
-  const farbe = warm ? "var(--fb-ready)" : "var(--fb-frost)";
-  // Der Kern oeffnet sich mit dem Wissensstand: geschlossen, wenn nichts da
-  // ist, weit offen, wenn es reicht. Die Iris ist die Aussage, nicht ein
-  // Gesichtsausdruck.
-  const iris = state === "cold" ? 2.6 : state === "listening" ? 4.2 : state === "working" ? 5 : 5.8;
+  const linie = warm ? "var(--fb-ready)" : "var(--fb-frost)";
+  const kalt = state === "cold";
+
+  // Die Augen tragen den Ausdruck. Halb geschlossen, wenn er nichts weiss,
+  // weit offen, sobald es reicht -- dieselbe Aussage wie die Iris des
+  // frueheren Kristalls, nur lesbarer.
+  const augeR = kalt ? 2.6 : warm ? 4.2 : 3.6;
 
   return (
     <svg
       width={size}
       height={size}
-      viewBox="0 0 40 40"
+      viewBox="0 0 64 64"
       className={className}
       role="img"
       aria-label="THAW"
+      style={{ overflow: "visible" }}
     >
-      {/* Die Arme. Im Arbeitszustand schneller, sonst kaum wahrnehmbar. */}
-      <g className={state === "working" ? "fb-rotate-fast" : "fb-rotate"} style={{ transformBox: "fill-box" }}>
-        {ARMS.map((deg) => (
-          <g key={deg} transform={`rotate(${deg} 20 20)`}>
-            <line
-              x1="20"
-              y1="20"
-              x2="20"
-              y2="5.5"
-              stroke={farbe}
-              strokeWidth="1.4"
-              strokeLinecap="round"
-              opacity={state === "cold" ? 0.4 : 0.75}
-            />
-            {/* Die Verzweigung, an der ein Eiskristall als Eiskristall
-                erkennbar wird. Ohne sie waere es ein Stern. */}
-            <path
-              d="M20 9.5 L16.8 6.6 M20 9.5 L23.2 6.6"
-              stroke={farbe}
-              strokeWidth="1.2"
-              strokeLinecap="round"
-              fill="none"
-              opacity={state === "cold" ? 0.3 : 0.6}
-            />
-          </g>
+      {/* Ohren. Zuerst gezeichnet, damit der Kopf sie ueberlappt. */}
+      {[
+        { cx: 17, cy: 17 },
+        { cx: 47, cy: 17 },
+      ].map((ohr) => (
+        <g key={ohr.cx}>
+          <circle cx={ohr.cx} cy={ohr.cy} r="9" fill="var(--fb-fur)" stroke={linie} strokeWidth="1.6" />
+          <circle cx={ohr.cx} cy={ohr.cy} r="4" fill="var(--fb-fur-lit)" />
+        </g>
+      ))}
+
+      {/* Kopf. Breiter als hoch -- das ist der Unterschied zwischen einem
+          Baeren und einer Katze. */}
+      <ellipse cx="32" cy="36" rx="23" ry="20.5" fill="var(--fb-fur)" stroke={linie} strokeWidth="1.8" />
+
+      {/* Das Frostzeichen auf der Stirn: derselbe Kristall, der vorher allein
+          in der Mitte des Rings stand. Er verbindet die Figur mit dem
+          Instrument drumherum. */}
+      <g opacity={kalt ? 0.4 : 0.9} className={state === "working" ? "fb-rotate-fast" : ""} style={{ transformOrigin: "32px 22px" }}>
+        {[0, 60, 120].map((deg) => (
+          <line
+            key={deg}
+            x1="32"
+            y1="19"
+            x2="32"
+            y2="25"
+            stroke={linie}
+            strokeWidth="1.4"
+            strokeLinecap="round"
+            transform={`rotate(${deg} 32 22)`}
+          />
         ))}
       </g>
 
-      {/* Das Sechseck haelt die Arme zusammen und gibt dem Kern einen Rand. */}
-      <polygon
-        points="20,11 27.8,15.5 27.8,24.5 20,29 12.2,24.5 12.2,15.5"
-        fill="none"
-        stroke={farbe}
-        strokeWidth="1.1"
-        opacity={state === "cold" ? 0.35 : 0.55}
-      />
+      {/* Schnauze. Heller abgesetzt, damit Nase und Mund darauf sitzen. */}
+      <ellipse cx="32" cy="43" rx="11.5" ry="8.5" fill="var(--fb-fur-lit)" />
 
-      {/* Der Kern. Er atmet -- und das ist im Ruhezustand alles. */}
-      <g className={state === "working" ? "" : "fb-breathe"} style={{ transformBox: "fill-box" }}>
-        <circle cx="20" cy="20" r={iris + 2.6} fill={farbe} opacity="0.14" />
-        <circle
-          cx="20"
-          cy="20"
-          r={iris}
-          fill={farbe}
-          className="fb-wake"
-          style={{ transition: "r 0.45s cubic-bezier(0.2,0.7,0.3,1)" }}
-        />
-        {/* Ein heller Punkt aussermittig: der Unterschied zwischen einem
-            Kreis und etwas, das schaut. */}
-        <circle cx="18.4" cy="18.4" r={Math.max(0.8, iris * 0.28)} fill="#fff" opacity={warm ? 0.85 : 0.7} />
+      {/* Augen. Blinzeln im Ruhezustand, Blick wandert beim Arbeiten. */}
+      <g className={state === "working" ? "fb-look" : kalt ? "" : "fb-blink"}>
+        {[24, 40].map((cx) =>
+          kalt ? (
+            /* Geschlossen, solange er nichts weiss. Kleinere Augen allein
+               liessen sich nicht von "hoert zu" unterscheiden -- gemessen am
+               gerenderten Bild; zwei geschlossene Lider sagen es sofort. */
+            <path
+              key={cx}
+              d={`M${cx - 4} 32 q4 3.4 8 0`}
+              fill="none"
+              stroke={linie}
+              strokeWidth="1.6"
+              strokeLinecap="round"
+              opacity="0.6"
+            />
+          ) : (
+            <g key={cx}>
+              <circle cx={cx} cy={32} r={augeR} fill={linie} />
+              {/* Der helle Punkt -- der Unterschied zwischen einem Auge und
+                  einem Loch. */}
+              <circle cx={cx - 1.1} cy={30.9} r={augeR * 0.34} fill="#fff" opacity="0.9" />
+            </g>
+          )
+        )}
       </g>
+
+      {/* Nase und Mund. Der Mundwinkel hebt sich, sobald es reicht -- die
+          einzige Stelle, an der die Figur eine Miene macht. */}
+      <ellipse cx="32" cy="40.5" rx="3.2" ry="2.4" fill={linie} />
+      <path
+        d={
+          warm
+            ? "M32 43 v2.4 M32 45.4 q-4.5 4 -8.4 0.4 M32 45.4 q4.5 4 8.4 0.4"
+            : "M32 43 v2.4 M32 45.4 q-4 2.6 -7.6 0.5 M32 45.4 q4 2.6 7.6 0.5"
+        }
+        fill="none"
+        stroke={linie}
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        opacity={kalt ? 0.5 : 0.85}
+      />
     </svg>
   );
 }
