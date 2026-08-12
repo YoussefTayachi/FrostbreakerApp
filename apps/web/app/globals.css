@@ -148,14 +148,19 @@ body {
   /* Der Körper des Hologramms: drei Stufen von der Lichtkante oben bis zur
      Schattenseite unten. Im Hellen ist er mattes Eisglas, im Dunklen leuchtet
      er von innen — dieselbe Zeichnung, zwei Materialien. */
+  /* Am LIVE-Stand nachgemessen (2026-08-12): entworfen wurde der Körper gegen
+     --fb-inset (#f1f5f9), die Statusfläche benutzt aber bg-panel — also reines
+     Weiß. Dort verschwand er neben dem kräftigen Ring zu einem Gespenst.
+     Deshalb kräftigere Mitte, dunklere Schattenseite und ein sichtbarerer
+     Halo: er braucht auf Weiß eine eigene Kante. */
   --fb-holo-hi: #ffffff;
-  --fb-holo-mid: #dcf0f5;
-  --fb-holo-lo: #b6dfe9;
-  --fb-holo-a1: 0.95;
-  --fb-holo-a2: 0.8;
-  --fb-holo-a3: 0.75;
-  --fb-holo-halo-a: 0.3;
-  --fb-scan-a: 0.05;
+  --fb-holo-mid: #b6e2ec;
+  --fb-holo-lo: #79c3d6;
+  --fb-holo-a1: 0.98;
+  --fb-holo-a2: 0.92;
+  --fb-holo-a3: 0.9;
+  --fb-holo-halo-a: 0.42;
+  --fb-scan-a: 0.09;
 }
 
 .dark .fb-hud {

@@ -148,6 +148,21 @@ export default function OfferCore({
             klein: sie beantwortet "wie weit", er beantwortet "und jetzt?".
             Ein Prozentwert allein hat noch nie jemanden dazu gebracht, ein
             drittes Feld auszufuellen. */}
+        {/* Die Projektionsfläche.
+            Am Live-Stand nachgemessen: das Panel ist bg-panel, also reines
+            Weiß, und darauf hatte die Figur keinen Grund, auf dem sie stehen
+            konnte. Diese weiche Scheibe gibt ihr einen -- und sie erklärt
+            nebenbei, woher das Hologramm kommt. */}
+        <div
+          aria-hidden
+          className="pointer-events-none absolute left-1/2 top-1/2 h-[64%] w-[64%] -translate-x-1/2 -translate-y-1/2 rounded-full"
+          style={{
+            background: `radial-gradient(circle, color-mix(in srgb, ${
+              ready ? "var(--fb-ready)" : "var(--fb-frost)"
+            } 13%, transparent) 0%, transparent 72%)`,
+          }}
+        />
+
         <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-1.5">
           <Thaw state={ready ? "ready" : filled.size === 0 ? "cold" : "listening"} size={76} />
           <span
@@ -190,9 +205,15 @@ export default function OfferCore({
                         : "var(--color-edge2)",
                   }}
                 />
+                {/* Zwei Zeilen statt Abschneiden.
+                    Am Live-Stand gemessen: "What does the customer struggle
+                    with beforehand?" lief ins "..." -- und eine Legende, die
+                    ihre eigenen Eintraege verschluckt, beantwortet genau die
+                    Frage nicht, fuer die es sie gibt. Bei zwei Zeilen passen
+                    auch die laengsten Feldnamen beider Sprachen. */}
                 <span
                   className={
-                    "flex-1 truncate text-[13px] leading-4 transition-colors " +
+                    "flex-1 text-[13px] leading-[1.35] transition-colors [display:-webkit-box] [overflow:hidden] [-webkit-box-orient:vertical] [-webkit-line-clamp:2] " +
                     (an ? "text-soft" : "text-mute group-hover:text-faint")
                   }
                 >
