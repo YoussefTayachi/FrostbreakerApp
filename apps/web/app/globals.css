@@ -159,8 +159,11 @@ body {
   --fb-holo-a1: 0.98;
   --fb-holo-a2: 0.92;
   --fb-holo-a3: 0.9;
-  --fb-holo-halo-a: 0.42;
-  --fb-scan-a: 0.09;
+  /* Am Bild geprüft: bei 0,42 füllte der Bloom auf Weiß die ganze Kugel zu
+     einer blassen Scheibe, und der helle Kern darin las sich als Loch. Im
+     Dunklen darf er stärker sein — dort ist Licht der Kontrast, auf Weiß ist
+     es die Linie. */
+  --fb-holo-halo-a: 0.2;
 }
 
 .dark .fb-hud {
@@ -178,7 +181,6 @@ body {
   --fb-holo-a2: 0.68;
   --fb-holo-a3: 0.64;
   --fb-holo-halo-a: 0.55;
-  --fb-scan-a: 0.16;
 }
 
 /* Messfeld-Beschriftung: klein, Monoschrift, weit gesperrt. Der Unterschied
@@ -254,48 +256,24 @@ body {
 }
 .fb-breathe { animation: fbBreathe 4.5s ease-in-out infinite; transform-origin: center; }
 
-/* Die sechs Arme drehen sich langsam gegen den Uhrzeigersinn -- eine
-   Eiskristallform, die lebt, ohne sich aufzudrängen. */
-@keyframes fbRotate { to { transform: rotate(-360deg); } }
-.fb-rotate { animation: fbRotate 46s linear infinite; transform-origin: center; }
-.fb-rotate-fast { animation: fbRotate 3.4s linear infinite; transform-origin: center; }
+/* Licht, das DURCH die Bahnen der Kugel läuft.
+   Das ist die eigentliche Lebendigkeit der Figur: nichts bewegt sich von der
+   Stelle, und trotzdem steht nichts still. Der Weg entspricht 20 Strichmustern
+   (1,2 + 3,4), dadurch springt der Übergang nicht. Die Dauer setzt thaw.tsx je
+   Bahn — benachbarte Bahnen laufen gegenläufig und verschieden schnell, sonst
+   pulsiert die ganze Kugel im Gleichtakt. */
+@keyframes fbFlow { to { stroke-dashoffset: -92; } }
+.fb-flow { animation: fbFlow 9s linear infinite; }
+.fb-flow-rev { animation: fbFlow 9s linear infinite reverse; }
 
-/* Die beiden Orbits des Kerns.
-   GEGENLÄUFIG und mit verschiedener Dauer -- zwei Ringe, die gleich schnell
-   in dieselbe Richtung laufen, verschmelzen für das Auge zu einem einzigen
-   und die räumliche Tiefe geht verloren. Langsam genug (28 s und 41 s), dass
-   die Bewegung neben einem Formular nicht mitliest.
-   transform-origin: center wirkt hier über die viewBox, weil der Kern in
-   deren Mitte sitzt. */
-@keyframes fbOrbit { to { transform: rotate(360deg); } }
-.fb-orbit { animation: fbOrbit 28s linear infinite; transform-origin: center; }
-.fb-orbit-rev { animation: fbRotate 41s linear infinite; transform-origin: center; }
-
-/* Beim Aufwachen: der Kern öffnet sich einmal. */
-@keyframes fbWake {
-  0% { transform: scale(0.4); opacity: 0; }
-  60% { transform: scale(1.12); }
-  100% { transform: scale(1); opacity: 1; }
+/* Das Flackern der Energiefäden. Zwei versetzte Gruppen: ein einzelnes
+   Flackern über alles wäre ein Wackelkontakt, zwei versetzte lesen sich als
+   Rechnen. */
+@keyframes fbSpark {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.42; }
 }
-.fb-wake { animation: fbWake 0.55s cubic-bezier(0.2, 0.7, 0.3, 1) both; transform-origin: center; }
-
-/* Das Blinzeln.
-   Der ganze Unterschied zwischen einer Zeichnung und etwas, das da ist --
-   und es kostet 120 Millisekunden alle sieben Sekunden. Länger oder häufiger
-   wäre nervös; ein Gesicht, das gar nicht blinzelt, wirkt tot. */
-@keyframes fbBlink {
-  0%, 95.5%, 100% { transform: scaleY(1); }
-  97%, 98% { transform: scaleY(0.08); }
-}
-.fb-blink { animation: fbBlink 7.2s ease-in-out infinite; transform-origin: center; }
-
-/* Beim Arbeiten wandert der Blick. Zwei Pixel reichen -- es soll aussehen,
-   als lese er, nicht als suche er den Ausgang. */
-@keyframes fbLook {
-  0%, 100% { transform: translateX(-1.1px); }
-  50% { transform: translateX(1.1px); }
-}
-.fb-look { animation: fbLook 1.8s ease-in-out infinite; }
+.fb-spark { animation: fbSpark 3.4s ease-in-out infinite; }
 
 /* Er schwebt.
    Sechs Sekunden für einen Zug und eine knappe Vierteldrehung Neigung: das
@@ -315,14 +293,6 @@ body {
   50% { transform: scaleX(1.06); opacity: 0.9; }
 }
 .fb-shadow { animation: fbShadow 6s ease-in-out infinite; transform-origin: center; }
-
-/* Die Scanlinien wandern langsam nach unten. Der Weg ist genau eine
-   Musterhöhe, dadurch springt der Übergang nicht. */
-@keyframes fbScanDrift {
-  from { transform: translateY(0); }
-  to { transform: translateY(3px); }
-}
-.fb-scanlines { animation: fbScanDrift 2.6s linear infinite; }
 
 /* Laufender Vorgang: ein Streifen wandert einmal je Sekunde durch die Fläche.
    Ersetzt den Spinner -- ein Spinner sagt "es passiert etwas", dieser Streifen
@@ -349,9 +319,8 @@ body {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .fb-seg, .fb-ignite, .fb-breathe, .fb-rotate, .fb-rotate-fast, .fb-wake,
-  .fb-blink, .fb-look, .fb-float, .fb-shadow, .fb-scanlines,
-  .fb-orbit, .fb-orbit-rev { animation: none; }
+  .fb-seg, .fb-ignite, .fb-breathe, .fb-float, .fb-shadow,
+  .fb-flow, .fb-flow-rev, .fb-spark { animation: none; }
   .fb-scan::after { animation: none; opacity: 0.5; }
 }
 
