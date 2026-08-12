@@ -88,7 +88,30 @@ export function defaultSequenceOptions(): SequenceOptions {
  * kaeme mit 112 an. Der kleine Abzug am Ende ist Luft fuer Anrede und Gruss.
  */
 export function ownWordBudget(personalizationWords: number): number {
-  return Math.max(25, FIRST_MAIL_MAX_WORDS - personalizationWords - 5);
+  // Der Abzug deckt Anrede, Gruss und Unterschrift ab -- die drei Zeilen, die
+  // seit dem 2026-08-12 verlangt werden und in der Wortzahl des Torwarts
+  // mitzaehlen.
+  return Math.max(25, FIRST_MAIL_MAX_WORDS - personalizationWords - 8);
+}
+
+/**
+ * Die Signatur, wie sie unter der Mail stehen soll.
+ *
+ * Reihenfolge: Angebot vor Workspace. Die Signatur am Angebot gibt es, damit
+ * eine Agentur je Nische verschieden unterschreiben kann (Migration 0091);
+ * workspaces.reply_sender_name (0073) ist der Rueckfall, damit nicht zwei
+ * Wahrheiten fuer dieselbe Sache entstehen.
+ *
+ * Ist beides leer, gibt es KEINE Unterschrift -- und der Prompt sagt das
+ * ausdruecklich. Ein erfundener Name unter einer Geschaeftsmail ist schlimmer
+ * als gar keiner.
+ */
+export function signatureFor(offer: Offer, senderName: string | null): string {
+  const eigene = offer.signature.trim();
+  if (eigene) return eigene;
+  const name = (senderName ?? "").trim();
+  if (!name) return "";
+  return offer.language === "en" ? `Best,\n${name}` : `Beste Grüße\n${name}`;
 }
 
 const LANGUAGE_NAMES: Record<string, string> = { de: "German", en: "English" };
@@ -107,9 +130,18 @@ function fieldLine(label: string, value: string, emptyInstruction: string): stri
  * Was das NICHT beeinflusst, ist die Sprache der Mails -- die steht als harte
  * Vorgabe drin und kommt aus dem Angebot.
  */
+/** Die Anrede, die als Schablone im Prompt steht. Immer mit {{firstName}}:
+ *  eine Mail ohne Namen liest sich wie ein Rundschreiben, und der Name ist
+ *  der eine Platzhalter, den jeder Lead sicher hat. */
+export function greetingLine(offer: Offer): string {
+  if (offer.language === "en") return "Hi {{firstName}},";
+  return offer.address_form === "sie" ? "Guten Tag {{firstName}}," : "Hi {{firstName}},";
+}
+
 export function buildSequencePrompt(offer: Offer, opts: SequenceOptions): string {
   const budget = ownWordBudget(opts.personalizationWords);
   const sprache = LANGUAGE_NAMES[offer.language] ?? "German";
+  const signature = signatureFor(offer, opts.senderName);
 
   const lines: string[] = [
     "You write cold outreach email sequences that get REPLIES, not admiration.",
@@ -146,7 +178,24 @@ export function buildSequencePrompt(offer: Offer, opts: SequenceOptions): string
   }
 
   lines.push(
-    `- Step 1 MUST begin with the literal token {{personalization}} followed by a line break. It is replaced per recipient with a researched opening line, so never write your own opening observation.`,
+    // Der Aufbau steht als Schablone da und nicht als Beschreibung: an
+    // echten Daten kam sonst ein einziger Block ohne Anrede, ohne Gruss und
+    // ohne eine einzige Leerzeile zurueck. Auf dem Telefon ist so eine Mail
+    // eine graue Wand, und sie wird nicht gelesen.
+    "",
+    "LAYOUT -- every email follows exactly this shape:",
+    `  ${greetingLine(offer)}`,
+    "  (blank line)",
+    "  the message, in SHORT paragraphs of one to three sentences each,",
+    "  separated by BLANK LINES",
+    "  (blank line)",
+    "  the question you want answered",
+    signature ? "  (blank line)\n" + signature.split("\n").map((l) => `  ${l}`).join("\n") : "  (no signature, see below)",
+    "",
+    "- Use real blank lines (\\n\\n) between paragraphs. A wall of text does not get read.",
+    "- Never write more than three sentences in one paragraph.",
+    "",
+    `- In step 1 the SECOND block is the literal token {{personalization}} on its own. It is replaced per recipient with a researched opening line, so never write your own opening observation.`,
     `- Step 1: at most ${budget} words of your own (the token above counts for roughly ${opts.personalizationWords} more).`,
     "- Step 1 must contain NO link and NO URL of any kind.",
     "- Steps 2 to 4 stay short, 40 to 70 words, and each one does something NEW:",
@@ -175,8 +224,13 @@ export function buildSequencePrompt(offer: Offer, opts: SequenceOptions): string
     // Terminlink faellt erst dem Empfaenger auf, und dann ist es zu spaet.
     lines.push("- There is NO booking link. Never invent one. Ask for a reply instead.");
   }
-  if (opts.senderName) lines.push(`- Sign every email with: ${opts.senderName}`);
-  else lines.push("- No sender name is known. End without a signature line rather than inventing a name.");
+  if (signature) {
+    lines.push(`- End every email with exactly this signature, on its own lines:\n${signature}`);
+  } else {
+    // Kein Name hinterlegt: lieber ohne Unterschrift als mit einer erfundenen.
+    // Gleiche Regel wie beim Terminlink in Migration 0073.
+    lines.push("- No sender name is known. End with the question, without a signature. Never invent a name.");
+  }
 
   if (opts.bestExample?.body.trim()) {
     lines.push(
@@ -274,7 +328,19 @@ export type SequenceProblem =
   | { kind: "firstMailHasLink" }
   | { kind: "unknownTags"; tags: string[] }
   | { kind: "dash"; step: number }
-  | { kind: "variantsTooSimilar"; step: number };
+  | { kind: "variantsTooSimilar"; step: number }
+  | { kind: "noParagraphs"; step: number }
+  | { kind: "noGreeting"; step: number };
+
+/**
+ * Ab wie vielen Woertern eine Mail ohne Leerzeile als Wand gilt.
+ *
+ * Darunter ist ein einzelner Block voellig in Ordnung -- eine Nachfassmail
+ * mit zwei Saetzen braucht keinen Absatz, und sie deswegen anzumeckern waere
+ * dieselbe Sorte unbegruendetes Rot, die beim Copy-Check gerade abgeschafft
+ * wurde.
+ */
+const PARAGRAPH_REQUIRED_FROM_WORDS = 35;
 
 /**
  * Was an einem Entwurf nicht stimmt -- deterministisch, ohne zweiten
@@ -308,6 +374,20 @@ export function sequenceProblems(steps: DraftStep[], opts: SequenceOptions): Seq
         break;
       }
     }
+    // Anrede: die erste nichtleere Zeile muss den Vornamen tragen. Ohne sie
+    // liest sich die Mail wie ein Rundschreiben -- der gemeldete Fall vom
+    // 2026-08-12 hatte weder Anrede noch Gruss.
+    if (step.variants.some((v) => !hatAnrede(v.body))) {
+      problems.push({ kind: "noGreeting", step: i + 1 });
+    }
+    // Absaetze: erst ab einer Laenge, ab der ein Block wirklich stoert.
+    if (
+      step.variants.some(
+        (v) => v.body.split(/\s+/).filter(Boolean).length >= PARAGRAPH_REQUIRED_FROM_WORDS && !/\n\s*\n/.test(v.body)
+      )
+    ) {
+      problems.push({ kind: "noParagraphs", step: i + 1 });
+    }
   });
 
   const alleTexte = steps.flatMap((s) => s.variants.flatMap((v) => [v.subject, v.body])).join("\n");
@@ -333,6 +413,19 @@ export function sequenceProblems(steps: DraftStep[], opts: SequenceOptions): Seq
   }
 
   return problems;
+}
+
+/**
+ * Traegt die erste Zeile eine Anrede?
+ *
+ * Geprueft wird auf {{firstName}} in der ersten nichtleeren Zeile, nicht auf
+ * ein bestimmtes Grusswort: "Hi", "Hallo", "Guten Tag" und "Moin" sind alle
+ * richtig, und eine Liste erlaubter Woerter waere beim ersten englischen
+ * Angebot unvollstaendig.
+ */
+function hatAnrede(body: string): boolean {
+  const ersteZeile = body.split("\n").find((l) => l.trim().length > 0) ?? "";
+  return ersteZeile.includes("{{firstName}}");
 }
 
 /** Ab wann zwei Fassungen dieselbe sind: mehr als vier Fuenftel gemeinsame
@@ -380,6 +473,10 @@ export function correctionInstruction(problems: SequenceProblem[]): string {
         return `- Step ${p.step} uses a dash character. Replace it with a comma or a full stop.`;
       case "variantsTooSimilar":
         return `- The two variants of step ${p.step} say the same thing. Rewrite variant B with a different angle and a different question.`;
+      case "noGreeting":
+        return `- Step ${p.step} has no greeting. Start it with a greeting line containing {{firstName}}, followed by a blank line.`;
+      case "noParagraphs":
+        return `- Step ${p.step} is one solid block. Break it into paragraphs of one to three sentences, separated by blank lines.`;
     }
   });
   return [

@@ -25,6 +25,60 @@ describe("checkReadability", () => {
     expect(easy.band).toBe("very-easy");
   });
 
+  describe("die Note kommt aus der Satzlaenge, nicht aus dem Flesch-Wert", () => {
+    // Der gemeldete Fall vom 2026-08-12: eine erzeugte Kampagnenmail, kurze
+    // Saetze, keine Befunde -- und trotzdem ein rotes "Schwer", allein wegen
+    // Fachwoertern wie "verification". Ein rotes Abzeichen ueber "Nichts zu
+    // beanstanden" ist ein Widerspruch.
+    const gemeldetEN =
+      "{{personalization}}\nManaging multiple client campaigns with separate tools can waste hours. " +
+      "Frostbreaker unifies lead discovery, contact verification, and outreach automation across " +
+      "email, LinkedIn, and phone in one workspace. Would you be open to a quick call to explore " +
+      "simplifying your outbound efforts?";
+    const gemeldetDE =
+      "{{personalization}}\nMehrere Kundenkampagnen mit getrennten Werkzeugen zu steuern kostet Stunden. " +
+      "Frostbreaker verbindet Leadsuche, Adressprüfung und Versandsteuerung über Mail, LinkedIn und " +
+      "Telefon in einer Oberfläche. Wärst du offen für ein kurzes Gespräch?";
+
+    it("benotet kurze Saetze mit Fachwoertern nicht als schwer", () => {
+      for (const [text, lang] of [[gemeldetEN, "en"], [gemeldetDE, "de"]] as const) {
+        const r = checkReadability(text, lang);
+        expect(r.issues).toEqual([]);
+        expect(r.avgSentenceLength).toBeLessThan(15);
+        expect(r.band).toBe("very-easy");
+      }
+    });
+
+    it("widerspricht sich nicht: ohne Befund nie eine schlechte Note", () => {
+      const r = checkReadability(gemeldetEN, "en");
+      expect(["very-easy", "easy"]).toContain(r.band);
+      // Der Flesch-Wert bleibt als ANGABE stehen, er ist nur nicht mehr das
+      // Urteil -- er liegt hier weiterhin niedrig.
+      expect(r.readingEaseScore).toBeLessThan(60);
+    });
+
+    it("meldet lange Saetze weiterhin als schwer", () => {
+      const lang = "de" as const;
+      const r = checkReadability(
+        "Die von uns bereitgestellte Logistikinfrastruktur ermöglicht Ihrem Unternehmen eine " +
+          "signifikante Reduktion der Gesamtbetriebskosten unter Berücksichtigung sämtlicher " +
+          "regulatorischer Rahmenbedingungen und interner Vorgaben.",
+        lang
+      );
+      expect(["difficult", "very-difficult"]).toContain(r.band);
+    });
+
+    it("zieht extrem schwere Wortwahl um eine Stufe herunter", () => {
+      // Kurze Saetze, aber unlesbare Woerter: das soll nicht gruen sein.
+      const r = checkReadability(
+        "Interessenskonfliktvermeidungsstrategieentwicklung. Wirtschaftlichkeitsberechnungsgrundlagenermittlung.",
+        "de"
+      );
+      expect(r.avgSentenceLength).toBeLessThan(5);
+      expect(r.band).not.toBe("very-easy");
+    });
+  });
+
   it("haelt den Score in 0-100 und die Stufe in 1-20", () => {
     const r = checkReadability(
       "Interessenskonfliktvermeidungsstrategieentwicklungsprozessdokumentation " +

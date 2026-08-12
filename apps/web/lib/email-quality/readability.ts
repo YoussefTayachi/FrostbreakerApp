@@ -86,12 +86,70 @@ function findPassive(sentence: Sentence, lang: Lang): { start: number; end: numb
   return null;
 }
 
-function bandFor(score: number): ReadabilityBand {
-  if (score >= 80) return "very-easy";
-  if (score >= 60) return "easy";
-  if (score >= 50) return "medium";
-  if (score >= 30) return "difficult";
-  return "very-difficult";
+/**
+ * Ab wann die Wortwahl selbst schwer wiegt.
+ *
+ * Deutsch liegt in normaler Prosa hoeher als Englisch (Komposita), deshalb
+ * zwei Werte. Beide sind bewusst hoch angesetzt: sie sollen "Die
+ * Implementierungsverifikationsmethodik" fangen und nicht "verification".
+ */
+const HEAVY_SYLLABLES: Record<Lang, number> = { de: 2.4, en: 2.1 };
+
+const BANDS: ReadabilityBand[] = ["very-easy", "easy", "medium", "difficult", "very-difficult"];
+
+/**
+ * Die Note kommt aus der SATZLAENGE, nicht aus dem Flesch-Wert.
+ *
+ * ═══════════════════════════════════════════════════════════════════════
+ * WARUM UMGESTELLT (2026-08-12)
+ * ═══════════════════════════════════════════════════════════════════════
+ *
+ * Gemessen an einer erzeugten Kampagnenmail: 42 Woerter, 4 Saetze, im
+ * Schnitt 10,5 Woerter je Satz, NULL gefundene Befunde -- und trotzdem ein
+ * rotes "Schwer". Der Flesch-Wert lag bei 43, und zwar allein wegen 1,81
+ * Silben je Wort: "verification", "automation", "discovery". Die inhaltlich
+ * gleiche deutsche Fassung kam auf 7,8 Woerter je Satz und ebenfalls Rot.
+ *
+ * Ein rotes Abzeichen ueber der Zeile "Nichts zu beanstanden" ist ein
+ * Widerspruch, und er ist teurer als er aussieht: wer beim dritten Mal ein
+ * unbegruendetes Rot wegklickt, klickt beim vierten Mal auch das begruendete
+ * weg. Dieselbe Ueberlegung wie bei der Trennung von Blocker und Warnung in
+ * campaign-readiness.ts.
+ *
+ * Die Silbenzahl ist fuer eine Geschaeftsmail die falsche Zielgroesse. Sie
+ * ist nicht handlungsleitend: "Adressprüfung" laesst sich nicht in weniger
+ * Silben sagen, es ist schlicht das richtige Wort. Die Satzlaenge dagegen ist
+ * genau das, was man aendern kann und soll -- und sie ist auch das, was der
+ * Kopf des Panels ohnehin anzeigt.
+ *
+ * Der Kommentar am Dateianfang beruft sich auf Hemingway. Hemingway benotet
+ * nach Schulstufe und Satzbau, nicht nach dem Flesch-Wert; Schulstufe 9,9
+ * gilt dort als gut. Die Umstellung bringt die Datei mit ihrem eigenen
+ * Vorbild in Uebereinstimmung.
+ *
+ * Flesch-Wert und Schulstufe bleiben im Ergebnis stehen -- als Angabe, nicht
+ * als Urteil. Sie sind zwischen den Sprachen ohnehin nicht vergleichbar: die
+ * Amstad-Fassung und die Wiener Sachtextformel sind anders geeicht als die
+ * englischen Originale, dieselbe Aussage bekam je nach Sprache eine andere
+ * Note.
+ */
+function bandFor(
+  avgSentenceLength: number,
+  longShare: number,
+  avgSyllablesPerWord: number,
+  lang: Lang
+): ReadabilityBand {
+  const { hard, veryHard } = SENTENCE_LIMITS[lang];
+  let index: number;
+  if (avgSentenceLength > veryHard || longShare > 0.5) index = 4;
+  else if (avgSentenceLength > hard || longShare > 0.25) index = 3;
+  else if (avgSentenceLength > hard * 0.8) index = 2;
+  else if (avgSentenceLength > hard * 0.6) index = 1;
+  else index = 0;
+  // Schwere Wortwahl zieht um genau eine Stufe herunter. Nicht mehr: sie ist
+  // ein Hinweis auf den Stil, kein Fehler im Text.
+  if (avgSyllablesPerWord > HEAVY_SYLLABLES[lang]) index = Math.min(BANDS.length - 1, index + 1);
+  return BANDS[index];
 }
 
 function clamp(value: number, min: number, max: number): number {
@@ -161,10 +219,12 @@ export function checkReadability(rawBody: string, lang: Lang): ReadabilityResult
   const issues: QualityIssue[] = [];
   const limits = SENTENCE_LIMITS[lang];
   let passiveCount = 0;
+  let longCount = 0;
 
   for (const sentence of sentences) {
     const wordCount = splitWords(sentence.text).length;
     if (wordCount > limits.hard) {
+      longCount++;
       const veryHard = wordCount > limits.veryHard;
       issues.push({
         category: veryHard ? "very-long-sentence" : "long-sentence",
@@ -223,7 +283,7 @@ export function checkReadability(rawBody: string, lang: Lang): ReadabilityResult
     lang,
     readingEaseScore: Math.round(readingEaseScore),
     gradeLevel: round(clamp(gradeLevel, 1, 20)),
-    band: bandFor(readingEaseScore),
+    band: bandFor(avgSentenceLength, longCount / sentences.length, avgSyllablesPerWord, lang),
     wordCount: words.length,
     sentenceCount: sentences.length,
     avgSentenceLength: round(avgSentenceLength),

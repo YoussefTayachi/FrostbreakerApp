@@ -7,7 +7,9 @@ import {
   buildSequencePrompt,
   correctionInstruction,
   defaultSequenceOptions,
+  greetingLine,
   ownWordBudget,
+  signatureFor,
   parseSequence,
   sequenceProblems,
   unknownTags,
@@ -27,6 +29,7 @@ const angebot: Offer = {
   address_form: "du",
   language: "de",
   website: "https://beispiel.de",
+  signature: "",
   is_default: true,
 };
 
@@ -39,21 +42,26 @@ function stufe(bodies: string[], subjects = ["betreff a", "betreff b"]): DraftSt
   };
 }
 
-/** Eine gueltige Sequenz als Ausgangspunkt -- die Tests kaputtmachen sie gezielt. */
+/** Eine gueltige Sequenz als Ausgangspunkt -- die Tests kaputtmachen sie gezielt.
+ *  Jede Mail hat Anrede, Absaetze und Gruss: genau der Aufbau, den der Prompt
+ *  seit dem 2026-08-12 verlangt. */
 function guelteSequenz(): DraftStep[] {
   return [
     stufe([
-      "{{personalization}}\nWir kümmern uns um Retouren bei Shopify-Shops. Lohnt sich ein kurzer Austausch?",
-      "{{personalization}}\nBei euch dürfte die Retourenquote Geld kosten. Soll ich dir zeigen, wo genau?",
+      "Hi {{firstName}},\n\n{{personalization}}\n\nWir kümmern uns um Retouren bei Shopify-Shops.\n\nLohnt sich ein kurzer Austausch?\n\nBeste Grüße\nYoussef",
+      "Hi {{firstName}},\n\n{{personalization}}\n\nBei euch dürfte die Retourenquote Geld kosten.\n\nSoll ich dir zeigen, wo genau?\n\nBeste Grüße\nYoussef",
     ]),
     stufe([
-      "Kurz nachgehakt: die meisten Shops kennen ihre teuerste Retourengruppe nicht.",
-      "Anderer Gedanke: Retouren nach Produktgruppe getrennt zu betrachten verändert die Sicht.",
+      "Hi {{firstName}},\n\nKurz nachgehakt: die meisten Shops kennen ihre teuerste Retourengruppe nicht.\n\nBeste Grüße\nYoussef",
+      "Hi {{firstName}},\n\nAnderer Gedanke: Retouren nach Produktgruppe getrennt zu betrachten verändert die Sicht.\n\nBeste Grüße\nYoussef",
     ]),
-    stufe(["Ist das bei euch überhaupt ein Thema?", "Passt das gerade zeitlich bei euch?"]),
     stufe([
-      "Ich lasse es dabei. Melde dich gern, falls es später passt.",
-      "Letzte Mail von mir. Falls das Thema später kommt, weißt du wo du mich findest.",
+      "Hi {{firstName}},\n\nIst das bei euch überhaupt ein Thema?",
+      "Hi {{firstName}},\n\nPasst das gerade zeitlich bei euch?",
+    ]),
+    stufe([
+      "Hi {{firstName}},\n\nIch lasse es dabei. Melde dich gern, falls es später passt.",
+      "Hi {{firstName}},\n\nLetzte Mail von mir. Falls das Thema später kommt, weißt du wo du mich findest.",
     ]),
   ];
 }
@@ -90,7 +98,36 @@ describe("buildSequencePrompt", () => {
   });
 
   it("erfindet ohne Absendernamen keine Unterschrift", () => {
-    expect(buildSequencePrompt(angebot, opts)).toContain("rather than inventing a name");
+    expect(buildSequencePrompt(angebot, opts)).toContain("Never invent a name");
+  });
+
+  it("nimmt die Signatur des Angebots, sonst den Workspace-Namen", () => {
+    // Angebot schlaegt Workspace: eine Agentur unterschreibt je Nische anders.
+    expect(signatureFor({ ...angebot, signature: "Cheers\nY" }, "Youssef")).toBe("Cheers\nY");
+    expect(signatureFor(angebot, "Youssef")).toBe("Beste Grüße\nYoussef");
+    expect(signatureFor({ ...angebot, language: "en" }, "Youssef")).toBe("Best,\nYoussef");
+    expect(signatureFor(angebot, null)).toBe("");
+  });
+
+  it("schreibt die Signatur woertlich in den Prompt", () => {
+    const p = buildSequencePrompt({ ...angebot, signature: "Beste Grüße\nYoussef" }, opts);
+    expect(p).toContain("End every email with exactly this signature");
+    expect(p).toContain("Beste Grüße\nYoussef");
+  });
+
+  it("gibt Anrede und Absaetze als Schablone vor", () => {
+    // Ohne diese Schablone kam an echten Daten ein einziger Block ohne Anrede
+    // und ohne eine Leerzeile zurueck.
+    const p = buildSequencePrompt(angebot, opts);
+    expect(p).toContain("Hi {{firstName}},");
+    expect(p).toContain("separated by BLANK LINES");
+    expect(p).toContain("A wall of text does not get read");
+  });
+
+  it("siezt in der Anrede, wenn das Angebot es verlangt", () => {
+    expect(greetingLine({ ...angebot, address_form: "sie" })).toBe("Guten Tag {{firstName}},");
+    expect(greetingLine(angebot)).toBe("Hi {{firstName}},");
+    expect(greetingLine({ ...angebot, language: "en", address_form: "sie" })).toBe("Hi {{firstName}},");
   });
 
   it("gibt die Anrede nur im Deutschen vor", () => {
@@ -100,8 +137,10 @@ describe("buildSequencePrompt", () => {
   });
 
   it("zieht die Aufhaengerlaenge vom Wortbudget der ersten Mail ab", () => {
-    // Sonst schreibt das Modell 90 Woerter und die Mail kommt mit ueber 110 an.
-    expect(ownWordBudget(22)).toBe(FIRST_MAIL_MAX_WORDS - 22 - 5);
+    // Sonst schreibt das Modell 90 Woerter und die Mail kommt mit ueber 110
+    // an. Der zweite Abzug deckt Anrede, Gruss und Unterschrift ab -- die
+    // zaehlen in der Wortzahl des Torwarts mit.
+    expect(ownWordBudget(22)).toBe(FIRST_MAIL_MAX_WORDS - 22 - 8);
     expect(buildSequencePrompt(angebot, opts)).toContain(`at most ${ownWordBudget(22)} words`);
   });
 
@@ -211,6 +250,29 @@ describe("sequenceProblems", () => {
   it("haelt zwei echte Gegenentwuerfe NICHT fuer dasselbe", () => {
     const s = guelteSequenz();
     expect(sequenceProblems(s, opts).some((p) => p.kind === "variantsTooSimilar")).toBe(false);
+  });
+
+  it("meldet eine fehlende Anrede", () => {
+    // Der gemeldete Fall vom 2026-08-12: die Mail fing direkt mit dem
+    // Aufhaenger an und las sich wie ein Rundschreiben.
+    const s = guelteSequenz();
+    s[0].variants[0].body = "{{personalization}}\n\nWir kümmern uns um Retouren.\n\nPasst das?";
+    expect(sequenceProblems(s, opts)).toContainEqual({ kind: "noGreeting", step: 1 });
+  });
+
+  it("meldet eine Textwand ohne Absaetze", () => {
+    const s = guelteSequenz();
+    s[1].variants[0].body =
+      "Hi {{firstName}}, " + "wort ".repeat(40) + "passt das bei euch?";
+    expect(sequenceProblems(s, opts)).toContainEqual({ kind: "noParagraphs", step: 2 });
+  });
+
+  it("meckert eine kurze Nachfassmail ohne Absatz NICHT an", () => {
+    // Zwei Saetze brauchen keinen Absatz. Sie trotzdem zu bemaengeln waere
+    // dieselbe Sorte unbegruendetes Rot wie beim Copy-Check.
+    const s = guelteSequenz();
+    s[2].variants[0].body = "Hi {{firstName}},\nIst das bei euch ein Thema?";
+    expect(sequenceProblems(s, opts).some((p) => p.kind === "noParagraphs")).toBe(false);
   });
 
   it("meldet eine unvollstaendige Sequenz", () => {

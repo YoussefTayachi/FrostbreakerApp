@@ -1438,6 +1438,7 @@ const de = {
             stats: (words: number, sentences: number, avg: number) =>
               `${words} Wörter · ${sentences} Sätze · ⌀ ${avg} Wörter pro Satz`,
             gradeLevel: (n: number) => `Schulstufe ${n}`,
+            perSentence: (avg: number) => `⌀ ${avg} Wörter pro Satz`,
           },
           spam: {
             heading: "Spam-Risiko",
@@ -1580,9 +1581,16 @@ const de = {
     poweredBy: "Erstellt mit Frostbreaker",
   },
   offers: {
+    eyebrow: "Grundlage",
     title: "Angebot",
     subtitle:
       "Was du verkaufst, an wen und mit welchem Nutzen. Daraus schreibt die App deine Mail-Sequenz und deine LinkedIn-Vorlage.",
+    coreLabel: "Zustand",
+    coreReady: "Bereit — die Sequenz kann geschrieben werden.",
+    coreMissing: (n: number) =>
+      n === 1 ? "Noch ein Pflichtfeld, dann kann die Sequenz entstehen." : `Noch ${n} Pflichtfelder, dann kann die Sequenz entstehen.`,
+    suggestionLabel: "Vorschlag aus der Website",
+    addressSubtitle: "Wie sprichst du an?",
     newOffer: "Angebot",
     namePrompt: "Wie soll dieses Angebot heißen?",
     namePlaceholder: "z. B. Shopify-Betreuung",
@@ -1605,6 +1613,11 @@ const de = {
     websitePlaceholder: "deine-firma.de",
     websiteHint:
       "Nichts wird automatisch übernommen. Jeder Vorschlag steht unter seinem Feld, du entscheidest einzeln.",
+    signatureHeading: "Absender",
+    signatureSubtitle: "Unter welchem Namen geht die Mail raus?",
+    signaturePlaceholder: "Beste Grüße\nYoussef\nFrostbreaker",
+    signatureHint:
+      "Steht unter jeder Mail. Bleibt das Feld leer, endet die Mail ohne Unterschrift — die KI denkt sich keinen Namen aus.",
     readWebsite: "Aus Website übernehmen",
     reading: "Liest...",
     suggestionsReady: (n: number) => `${n} Vorschläge aus der Website`,
@@ -1647,7 +1660,10 @@ const de = {
     },
   },
   copyGen: {
+    eyebrow: "Aus deinem Angebot",
     heading: "Mit KI schreiben",
+    offerLabel: "Angebot",
+    stepNames: ["Erstkontakt", "Blickwinkel", "Nachfrage", "Abschied"],
     generate: "Sequenz erzeugen",
     working: "Schreibt...",
     done: "Sequenz eingefügt",
@@ -1665,6 +1681,8 @@ const de = {
       dash: (step: number) => `In Stufe ${step} steht ein Gedankenstrich.`,
       variantsTooSimilar: (step: number) =>
         `Die zwei Fassungen von Stufe ${step} sagen dasselbe — so misst der Vergleich nichts.`,
+      noGreeting: (step: number) => `Stufe ${step} hat keine Anrede.`,
+      noParagraphs: (step: number) => `Stufe ${step} ist ein Block ohne Absätze.`,
     },
     refine: {
       placeholder: "kürzer · direkter · mach daraus eine Abschiedsmail",
@@ -3477,6 +3495,7 @@ const en: Dictionary = {
             stats: (words: number, sentences: number, avg: number) =>
               `${words} words · ${sentences} sentences · ⌀ ${avg} words per sentence`,
             gradeLevel: (n: number) => `Grade level ${n}`,
+            perSentence: (avg: number) => `⌀ ${avg} words per sentence`,
           },
           spam: {
             heading: "Spam risk",
@@ -3617,9 +3636,16 @@ const en: Dictionary = {
     poweredBy: "Built with Frostbreaker",
   },
   offers: {
+    eyebrow: "Foundation",
     title: "Offer",
     subtitle:
       "What you sell, to whom and with what benefit. The app writes your email sequence and LinkedIn template from this.",
+    coreLabel: "Status",
+    coreReady: "Ready — the sequence can be written.",
+    coreMissing: (n: number) =>
+      n === 1 ? "One required field left, then the sequence can be written." : `${n} required fields left, then the sequence can be written.`,
+    suggestionLabel: "Suggestion from the website",
+    addressSubtitle: "How do you address them?",
     newOffer: "Offer",
     namePrompt: "What should this offer be called?",
     namePlaceholder: "e.g. Shopify retainer",
@@ -3641,6 +3667,11 @@ const en: Dictionary = {
     websitePlaceholder: "your-company.com",
     websiteHint:
       "Nothing is applied automatically. Every suggestion sits under its field and you decide one by one.",
+    signatureHeading: "Sender",
+    signatureSubtitle: "Which name does the email go out under?",
+    signaturePlaceholder: "Best,\nYoussef\nFrostbreaker",
+    signatureHint:
+      "Sits under every email. Leave it empty and the email ends without a signature — the AI does not make up a name.",
     readWebsite: "Read from website",
     reading: "Reading...",
     suggestionsReady: (n: number) => `${n} suggestions from the website`,
@@ -3674,7 +3705,10 @@ const en: Dictionary = {
     },
   },
   copyGen: {
+    eyebrow: "From your offer",
     heading: "Write with AI",
+    offerLabel: "Offer",
+    stepNames: ["First touch", "New angle", "Nudge", "Sign-off"],
     generate: "Generate sequence",
     working: "Writing...",
     done: "Sequence inserted",
@@ -3692,6 +3726,8 @@ const en: Dictionary = {
       dash: (step: number) => `Step ${step} contains a dash character.`,
       variantsTooSimilar: (step: number) =>
         `The two variants of step ${step} say the same thing — the comparison measures nothing.`,
+      noGreeting: (step: number) => `Step ${step} has no greeting.`,
+      noParagraphs: (step: number) => `Step ${step} is one block without paragraphs.`,
     },
     refine: {
       placeholder: "shorter · more direct · turn this into a breakup email",

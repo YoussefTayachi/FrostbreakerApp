@@ -42,6 +42,10 @@ export type Offer = {
   address_form: AddressForm;
   language: OfferLanguage;
   website: string | null;
+  /** Gruss und Unterschrift, mehrzeilig. Leer = Rueckfall auf
+   *  workspaces.reply_sender_name; ist auch das leer, endet die Mail ohne
+   *  Unterschrift statt mit einem erfundenen Namen (Migration 0091). */
+  signature: string;
   is_default: boolean;
 };
 
@@ -49,7 +53,7 @@ export type Offer = {
  *  leitet die Feldtypen aus dem String ab und faellt sonst auf
  *  GenericStringError zurueck (dieselbe Falle wie in app/ai-agent/page.tsx). */
 export const OFFER_COLUMNS =
-  "id, name, offering, icp, problem, outcome, proof, cta, tone, address_form, language, website, is_default";
+  "id, name, offering, icp, problem, outcome, proof, cta, tone, address_form, language, website, signature, is_default";
 
 export function emptyOffer(name: string, language: OfferLanguage = "de"): Omit<Offer, "id" | "is_default"> {
   return {
@@ -64,6 +68,7 @@ export function emptyOffer(name: string, language: OfferLanguage = "de"): Omit<O
     address_form: "du",
     language,
     website: null,
+    signature: "",
   };
 }
 

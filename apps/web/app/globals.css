@@ -100,6 +100,146 @@ body {
   .fade-up, .bar-rise { animation: none; }
 }
 
+/* ============================================================================
+   INSTRUMENTENFLÄCHE — Angebot und Sequenzgenerator
+   ============================================================================
+
+   Warum diese beiden Seiten anders aussehen als der Rest der App:
+
+   Überall sonst ist Frostbreaker ein ruhiges Arbeitswerkzeug — Listen, Tabellen,
+   Formulare. Diese zwei Flächen sind etwas anderes: hier entsteht der Text, der
+   über Antwort oder Schweigen entscheidet, und hier soll man sehen, wie ein
+   halb ausgefülltes Angebot zu einer fertigen Kampagne wird.
+
+   Die Bildsprache kommt aus dem Namen und nicht aus einem Katalog: ein kalter
+   Kontakt wird aufgetaut. Deshalb läuft ein unvollständiges Angebot in
+   Frostblau und schlägt in Glut um, sobald es tragfähig ist. Das ist kein
+   Farbwechsel als Zierde — es ist derselbe Zustand, den der Knopf "Sequenz
+   erzeugen" abfragt.
+
+   Alles hier ist auf .fb-hud eingegrenzt. Kein Token, keine Animation und kein
+   Rasterhintergrund wirkt außerhalb dieser beiden Seiten; die restliche App
+   bleibt unberührt.
+
+   Ein einziges auffälliges Element (der Ring), der Rest bewusst still:
+   Haarlinien, Monoschrift für Messwerte, keine Verläufe irgendwo sonst. */
+
+.fb-hud {
+  /* Hell zuerst, wie im Rest der Datei. Die hellen Werte sind dunkler
+     gewählt, weil Frostblau auf Weiß sonst unter 4,5:1 fällt. */
+  --fb-frost: #0369a1;
+  --fb-frost-dim: #7dd3fc;
+  --fb-ember: #c2410c;
+  --fb-ember-dim: #fdba74;
+  --fb-grid: rgba(3, 105, 161, 0.06);
+  --fb-glow: rgba(3, 105, 161, 0.14);
+  /* Eine Spur kuehler und dunkler als --c-surface (#f9f9f8). Am Bild
+     geprueft: bei #f7fafc war die Flaeche vom Seitengrund nicht zu
+     unterscheiden, der Rahmen musste die ganze Trennung allein tragen. */
+  --fb-inset: #f1f5f9;
+}
+
+.dark .fb-hud {
+  --fb-frost: #38bdf8;
+  --fb-frost-dim: #075985;
+  --fb-ember: #fb923c;
+  --fb-ember-dim: #7c2d12;
+  --fb-grid: rgba(56, 189, 248, 0.055);
+  --fb-glow: rgba(56, 189, 248, 0.2);
+  --fb-inset: #0c1118;
+}
+
+/* Messfeld-Beschriftung: klein, Monoschrift, weit gesperrt. Der Unterschied
+   zwischen einer Überschrift und einem Instrumentenschild. Kein Webfont --
+   die App lädt keine, und ein Ladefehler wäre hier besonders sichtbar. */
+.fb-label {
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 10px;
+  line-height: 1.2;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.fb-num {
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Raster: zwei Haarlinienscharen statt eines Punktrasters. Es liegt hinter den
+   Instrumentenflächen und gibt ihnen Tiefe, ohne den Text zu stören. */
+.fb-grid-bg {
+  background-image:
+    linear-gradient(var(--fb-grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--fb-grid) 1px, transparent 1px);
+  background-size: 34px 34px;
+}
+
+.fb-panel {
+  background-color: var(--fb-inset);
+  border: 1px solid color-mix(in srgb, var(--fb-frost) 22%, transparent);
+}
+
+/* Eckwinkel statt vollem Rahmen -- die Klammer, mit der Messgeräte ihren
+   Anzeigebereich markieren. */
+.fb-ticks::before,
+.fb-ticks::after {
+  content: "";
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  border-color: color-mix(in srgb, var(--fb-frost) 55%, transparent);
+  pointer-events: none;
+}
+.fb-ticks::before { top: -1px; left: -1px; border-top: 1px solid; border-left: 1px solid; }
+.fb-ticks::after { bottom: -1px; right: -1px; border-bottom: 1px solid; border-right: 1px solid; }
+
+/* Der Ring. Beim Öffnen zeichnet er sich einmal, danach bewegt er sich nur
+   noch, wenn sich der Zustand ändert. */
+@keyframes fbCharge {
+  from { stroke-dashoffset: var(--fb-seg-len); opacity: 0; }
+}
+.fb-seg {
+  transition: stroke 0.45s ease, opacity 0.3s ease;
+  animation: fbCharge 0.5s cubic-bezier(0.2, 0.7, 0.3, 1) both;
+}
+
+/* Der eine Moment, den die Fläche sich leistet: das Angebot ist tragfähig. */
+@keyframes fbIgnite {
+  0% { transform: scale(1); filter: none; }
+  45% { transform: scale(1.035); filter: drop-shadow(0 0 12px var(--fb-glow)); }
+  100% { transform: scale(1); filter: none; }
+}
+.fb-ignite { animation: fbIgnite 0.7s cubic-bezier(0.2, 0.7, 0.3, 1); }
+
+/* Laufender Vorgang: ein Streifen wandert einmal je Sekunde durch die Fläche.
+   Ersetzt den Spinner -- ein Spinner sagt "es passiert etwas", dieser Streifen
+   sagt "es wird gelesen". */
+@keyframes fbScan {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(220%); }
+}
+.fb-scan {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  border-radius: inherit;
+}
+.fb-scan::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 45%;
+  background: linear-gradient(90deg, transparent, var(--fb-glow), transparent);
+  animation: fbScan 1.15s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fb-seg, .fb-ignite { animation: none; }
+  .fb-scan::after { animation: none; opacity: 0.5; }
+}
+
 /* ===== Verschlüsselungs-Visualisierung (API-Keys) ===== */
 @keyframes lockSpin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 .lock-spin { animation: lockSpin 0.6s ease-out; }

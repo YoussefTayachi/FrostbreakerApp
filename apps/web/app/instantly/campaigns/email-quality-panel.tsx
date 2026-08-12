@@ -163,7 +163,12 @@ export default function EmailQualityPanel({
             section(
               Q.readability.heading,
               READABILITY_TONE[readability.band],
-              `${Q.readability.bands[readability.band]} · ${Q.readability.gradeLevel(readability.gradeLevel ?? 0)}`,
+              // Neben der Note steht die Zahl, aus der sie entsteht -- die
+              // durchschnittliche Satzlaenge. Vorher stand dort die
+              // Schulstufe, die seit dem 2026-08-12 nicht mehr die Note
+              // bestimmt; "Schwer · Schulstufe 9,9" liess sich deshalb nicht
+              // mehr nachvollziehen (siehe bandFor in readability.ts).
+              `${Q.readability.bands[readability.band]} · ${Q.readability.perSentence(readability.avgSentenceLength)}`,
               Q.readability.stats(readability.wordCount, readability.sentenceCount, readability.avgSentenceLength),
               readabilityLines
             )}

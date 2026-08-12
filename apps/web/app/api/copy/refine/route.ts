@@ -84,6 +84,7 @@ export async function POST(req: Request) {
     address_form: "du",
     language: "de",
     website: null,
+    signature: "",
     is_default: false,
   };
 

@@ -2,10 +2,11 @@
 import { useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
-import { cardCls, inputCls, primaryBtnCls, secondaryBtnCls } from "@/lib/ui";
+import { inputCls } from "@/lib/ui";
 import {
   OFFER_COLUMNS,
   OFFER_TEXT_FIELDS,
+  REQUIRED_FOR_GENERATION,
   completeness,
   emptyOffer,
   missingForGeneration,
@@ -16,6 +17,7 @@ import type { OfferSuggestion } from "@/lib/copy/offer-from-website";
 import { useT } from "../language-provider";
 import { useToast } from "../toast-provider";
 import { useWorkspace } from "../workspace-provider";
+import OfferCore from "./offer-core";
 
 /**
  * Das Angebotsformular.
@@ -38,11 +40,77 @@ import { useWorkspace } from "../workspace-provider";
  * falsch gelesene Website vergiftet danach unsichtbar jede erzeugte Mail --
  * der Fehler steht dann in einem Feld, das niemand mehr liest, weil es ja
  * "schon ausgefuellt" ist.
+ *
+ * ═══════════════════════════════════════════════════════════════════════
+ * WARUM ZWEI SPALTEN
+ * ═══════════════════════════════════════════════════════════════════════
+ *
+ * Links wird geschrieben, rechts steht, was daraus folgt: der Ring, die
+ * fehlenden Felder und der Weg zur Kampagne. Beides gleichzeitig sichtbar,
+ * weil die Frage beim Tippen immer dieselbe ist -- "reicht das jetzt?".
+ * Unter den Feldern haette die Antwort erst gescrollt werden muessen.
  */
 
 type Entwurf = Omit<Offer, "id" | "is_default">;
 
 const MAX_OFFERS = 10;
+
+/** Karte der Instrumentenfläche: Haarlinienrahmen, Eckwinkel, Monoschild. */
+function Karte({
+  label,
+  children,
+  className = "",
+}: {
+  label: string;
+  children: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <section
+      className={
+        "fb-ticks relative rounded-xl border border-edge/60 bg-panel p-5 " + className
+      }
+    >
+      <p className="fb-label mb-3 text-mute">{label}</p>
+      {children}
+    </section>
+  );
+}
+
+/** Auswahl in Schalterform -- Sprache, Anrede. */
+function Schalter({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className={
+        "min-h-9 rounded-lg border px-3.5 text-sm transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 " +
+        (active
+          ? "border-transparent font-medium text-ink shadow-sm"
+          : "border-edge2 text-faint hover:border-edge3 hover:text-soft")
+      }
+      style={
+        active
+          ? {
+              background: "color-mix(in srgb, var(--fb-frost) 14%, transparent)",
+              borderColor: "color-mix(in srgb, var(--fb-frost) 45%, transparent)",
+            }
+          : undefined
+      }
+    >
+      {children}
+    </button>
+  );
+}
 
 export default function OffersEditor({ initial }: { initial: Offer[] }) {
   const { t } = useT();
@@ -56,9 +124,7 @@ export default function OffersEditor({ initial }: { initial: Offer[] }) {
   );
   const aktuell = offers.find((o) => o.id === selectedId) ?? null;
 
-  const [entwurf, setEntwurf] = useState<Entwurf>(() =>
-    aktuell ? { ...aktuell } : emptyOffer("")
-  );
+  const [entwurf, setEntwurf] = useState<Entwurf>(() => (aktuell ? { ...aktuell } : emptyOffer("")));
   const [gespeichert, setGespeichert] = useState<string>(() => JSON.stringify(entwurf));
   const [busy, setBusy] = useState(false);
   const [lese, setLese] = useState(false);
@@ -69,9 +135,18 @@ export default function OffersEditor({ initial }: { initial: Offer[] }) {
   const geaendert = JSON.stringify(entwurf) !== gespeichert;
   const fehlend = missingForGeneration(entwurf);
   const prozent = completeness(entwurf);
+  const gefuellt = new Set(OFFER_TEXT_FIELDS.filter((f) => entwurf[f].trim().length > 0));
 
   function setzeFeld<K extends keyof Entwurf>(key: K, value: Entwurf[K]) {
     setEntwurf((v) => ({ ...v, [key]: value }));
+  }
+
+  /** Vom Ring zum Feld. Ohne den Sprung wäre die Legende eine Diagnose ohne
+   *  Behandlung -- man wüsste, was fehlt, und müsste es selbst suchen. */
+  function springeZu(field: OfferTextField) {
+    const el = document.getElementById(`feld-${field}`);
+    el?.scrollIntoView({ behavior: "smooth", block: "center" });
+    (el as HTMLTextAreaElement | null)?.focus({ preventScroll: true });
   }
 
   async function neuLaden(selectId: string | null) {
@@ -214,14 +289,14 @@ export default function OffersEditor({ initial }: { initial: Offer[] }) {
     });
   }
 
-  const felder: { key: OfferTextField; label: string; hint: string; rows: number }[] = OFFER_TEXT_FIELDS.map(
-    (key) => ({ key, label: O.fields[key].label, hint: O.fields[key].hint, rows: key === "tone" ? 2 : 3 })
-  );
+  const feldLabels = Object.fromEntries(
+    OFFER_TEXT_FIELDS.map((f) => [f, O.fields[f].label])
+  ) as Record<OfferTextField, string>;
 
   return (
     <div className="space-y-5">
-      {/* Die Auswahl. Bei genau einem Angebot waere eine Reiterleiste ohne
-          Alternative nur Zierde -- der Anlegen-Knopf steht trotzdem immer da. */}
+      {/* Angebotswahl als schmale Leiste über allem: sie entscheidet, was
+          darunter steht. */}
       <div className="flex flex-wrap items-center gap-1.5">
         {offers.map((o) => (
           <button
@@ -229,15 +304,23 @@ export default function OffersEditor({ initial }: { initial: Offer[] }) {
             type="button"
             onClick={() => wechsle(o.id)}
             className={
-              "flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs transition-colors " +
+              "flex min-h-9 items-center gap-1.5 rounded-lg border px-3 text-[13px] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 " +
               (o.id === selectedId
-                ? "border-sky-500/60 bg-sky-500/10 font-medium text-sky-700 dark:text-sky-300"
+                ? "border-transparent font-medium text-ink shadow-sm"
                 : "border-edge2 text-soft hover:border-edge3 hover:text-ink")
+            }
+            style={
+              o.id === selectedId
+                ? {
+                    background: "color-mix(in srgb, var(--fb-frost) 14%, transparent)",
+                    borderColor: "color-mix(in srgb, var(--fb-frost) 45%, transparent)",
+                  }
+                : undefined
             }
           >
             {o.name}
             {o.is_default && (
-              <span title={O.defaultTitle} className="text-[10px] text-amber-500">
+              <span title={O.defaultTitle} aria-label={O.defaultTitle} className="text-[10px] text-amber-500">
                 ★
               </span>
             )}
@@ -247,7 +330,7 @@ export default function OffersEditor({ initial }: { initial: Offer[] }) {
           <button
             type="button"
             onClick={() => setLegeAn(true)}
-            className="rounded-lg border border-dashed border-edge2 px-2.5 py-1 text-xs text-faint transition-colors hover:border-sky-500/50 hover:text-sky-600 dark:hover:text-sky-400"
+            className="min-h-9 rounded-lg border border-dashed border-edge2 px-3 text-[13px] text-faint transition-colors hover:border-sky-500/50 hover:text-sky-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 dark:hover:text-sky-400"
           >
             + {O.newOffer}
           </button>
@@ -255,8 +338,7 @@ export default function OffersEditor({ initial }: { initial: Offer[] }) {
       </div>
 
       {legeAn && (
-        <div className={cardCls}>
-          <label className="mb-1.5 block text-xs font-medium text-faint">{O.namePrompt}</label>
+        <Karte label={O.namePrompt}>
           <div className="flex flex-wrap items-center gap-2">
             <input
               autoFocus
@@ -266,167 +348,255 @@ export default function OffersEditor({ initial }: { initial: Offer[] }) {
               placeholder={O.namePlaceholder}
               className={inputCls + " min-w-64 flex-1"}
             />
-            <button onClick={anlegen} disabled={!neuerName.trim() || busy} className={primaryBtnCls}>
+            <button
+              onClick={anlegen}
+              disabled={!neuerName.trim() || busy}
+              className="min-h-10 rounded-lg px-5 text-sm font-medium text-white shadow-sm transition-all hover:brightness-110 active:scale-[0.98] disabled:opacity-50"
+              style={{ background: "var(--fb-frost)" }}
+            >
               {t.common.save}
             </button>
             {offers.length > 0 && (
-              <button onClick={() => setLegeAn(false)} className={secondaryBtnCls}>
+              <button
+                onClick={() => setLegeAn(false)}
+                className="min-h-10 rounded-lg border border-edge2 px-4 text-sm text-soft transition-colors hover:text-ink"
+              >
                 {O.cancel}
               </button>
             )}
           </div>
-          {offers.length === 0 && <p className="mt-2 text-xs text-mute">{O.emptyHint}</p>}
-        </div>
+          {offers.length === 0 && <p className="mt-2.5 text-xs leading-relaxed text-mute">{O.emptyHint}</p>}
+        </Karte>
       )}
 
       {aktuell && (
-        <>
-          {/* Sprache und Anrede stehen VOR den Textfeldern: sie entscheiden,
-              in welcher Sprache die erzeugten Mails herauskommen, und diese
-              Auskunft nachtraeglich zu geben waere zu spaet. */}
-          <div className={cardCls}>
-            <h2 className="mb-1 font-medium text-ink">{O.languageHeading}</h2>
-            <p className="mb-3 text-sm text-faint">{O.languageSubtitle}</p>
-            <div className="flex flex-wrap gap-4">
-              <div className="flex gap-2">
-                {(["de", "en"] as const).map((code) => (
-                  <button
-                    key={code}
-                    type="button"
-                    onClick={() => setzeFeld("language", code)}
-                    className={
-                      "rounded-lg border px-3 py-1.5 text-sm transition-colors " +
-                      (entwurf.language === code
-                        ? "border-sky-500/60 bg-sky-500/10 font-medium text-sky-700 dark:text-sky-300"
-                        : "border-edge2 text-soft hover:border-edge3")
-                    }
-                  >
-                    {O.languageOptions[code]}
-                  </button>
-                ))}
-              </div>
-              {/* Die Anrede gibt es im Englischen nicht -- eine Auswahl
-                  zwischen "du" und "Sie" waere dort eine Frage ohne Bedeutung. */}
-              {entwurf.language === "de" && (
-                <div className="flex gap-2">
-                  {(["du", "sie"] as const).map((form) => (
-                    <button
-                      key={form}
-                      type="button"
-                      onClick={() => setzeFeld("address_form", form)}
-                      className={
-                        "rounded-lg border px-3 py-1.5 text-sm transition-colors " +
-                        (entwurf.address_form === form
-                          ? "border-sky-500/60 bg-sky-500/10 font-medium text-sky-700 dark:text-sky-300"
-                          : "border-edge2 text-soft hover:border-edge3")
-                      }
-                    >
-                      {O.addressOptions[form]}
-                    </button>
-                  ))}
+        <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_248px]">
+          {/* ── Links: hier wird geschrieben ─────────────────────────── */}
+          <div className="min-w-0 space-y-5">
+            <Karte label={O.languageHeading}>
+              <div className="flex flex-wrap items-start gap-x-8 gap-y-4">
+                <div>
+                  <p className="mb-2 text-xs text-faint">{O.languageSubtitle}</p>
+                  <div className="flex gap-2">
+                    {(["de", "en"] as const).map((code) => (
+                      <Schalter
+                        key={code}
+                        active={entwurf.language === code}
+                        onClick={() => setzeFeld("language", code)}
+                      >
+                        {O.languageOptions[code]}
+                      </Schalter>
+                    ))}
+                  </div>
                 </div>
-              )}
-            </div>
-          </div>
-
-          <div className={cardCls}>
-            <h2 className="mb-1 font-medium text-ink">{O.websiteHeading}</h2>
-            <p className="mb-3 text-sm text-faint">{O.websiteSubtitle}</p>
-            <div className="flex flex-wrap items-center gap-2">
-              <input
-                value={entwurf.website ?? ""}
-                onChange={(e) => setzeFeld("website", e.target.value)}
-                placeholder={O.websitePlaceholder}
-                className={inputCls + " min-w-64 flex-1"}
-              />
-              <button
-                onClick={ausWebsite}
-                disabled={!entwurf.website?.trim() || lese}
-                className={secondaryBtnCls}
-              >
-                {lese ? O.reading : O.readWebsite}
-              </button>
-            </div>
-            <p className="mt-2 text-xs text-mute">{O.websiteHint}</p>
-          </div>
-
-          <div className={cardCls}>
-            <div className="mb-4 flex items-baseline justify-between gap-2">
-              <h2 className="font-medium text-ink">{O.fieldsHeading}</h2>
-              <span className="text-xs text-faint">{O.completeness(prozent)}</span>
-            </div>
-
-            <div className="space-y-4">
-              {felder.map((f) => (
-                <div key={f.key}>
-                  <label className="mb-1 block text-sm font-medium text-ink">
-                    {f.label}
-                    {/* Pflicht nur fuer das Erzeugen, nicht fuers Speichern:
-                        ein halb ausgefuelltes Angebot muss sicherbar sein,
-                        sonst geht angefangene Arbeit beim Wegklicken verloren. */}
-                    {fehlend.includes(f.key) && (
-                      <span className="ml-1.5 text-[10px] font-normal uppercase tracking-wide text-amber-600 dark:text-amber-500">
-                        {O.neededForGeneration}
-                      </span>
-                    )}
-                  </label>
-                  <p className="mb-1.5 text-xs text-faint">{f.hint}</p>
-                  <textarea
-                    value={entwurf[f.key]}
-                    onChange={(e) => setzeFeld(f.key, e.target.value)}
-                    rows={f.rows}
-                    className={inputCls + " w-full resize-y"}
-                  />
-                  {vorschlaege[f.key] && (
-                    <div className="mt-1.5 rounded-lg border-l-2 border-sky-500/50 bg-sky-500/5 px-3 py-2">
-                      <p className="text-xs leading-relaxed text-soft">{vorschlaege[f.key]}</p>
-                      <div className="mt-1.5 flex gap-3 text-[11px]">
-                        <button
-                          onClick={() => uebernehmen(f.key)}
-                          className="font-medium text-sky-600 hover:text-sky-500 dark:text-sky-400"
+                {/* Die Anrede gibt es im Englischen nicht -- eine Auswahl
+                    zwischen "du" und "Sie" waere dort eine Frage ohne
+                    Bedeutung. */}
+                {entwurf.language === "de" && (
+                  <div>
+                    <p className="mb-2 text-xs text-faint">{O.addressSubtitle}</p>
+                    <div className="flex gap-2">
+                      {(["du", "sie"] as const).map((form) => (
+                        <Schalter
+                          key={form}
+                          active={entwurf.address_form === form}
+                          onClick={() => setzeFeld("address_form", form)}
                         >
-                          {O.applySuggestion}
-                        </button>
-                        <button onClick={() => verwerfen(f.key)} className="text-faint hover:text-ink">
-                          {O.discardSuggestion}
-                        </button>
+                          {O.addressOptions[form]}
+                        </Schalter>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Absender direkt darunter: Sprache, Anrede und Unterschrift
+                  beantworten zusammen die Frage "wer schreibt hier wem, und
+                  wie". Getrennte Karten haetten drei Antworten auf drei
+                  Seiten verteilt. */}
+              <div className="mt-5 border-t border-edge/60 pt-4">
+                <label htmlFor="feld-signature" className="block text-sm font-medium text-ink">
+                  {O.signatureHeading}
+                </label>
+                <p className="mb-2 mt-0.5 text-xs text-faint">{O.signatureSubtitle}</p>
+                <textarea
+                  id="feld-signature"
+                  value={entwurf.signature}
+                  onChange={(e) => setzeFeld("signature", e.target.value)}
+                  rows={3}
+                  placeholder={O.signaturePlaceholder}
+                  className={inputCls + " w-full resize-y"}
+                />
+                <p className="mt-1.5 text-xs leading-relaxed text-mute">{O.signatureHint}</p>
+              </div>
+            </Karte>
+
+            <Karte label={O.websiteHeading}>
+              <p className="mb-3 text-xs text-faint">{O.websiteSubtitle}</p>
+              <div className="relative flex flex-wrap items-center gap-2">
+                <input
+                  value={entwurf.website ?? ""}
+                  onChange={(e) => setzeFeld("website", e.target.value)}
+                  placeholder={O.websitePlaceholder}
+                  className={inputCls + " min-w-56 flex-1"}
+                />
+                <button
+                  onClick={ausWebsite}
+                  disabled={!entwurf.website?.trim() || lese}
+                  className="relative min-h-10 overflow-hidden rounded-lg border px-4 text-sm font-medium transition-all hover:brightness-110 disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500"
+                  style={{
+                    borderColor: "color-mix(in srgb, var(--fb-frost) 45%, transparent)",
+                    color: "var(--fb-frost)",
+                    background: "color-mix(in srgb, var(--fb-frost) 8%, transparent)",
+                  }}
+                >
+                  {lese && <span className="fb-scan" aria-hidden />}
+                  <span className="relative">{lese ? O.reading : O.readWebsite}</span>
+                </button>
+              </div>
+              <p className="mt-2 text-xs leading-relaxed text-mute">{O.websiteHint}</p>
+            </Karte>
+
+            <Karte label={O.fieldsHeading}>
+              <div className="space-y-5">
+                {OFFER_TEXT_FIELDS.map((key, i) => {
+                  const pflicht = REQUIRED_FOR_GENERATION.includes(key);
+                  const offen = fehlend.includes(key);
+                  return (
+                    <div key={key}>
+                      <div className="mb-1 flex items-baseline gap-2">
+                        {/* Die Nummer ist keine Zierde: die sieben Felder sind
+                            eine Reihenfolge -- was, an wen, welches Problem,
+                            was danach. Genau so ist auch die Legende am Ring
+                            sortiert. */}
+                        <span className="fb-num shrink-0 text-[11px] text-mute">
+                          {String(i + 1).padStart(2, "0")}
+                        </span>
+                        <label htmlFor={`feld-${key}`} className="text-sm font-medium text-ink">
+                          {O.fields[key].label}
+                        </label>
+                        {/* Pflicht nur fuers Erzeugen, nicht fuers Speichern:
+                            ein halb ausgefuelltes Angebot muss sicherbar
+                            sein, sonst geht angefangene Arbeit beim
+                            Wegklicken verloren. */}
+                        {pflicht && offen && (
+                          <span className="fb-label" style={{ color: "var(--fb-frost)" }}>
+                            {O.neededForGeneration}
+                          </span>
+                        )}
+                      </div>
+                      <p className="mb-1.5 pl-6 text-xs leading-relaxed text-faint">{O.fields[key].hint}</p>
+                      <div className="pl-6">
+                        <textarea
+                          id={`feld-${key}`}
+                          value={entwurf[key]}
+                          onChange={(e) => setzeFeld(key, e.target.value)}
+                          rows={key === "tone" ? 2 : 3}
+                          className={inputCls + " w-full resize-y"}
+                        />
+                        {vorschlaege[key] && (
+                          <div
+                            className="lock-pop mt-1.5 rounded-lg border-l-2 px-3 py-2"
+                            style={{
+                              borderColor: "var(--fb-frost)",
+                              background: "color-mix(in srgb, var(--fb-frost) 7%, transparent)",
+                            }}
+                          >
+                            <p className="fb-label mb-1 text-mute">{O.suggestionLabel}</p>
+                            <p className="text-xs leading-relaxed text-soft">{vorschlaege[key]}</p>
+                            <div className="mt-2 flex gap-3 text-[11px]">
+                              <button
+                                onClick={() => uebernehmen(key)}
+                                className="font-medium transition-opacity hover:opacity-75"
+                                style={{ color: "var(--fb-frost)" }}
+                              >
+                                {O.applySuggestion}
+                              </button>
+                              <button onClick={() => verwerfen(key)} className="text-faint hover:text-ink">
+                                {O.discardSuggestion}
+                              </button>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     </div>
+                  );
+                })}
+              </div>
+            </Karte>
+          </div>
+
+          {/* ── Rechts: was daraus folgt ─────────────────────────────── */}
+          <aside className="lg:sticky lg:top-4 lg:self-start">
+            <div className="fb-ticks relative overflow-hidden rounded-xl border border-edge/60 bg-panel p-5">
+              <div className="fb-grid-bg absolute inset-0" aria-hidden />
+              <div className="relative">
+                <p className="fb-label mb-4 text-mute">{O.coreLabel}</p>
+
+                <OfferCore
+                  filled={gefuellt}
+                  required={new Set(REQUIRED_FOR_GENERATION)}
+                  ready={fehlend.length === 0}
+                  percent={prozent}
+                  labels={feldLabels}
+                  onJump={springeZu}
+                  readyLabel={O.coreReady}
+                  missingLabel={O.coreMissing}
+                />
+
+                <div className="mt-5 space-y-2 border-t border-edge/60 pt-4">
+                  <button
+                    onClick={speichern}
+                    disabled={busy || !geaendert}
+                    className="min-h-10 w-full rounded-lg text-sm font-medium text-white shadow-sm transition-all hover:brightness-110 active:scale-[0.98] disabled:opacity-40 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500"
+                    style={{ background: geaendert ? "var(--fb-frost)" : "var(--color-edge3)" }}
+                  >
+                    {geaendert ? t.common.save : t.common.savedOk}
+                  </button>
+
+                  {fehlend.length === 0 ? (
+                    <Link
+                      href="/instantly/campaigns/new"
+                      className="flex min-h-10 w-full items-center justify-center rounded-lg border text-sm font-medium transition-all hover:brightness-110"
+                      style={{
+                        borderColor: "color-mix(in srgb, var(--fb-ember) 50%, transparent)",
+                        color: "var(--fb-ember)",
+                        background: "color-mix(in srgb, var(--fb-ember) 9%, transparent)",
+                      }}
+                    >
+                      {O.toCampaign}
+                    </Link>
+                  ) : (
+                    <p className="text-center text-[11px] leading-relaxed text-faint">
+                      {O.coreMissing(fehlend.length)}
+                    </p>
                   )}
                 </div>
-              ))}
-            </div>
 
-            <div className="mt-5 flex flex-wrap items-center gap-2">
-              <button onClick={speichern} disabled={busy || !geaendert} className={primaryBtnCls}>
-                {geaendert ? t.common.save : t.common.savedOk}
-              </button>
-              {fehlend.length === 0 ? (
-                <Link href="/instantly/campaigns/new" className={secondaryBtnCls}>
-                  {O.toCampaign}
-                </Link>
-              ) : (
-                <span className="text-xs text-amber-600 dark:text-amber-500">
-                  {O.missingForGeneration(fehlend.map((f) => O.fields[f].label).join(", "))}
-                </span>
-              )}
-              <span className="ml-auto flex items-center gap-3 text-[11px]">
-                {!aktuell.is_default && (
-                  <button onClick={alsStandard} disabled={busy} className="text-faint hover:text-ink disabled:opacity-40">
-                    {O.makeDefault}
+                <div className="mt-4 flex items-center justify-between border-t border-edge/60 pt-3 text-[11px]">
+                  {!aktuell.is_default ? (
+                    <button
+                      onClick={alsStandard}
+                      disabled={busy}
+                      className="text-faint transition-colors hover:text-ink disabled:opacity-40"
+                    >
+                      {O.makeDefault}
+                    </button>
+                  ) : (
+                    <span className="fb-label text-mute">{O.defaultTitle}</span>
+                  )}
+                  <button
+                    onClick={loeschen}
+                    disabled={busy}
+                    className="text-faint transition-colors hover:text-red-600 disabled:opacity-40 dark:hover:text-red-400"
+                  >
+                    {t.common.delete}
                   </button>
-                )}
-                <button
-                  onClick={loeschen}
-                  disabled={busy}
-                  className="text-faint transition-colors hover:text-red-600 disabled:opacity-40 dark:hover:text-red-400"
-                >
-                  {t.common.delete}
-                </button>
-              </span>
+                </div>
+              </div>
             </div>
-          </div>
-        </>
+          </aside>
+        </div>
       )}
     </div>
   );

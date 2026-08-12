@@ -21,6 +21,7 @@ const angebot: Offer = {
   address_form: "du",
   language: "de",
   website: null,
+  signature: "",
   is_default: true,
 };
 

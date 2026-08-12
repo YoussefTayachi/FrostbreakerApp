@@ -70,7 +70,12 @@ export function buildRefinePrompt(
     `- Write in ${sprache}.`,
     `- Placeholders: only ${EMAIL_MERGE_TAGS.map((t) => `{{${t}}}`).join(", ")}. No others, no [brackets].`,
     "- Never use the characters — – or --.",
-    "- No exclamation marks, no ALL CAPS."
+    "- No exclamation marks, no ALL CAPS.",
+    // Auch beim Nachschaerfen: "kuerzer" darf die Absaetze nicht
+    // zusammenschieben und die Anrede nicht wegkuerzen. Beides hatte die
+    // erste Fassung des Generators verloren.
+    "- Keep the greeting line, the blank lines between paragraphs and the signature. Shortening is not flattening.",
+    "- Paragraphs stay one to three sentences, separated by blank lines."
   );
 
   if (opts.stepNumber === 1) {
