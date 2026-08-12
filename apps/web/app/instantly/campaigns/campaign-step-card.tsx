@@ -1,6 +1,7 @@
 "use client";
 import { useRef, useState } from "react";
 import { useT } from "../../language-provider";
+import { useToast } from "../../toast-provider";
 import { useWorkspace } from "../../workspace-provider";
 import { inputCls } from "@/lib/ui";
 import { plainTextToInstantlyHtml, variantLabel } from "@/lib/instantly/campaigns";
@@ -22,16 +23,33 @@ export default function CampaignStepCard({
   onChange,
   onRemove,
   canRemove,
+  offerId,
 }: {
   index: number;
   step: Step;
   onChange: (patch: Partial<Step>) => void;
   onRemove: () => void;
   canRemove: boolean;
+  /** Zusammenhang fuers Nachschaerfen. Optional -- ohne Angebot kennt das
+   *  Modell nur den vorhandenen Text. */
+  offerId?: string | null;
 }) {
   const { t } = useT();
   const F = t.instantly.campaigns.form;
+  const R = t.copyGen.refine;
+  const { push } = useToast();
   const { workspaceId } = useWorkspace();
+
+  /**
+   * Nachschaerfen: eine Anweisung, eine Fassung zurueck.
+   *
+   * `vorher` haelt den letzten Stand fuer den Zurueck-Schritt. Ohne ihn traut
+   * sich niemand, eine fertige Fassung noch einmal anzufassen -- und genau
+   * dann bleibt der erste Entwurf stehen, obwohl er besser sein koennte.
+   */
+  const [anweisung, setAnweisung] = useState("");
+  const [schaerft, setSchaerft] = useState(false);
+  const [vorher, setVorher] = useState<StepVariant | null>(null);
 
   const subjectRef = useRef<HTMLInputElement | null>(null);
   const bodyRef = useRef<HTMLTextAreaElement | null>(null);
@@ -110,6 +128,39 @@ export default function CampaignStepCard({
   // eintraegt -- CAN-SPAM verlangt einen Opt-out ohne zusaetzliche Huerden.
   function optOutLink(): string {
     return `${window.location.origin}/api/unsubscribe?ws=${workspaceId}&email={{email}}`;
+  }
+
+  async function nachschaerfen() {
+    if (!anweisung.trim() || !variant.body.trim()) return;
+    setSchaerft(true);
+    const res = await fetch("/api/copy/refine", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        offerId,
+        stepNumber: index + 1,
+        subject: variant.subject,
+        body: variant.body,
+        instruction: anweisung.trim(),
+      }),
+    });
+    const body = await res.json().catch(() => ({}));
+    setSchaerft(false);
+    if (!res.ok) return push(t.common.error + (body.error ?? res.status), "error");
+    setVorher({ subject: variant.subject, body: variant.body });
+    patchVariant(body.variant as StepVariant);
+    setAnweisung("");
+    if ((body.unknownTags ?? []).length > 0) {
+      // Nicht still entfernen: ein herausgeschnittener Platzhalter zerreisst
+      // den Satz. Der Nutzer soll sehen, was gebaut wurde.
+      push(R.unknownTags((body.unknownTags as string[]).join(", ")), "error");
+    }
+  }
+
+  function zurueck() {
+    if (!vorher) return;
+    patchVariant(vorher);
+    setVorher(null);
   }
 
   function insertVariable(token: string) {
@@ -264,6 +315,48 @@ export default function CampaignStepCard({
           />
         </details>
       )}
+      {/* Nachschaerfen -- am Text angedockt, nicht in einem eigenen
+          Chatfenster. Ein leeres Chatfeld ist dasselbe leere Blatt wie ein
+          leeres Textfeld, nur mit blinkendem Cursor; hier hat die Anweisung
+          einen Gegenstand, und der letzte Stand steht immer darueber.
+
+          Erscheint erst, wenn ueberhaupt Text da ist: an einer leeren Fassung
+          gibt es nichts nachzuschaerfen, dafuer ist der Sequenzgenerator
+          zustaendig. */}
+      {variant.body.trim().length > 0 && (
+        <div className="mt-2 flex flex-wrap items-center gap-1.5">
+          <input
+            value={anweisung}
+            onChange={(e) => setAnweisung(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                nachschaerfen();
+              }
+            }}
+            placeholder={R.placeholder}
+            className={inputCls + " min-w-48 flex-1 px-2.5 py-1 text-[13px]"}
+          />
+          <button
+            type="button"
+            onClick={nachschaerfen}
+            disabled={schaerft || !anweisung.trim()}
+            className="rounded-md border border-edge2 px-2.5 py-1 text-[11px] text-soft transition-colors hover:border-sky-500/50 hover:text-sky-600 disabled:opacity-40 dark:hover:text-sky-400"
+          >
+            {schaerft ? R.working : R.apply}
+          </button>
+          {vorher && (
+            <button
+              type="button"
+              onClick={zurueck}
+              className="text-[11px] text-faint transition-colors hover:text-ink"
+            >
+              {R.undo}
+            </button>
+          )}
+        </div>
+      )}
+
       <EmailQualityPanel subject={variant.subject} body={variant.body} onHighlightsChange={setHighlights} />
     </div>
   );

@@ -8,7 +8,9 @@ import {
   validateIcebreaker,
   wordCount,
 } from "@/lib/personalization-defaults";
-import { extractOutputText } from "@/lib/openai";
+import { OPENAI_MODEL, extractOutputText } from "@/lib/openai";
+import { recordOpenAiUsage } from "@/lib/usage";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
 const MAX_SITE_CHARS = 6000;
 
@@ -24,7 +26,18 @@ function stripHtml(html: string): string {
     .trim();
 }
 
+/**
+ * Ein Modellaufruf des Live-Tests.
+ *
+ * supabase und workspaceId stehen hier fuer die Kostenzeile: der Live-Test
+ * kostet echtes Geld, und bei einem Regelverstoss kostet er es zweimal (der
+ * Korrektur-Versuch weiter unten). Bis zum 2026-08-12 schrieb diese Route
+ * nichts nach api_usage -- der Verbrauch war unsichtbar, obwohl er derselbe
+ * ist wie beim Worker.
+ */
 async function callModel(
+  supabase: SupabaseClient,
+  workspaceId: string,
   apiKey: string,
   systemPrompt: string,
   userContent: string
@@ -33,7 +46,7 @@ async function callModel(
     method: "POST",
     headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
     body: JSON.stringify({
-      model: "gpt-4.1-mini",
+      model: OPENAI_MODEL,
       input: [
         { role: "system", content: systemPrompt },
         { role: "user", content: userContent },
@@ -44,7 +57,9 @@ async function callModel(
     const errBody = await res.text();
     return { error: "OpenAI-Fehler: " + errBody.slice(0, 300) };
   }
-  return { text: extractOutputText(await res.json()) };
+  const json = await res.json();
+  await recordOpenAiUsage(supabase, workspaceId, "personalize_test", json);
+  return { text: extractOutputText(json) };
 }
 
 async function fetchWebsiteText(url: string): Promise<string | null> {
@@ -123,7 +138,7 @@ export async function POST(req: Request) {
   // Test bekam den angezeigten englischen Prompt und lieferte Englisch,
   // waehrend der Worker aus der Datenbank Deutsch nahm.
   const effectivePrompt = systemPrompt + constraintBlock(maxWords, bannedWords, outputLang);
-  const first = await callModel(apiKey, effectivePrompt, userContent);
+  const first = await callModel(supabase, ws.workspace.id, apiKey, effectivePrompt, userContent);
   if (first.error) return NextResponse.json({ error: first.error }, { status: 502 });
 
   let text = first.text ?? "";
@@ -140,7 +155,13 @@ export async function POST(req: Request) {
       lang === "en"
         ? `Your last attempt violated the following rule(s): ${problems.join("; ")}. Please correct it and answer again with only the text itself.`
         : `Dein letzter Versuch hat folgende Regel(n) verletzt: ${problems.join("; ")}. Bitte korrigiere und antworte erneut nur mit dem Text selbst.`;
-    const retry = await callModel(apiKey, effectivePrompt, userContent + "\n\n" + correctionNote);
+    const retry = await callModel(
+      supabase,
+      ws.workspace.id,
+      apiKey,
+      effectivePrompt,
+      userContent + "\n\n" + correctionNote
+    );
     if (retry.text) {
       text = sanitizeBannedPunctuation(retry.text, bannedWords);
       problems = validateIcebreaker(text, maxWords, bannedWords, lang);

@@ -62,6 +62,7 @@ export default function CampaignForm({
   submittingLabel,
   beforeSubmit,
   submitDisabled,
+  offerId,
 }: {
   value: CampaignFormValue;
   onChange: (v: CampaignFormValue) => void;
@@ -74,6 +75,10 @@ export default function CampaignForm({
    *  Kampagne laeuft dann schon, und eine Startbedingung waere zu spaet. */
   beforeSubmit?: React.ReactNode;
   submitDisabled?: boolean;
+  /** Das gewaehlte Angebot -- nur fuers Nachschaerfen je Stufe. Ohne es
+   *  funktioniert das Nachschaerfen weiter, das Modell kennt dann nur den
+   *  vorhandenen Text und nicht das Geschaeft dahinter. */
+  offerId?: string | null;
 }) {
   const { t } = useT();
   const F = t.instantly.campaigns.form;
@@ -151,6 +156,7 @@ export default function CampaignForm({
             onChange={(patch) => updateStep(i, patch)}
             onRemove={() => removeStep(i)}
             canRemove={value.steps.length > 1}
+            offerId={offerId}
           />
         ))}
         <button type="button" onClick={addStep} className="text-xs font-medium text-sky-600 hover:text-sky-500 dark:text-sky-400">

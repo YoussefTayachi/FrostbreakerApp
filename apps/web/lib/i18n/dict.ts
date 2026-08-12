@@ -15,7 +15,7 @@ const de = {
   nav: {
     dashboard: "Dashboard", searches: "Suchen", leads: "Alle Leads",
     pipeline: "Pipeline", calls: "Anrufliste", linkedin: "LinkedIn", inbox: "Posteingang",
-    aiAgent: "AI Agent", icebreaker: "Aufhänger", effectiveness: "Wirkung",
+    aiAgent: "AI Agent", offers: "Angebot", icebreaker: "Aufhänger", effectiveness: "Wirkung",
     apiKeys: "API-Schlüssel", automations: "Automatisierungen", branding: "Branding", team: "Team", instantly: "Instantly", blocklist: "Blockliste", costs: "API-Kosten", settings: "Einstellungen", guide: "Anleitung",
   },
   commandPalette: {
@@ -871,6 +871,10 @@ const de = {
     templateDefaultTitle: "Diese Vorlage ist beim Öffnen vorausgewählt",
     templateSwitchUnsaved: "Du hast ungespeicherte Änderungen. Trotzdem wechseln?",
     templateReset: "Auf Standard zurücksetzen",
+    templateFromOffer: "Aus Angebot erzeugen",
+    templateGenerating: "Schreibt...",
+    templateTooLong: (ist: number, max: number) =>
+      `Mit eingesetztem Aufhänger rund ${ist} Zeichen — LinkedIn erlaubt ${max}. Bitte kürzen, sonst schneidet LinkedIn mitten im Satz ab.`,
     templateIsDefault: "Standardvorlage",
     templateUnknownPlaceholders: (names: string) =>
       `rot = kein gültiger Platzhalter, landet wörtlich beim Empfänger: ${names}`,
@@ -1575,6 +1579,101 @@ const de = {
     pipelineValue: "Pipeline-Wert",
     poweredBy: "Erstellt mit Frostbreaker",
   },
+  offers: {
+    title: "Angebot",
+    subtitle:
+      "Was du verkaufst, an wen und mit welchem Nutzen. Daraus schreibt die App deine Mail-Sequenz und deine LinkedIn-Vorlage.",
+    newOffer: "Angebot",
+    namePrompt: "Wie soll dieses Angebot heißen?",
+    namePlaceholder: "z. B. Shopify-Betreuung",
+    emptyHint:
+      "Ein Name genügt zum Anlegen. Die Felder danach kannst du aus deiner Website übernehmen lassen.",
+    cancel: "Abbrechen",
+    created: "Angebot angelegt",
+    deleted: "Angebot gelöscht",
+    deleteConfirm: (name: string) =>
+      `„${name}" löschen? Bereits erzeugte Kampagnentexte bleiben bestehen, neue lassen sich daraus nicht mehr erzeugen.`,
+    defaultTitle: "Standardangebot",
+    makeDefault: "Als Standard",
+    switchUnsaved: "Es gibt ungespeicherte Änderungen. Trotzdem wechseln?",
+    languageHeading: "Sprache und Anrede",
+    languageSubtitle: "Gilt für die erzeugten Mails, nicht für die Oberfläche.",
+    languageOptions: { de: "Deutsch", en: "Englisch" } as Record<string, string>,
+    addressOptions: { du: "Du", sie: "Sie" } as Record<string, string>,
+    websiteHeading: "Website",
+    websiteSubtitle: "Spart das Abtippen: die App liest die Seite und schlägt die Felder unten vor.",
+    websitePlaceholder: "deine-firma.de",
+    websiteHint:
+      "Nichts wird automatisch übernommen. Jeder Vorschlag steht unter seinem Feld, du entscheidest einzeln.",
+    readWebsite: "Aus Website übernehmen",
+    reading: "Liest...",
+    suggestionsReady: (n: number) => `${n} Vorschläge aus der Website`,
+    fieldsHeading: "Das Angebot",
+    completeness: (p: number) => `${p} % ausgefüllt`,
+    neededForGeneration: "nötig",
+    applySuggestion: "Übernehmen",
+    discardSuggestion: "Verwerfen",
+    toCampaign: "Kampagne schreiben",
+    missingForGeneration: (felder: string) => `Zum Erzeugen fehlt noch: ${felder}`,
+    fields: {
+      offering: {
+        label: "Was verkaufst du?",
+        hint: "Ein Satz. Die Sache selbst, nicht die Verpackung.",
+      },
+      icp: {
+        label: "An wen?",
+        hint: "Branche, Größe, Rolle. Je enger, desto konkreter werden die Mails.",
+      },
+      problem: {
+        label: "Welches Problem hat der Kunde vorher?",
+        hint: "Das, was ihn stört, bevor er dich kennt. Nicht das, was du anbietest.",
+      },
+      outcome: {
+        label: "Was ist danach anders?",
+        hint: "Wenn du eine Zahl hast, schreib sie hin. Zahlen tragen eine Mail.",
+      },
+      proof: {
+        label: "Womit kannst du das belegen?",
+        hint: "Referenzen, Ergebnisse, Jahre. Leer lassen, wenn es nichts gibt — dann erfindet die KI ausdrücklich nichts.",
+      },
+      cta: {
+        label: "Was soll der Empfänger tun?",
+        hint: "Je kleiner die Bitte, desto mehr Antworten. Eine Rückfrage schlägt einen Termin.",
+      },
+      tone: {
+        label: "Wie soll es klingen?",
+        hint: "Optional. z. B. direkt, kein Hype, keine Fachwörter.",
+      },
+    },
+  },
+  copyGen: {
+    heading: "Mit KI schreiben",
+    generate: "Sequenz erzeugen",
+    working: "Schreibt...",
+    done: "Sequenz eingefügt",
+    hint: "Vier Stufen mit je zwei Fassungen aus deinem Angebot. Du kannst danach alles ändern — abgeschickt wird nichts.",
+    noOffer: "Dafür braucht die App zuerst dein Angebot: was du verkaufst, an wen und mit welchem Nutzen.",
+    createOffer: "Angebot anlegen",
+    problems: {
+      stepCount: (got: number) => `Es kamen ${got} statt 4 Stufen zurück.`,
+      variantCount: (step: number) => `Stufe ${step} hat nicht zwei Fassungen.`,
+      missingPersonalization: "Stufe 1 beginnt nicht mit dem Aufhänger {{personalization}}.",
+      firstMailTooLong: (words: number, max: number) =>
+        `Stufe 1 kommt mit Aufhänger auf rund ${words} Wörter, erlaubt sind ${max}.`,
+      firstMailHasLink: "In Stufe 1 steht ein Link. Beim kalten Erstkontakt kostet das Zustellbarkeit.",
+      unknownTags: (tags: string) => `Diese Platzhalter ersetzt Instantly nicht: ${tags}`,
+      dash: (step: number) => `In Stufe ${step} steht ein Gedankenstrich.`,
+      variantsTooSimilar: (step: number) =>
+        `Die zwei Fassungen von Stufe ${step} sagen dasselbe — so misst der Vergleich nichts.`,
+    },
+    refine: {
+      placeholder: "kürzer · direkter · mach daraus eine Abschiedsmail",
+      apply: "Umschreiben",
+      working: "...",
+      undo: "Zurück",
+      unknownTags: (tags: string) => `Achtung, diese Platzhalter werden nicht ersetzt: ${tags}`,
+    },
+  },
   aiAgent: {
     title: "AI Agent",
     subtitle: "Steuere, wie der Icebreaker generiert wird: Datenquelle, Regeln und Ton vollständig anpassbar.",
@@ -2006,7 +2105,7 @@ const en: Dictionary = {
   nav: {
     dashboard: "Dashboard", searches: "Searches", leads: "All Leads",
     pipeline: "Pipeline", calls: "Call list", linkedin: "LinkedIn", inbox: "Inbox",
-    aiAgent: "AI Agent", icebreaker: "Icebreakers", effectiveness: "Effect",
+    aiAgent: "AI Agent", offers: "Offer", icebreaker: "Icebreakers", effectiveness: "Effect",
     apiKeys: "API keys", automations: "Automations", branding: "Branding", team: "Team", instantly: "Instantly", blocklist: "Blocklist", costs: "API costs", settings: "Settings", guide: "Guide",
   },
   commandPalette: {
@@ -2825,6 +2924,10 @@ const en: Dictionary = {
     templateDefaultTitle: "This template is preselected when you open the list",
     templateSwitchUnsaved: "You have unsaved changes. Switch anyway?",
     templateReset: "Reset to default",
+    templateFromOffer: "Generate from offer",
+    templateGenerating: "Writing...",
+    templateTooLong: (ist: number, max: number) =>
+      `About ${ist} characters once the opening line is inserted — LinkedIn allows ${max}. Please shorten it, otherwise LinkedIn cuts mid-sentence.`,
     templateIsDefault: "Default template",
     templateUnknownPlaceholders: (names: string) =>
       `red = not a valid placeholder, reaches the recipient verbatim: ${names}`,
@@ -3512,6 +3615,91 @@ const en: Dictionary = {
     meetings: "meetings booked",
     pipelineValue: "pipeline value",
     poweredBy: "Built with Frostbreaker",
+  },
+  offers: {
+    title: "Offer",
+    subtitle:
+      "What you sell, to whom and with what benefit. The app writes your email sequence and LinkedIn template from this.",
+    newOffer: "Offer",
+    namePrompt: "What should this offer be called?",
+    namePlaceholder: "e.g. Shopify retainer",
+    emptyHint: "A name is enough to start. The fields below can be filled in from your website.",
+    cancel: "Cancel",
+    created: "Offer created",
+    deleted: "Offer deleted",
+    deleteConfirm: (name: string) =>
+      `Delete "${name}"? Campaign copy you already generated stays, but no new copy can be generated from it.`,
+    defaultTitle: "Default offer",
+    makeDefault: "Make default",
+    switchUnsaved: "There are unsaved changes. Switch anyway?",
+    languageHeading: "Language and address",
+    languageSubtitle: "Applies to the generated emails, not to the interface.",
+    languageOptions: { de: "German", en: "English" } as Record<string, string>,
+    addressOptions: { du: "Informal", sie: "Formal" } as Record<string, string>,
+    websiteHeading: "Website",
+    websiteSubtitle: "Saves the typing: the app reads the page and suggests the fields below.",
+    websitePlaceholder: "your-company.com",
+    websiteHint:
+      "Nothing is applied automatically. Every suggestion sits under its field and you decide one by one.",
+    readWebsite: "Read from website",
+    reading: "Reading...",
+    suggestionsReady: (n: number) => `${n} suggestions from the website`,
+    fieldsHeading: "The offer",
+    completeness: (p: number) => `${p}% filled in`,
+    neededForGeneration: "needed",
+    applySuggestion: "Apply",
+    discardSuggestion: "Discard",
+    toCampaign: "Write a campaign",
+    missingForGeneration: (felder: string) => `Still missing to generate: ${felder}`,
+    fields: {
+      offering: { label: "What do you sell?", hint: "One sentence. The thing itself, not the packaging." },
+      icp: { label: "To whom?", hint: "Industry, size, role. The narrower, the more concrete the emails." },
+      problem: {
+        label: "What does the customer struggle with beforehand?",
+        hint: "What bothers them before they know you. Not what you offer.",
+      },
+      outcome: {
+        label: "What is different afterwards?",
+        hint: "If you have a number, write it down. Numbers carry an email.",
+      },
+      proof: {
+        label: "What backs that up?",
+        hint: "References, results, years. Leave empty if there is nothing — then the AI is explicitly told to invent none.",
+      },
+      cta: {
+        label: "What should the recipient do?",
+        hint: "The smaller the ask, the more replies. A question beats a meeting request.",
+      },
+      tone: { label: "How should it sound?", hint: "Optional. e.g. direct, no hype, no jargon." },
+    },
+  },
+  copyGen: {
+    heading: "Write with AI",
+    generate: "Generate sequence",
+    working: "Writing...",
+    done: "Sequence inserted",
+    hint: "Four steps with two variants each, from your offer. You can change everything afterwards — nothing is sent.",
+    noOffer: "For this the app needs your offer first: what you sell, to whom and with what benefit.",
+    createOffer: "Create an offer",
+    problems: {
+      stepCount: (got: number) => `${got} steps came back instead of 4.`,
+      variantCount: (step: number) => `Step ${step} does not have two variants.`,
+      missingPersonalization: "Step 1 does not start with the {{personalization}} opening line.",
+      firstMailTooLong: (words: number, max: number) =>
+        `With the opening line, step 1 comes to about ${words} words, the limit is ${max}.`,
+      firstMailHasLink: "Step 1 contains a link. On a cold first touch that costs deliverability.",
+      unknownTags: (tags: string) => `Instantly does not replace these placeholders: ${tags}`,
+      dash: (step: number) => `Step ${step} contains a dash character.`,
+      variantsTooSimilar: (step: number) =>
+        `The two variants of step ${step} say the same thing — the comparison measures nothing.`,
+    },
+    refine: {
+      placeholder: "shorter · more direct · turn this into a breakup email",
+      apply: "Rewrite",
+      working: "...",
+      undo: "Undo",
+      unknownTags: (tags: string) => `Careful, these placeholders are not replaced: ${tags}`,
+    },
   },
   aiAgent: {
     title: "AI Agent",

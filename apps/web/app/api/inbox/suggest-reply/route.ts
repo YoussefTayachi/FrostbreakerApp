@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getCurrentWorkspace } from "@/lib/workspace/server";
 import { getApiKey } from "@/lib/api-keys";
 import { extractOutputText } from "@/lib/openai";
+import { recordOpenAiUsage } from "@/lib/usage";
 import {
   buildReplyPrompt,
   parseSuggestions,
@@ -99,7 +100,12 @@ export async function POST(req: Request) {
     if (!res.ok) {
       return NextResponse.json({ error: `OpenAI: ${res.status}` }, { status: 502 });
     }
-    const suggestions = parseSuggestions(extractOutputText(await res.json()));
+    const json = await res.json();
+    // Kostenzeile, wie sie der Worker fuer jeden seiner Aufrufe schreibt.
+    // Diese Route tat es bis zum 2026-08-12 nicht -- die Entwuerfe kosteten
+    // Geld und tauchten unter "API-Kosten" nicht auf.
+    await recordOpenAiUsage(supabase, workspaceId, "suggest_reply", json);
+    const suggestions = parseSuggestions(extractOutputText(json));
     if (suggestions.length === 0) {
       // Ehrlich melden statt eine leere Liste als Ergebnis auszugeben: eine
       // Oberflaeche mit null Vorschlaegen sieht aus wie ein Fehler in der

@@ -14,6 +14,7 @@ import {
   IconLeads,
   IconLinkedIn,
   IconLock,
+  IconOffer,
   IconPalette,
   IconPhone,
   IconPipeline,
@@ -113,8 +114,16 @@ export default function Nav() {
       // Vorgaben oben, Ergebnis darunter: im AI-Agent-Tab stehen Prompt,
       // Wortgrenze und Verbotswoerter, unter Aufhaenger das, was dabei
       // herauskam.
+      //
+      // Das Angebot steht als erster Untereintrag und nicht hinter dem
+      // Aufhaenger: es ist die Grundlage fuer alles, was in dieser Gruppe
+      // geschrieben wird -- Mail-Sequenz, LinkedIn-Vorlage, Nachschaerfen.
+      // Der Aufhaenger ist ein Satz, das Angebot ist die Sache.
       parent: { href: "/ai-agent", label: t.nav.aiAgent, icon: IconAgent },
-      children: [{ href: "/icebreaker", label: t.nav.icebreaker, icon: IconSparkle }],
+      children: [
+        { href: "/offers", label: t.nav.offers, icon: IconOffer },
+        { href: "/icebreaker", label: t.nav.icebreaker, icon: IconSparkle },
+      ],
     },
     {
       parent: { href: "/instantly", label: t.nav.instantly, icon: IconSend },

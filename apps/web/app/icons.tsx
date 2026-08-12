@@ -44,6 +44,15 @@ export function IconBuilding({ className = "h-4 w-4" }: { className?: string }) 
     </svg>
   );
 }
+/** Preisschild -- das Angebot: was verkauft wird, an wen, mit welchem Nutzen. */
+export function IconOffer({ className = "h-4 w-4" }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0l-7.2-7.2a2 2 0 0 1-.6-1.4V4a1 1 0 0 1 1-1h8a2 2 0 0 1 1.4.6l7.4 7.4a2 2 0 0 1 0 2.8Z" />
+      <path d="M7.5 7.5h.01" />
+    </svg>
+  );
+}
 export function IconSparkle({ className = "h-4 w-4" }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">

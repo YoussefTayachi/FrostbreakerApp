@@ -1,5 +1,5 @@
 "use client";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import {
   LINKEDIN_VARIABLE_TOKENS,
@@ -77,6 +77,53 @@ export default function LinkedInTemplate({
   const [saving, setSaving] = useState(false);
   const [busy, setBusy] = useState(false);
   const [savedTemplate, setSavedTemplate] = useState(template);
+
+  /**
+   * Vorlage aus dem hinterlegten Angebot.
+   *
+   * Der billigste zusaetzliche Kanal, den es gibt: die Kontakte sind schon
+   * gekauft, ein zweiter Anlauf ueber LinkedIn kostet keinen Credit. Gefehlt
+   * hat immer nur der Text -- die Arbeitsliste startete mit einem leeren
+   * Feld, genau wie die Mail-Kampagne vor dem Sequenzgenerator.
+   *
+   * Genommen wird das Standardangebot. Wer mehrere hat, waehlt sie unter
+   * /offers; eine zweite Auswahlliste hier waere dieselbe Frage an einer
+   * zweiten Stelle.
+   */
+  const [offerId, setOfferId] = useState<string | null>(null);
+  const [generating, setGenerating] = useState(false);
+
+  useEffect(() => {
+    createClient()
+      .from("offers")
+      .select("id, is_default")
+      .eq("workspace_id", workspaceId)
+      .order("created_at", { ascending: true })
+      .then(({ data }) => {
+        const rows = (data ?? []) as { id: string; is_default: boolean }[];
+        setOfferId(rows.find((o) => o.is_default)?.id ?? rows[0]?.id ?? null);
+      });
+  }, [workspaceId]);
+
+  async function ausAngebot() {
+    if (!offerId) return;
+    setGenerating(true);
+    const res = await fetch("/api/copy/linkedin", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ offerId }),
+    });
+    const body = await res.json().catch(() => ({}));
+    setGenerating(false);
+    if (!res.ok) return push(t.common.error + (body.error ?? res.status), "error");
+    onTemplateChange(body.message as string);
+    // Die geschaetzte Endlaenge zaehlt den eingesetzten Aufhaenger mit, nicht
+    // die 19 Zeichen des Platzhalters -- sonst gilt eine Nachricht als kurz,
+    // die LinkedIn spaeter mitten im Satz abschneidet.
+    if (body.estimatedLength > body.maxLength) {
+      push(L.templateTooLong(body.estimatedLength, body.maxLength), "error");
+    }
+  }
 
   const current = templates.find((x) => x.id === selectedId) ?? null;
 
@@ -359,6 +406,18 @@ export default function LinkedInTemplate({
         >
           {saving ? t.common.saving : dirty || !current ? L.templateSave : L.templateSavedState}
         </button>
+        {/* Steht vor dem Zuruecksetzen: der haeufigere Handgriff gehoert
+            nach vorn, und "aus dem Angebot" ist fuer ein leeres Feld die
+            bessere Antwort als eine allgemeine Beispielvorlage. */}
+        {offerId && (
+          <button
+            onClick={ausAngebot}
+            disabled={generating}
+            className="rounded-lg border border-sky-500/40 px-3 py-1.5 text-xs text-sky-600 transition-colors hover:bg-sky-500/10 disabled:opacity-40 dark:text-sky-400"
+          >
+            {generating ? L.templateGenerating : L.templateFromOffer}
+          </button>
+        )}
         <button
           onClick={() => onTemplateChange(getDefaultLinkedInTemplate(lang))}
           className="rounded-lg border border-edge2 px-3 py-1.5 text-xs text-soft transition-colors hover:text-ink"

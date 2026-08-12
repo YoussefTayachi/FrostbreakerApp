@@ -9,6 +9,7 @@ import { useToast } from "../../../toast-provider";
 import { useWorkspace } from "../../../workspace-provider";
 import CampaignForm, { emptyCampaignFormValue, type CampaignFormValue } from "../campaign-form";
 import CampaignReadinessPanel, { type ReadinessResult } from "../campaign-readiness-panel";
+import GenerateSequence from "../generate-sequence";
 
 type SearchOption = { id: string; name: string | null; query: string; location: string; instantly_campaign_id: string | null };
 
@@ -42,6 +43,10 @@ export default function NewCampaignPage() {
    */
   const [readiness, setReadiness] = useState<ReadinessResult | null>(null);
   const [override, setOverride] = useState(false);
+  /** Das Angebot, aus dem erzeugt wurde -- wandert weiter an die Stufenkarten,
+   *  damit das Nachschaerfen denselben Zusammenhang kennt. */
+  const [offerId, setOfferId] = useState<string | null>(null);
+  const handleOfferChange = useCallback((id: string | null) => setOfferId(id), []);
 
   const handleReadiness = useCallback((r: ReadinessResult | null) => {
     setReadiness((prev) => {
@@ -203,9 +208,18 @@ export default function NewCampaignPage() {
         )}
       </div>
 
+      {/* Ueber dem Formular, weil es das Formular ausfuellt. Der Name bleibt
+          unangetastet: den hat der Nutzer vielleicht schon getippt, und ein
+          Generator, der ihn ueberschreibt, waere uebergriffig. */}
+      <GenerateSequence
+        onGenerated={(steps) => setValue((v) => ({ ...v, steps }))}
+        onOfferChange={handleOfferChange}
+      />
+
       <CampaignForm
         value={value}
         onChange={setValue}
+        offerId={offerId}
         onSubmit={create}
         submitting={creating}
         submitLabel={F.create}

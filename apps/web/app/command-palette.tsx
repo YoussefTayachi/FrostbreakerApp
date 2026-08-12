@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import {
   IconAgent,
+  IconOffer,
   IconDashboard,
   IconInbox,
   IconLeads,
@@ -50,6 +51,7 @@ export default function CommandPalette() {
     { href: "/pipeline", label: t.nav.pipeline, icon: IconPipeline },
     { href: "/inbox", label: t.nav.inbox, icon: IconInbox },
     { href: "/ai-agent", label: t.nav.aiAgent, icon: IconAgent },
+    { href: "/offers", label: t.nav.offers, icon: IconOffer },
     { href: "/blocklist", label: t.nav.blocklist, icon: IconShield },
     { href: "/settings", label: t.nav.settings, icon: IconSettings },
   ];

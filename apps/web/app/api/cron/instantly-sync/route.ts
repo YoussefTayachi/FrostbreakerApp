@@ -5,6 +5,7 @@ import { createServiceClient } from "@/lib/supabase/service";
 import { instantlyRequest } from "@/lib/instantly";
 import { getApiKey } from "@/lib/api-keys";
 import { extractOutputText } from "@/lib/openai";
+import { recordOpenAiUsage } from "@/lib/usage";
 import { sendEmail } from "@/lib/email";
 import { detectOptOut } from "@/lib/crm/opt-out";
 import { detectAutoReply } from "@/lib/crm/auto-reply";
@@ -123,7 +124,21 @@ function isAuthorized(req: Request): boolean {
   return a.length === b.length && crypto.timingSafeEqual(a, b);
 }
 
-async function classifyReply(openaiKey: string, bodyText: string): Promise<string | null> {
+/**
+ * Die Einstufung einer eingegangenen Antwort.
+ *
+ * supabase und workspaceId stehen hier NUR fuer die Kostenzeile. Diese Route
+ * ruft pg_cron jede Minute auf, jede eingestufte Antwort ist ein bezahlter
+ * OpenAI-Aufruf -- und bis zum 2026-08-12 tauchte davon nichts unter
+ * "API-Kosten" auf. Das war kein Nebenposten, sondern eine Dauerlast, die
+ * niemand sehen konnte.
+ */
+async function classifyReply(
+  supabase: SupabaseClient,
+  workspaceId: string,
+  openaiKey: string,
+  bodyText: string
+): Promise<string | null> {
   try {
     const res = await fetch("https://api.openai.com/v1/responses", {
       method: "POST",
@@ -146,7 +161,9 @@ async function classifyReply(openaiKey: string, bodyText: string): Promise<strin
       signal: AbortSignal.timeout(15000),
     });
     if (!res.ok) return null;
-    const label = extractOutputText(await res.json()).trim().toLowerCase();
+    const json = await res.json();
+    await recordOpenAiUsage(supabase, workspaceId, "classify_reply", json);
+    const label = extractOutputText(json).trim().toLowerCase();
     const valid = ["interested", "not_interested", "question", "out_of_office"];
     return valid.includes(label) ? label : "question";
   } catch {
@@ -283,7 +300,7 @@ async function processEmail(
   const aiInterest = auto.autoReply
     ? "out_of_office"
     : inbound && contact && openaiKey && bodyText
-      ? await classifyReply(openaiKey, bodyText)
+      ? await classifyReply(supabase, workspaceId, openaiKey, bodyText)
       : null;
 
   const { error: upsertError } = await supabase.from("messages").upsert(
