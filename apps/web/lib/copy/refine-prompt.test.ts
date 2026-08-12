@@ -6,7 +6,10 @@ import {
   buildLinkedInPrompt,
   cleanLinkedInMessage,
   estimateLinkedInLength,
+  freeStandingPersonalization,
+  messageProblems,
 } from "./linkedin-prompt";
+import { leadInBefore } from "./sequence-prompt";
 
 const angebot: Offer = {
   id: "o1",
@@ -115,6 +118,51 @@ describe("buildLinkedInPrompt", () => {
   it("gibt die Anrede nur im Deutschen vor", () => {
     expect(buildLinkedInPrompt({ ...angebot, address_form: "sie" })).toContain('formally ("Sie")');
     expect(buildLinkedInPrompt({ ...angebot, language: "en" })).not.toContain('"Sie"');
+  });
+});
+
+describe("der Aufhänger steht für sich", () => {
+  // Der gemeldete Fall vom 2026-08-12. Aus
+  // "Hi {{firstName}}, {{personalization}}. Managing..." wurde beim Versand
+  // "Hi Brian, Helping over 30,000 people ... reaching out.. Managing..." --
+  // Grossbuchstabe nach Komma, zwei Punkte, alles eine graue Wand.
+  const gemeldet = "Hi {{firstName}}, {{personalization}}. Managing multi-client outreach can be complex.";
+
+  it("stellt den Platzhalter frei und schluckt den Punkt dahinter", () => {
+    expect(freeStandingPersonalization(gemeldet)).toBe(
+      "Hi {{firstName}},\n\n{{personalization}}\n\nManaging multi-client outreach can be complex."
+    );
+  });
+
+  it("laesst eine bereits richtige Nachricht unangetastet", () => {
+    const gut = "Hi {{firstName}},\n\n{{personalization}}\n\nPasst das?";
+    expect(freeStandingPersonalization(gut)).toBe(gut);
+  });
+
+  it("kommt ohne Platzhalter klar", () => {
+    expect(freeStandingPersonalization("Hi, kurze Frage.")).toBe("Hi, kurze Frage.");
+  });
+
+  it("meldet eine Einleitung vor dem Aufhaenger", () => {
+    // "noticed" davor zu schreiben ist genau der Fehler: der Aufhaenger
+    // beginnt gross und braucht keine Ueberleitung.
+    const mit = freeStandingPersonalization("Hi {{firstName}}, I noticed {{personalization}} Passt das?");
+    expect(messageProblems(mit, 22)).toContainEqual({ kind: "personalizationLeadIn", text: "I noticed" });
+  });
+
+  it("haelt die blosse Anrede NICHT fuer eine Einleitung", () => {
+    const gut = "Hi {{firstName}},\n\n{{personalization}}\n\nPasst das?";
+    expect(messageProblems(gut, 22).some((p) => p.kind === "personalizationLeadIn")).toBe(false);
+  });
+
+  it("meldet eine Nachricht ohne Absaetze", () => {
+    expect(messageProblems("Hi {{firstName}}, passt das?", 22)).toContainEqual({ kind: "noParagraphs" });
+  });
+
+  it("meldet dieselbe Einleitung auch in der Mail-Sequenz", () => {
+    expect(leadInBefore("Hi {{firstName}}, I noticed {{personalization}}")).toBe("I noticed");
+    expect(leadInBefore("Hi {{firstName}},\n\n{{personalization}}")).toBeNull();
+    expect(leadInBefore("Kein Platzhalter hier")).toBeNull();
   });
 });
 

@@ -1591,6 +1591,13 @@ const de = {
       n === 1 ? "Noch ein Pflichtfeld, dann kann die Sequenz entstehen." : `Noch ${n} Pflichtfelder, dann kann die Sequenz entstehen.`,
     suggestionLabel: "Vorschlag aus der Website",
     addressSubtitle: "Wie sprichst du an?",
+    // Was THAW sagt. Immer eine Zeile, immer der naechste Handgriff -- kein
+    // Geplauder. Ein Satz, der nichts zu tun gibt, ist beim dritten Oeffnen
+    // der Seite nur noch Text.
+    sayCold: "Erzähl mir von deinem Angebot. Ich fange bei null an.",
+    sayMissing: (feld: string) => `Mir fehlt noch: ${feld}`,
+    sayReady: "Das reicht mir. Soll ich die Sequenz schreiben?",
+    sayComplete: "Alles da. Damit wird die Sequenz richtig gut.",
     newOffer: "Angebot",
     namePrompt: "Wie soll dieses Angebot heißen?",
     namePlaceholder: "z. B. Shopify-Betreuung",
@@ -1664,6 +1671,8 @@ const de = {
     heading: "Mit KI schreiben",
     offerLabel: "Angebot",
     stepNames: ["Erstkontakt", "Blickwinkel", "Nachfrage", "Abschied"],
+    sayWorking: "Ich schreibe vier Stufen mit je zwei Fassungen.",
+    sayDone: "Fertig. Lies drüber, ändere was du willst — abgeschickt ist nichts.",
     generate: "Sequenz erzeugen",
     working: "Schreibt...",
     done: "Sequenz eingefügt",
@@ -1683,6 +1692,8 @@ const de = {
         `Die zwei Fassungen von Stufe ${step} sagen dasselbe — so misst der Vergleich nichts.`,
       noGreeting: (step: number) => `Stufe ${step} hat keine Anrede.`,
       noParagraphs: (step: number) => `Stufe ${step} ist ein Block ohne Absätze.`,
+      personalizationLeadIn: (text: string) =>
+        `„${text}" steht vor dem Aufhänger — der ist schon ein ganzer Satz und braucht keine Einleitung.`,
     },
     refine: {
       placeholder: "kürzer · direkter · mach daraus eine Abschiedsmail",
@@ -3646,6 +3657,10 @@ const en: Dictionary = {
       n === 1 ? "One required field left, then the sequence can be written." : `${n} required fields left, then the sequence can be written.`,
     suggestionLabel: "Suggestion from the website",
     addressSubtitle: "How do you address them?",
+    sayCold: "Tell me about your offer. I am starting from nothing.",
+    sayMissing: (feld: string) => `Still missing: ${feld}`,
+    sayReady: "That is enough for me. Shall I write the sequence?",
+    sayComplete: "All there. This will make the sequence good.",
     newOffer: "Offer",
     namePrompt: "What should this offer be called?",
     namePlaceholder: "e.g. Shopify retainer",
@@ -3709,6 +3724,8 @@ const en: Dictionary = {
     heading: "Write with AI",
     offerLabel: "Offer",
     stepNames: ["First touch", "New angle", "Nudge", "Sign-off"],
+    sayWorking: "Writing four steps with two variants each.",
+    sayDone: "Done. Read it over, change what you like — nothing is sent.",
     generate: "Generate sequence",
     working: "Writing...",
     done: "Sequence inserted",
@@ -3728,6 +3745,8 @@ const en: Dictionary = {
         `The two variants of step ${step} say the same thing — the comparison measures nothing.`,
       noGreeting: (step: number) => `Step ${step} has no greeting.`,
       noParagraphs: (step: number) => `Step ${step} is one block without paragraphs.`,
+      personalizationLeadIn: (text: string) =>
+        `"${text}" sits in front of the opening line — that line is already a full sentence and needs no lead-in.`,
     },
     refine: {
       placeholder: "shorter · more direct · turn this into a breakup email",

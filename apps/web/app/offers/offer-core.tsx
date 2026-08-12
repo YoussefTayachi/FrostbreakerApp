@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { OFFER_TEXT_FIELDS, type OfferTextField } from "@/lib/offers";
+import Thaw from "../thaw";
 
 /**
  * Der Ring -- das eine auffällige Element dieser Fläche.
@@ -50,6 +51,7 @@ export default function OfferCore({
   onJump,
   readyLabel,
   missingLabel,
+  say,
 }: {
   /** Welche Felder Text enthalten. */
   filled: Set<OfferTextField>;
@@ -62,6 +64,9 @@ export default function OfferCore({
   onJump: (field: OfferTextField) => void;
   readyLabel: string;
   missingLabel: (n: number) => string;
+  /** Was THAW gerade sagt. Formuliert wird in dict.ts, entschieden hier
+   *  nicht -- der Aufrufer kennt den Zustand ohnehin. */
+  say: string;
 }) {
   /**
    * Der Zündmoment wird nur beim ÜBERGANG gespielt, nicht bei jedem Rendern.
@@ -106,7 +111,7 @@ export default function OfferCore({
                   stroke={
                     an
                       ? ready
-                        ? "var(--fb-ember)"
+                        ? "var(--fb-ready)"
                         : "var(--fb-frost)"
                       : pflicht
                         ? "var(--fb-frost-dim)"
@@ -132,16 +137,24 @@ export default function OfferCore({
           </g>
         </svg>
 
-        <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
+        {/* In der Mitte steht nicht die Zahl, sondern THAW. Die Zahl darunter
+            klein: sie beantwortet "wie weit", er beantwortet "und jetzt?".
+            Ein Prozentwert allein hat noch nie jemanden dazu gebracht, ein
+            drittes Feld auszufuellen. */}
+        <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-1">
+          <Thaw state={ready ? "ready" : filled.size === 0 ? "cold" : "listening"} size={40} />
           <span
-            className="fb-num text-[26px] font-semibold leading-none"
-            style={{ color: ready ? "var(--fb-ember)" : "var(--fb-frost)" }}
+            className="fb-num text-[13px] font-semibold leading-none"
+            style={{ color: ready ? "var(--fb-ready)" : "var(--fb-frost)" }}
           >
-            {percent}
+            {percent}%
           </span>
-          <span className="fb-label mt-1 text-mute">%</span>
         </div>
       </div>
+
+      {/* Was THAW gerade braucht. Eine Zeile, kein Gespraech -- sie sagt
+          immer genau das, was als Naechstes zu tun ist. */}
+      <p className="mt-3 min-h-8 px-1 text-center text-[11px] leading-4 text-faint">{say}</p>
 
       {/* Die Legende beantwortet, was der Ring zeigt: welches Segment welches
           Feld ist. Anklickbar, damit der Ring nicht nur meldet, sondern
@@ -163,7 +176,7 @@ export default function OfferCore({
                   style={{
                     background: an
                       ? ready
-                        ? "var(--fb-ember)"
+                        ? "var(--fb-ready)"
                         : "var(--fb-frost)"
                       : pflicht
                         ? "var(--fb-frost-dim)"

@@ -124,29 +124,37 @@ body {
    Ein einziges auffälliges Element (der Ring), der Rest bewusst still:
    Haarlinien, Monoschrift für Messwerte, keine Verläufe irgendwo sonst. */
 
+/* Kalt → lebendig, nicht kalt → heiß.
+ *
+ * Die erste Fassung ließ ein fertiges Angebot in Glut umschlagen (#c2410c).
+ * Auf Weiß las sich das als Backstein und stand quer zu allem anderen in der
+ * App. Der Zielzustand ist auch nicht "heiß" — er ist "bereit". Deshalb läuft
+ * die Skala jetzt von Frost über Türkis nach Mint: dieselbe Familie, nur
+ * wärmer werdend, und der Sprung ans Ziel bleibt trotzdem deutlich.
+ *
+ * Die hellen Werte sind dunkler gewählt als die dunklen, weil beide Töne auf
+ * Weiß sonst unter 4,5:1 fallen. */
 .fb-hud {
-  /* Hell zuerst, wie im Rest der Datei. Die hellen Werte sind dunkler
-     gewählt, weil Frostblau auf Weiß sonst unter 4,5:1 fällt. */
-  --fb-frost: #0369a1;
-  --fb-frost-dim: #7dd3fc;
-  --fb-ember: #c2410c;
-  --fb-ember-dim: #fdba74;
-  --fb-grid: rgba(3, 105, 161, 0.06);
-  --fb-glow: rgba(3, 105, 161, 0.14);
-  /* Eine Spur kuehler und dunkler als --c-surface (#f9f9f8). Am Bild
-     geprueft: bei #f7fafc war die Flaeche vom Seitengrund nicht zu
-     unterscheiden, der Rahmen musste die ganze Trennung allein tragen. */
+  --fb-frost: #0284c7;
+  --fb-frost-dim: #bae6fd;
+  --fb-ready: #0d9488;
+  --fb-ready-dim: #99f6e4;
+  --fb-grid: rgba(2, 132, 199, 0.055);
+  --fb-glow: rgba(13, 148, 136, 0.16);
+  /* Eine Spur kühler und dunkler als --c-surface (#f9f9f8). Am Bild geprüft:
+     bei #f7fafc war die Fläche vom Seitengrund nicht zu unterscheiden, der
+     Rahmen musste die ganze Trennung allein tragen. */
   --fb-inset: #f1f5f9;
 }
 
 .dark .fb-hud {
   --fb-frost: #38bdf8;
-  --fb-frost-dim: #075985;
-  --fb-ember: #fb923c;
-  --fb-ember-dim: #7c2d12;
-  --fb-grid: rgba(56, 189, 248, 0.055);
-  --fb-glow: rgba(56, 189, 248, 0.2);
-  --fb-inset: #0c1118;
+  --fb-frost-dim: #0c4a6e;
+  --fb-ready: #2dd4bf;
+  --fb-ready-dim: #134e4a;
+  --fb-grid: rgba(56, 189, 248, 0.05);
+  --fb-glow: rgba(45, 212, 191, 0.22);
+  --fb-inset: #0b1016;
 }
 
 /* Messfeld-Beschriftung: klein, Monoschrift, weit gesperrt. Der Unterschied
@@ -211,6 +219,31 @@ body {
 }
 .fb-ignite { animation: fbIgnite 0.7s cubic-bezier(0.2, 0.7, 0.3, 1); }
 
+/* ── THAW ──────────────────────────────────────────────────────────────────
+   Der Kern in der Mitte des Rings. Er atmet, und das ist alles, was er im
+   Ruhezustand tut: eine Bewegung, die man erst bemerkt, wenn man hinsieht.
+   Ein Maskottchen, das ständig zappelt, ist nach dem dritten Öffnen der Seite
+   nur noch im Weg. */
+@keyframes fbBreathe {
+  0%, 100% { opacity: 0.72; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.045); }
+}
+.fb-breathe { animation: fbBreathe 4.5s ease-in-out infinite; transform-origin: center; }
+
+/* Die sechs Arme drehen sich langsam gegen den Uhrzeigersinn -- eine
+   Eiskristallform, die lebt, ohne sich aufzudrängen. */
+@keyframes fbRotate { to { transform: rotate(-360deg); } }
+.fb-rotate { animation: fbRotate 46s linear infinite; transform-origin: center; }
+.fb-rotate-fast { animation: fbRotate 3.4s linear infinite; transform-origin: center; }
+
+/* Beim Aufwachen: der Kern öffnet sich einmal. */
+@keyframes fbWake {
+  0% { transform: scale(0.4); opacity: 0; }
+  60% { transform: scale(1.12); }
+  100% { transform: scale(1); opacity: 1; }
+}
+.fb-wake { animation: fbWake 0.55s cubic-bezier(0.2, 0.7, 0.3, 1) both; transform-origin: center; }
+
 /* Laufender Vorgang: ein Streifen wandert einmal je Sekunde durch die Fläche.
    Ersetzt den Spinner -- ein Spinner sagt "es passiert etwas", dieser Streifen
    sagt "es wird gelesen". */
@@ -236,7 +269,7 @@ body {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .fb-seg, .fb-ignite { animation: none; }
+  .fb-seg, .fb-ignite, .fb-breathe, .fb-rotate, .fb-rotate-fast, .fb-wake { animation: none; }
   .fb-scan::after { animation: none; opacity: 0.5; }
 }
 

@@ -7,6 +7,7 @@ import type { SequenceProblem } from "@/lib/copy/sequence-prompt";
 import { useT } from "../../language-provider";
 import { useToast } from "../../toast-provider";
 import { useWorkspace } from "../../workspace-provider";
+import Thaw from "../../thaw";
 import type { Step } from "./campaign-form";
 
 /**
@@ -119,12 +120,20 @@ export default function GenerateSequence({
 
       <div className="relative">
         <div className="flex flex-wrap items-end justify-between gap-3">
-          <div>
-            <p className="fb-label mb-1.5" style={{ color: "var(--fb-frost)" }}>
-              {G.eyebrow}
-            </p>
-            <h2 className="text-base font-semibold text-ink">{G.heading}</h2>
-            <p className="mt-0.5 max-w-md text-xs leading-relaxed text-faint">{G.hint}</p>
+          {/* Derselbe Kern wie auf der Angebotsseite. Er ist der Grund, warum
+              sich die beiden Flaechen wie ein Vorgang anfuehlen und nicht wie
+              zwei Werkzeuge: dort sammelt er, hier schreibt er. */}
+          <div className="flex items-start gap-3">
+            <Thaw state={busy ? "working" : fertig > 0 ? "ready" : "listening"} size={38} className="mt-0.5 shrink-0" />
+            <div>
+              <p className="fb-label mb-1.5" style={{ color: "var(--fb-frost)" }}>
+                {G.eyebrow}
+              </p>
+              <h2 className="text-base font-semibold text-ink">{G.heading}</h2>
+              <p className="mt-0.5 max-w-md text-xs leading-relaxed text-faint">
+                {busy ? G.sayWorking : fertig > 0 ? G.sayDone : G.hint}
+              </p>
+            </div>
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
@@ -168,16 +177,16 @@ export default function GenerateSequence({
                 className="relative overflow-hidden rounded-md border px-2 py-1.5 transition-colors duration-300"
                 style={{
                   borderColor: an
-                    ? "color-mix(in srgb, var(--fb-ember) 45%, transparent)"
+                    ? "color-mix(in srgb, var(--fb-ready) 45%, transparent)"
                     : "var(--color-edge)",
                   background: an
-                    ? "color-mix(in srgb, var(--fb-ember) 9%, transparent)"
+                    ? "color-mix(in srgb, var(--fb-ready) 9%, transparent)"
                     : "transparent",
                 }}
               >
                 <span
                   className="fb-num block text-[10px] leading-none"
-                  style={{ color: an ? "var(--fb-ember)" : "var(--color-mute)" }}
+                  style={{ color: an ? "var(--fb-ready)" : "var(--color-mute)" }}
                 >
                   {String(i + 1).padStart(2, "0")}
                 </span>
@@ -219,6 +228,7 @@ type ProblemTexte = {
   variantsTooSimilar: (step: number) => string;
   noGreeting: (step: number) => string;
   noParagraphs: (step: number) => string;
+  personalizationLeadIn: (text: string) => string;
 };
 
 function problemText(p: SequenceProblem, T: ProblemTexte): string {
@@ -243,5 +253,7 @@ function problemText(p: SequenceProblem, T: ProblemTexte): string {
       return T.noGreeting(p.step);
     case "noParagraphs":
       return T.noParagraphs(p.step);
+    case "personalizationLeadIn":
+      return T.personalizationLeadIn(p.text);
   }
 }

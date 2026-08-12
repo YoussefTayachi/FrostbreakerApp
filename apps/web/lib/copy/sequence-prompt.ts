@@ -195,7 +195,13 @@ export function buildSequencePrompt(offer: Offer, opts: SequenceOptions): string
     "- Use real blank lines (\\n\\n) between paragraphs. A wall of text does not get read.",
     "- Never write more than three sentences in one paragraph.",
     "",
-    `- In step 1 the SECOND block is the literal token {{personalization}} on its own. It is replaced per recipient with a researched opening line, so never write your own opening observation.`,
+    // Der Aufhaenger IST ein vollstaendiger Satz -- er beginnt gross und
+    // endet mit einem Punkt. Wer ihn wie ein Satzglied behandelt, erzeugt
+    // "Hi Brian, Helping over 30,000 people ... reaching out.." (gemessen an
+    // der LinkedIn-Vorlage am 2026-08-12).
+    `- In step 1 the SECOND block is the literal token {{personalization}}, alone on its own line with blank lines around it.`,
+    "- {{personalization}} is replaced with a COMPLETE SENTENCE that already starts with a capital and already ends with a full stop.",
+    '  Write nothing before it and nothing after it on that line. Never lead into it ("I noticed", "I saw"), never add punctuation behind it.',
     `- Step 1: at most ${budget} words of your own (the token above counts for roughly ${opts.personalizationWords} more).`,
     "- Step 1 must contain NO link and NO URL of any kind.",
     "- Steps 2 to 4 stay short, 40 to 70 words, and each one does something NEW:",
@@ -330,7 +336,8 @@ export type SequenceProblem =
   | { kind: "dash"; step: number }
   | { kind: "variantsTooSimilar"; step: number }
   | { kind: "noParagraphs"; step: number }
-  | { kind: "noGreeting"; step: number };
+  | { kind: "noGreeting"; step: number }
+  | { kind: "personalizationLeadIn"; text: string };
 
 /**
  * Ab wie vielen Woertern eine Mail ohne Leerzeile als Wand gilt.
@@ -402,6 +409,15 @@ export function sequenceProblems(steps: DraftStep[], opts: SequenceOptions): Seq
         break;
       }
     }
+    // Einleitung vor dem Aufhaenger. Er ist ein vollstaendiger Satz; alles,
+    // was ihn einleitet, zerlegt ihn beim Versand.
+    for (const v of erste.variants) {
+      const einleitung = leadInBefore(v.body);
+      if (einleitung) {
+        problems.push({ kind: "personalizationLeadIn", text: einleitung });
+        break;
+      }
+    }
     for (const v of erste.variants) {
       const words = estimateWords(v.body, opts.personalizationWords);
       if (words > FIRST_MAIL_MAX_WORDS) {
@@ -413,6 +429,35 @@ export function sequenceProblems(steps: DraftStep[], opts: SequenceOptions): Seq
   }
 
   return problems;
+}
+
+/**
+ * Was steht auf derselben Zeile VOR dem Aufhaenger?
+ *
+ * Eine Anrede darf dort stehen -- sie ist eine eigene Zeile und wird
+ * abgezogen. Alles Weitere ist eine Einleitung, und die zerlegt den
+ * Aufhaenger: er beginnt bereits gross und endet bereits mit einem Punkt.
+ *
+ * Liefert null, wenn nichts davor steht oder der Platzhalter fehlt.
+ */
+export function leadInBefore(body: string): string | null {
+  const at = body.indexOf("{{personalization}}");
+  if (at === -1) return null;
+  // Die letzte NICHT LEERE Zeile davor, nicht bloss die letzte: nach dem
+  // mechanischen Freistellen (freeStandingPersonalization) steht die
+  // Einleitung eine Zeile hoeher, und eine Pruefung auf die unmittelbare
+  // Zeile fände dort nur die leere.
+  const zeile =
+    body
+      .slice(0, at)
+      .split("\n")
+      .filter((l) => l.trim().length > 0)
+      .pop() ?? "";
+  const ohneAnrede = zeile.includes("{{firstName}}")
+    ? zeile.slice(zeile.indexOf("{{firstName}}") + "{{firstName}}".length).replace(/^[\s,:.!-]+/, "")
+    : zeile;
+  const rest = ohneAnrede.trim();
+  return rest.length > 0 ? rest : null;
 }
 
 /**
@@ -477,6 +522,8 @@ export function correctionInstruction(problems: SequenceProblem[]): string {
         return `- Step ${p.step} has no greeting. Start it with a greeting line containing {{firstName}}, followed by a blank line.`;
       case "noParagraphs":
         return `- Step ${p.step} is one solid block. Break it into paragraphs of one to three sentences, separated by blank lines.`;
+      case "personalizationLeadIn":
+        return `- Remove "${p.text}" in front of {{personalization}}. That token is already a full sentence; nothing may introduce it and nothing may follow it on that line.`;
     }
   });
   return [

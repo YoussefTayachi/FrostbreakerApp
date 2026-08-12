@@ -542,6 +542,15 @@ export default function OffersEditor({ initial }: { initial: Offer[] }) {
                   onJump={springeZu}
                   readyLabel={O.coreReady}
                   missingLabel={O.coreMissing}
+                  say={
+                    fehlend.length === 0
+                      ? gefuellt.size === OFFER_TEXT_FIELDS.length
+                        ? O.sayComplete
+                        : O.sayReady
+                      : gefuellt.size === 0
+                        ? O.sayCold
+                        : O.sayMissing(O.fields[fehlend[0]].label)
+                  }
                 />
 
                 <div className="mt-5 space-y-2 border-t border-edge/60 pt-4">
@@ -559,9 +568,9 @@ export default function OffersEditor({ initial }: { initial: Offer[] }) {
                       href="/instantly/campaigns/new"
                       className="flex min-h-10 w-full items-center justify-center rounded-lg border text-sm font-medium transition-all hover:brightness-110"
                       style={{
-                        borderColor: "color-mix(in srgb, var(--fb-ember) 50%, transparent)",
-                        color: "var(--fb-ember)",
-                        background: "color-mix(in srgb, var(--fb-ember) 9%, transparent)",
+                        borderColor: "color-mix(in srgb, var(--fb-ready) 50%, transparent)",
+                        color: "var(--fb-ready)",
+                        background: "color-mix(in srgb, var(--fb-ready) 9%, transparent)",
                       }}
                     >
                       {O.toCampaign}

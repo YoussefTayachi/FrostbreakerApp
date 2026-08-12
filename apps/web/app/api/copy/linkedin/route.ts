@@ -12,6 +12,9 @@ import {
   buildLinkedInPrompt,
   cleanLinkedInMessage,
   estimateLinkedInLength,
+  freeStandingPersonalization,
+  messageCorrection,
+  messageProblems,
 } from "@/lib/copy/linkedin-prompt";
 
 /**
@@ -61,20 +64,41 @@ export async function POST(req: Request) {
     );
   }
 
-  const result = await callOpenAi(openaiKey, [
-    { role: "user", content: buildLinkedInPrompt(offerRes.data as unknown as Offer) },
-  ]);
+  const prompt = buildLinkedInPrompt(offerRes.data as unknown as Offer);
+  const personalizationWords = workspaceRes.data?.personalization_max_words || DEFAULT_MAX_WORDS;
+
+  const result = await callOpenAi(openaiKey, [{ role: "user", content: prompt }]);
   if (!result.ok) return NextResponse.json({ error: result.error }, { status: 502 });
   await recordOpenAiUsage(supabase, workspaceId, "copy_linkedin", result.json);
 
-  const message = cleanLinkedInMessage(result.text);
+  // Erst mechanisch freistellen, dann pruefen: die Umbrueche um den
+  // Aufhaenger sind eine Formsache und werden repariert, nicht erbeten.
+  let message = freeStandingPersonalization(cleanLinkedInMessage(result.text));
   if (!message) return NextResponse.json({ error: "Keine brauchbare Vorlage entstanden." }, { status: 502 });
 
-  const personalizationWords = workspaceRes.data?.personalization_max_words || DEFAULT_MAX_WORDS;
+  let problems = messageProblems(message, personalizationWords);
+  if (problems.length > 0) {
+    // Eine Korrekturrunde, wie beim Sequenzgenerator. Was danach uebrig
+    // bleibt, wird trotzdem geliefert -- eine Vorlage mit zwanzig Zeichen zu
+    // viel ist mehr wert als eine Fehlermeldung.
+    const zweiter = await callOpenAi(openaiKey, [
+      { role: "user", content: prompt },
+      { role: "system", content: messageCorrection(problems) },
+    ]);
+    if (zweiter.ok) {
+      await recordOpenAiUsage(supabase, workspaceId, "copy_linkedin", zweiter.json);
+      const nachgebessert = freeStandingPersonalization(cleanLinkedInMessage(zweiter.text));
+      if (nachgebessert) {
+        message = nachgebessert;
+        problems = messageProblems(message, personalizationWords);
+      }
+    }
+  }
+
   return NextResponse.json({
     message,
-    // Beides zur Anzeige, nicht zur Ablehnung: der Nutzer sieht die
-    // geschaetzte Endlaenge und die Platzhalter, die niemand ersetzt.
+    // Zur Anzeige, nicht zur Ablehnung: der Nutzer sieht die geschaetzte
+    // Endlaenge und die Platzhalter, die niemand ersetzt.
     estimatedLength: estimateLinkedInLength(message, personalizationWords),
     maxLength: LINKEDIN_MAX_CHARS,
     unknownPlaceholders: unknownPlaceholders(message),

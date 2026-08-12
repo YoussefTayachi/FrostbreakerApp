@@ -17,6 +17,7 @@
  */
 import { LINKEDIN_PLACEHOLDERS } from "@/lib/crm/linkedin-message";
 import type { Offer } from "@/lib/offers";
+import { leadInBefore } from "./sequence-prompt";
 
 /** LinkedIns Grenze fuer die Nachricht an einer Kontaktanfrage. Gemessen am
  *  Feld selbst, nicht geschaetzt: laengere Texte nimmt das Formular nicht an. */
@@ -55,12 +56,38 @@ export function buildLinkedInPrompt(offer: Offer): string {
     // Die Zeichengrenze ist der ganze Unterschied zur Mail. Wird sie
     // ueberschritten, schneidet LinkedIn ab -- mitten im Satz.
     `- HARD LIMIT: ${LINKEDIN_MAX_CHARS} characters INCLUDING the placeholders. Count them. This is a connection request, not an email.`,
-    "- No subject line. No greeting formula longer than two words. No signature.",
+    "- No subject line. No signature.",
     "- No link, no URL, no phone number.",
     `- Placeholders: only ${LINKEDIN_PLACEHOLDERS.map((p) => `{{${p}}}`).join(", ")}. Any other {{...}} reaches the recipient unfilled.`,
-    "- {{personalization}} is a researched opening line of about 20 words. If you use it, budget for that length.",
     "- Never use the characters — – or --.",
     "- End with a small question that is easy to answer. Do not ask for a call.",
+    "",
+    // ═══════════════════════════════════════════════════════════════════
+    // DIE STELLE, AN DER DIE ERSTE FASSUNG SCHIEFGING (2026-08-12)
+    // ═══════════════════════════════════════════════════════════════════
+    //
+    // Das Modell schrieb "Hi {{firstName}}, {{personalization}}." in EINE
+    // Zeile. Beim Versand kam heraus: "Hi Brian, Helping over 30,000 people
+    // lose 115,000lbs in 2022 ... that's why I'm reaching out.. Managing
+    // multi-client outreach..." -- Grossbuchstabe nach Komma, zwei Punkte
+    // hintereinander, und alles als eine graue Wand.
+    //
+    // Der Grund: der Aufhaenger IST bereits ein vollstaendiger Satz. Er
+    // beginnt gross, endet mit einem Punkt und braucht keine Einleitung
+    // ("noticed that", "I saw"). Wer ihn wie ein Satzglied behandelt,
+    // zerlegt ihn.
+    "THE OPENING LINE -- read this twice:",
+    "{{personalization}} is replaced with a COMPLETE SENTENCE. It already starts with a capital letter and already ends with a full stop.",
+    "- Put it alone on its own line, with a blank line before and after it.",
+    "- Write NOTHING before it on that line and NOTHING after it on that line.",
+    '- Never lead into it ("I noticed", "I saw that", "Quick thought:"). Never add a comma, full stop or dash after it.',
+    "",
+    "LAYOUT -- exactly this shape, with real blank lines:",
+    `  ${offer.language === "en" ? "Hi {{firstName}}," : offer.address_form === "sie" ? "Guten Tag {{firstName}}," : "Hi {{firstName}},"}`,
+    "  (blank line)",
+    "  {{personalization}}",
+    "  (blank line)",
+    "  one short sentence about what you do, then your question",
     "",
     "Answer with the message text only. No JSON, no quotes, no explanation."
   );
@@ -82,6 +109,76 @@ export function cleanLinkedInMessage(raw: string): string {
     .replace(/^(nachricht|message|text)\s*:\s*/i, "")
     .replace(/^["'„“](.*)["'“”]$/s, "$1")
     .trim();
+}
+
+const TOKEN = "{{personalization}}";
+
+/**
+ * Den Aufhaenger mechanisch freistellen.
+ *
+ * Deterministisch und nicht per zweitem Modellaufruf -- dieselbe Entscheidung
+ * wie bei sanitize_banned_punctuation in personalize.py: was eine reine
+ * Formsache ist, wird repariert und nicht erbeten. Das Modell schrieb
+ * "Hi {{firstName}}, {{personalization}}." und erzeugte damit beim Versand
+ * "Hi Brian, Helping over 30,000 people ... reaching out.." -- Grossbuchstabe
+ * nach Komma und zwei Punkte hintereinander.
+ *
+ * Repariert werden nur die Zeilenumbrueche und die Satzzeichen DIREKT nach
+ * dem Platzhalter. Eine Einleitung davor ("I noticed") wird NICHT geraten
+ * weggeschnitten -- daraus wuerde ein zerrissener Satz. Die meldet
+ * messageProblems(), und dann formuliert das Modell neu.
+ */
+export function freeStandingPersonalization(text: string): string {
+  const at = text.indexOf(TOKEN);
+  if (at === -1) return text;
+  const before = text.slice(0, at).replace(/[ \t]+$/, "");
+  // Punkt, Komma, Semikolon und Striche direkt dahinter: der Aufhaenger
+  // bringt seinen eigenen Schlusspunkt mit.
+  const after = text.slice(at + TOKEN.length).replace(/^[ \t]*[.,;:!?—–-]+/, "");
+  return [before.trimEnd(), TOKEN, after.trimStart()].filter((p) => p.length > 0).join("\n\n");
+}
+
+export type MessageProblem =
+  | { kind: "noParagraphs" }
+  | { kind: "personalizationLeadIn"; text: string }
+  | { kind: "tooLong"; length: number; max: number };
+
+/**
+ * Was an einer LinkedIn-Vorlage noch nicht stimmt.
+ *
+ * Grundlage fuer genau eine Korrekturrunde, wie beim Sequenzgenerator.
+ */
+export function messageProblems(text: string, personalizationWords: number): MessageProblem[] {
+  const problems: MessageProblem[] = [];
+
+  if (!/\n\s*\n/.test(text.trim())) problems.push({ kind: "noParagraphs" });
+
+  const einleitung = leadInBefore(text);
+  if (einleitung) problems.push({ kind: "personalizationLeadIn", text: einleitung });
+
+  const laenge = estimateLinkedInLength(text, personalizationWords);
+  if (laenge > LINKEDIN_MAX_CHARS) {
+    problems.push({ kind: "tooLong", length: laenge, max: LINKEDIN_MAX_CHARS });
+  }
+  return problems;
+}
+
+export function messageCorrection(problems: MessageProblem[]): string {
+  const zeilen = problems.map((p) => {
+    switch (p.kind) {
+      case "noParagraphs":
+        return "- The message is one block. Separate greeting, opening line and your sentence with blank lines.";
+      case "personalizationLeadIn":
+        return `- Remove "${p.text}" in front of {{personalization}}. That token is already a full sentence; nothing may introduce it.`;
+      case "tooLong":
+        return `- Once the opening line is inserted the message runs to about ${p.length} characters, LinkedIn allows ${p.max}. Cut your own sentence, not the placeholders.`;
+    }
+  });
+  return [
+    "Your previous message broke these rules:",
+    ...zeilen,
+    "Fix exactly these points and answer again with the message text only.",
+  ].join("\n");
 }
 
 /** Laenge, wie LinkedIn sie zaehlt: der Aufhaenger wird beim Versand ersetzt
