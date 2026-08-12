@@ -2,7 +2,7 @@
 import { useId } from "react";
 
 /**
- * THAW -- der Eisbär, der in der App mitarbeitet.
+ * THAW -- der Kern, der in der App mitarbeitet.
  *
  * ═══════════════════════════════════════════════════════════════════════
  * WARUM DIE APP EINE FIGUR BEKOMMT
@@ -18,71 +18,57 @@ import { useId } from "react";
  * heisst thaw_ws. Frostbreaker ist das Werkzeug, THAW ist das, was es tut.
  *
  * ═══════════════════════════════════════════════════════════════════════
- * WARUM SVG UND NICHT DAS ERZEUGTE BILD
+ * WARUM KEIN TIER MEHR
  * ═══════════════════════════════════════════════════════════════════════
  *
- * Die Vorlage fuer dieses Aussehen ist ein 3D-Render aus Higgsfield
- * (2026-08-12). Uebernommen wurden Aufbau und Lichtfuehrung, nicht die Datei:
- * ein PNG braeuchte zwei Fassungen fuer hell und dunkel, waere bei jeder
- * Groesse unscharf, koennte nicht blinzeln und wuerde die Zustaende Frost
- * gegen Mint nicht mitmachen. Hier traegt dieselbe Zeichnung alles.
+ * Die erste Fassung war ein Eisbaer. Zwei Dinge gegen ihn, beide am Bild
+ * geprueft: ein Tiergesicht bringt Deutungen mit, die niemand gemeint hat
+ * (das Stirnzeichen wurde als Herkunftszeichen gelesen), und ein Maskottchen
+ * verschiebt den Ton der Flaeche ins Verspielte -- daneben steht aber eine
+ * Kostenaufstellung und ein Versandtor. Wer damit taeglich arbeitet, will ein
+ * Instrument, kein Haustier.
  *
- * Der Koerper ist kein Fell mehr, sondern eine Projektion: durchscheinend,
- * mit einer harten Lichtkante oben, einem Halo drumherum, wandernden
- * Scanlinien und einem Lichtfleck am Boden. Im Hellen liest sich das als
- * mattes Eisglas, im Dunklen als etwas, das von innen leuchtet.
- *
- * Kein Stirnzeichen mehr. Der Kristall sass mittig ueber den Augen und wurde
- * dort als Schmuckpunkt gelesen -- eine Bedeutung, die niemand gemeint hat.
- * Die Verbindung zum Ring drumherum tragen jetzt Farbe und Licht.
+ * Also: ein Sensorkern. Neutral -- keine Art, kein Geschlecht, keine
+ * Herkunft -- und trotzdem anwesend. Die Iris weitet sich, wenn er etwas
+ * weiss, blinzelt alle sieben Sekunden und wandert beim Arbeiten. Genau diese
+ * drei Bewegungen tragen das Lebendige; alles andere ist Geraet.
  *
  * ═══════════════════════════════════════════════════════════════════════
- * WAS ER TUT UND WAS NICHT
+ * WORAUS DAS 3D KOMMT
  * ═══════════════════════════════════════════════════════════════════════
  *
- * Er schwebt (sechs Sekunden je Zug), blinzelt alle sieben Sekunden, und der
- * Lichtfleck unter ihm atmet gegenlaeufig mit. Beim Arbeiten wandert der
- * Blick, beim Fertigsein schlaegt alles von Frost auf Mint um. Mehr nicht --
- * kein Winken, kein Huepfen, keine Sprechblase. Eine Figur, die staendig
- * zappelt, ist beim dritten Oeffnen der Seite nur noch im Weg.
+ * Vier Mittel, alle in SVG, keine Bilddatei (ein PNG braeuchte zwei Fassungen
+ * fuer hell und dunkel, waere bei jeder Groesse unscharf und koennte nicht
+ * blinzeln):
+ *
+ *  1. Zwei GEKIPPTE Ellipsen, gegenlaeufig kreisend. Eine Ellipse ist ein
+ *     Kreis in Schraeglage -- daher liest das Auge sofort eine dritte Achse.
+ *     Das ist der ganze Kreisel-Effekt, ohne eine einzige 3D-Bibliothek.
+ *  2. Licht von OBEN LINKS, konsequent in allen Verlaeufen: Koerper, Iris,
+ *     Glanzpunkt, Lichtkante. Rundherum gleich hell sieht aus wie ein
+ *     Aufkleber.
+ *  3. Ein weicher Glanzfleck auf der Kugel, versetzt zur Mitte. Das ist der
+ *     Unterschied zwischen einer Scheibe und einer Kugel.
+ *  4. Ein Lichtfleck am Boden, der gegenlaeufig zum Schweben atmet. Ohne ihn
+ *     steht das Licht still und verraet, dass da nichts schwebt.
  *
  * prefers-reduced-motion schaltet saemtliche Bewegung ab; die Zeichnung
  * bleibt vollstaendig.
  */
 
 export type ThawState =
-  /** Nichts oder fast nichts bekannt -- Augen zu. */
+  /** Nichts oder fast nichts bekannt -- die Blende ist zu. */
   | "cold"
   /** Es fehlt noch etwas Notwendiges -- er hoert zu. */
   | "listening"
-  /** Alles Notwendige da -- Mint, Mundwinkel oben. */
+  /** Alles Notwendige da -- Mint, Blende weit offen. */
   | "ready"
-  /** Schreibt gerade -- der Blick wandert. */
+  /** Schreibt gerade -- der Blick wandert, der Suchring laeuft schnell. */
   | "working";
 
-/** Silhouette aus Kopf und Ohren. Einmal beschrieben, dreimal gebraucht:
- *  fuer den Halo, fuer den Koerper und als Maske der Scanlinien. */
-function Silhouette({ fill, stroke }: { fill: string; stroke?: string }) {
-  return (
-    <>
-      {/* Ohren klein und HOCH: im ersten Entwurf sassen sie auf halber
-          Kopfhoehe und ueberlappten ihn zu drei fast gleich grossen Kreisen --
-          am gerenderten Bild geprueft, es sah aus wie eine bekannte Maus.
-          Ein Baerenohr guckt oben heraus und ist deutlich kleiner als der
-          Kopf. */}
-      <ellipse cx="15.5" cy="14.5" rx="7" ry="7" fill={fill} stroke={stroke} strokeWidth={stroke ? 1 : 0} />
-      <ellipse cx="48.5" cy="14.5" rx="7" ry="7" fill={fill} stroke={stroke} strokeWidth={stroke ? 1 : 0} />
-      {/* Oben schmaler, unten breit -- daran erkennt man einen Baeren und
-          keine Katze. */}
-      <path
-        d="M32 17 c12.4 0 21 8.6 22.2 19.4 c1.2 10.8 -9.3 17.9 -22.2 17.9 c-12.9 0 -23.4 -7.1 -22.2 -17.9 c1.2 -10.8 9.8 -19.4 22.2 -19.4 z"
-        fill={fill}
-        stroke={stroke}
-        strokeWidth={stroke ? 1 : 0}
-      />
-    </>
-  );
-}
+/** Mittelpunkt und Kugelradius. Einmal benannt, ein Dutzend Mal gebraucht. */
+const C = 32;
+const KERN = 11.4;
 
 export default function Thaw({
   state,
@@ -93,7 +79,7 @@ export default function Thaw({
   size?: number;
   className?: string;
 }) {
-  // Eigene IDs je Instanz: der Baer steht auf der Angebotsseite und im
+  // Eigene IDs je Instanz: der Kern steht auf der Angebotsseite und im
   // Kampagnengenerator, und zwei gleiche Verlaufs-IDs im selben Dokument
   // lassen die zweite Figur die Fuellung der ersten erben.
   const uid = useId().replace(/:/g, "");
@@ -101,8 +87,12 @@ export default function Thaw({
 
   const warm = state === "ready";
   const kalt = state === "cold";
+  const arbeitet = state === "working";
   const licht = warm ? "var(--fb-ready)" : "var(--fb-frost)";
-  const augeR = kalt ? 0 : warm ? 4.4 : 3.9;
+
+  /** Die Iris weitet sich mit dem Wissen. Der einzige Zustandswert, den die
+   *  Figur wirklich anzeigt -- alles andere ist Farbe. */
+  const iris = warm ? 4.6 : 3.6;
 
   return (
     <svg
@@ -115,28 +105,29 @@ export default function Thaw({
       style={{ overflow: "visible" }}
     >
       <defs>
-        {/* Volumen: Licht von oben links, Schattenseite unten rechts. */}
-        <radialGradient id={id("body")} cx="36%" cy="24%" r="78%">
+        {/* Der Koerper. Licht oben links, Schattenseite unten rechts. */}
+        <radialGradient id={id("core")} cx="34%" cy="27%" r="76%">
           {/* Drei eigene Deckkraft-Variablen statt calc(): calc() in
               stop-opacity ist nicht in jedem Browser verlaesslich, und ein
-              Ausfall waere hier ein unsichtbarer Baer. */}
+              Ausfall waere hier ein unsichtbarer Kern. */}
           <stop offset="0%" stopColor="var(--fb-holo-hi)" stopOpacity="var(--fb-holo-a1)" />
-          <stop offset="52%" stopColor="var(--fb-holo-mid)" stopOpacity="var(--fb-holo-a2)" />
+          <stop offset="55%" stopColor="var(--fb-holo-mid)" stopOpacity="var(--fb-holo-a2)" />
           <stop offset="100%" stopColor="var(--fb-holo-lo)" stopOpacity="var(--fb-holo-a3)" />
         </radialGradient>
 
-        {/* Die Schnauze sitzt vor dem Kopf, also faengt sie mehr Licht. */}
-        <radialGradient id={id("muzzle")} cx="40%" cy="26%" r="80%">
-          <stop offset="0%" stopColor="var(--fb-holo-hi)" stopOpacity="0.95" />
-          <stop offset="100%" stopColor="var(--fb-holo-mid)" stopOpacity="0.5" />
+        {/* Die Iris leuchtet von innen: weisser Punkt, dann die Zustandsfarbe.
+            Derselbe Lichteinfall wie beim Koerper, sonst kippt die Kugel. */}
+        <radialGradient id={id("iris")} cx="38%" cy="32%" r="70%">
+          <stop offset="0%" stopColor="#ffffff" stopOpacity="0.92" />
+          <stop offset="42%" stopColor={licht} stopOpacity="1" />
+          <stop offset="100%" stopColor={licht} stopOpacity="0.72" />
         </radialGradient>
 
-        {/* Die Lichtkante. Oben hart, nach unten auslaufend -- eine Kante, die
-            rundherum gleich hell ist, sieht aus wie ein Aufkleber. */}
+        {/* Die Lichtkante. Oben hart, nach unten auslaufend. */}
         <linearGradient id={id("rim")} x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%" stopColor={licht} stopOpacity="0.95" />
           <stop offset="45%" stopColor={licht} stopOpacity="0.4" />
-          <stop offset="100%" stopColor={licht} stopOpacity="0.08" />
+          <stop offset="100%" stopColor={licht} stopOpacity="0.1" />
         </linearGradient>
 
         <radialGradient id={id("glow")}>
@@ -145,10 +136,10 @@ export default function Thaw({
         </radialGradient>
 
         <filter id={id("blur")} x="-60%" y="-60%" width="220%" height="220%">
-          <feGaussianBlur stdDeviation="2.6" />
+          <feGaussianBlur stdDeviation="2.4" />
         </filter>
         <filter id={id("blurSoft")} x="-80%" y="-80%" width="260%" height="260%">
-          <feGaussianBlur stdDeviation="1.4" />
+          <feGaussianBlur stdDeviation="1.2" />
         </filter>
 
         <pattern id={id("scan")} width="4" height="3" patternUnits="userSpaceOnUse">
@@ -156,101 +147,185 @@ export default function Thaw({
         </pattern>
 
         <clipPath id={id("clip")}>
-          <Silhouette fill="#000" />
+          <circle cx={C} cy={C} r={KERN} />
         </clipPath>
       </defs>
 
       {/* Lichtfleck am Boden. Er macht aus "steht" ein "schwebt". */}
       <ellipse
         className="fb-shadow"
-        cx="32"
-        cy="60"
-        rx="17"
-        ry="3.2"
+        cx={C}
+        cy="59"
+        rx="15"
+        ry="2.8"
         fill={`url(#${id("glow")})`}
         filter={`url(#${id("blurSoft")})`}
       />
 
       <g className="fb-float">
-        {/* Halo. Eine unscharfe Kopie der Silhouette -- billiger und
+        {/* Halo. Eine unscharfe Kopie der Kugel -- billiger und
             gleichmaessiger als ein Schlagschatten je Form. */}
-        <g filter={`url(#${id("blur")})`} opacity="var(--fb-holo-halo-a)">
-          <Silhouette fill={licht} />
+        <circle
+          cx={C}
+          cy={C}
+          r={KERN + 1.4}
+          fill={licht}
+          filter={`url(#${id("blur")})`}
+          opacity="var(--fb-holo-halo-a)"
+        />
+
+        {/* ── Die beiden Orbits ────────────────────────────────────────
+            Zwei Ringebenen, deutlich verschieden gekippt und gegenlaeufig.
+            Am gerenderten Bild geprueft: flache Ellipsen (ry 8) mit feiner
+            Strichelung lesen sich nicht als Ring in Schraeglage, sondern als
+            verstreute Striche -- der ganze Raumeindruck ging verloren. Jetzt
+            ist der aeussere durchgezogen (eine Bahn), nur der innere
+            gestrichelt, und beide sind bauchig genug, um als Kreis in
+            Perspektive gelesen zu werden.
+
+            Der Knoten auf der aeusseren Bahn ist der einzige Punkt, an dem
+            die Drehung wirklich ablesbar ist. */}
+        <g className="fb-orbit">
+          <g transform={`rotate(-20 ${C} ${C})`}>
+            <ellipse
+              cx={C}
+              cy={C}
+              rx="28"
+              ry="11.5"
+              fill="none"
+              stroke={licht}
+              strokeWidth="0.8"
+              opacity="0.4"
+            />
+            <circle cx={C + 28} cy={C} r="1.6" fill={licht} opacity="0.9" />
+          </g>
+        </g>
+        {/* Die Neigung MUSS in einer inneren Gruppe stehen.
+            Am Bild geprueft: liegt das transform-Attribut auf demselben
+            Element wie die Animationsklasse, gewinnt der animierte CSS-Wert
+            und die Neigung faellt ersatzlos weg -- die Bahn stand dann quer
+            und ausserhalb der Mitte. */}
+        <g className="fb-orbit-rev">
+          <g transform={`rotate(64 ${C} ${C})`}>
+            <ellipse
+              cx={C}
+              cy={C}
+              rx="23"
+              ry="13.5"
+              fill="none"
+              stroke={licht}
+              strokeWidth="0.8"
+              strokeLinecap="round"
+              strokeDasharray="3 5"
+              opacity="0.3"
+            />
+          </g>
         </g>
 
-        {/* Der Koerper. */}
-        <Silhouette fill={`url(#${id("body")})`} />
+        {/* ── Die Blende ───────────────────────────────────────────────
+            Sechs Segmente um den Kern. Beim Arbeiten dreht der Kranz schnell
+            -- das ersetzt den Spinner und sagt "er liest", nicht nur "es
+            passiert etwas". */}
+        <circle
+          className={arbeitet ? "fb-rotate-fast" : "fb-rotate"}
+          cx={C}
+          cy={C}
+          r="15"
+          fill="none"
+          stroke={licht}
+          strokeWidth="1.7"
+          strokeLinecap="round"
+          strokeDasharray="10.2 5.5"
+          opacity={kalt ? 0.28 : 0.5}
+        />
 
-        {/* Scanlinien, auf die Silhouette beschnitten und langsam wandernd. */}
+        {/* ── Die Kugel ────────────────────────────────────────────────── */}
+        <circle cx={C} cy={C} r={KERN} fill={`url(#${id("core")})`} />
+        {/* Im Zielzustand faerbt sich auch das Glas, nicht nur der Ring.
+            Ohne diese Lasur blieb der Koerper frostblau, waehrend alles um
+            ihn herum auf Mint umschlug -- am Bild geprueft, es sah nach zwei
+            verschiedenen Zustaenden gleichzeitig aus. */}
+        {warm && <circle cx={C} cy={C} r={KERN} fill={licht} opacity="0.2" />}
+
+        {/* Scanlinien, auf die Kugel beschnitten und langsam wandernd. */}
         <g clipPath={`url(#${id("clip")})`}>
-          <rect className="fb-scanlines" x="0" y="-6" width="64" height="76" fill={`url(#${id("scan")})`} />
-        </g>
-
-        {/* Lichtkante, in derselben Silhouette nur als Kontur. */}
-        <g opacity="0.9">
-          <Silhouette fill="none" stroke={`url(#${id("rim")})`} />
-        </g>
-
-        {/* Ohrinneres: ein Ring, kein gefuellter Kreis -- so bleibt es
-            durchscheinend wie der Rest. */}
-        {[15.5, 48.5].map((cx) => (
-          <ellipse
-            key={cx}
-            cx={cx}
-            cy={14.8}
-            rx="3.3"
-            ry="3.3"
-            fill="none"
-            stroke={licht}
-            strokeWidth="1.1"
-            opacity="0.5"
+          <rect
+            className="fb-scanlines"
+            x="0"
+            y="-6"
+            width="64"
+            height="76"
+            fill={`url(#${id("scan")})`}
           />
-        ))}
+        </g>
 
-        <ellipse cx="32" cy="44" rx="10.2" ry="7.6" fill={`url(#${id("muzzle")})`} />
+        <circle
+          cx={C}
+          cy={C}
+          r={KERN}
+          fill="none"
+          stroke={`url(#${id("rim")})`}
+          strokeWidth="1.1"
+        />
 
-        {/* Augen. Geschlossen, solange er nichts weiss -- kleinere Augen allein
-            liessen sich nicht von "hoert zu" unterscheiden (am gerenderten
-            Bild geprueft). */}
-        <g className={state === "working" ? "fb-look" : kalt ? "" : "fb-blink"}>
-          {[24, 40].map((cx) =>
-            kalt ? (
-              <path
-                key={cx}
-                d={`M${cx - 4.2} 32.4 q4.2 3.6 8.4 0`}
+        {/* ── Die Iris ─────────────────────────────────────────────────
+            Geschlossen als Spalt, solange er nichts weiss. Eine kleinere
+            Iris allein liess sich nicht von "hoert zu" unterscheiden -- am
+            gerenderten Bild geprueft. */}
+        <g className={arbeitet ? "fb-look" : kalt ? "" : "fb-blink"}>
+          {kalt ? (
+            <ellipse cx={C} cy={C} rx="6.4" ry="0.9" fill={licht} opacity="0.7" />
+          ) : (
+            <>
+              <circle cx={C} cy={C} r={iris + 2.4} fill={licht} opacity="0.16" />
+              <circle cx={C} cy={C} r={iris} fill={`url(#${id("iris")})`} />
+              {/* Die Blendenlamellen sitzen VOR der Iris: erst dadurch wird
+                  aus dem leuchtenden Punkt eine Optik. */}
+              <circle
+                className="fb-rotate"
+                cx={C}
+                cy={C}
+                r={iris + 1.5}
                 fill="none"
                 stroke={licht}
-                strokeWidth="1.7"
+                strokeWidth="0.7"
                 strokeLinecap="round"
-                opacity="0.75"
+                strokeDasharray="2.6 2.6"
+                opacity="0.6"
               />
-            ) : (
-              <g key={cx}>
-                <circle cx={cx} cy={32.4} r={augeR + 1.6} fill={licht} opacity="0.22" />
-                <circle cx={cx} cy={32.4} r={augeR} fill={licht} />
-                {/* Zwei Glanzpunkte: einer gross oben links, einer klein unten
-                    rechts. Das ist der Unterschied zwischen einer Scheibe und
-                    einer Kugel. */}
-                <circle cx={cx - 1.3} cy={31.1} r={augeR * 0.36} fill="#fff" opacity="0.95" />
-                <circle cx={cx + 1.4} cy={33.8} r={augeR * 0.17} fill="#fff" opacity="0.5" />
-              </g>
-            )
+            </>
           )}
         </g>
 
-        <ellipse cx="32" cy="41" rx="3.4" ry="2.5" fill={licht} opacity="0.9" />
-        <path
-          d={
-            warm
-              ? "M32 43.5 v2.2 M32 45.7 q-4.6 4.1 -8.6 0.4 M32 45.7 q4.6 4.1 8.6 0.4"
-              : "M32 43.5 v2.2 M32 45.7 q-4.1 2.7 -7.8 0.5 M32 45.7 q4.1 2.7 7.8 0.5"
-          }
-          fill="none"
-          stroke={licht}
-          strokeWidth="1.5"
-          strokeLinecap="round"
-          opacity={kalt ? 0.55 : 0.85}
+        {/* Der Glanzfleck. Versetzt nach oben links, weich -- das ist der
+            Unterschied zwischen einer Scheibe und einer Kugel. Er liegt
+            zuoberst, weil Glas das Licht vor allem spiegelt, was dahinter
+            liegt. */}
+        <ellipse
+          cx={C - 4.4}
+          cy={C - 5.6}
+          rx="4"
+          ry="2.4"
+          transform={`rotate(-32 ${C - 4.4} ${C - 5.6})`}
+          fill="#ffffff"
+          opacity="0.6"
+          filter={`url(#${id("blurSoft")})`}
         />
+
+        {/* Nur im Zielzustand: ein zweiter, atmender Ring. Der eine Moment,
+            den die Figur sich leistet. */}
+        {warm && (
+          <circle
+            className="fb-breathe"
+            cx={C}
+            cy={C}
+            r={KERN + 2.6}
+            fill="none"
+            stroke={licht}
+            strokeWidth="0.8"
+            opacity="0.5"
+          />
+        )}
       </g>
     </svg>
   );

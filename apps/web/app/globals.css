@@ -260,6 +260,17 @@ body {
 .fb-rotate { animation: fbRotate 46s linear infinite; transform-origin: center; }
 .fb-rotate-fast { animation: fbRotate 3.4s linear infinite; transform-origin: center; }
 
+/* Die beiden Orbits des Kerns.
+   GEGENLÄUFIG und mit verschiedener Dauer -- zwei Ringe, die gleich schnell
+   in dieselbe Richtung laufen, verschmelzen für das Auge zu einem einzigen
+   und die räumliche Tiefe geht verloren. Langsam genug (28 s und 41 s), dass
+   die Bewegung neben einem Formular nicht mitliest.
+   transform-origin: center wirkt hier über die viewBox, weil der Kern in
+   deren Mitte sitzt. */
+@keyframes fbOrbit { to { transform: rotate(360deg); } }
+.fb-orbit { animation: fbOrbit 28s linear infinite; transform-origin: center; }
+.fb-orbit-rev { animation: fbRotate 41s linear infinite; transform-origin: center; }
+
 /* Beim Aufwachen: der Kern öffnet sich einmal. */
 @keyframes fbWake {
   0% { transform: scale(0.4); opacity: 0; }
@@ -339,7 +350,8 @@ body {
 
 @media (prefers-reduced-motion: reduce) {
   .fb-seg, .fb-ignite, .fb-breathe, .fb-rotate, .fb-rotate-fast, .fb-wake,
-  .fb-blink, .fb-look, .fb-float, .fb-shadow, .fb-scanlines { animation: none; }
+  .fb-blink, .fb-look, .fb-float, .fb-shadow, .fb-scanlines,
+  .fb-orbit, .fb-orbit-rev { animation: none; }
   .fb-scan::after { animation: none; opacity: 0.5; }
 }
 

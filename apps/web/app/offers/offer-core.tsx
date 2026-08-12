@@ -30,10 +30,13 @@ import Thaw from "../thaw";
  *
  * Die rechte Spalte hat den Platz, also nutzt sie ihn: bei 132 Pixeln stand
  * die Anzeige verloren neben einer 700 Pixel breiten Formularspalte, und die
- * Figur in der Mitte war zu klein, um ein Gesicht zu sein.
+ * Figur in der Mitte war zu klein, um als Geraet gelesen zu werden. Am
+ * Live-Stand nachgemessen: bei R=68 stiessen die Orbits des Kerns fast an die
+ * Segmente. Jetzt R=80 bei gleichem Kern-Anteil -- die Spalte ist dafuer auf
+ * 340 Pixel gewachsen (offers-editor.tsx).
  */
-const R = 68;
-const STROKE = 10;
+const R = 80;
+const STROKE = 11;
 /**
  * Luecke zwischen den Segmenten.
  *
@@ -43,7 +46,7 @@ const STROKE = 10;
  * Fortschrittsanzeige.
  */
 const GAP_DEG = 10;
-const SIZE = 172;
+const SIZE = 200;
 const CIRC = 2 * Math.PI * R;
 const SEG = CIRC / OFFER_TEXT_FIELDS.length;
 const GAP = (GAP_DEG / 360) * CIRC;
@@ -144,8 +147,8 @@ export default function OfferCore({
           </g>
         </svg>
 
-        {/* In der Mitte steht nicht die Zahl, sondern THAW. Die Zahl darunter
-            klein: sie beantwortet "wie weit", er beantwortet "und jetzt?".
+        {/* In der Mitte steht nicht die Zahl, sondern THAW. Die Zahl klein
+            darunter: sie beantwortet "wie weit", er beantwortet "und jetzt?".
             Ein Prozentwert allein hat noch nie jemanden dazu gebracht, ein
             drittes Feld auszufuellen. */}
         {/* Die Projektionsfläche.
@@ -163,10 +166,17 @@ export default function OfferCore({
           }}
         />
 
-        <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-1.5">
-          <Thaw state={ready ? "ready" : filled.size === 0 ? "cold" : "listening"} size={76} />
+        {/* Kern und Messwert liegen BEIDE absolut, nicht gestapelt.
+            Gestapelt schob die Zahl den Kern um ein Zehntel des Durchmessers
+            nach oben -- bei einem Instrument sieht man sofort, wenn die Nadel
+            nicht in der Mitte der Skala sitzt. Die Zahl steht jetzt unten im
+            Ring, innerhalb der Segmente. */}
+        <div className="pointer-events-none absolute inset-0">
+          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
+            <Thaw state={ready ? "ready" : filled.size === 0 ? "cold" : "listening"} size={112} />
+          </div>
           <span
-            className="fb-num text-[15px] font-semibold leading-none"
+            className="fb-num absolute bottom-[38px] left-1/2 -translate-x-1/2 text-[17px] font-semibold leading-none"
             style={{ color: ready ? "var(--fb-ready)" : "var(--fb-frost)" }}
           >
             {percent}%

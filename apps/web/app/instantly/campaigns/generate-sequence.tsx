@@ -123,8 +123,8 @@ export default function GenerateSequence({
           {/* Derselbe Kern wie auf der Angebotsseite. Er ist der Grund, warum
               sich die beiden Flaechen wie ein Vorgang anfuehlen und nicht wie
               zwei Werkzeuge: dort sammelt er, hier schreibt er. */}
-          <div className="flex items-start gap-3">
-            <Thaw state={busy ? "working" : fertig > 0 ? "ready" : "listening"} size={52} className="shrink-0" />
+          <div className="flex items-start gap-3.5">
+            <Thaw state={busy ? "working" : fertig > 0 ? "ready" : "listening"} size={64} className="shrink-0" />
             <div>
               <p className="fb-label mb-1.5" style={{ color: "var(--fb-frost)" }}>
                 {G.eyebrow}

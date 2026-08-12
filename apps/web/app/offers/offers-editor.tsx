@@ -2,7 +2,6 @@
 import { useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
-import { inputCls } from "@/lib/ui";
 import {
   OFFER_COLUMNS,
   OFFER_TEXT_FIELDS,
@@ -54,6 +53,23 @@ import OfferCore from "./offer-core";
 type Entwurf = Omit<Offer, "id" | "is_default">;
 
 const MAX_OFFERS = 10;
+
+/**
+ * Eingabefelder dieser Seite, groesser als das app-weite inputCls.
+ *
+ * Hier wird nicht ein Wert eingetragen, sondern ein Absatz formuliert -- und
+ * denselben Text liest der Generator danach als Vorgabe. Auf 14 Pixeln in
+ * einer 40 Pixel hohen Zeile las sich das wie ein Suchfeld; jetzt 15 Pixel mit
+ * offener Zeilenhoehe.
+ *
+ * Bewusst NICHT als "inputCls + Zusatz" geschrieben: bei Tailwind entscheidet
+ * die Reihenfolge im erzeugten Stylesheet, nicht die im class-Attribut --
+ * px-4 hinter px-3.5 zu haengen gewinnt also nicht zuverlaessig.
+ */
+const feldBasis =
+  "rounded-lg border border-edge2 bg-field px-4 py-3 text-[15px] leading-[1.6] text-ink " +
+  "placeholder-mute outline-none transition-colors focus:border-sky-500";
+const textfeldCls = feldBasis + " w-full resize-y";
 
 /** Karte der Instrumentenfläche: Haarlinienrahmen, Eckwinkel, Monoschild. */
 function Karte({
@@ -346,7 +362,7 @@ export default function OffersEditor({ initial }: { initial: Offer[] }) {
               onChange={(e) => setNeuerName(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && anlegen()}
               placeholder={O.namePlaceholder}
-              className={inputCls + " min-w-64 flex-1"}
+              className={feldBasis + " min-w-64 flex-1"}
             />
             <button
               onClick={anlegen}
@@ -370,13 +386,15 @@ export default function OffersEditor({ initial }: { initial: Offer[] }) {
       )}
 
       {aktuell && (
-        <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_308px]">
+        // 340 statt 308 Pixel: der Kern ist gewachsen (offer-core.tsx), und
+        // die Legende darunter soll dabei nicht enger werden.
+        <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_340px]">
           {/* ── Links: hier wird geschrieben ─────────────────────────── */}
           <div className="min-w-0 space-y-5">
             <Karte label={O.languageHeading}>
               <div className="flex flex-wrap items-start gap-x-8 gap-y-4">
                 <div>
-                  <p className="mb-2 text-xs text-faint">{O.languageSubtitle}</p>
+                  <p className="mb-2 text-[13px] text-faint">{O.languageSubtitle}</p>
                   <div className="flex gap-2">
                     {(["de", "en"] as const).map((code) => (
                       <Schalter
@@ -394,7 +412,7 @@ export default function OffersEditor({ initial }: { initial: Offer[] }) {
                     Bedeutung. */}
                 {entwurf.language === "de" && (
                   <div>
-                    <p className="mb-2 text-xs text-faint">{O.addressSubtitle}</p>
+                    <p className="mb-2 text-[13px] text-faint">{O.addressSubtitle}</p>
                     <div className="flex gap-2">
                       {(["du", "sie"] as const).map((form) => (
                         <Schalter
@@ -415,30 +433,30 @@ export default function OffersEditor({ initial }: { initial: Offer[] }) {
                   wie". Getrennte Karten haetten drei Antworten auf drei
                   Seiten verteilt. */}
               <div className="mt-5 border-t border-edge/60 pt-4">
-                <label htmlFor="feld-signature" className="block text-sm font-medium text-ink">
+                <label htmlFor="feld-signature" className="block text-[15px] font-medium text-ink">
                   {O.signatureHeading}
                 </label>
-                <p className="mb-2 mt-0.5 text-xs text-faint">{O.signatureSubtitle}</p>
+                <p className="mb-2 mt-0.5 text-[13px] text-faint">{O.signatureSubtitle}</p>
                 <textarea
                   id="feld-signature"
                   value={entwurf.signature}
                   onChange={(e) => setzeFeld("signature", e.target.value)}
                   rows={3}
                   placeholder={O.signaturePlaceholder}
-                  className={inputCls + " w-full resize-y"}
+                  className={textfeldCls}
                 />
-                <p className="mt-1.5 text-xs leading-relaxed text-mute">{O.signatureHint}</p>
+                <p className="mt-1.5 text-[13px] leading-relaxed text-mute">{O.signatureHint}</p>
               </div>
             </Karte>
 
             <Karte label={O.websiteHeading}>
-              <p className="mb-3 text-xs text-faint">{O.websiteSubtitle}</p>
+              <p className="mb-3 text-[13px] text-faint">{O.websiteSubtitle}</p>
               <div className="relative flex flex-wrap items-center gap-2">
                 <input
                   value={entwurf.website ?? ""}
                   onChange={(e) => setzeFeld("website", e.target.value)}
                   placeholder={O.websitePlaceholder}
-                  className={inputCls + " min-w-56 flex-1"}
+                  className={feldBasis + " min-w-56 flex-1"}
                 />
                 <button
                   onClick={ausWebsite}
@@ -454,7 +472,7 @@ export default function OffersEditor({ initial }: { initial: Offer[] }) {
                   <span className="relative">{lese ? O.reading : O.readWebsite}</span>
                 </button>
               </div>
-              <p className="mt-2 text-xs leading-relaxed text-mute">{O.websiteHint}</p>
+              <p className="mt-2 text-[13px] leading-relaxed text-mute">{O.websiteHint}</p>
             </Karte>
 
             <Karte label={O.fieldsHeading}>
@@ -472,7 +490,7 @@ export default function OffersEditor({ initial }: { initial: Offer[] }) {
                         <span className="fb-num shrink-0 text-[11px] text-mute">
                           {String(i + 1).padStart(2, "0")}
                         </span>
-                        <label htmlFor={`feld-${key}`} className="text-sm font-medium text-ink">
+                        <label htmlFor={`feld-${key}`} className="text-[15px] font-medium text-ink">
                           {O.fields[key].label}
                         </label>
                         {/* Pflicht nur fuers Erzeugen, nicht fuers Speichern:
@@ -485,14 +503,14 @@ export default function OffersEditor({ initial }: { initial: Offer[] }) {
                           </span>
                         )}
                       </div>
-                      <p className="mb-1.5 pl-6 text-xs leading-relaxed text-faint">{O.fields[key].hint}</p>
+                      <p className="mb-2 pl-6 text-[13px] leading-relaxed text-faint">{O.fields[key].hint}</p>
                       <div className="pl-6">
                         <textarea
                           id={`feld-${key}`}
                           value={entwurf[key]}
                           onChange={(e) => setzeFeld(key, e.target.value)}
-                          rows={key === "tone" ? 2 : 3}
-                          className={inputCls + " w-full resize-y"}
+                          rows={key === "tone" ? 2 : 4}
+                          className={textfeldCls}
                         />
                         {vorschlaege[key] && (
                           <div
@@ -503,8 +521,8 @@ export default function OffersEditor({ initial }: { initial: Offer[] }) {
                             }}
                           >
                             <p className="fb-label mb-1 text-mute">{O.suggestionLabel}</p>
-                            <p className="text-xs leading-relaxed text-soft">{vorschlaege[key]}</p>
-                            <div className="mt-2 flex gap-3 text-[11px]">
+                            <p className="text-[13.5px] leading-relaxed text-soft">{vorschlaege[key]}</p>
+                            <div className="mt-2 flex gap-3 text-xs">
                               <button
                                 onClick={() => uebernehmen(key)}
                                 className="font-medium transition-opacity hover:opacity-75"
