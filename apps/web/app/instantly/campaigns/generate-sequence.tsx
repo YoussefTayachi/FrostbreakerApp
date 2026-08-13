@@ -229,6 +229,13 @@ type ProblemTexte = {
   noGreeting: (step: number) => string;
   noParagraphs: (step: number) => string;
   personalizationLeadIn: (text: string) => string;
+  stepTooLong: (step: number, words: number, max: number) => string;
+  notShorter: (step: number) => string;
+  subjectTooLong: (step: number, words: number, max: number) => string;
+  subjectDrift: (step: number) => string;
+  subjectNoMirror: (step: number) => string;
+  bannedPhrase: (step: number, phrase: string) => string;
+  meetingAsk: (step: number) => string;
 };
 
 function problemText(p: SequenceProblem, T: ProblemTexte): string {
@@ -255,5 +262,19 @@ function problemText(p: SequenceProblem, T: ProblemTexte): string {
       return T.noParagraphs(p.step);
     case "personalizationLeadIn":
       return T.personalizationLeadIn(p.text);
+    case "stepTooLong":
+      return T.stepTooLong(p.step, p.words, p.max);
+    case "notShorter":
+      return T.notShorter(p.step);
+    case "subjectTooLong":
+      return T.subjectTooLong(p.step, p.words, p.max);
+    case "subjectDrift":
+      return T.subjectDrift(p.step);
+    case "subjectNoMirror":
+      return T.subjectNoMirror(p.step);
+    case "bannedPhrase":
+      return T.bannedPhrase(p.step, p.phrase);
+    case "meetingAsk":
+      return T.meetingAsk(p.step);
   }
 }

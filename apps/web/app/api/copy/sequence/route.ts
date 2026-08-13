@@ -64,7 +64,7 @@ export async function POST(req: Request) {
 
   const { data: workspace } = await supabase
     .from("workspaces")
-    .select("calendar_link, reply_sender_name, personalization_max_words")
+    .select("reply_sender_name, personalization_max_words")
     .eq("id", workspaceId)
     .single();
 
@@ -77,7 +77,6 @@ export async function POST(req: Request) {
   }
 
   const opts: SequenceOptions = {
-    calendarLink: workspace?.calendar_link ?? null,
     senderName: workspace?.reply_sender_name ?? null,
     // Dieselbe Wortgrenze, mit der der Worker den Aufhaenger erzeugt: sie
     // entscheidet, wie viel Platz in der ersten Mail uebrig bleibt.
@@ -102,7 +101,8 @@ export async function POST(req: Request) {
     );
   }
 
-  let problems = sequenceProblems(steps, opts);
+  const angebot = offer as unknown as Offer;
+  let problems = sequenceProblems(steps, opts, angebot.cta);
   let corrected = false;
   if (problems.length > 0) {
     const zweiter = await callOpenAi(openaiKey, [
@@ -117,7 +117,7 @@ export async function POST(req: Request) {
       // wegwerfen.
       if (nachgebessert.length > 0) {
         steps = nachgebessert;
-        problems = sequenceProblems(steps, opts);
+        problems = sequenceProblems(steps, opts, angebot.cta);
         corrected = true;
       }
     }

@@ -4,7 +4,7 @@ import { getCurrentWorkspace } from "@/lib/workspace/server";
 import { getApiKey } from "@/lib/api-keys";
 import { callOpenAi } from "@/lib/openai";
 import { recordOpenAiUsage } from "@/lib/usage";
-import { OFFER_COLUMNS, type Offer } from "@/lib/offers";
+import { OFFER_COLUMNS, emptyOffer, type Offer } from "@/lib/offers";
 import { DEFAULT_MAX_WORDS } from "@/lib/personalization-defaults";
 import { MAX_INSTRUCTION_CHARS, buildRefinePrompt, parseVariant } from "@/lib/copy/refine-prompt";
 import { unknownTags } from "@/lib/copy/sequence-prompt";
@@ -71,22 +71,11 @@ export async function POST(req: Request) {
 
   // Ohne hinterlegtes Angebot ein leeres: der Prompt macht daraus von selbst
   // die Anweisungen "nichts behaupten, nichts erfinden".
-  const offer = (offerRes.data as unknown as Offer | null) ?? {
-    id: "",
-    name: "",
-    offering: "",
-    icp: "",
-    problem: "",
-    outcome: "",
-    proof: "",
-    cta: "",
-    tone: "",
-    address_form: "du",
-    language: "de",
-    website: null,
-    signature: "",
-    is_default: false,
-  };
+  // emptyOffer() statt eines eigenen Literals: sonst muss diese Stelle bei
+  // jedem neuen Angebotsfeld nachgezogen werden, und beim Playbook-Umbau
+  // (Migration 0093) hat sie das prompt auch gebraucht.
+  const offer: Offer =
+    (offerRes.data as unknown as Offer | null) ?? { ...emptyOffer(""), id: "", is_default: false };
 
   const fallback = { subject, body: text };
   const prompt = buildRefinePrompt(offer, fallback, instruction, {

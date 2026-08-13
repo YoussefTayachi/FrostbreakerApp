@@ -40,12 +40,18 @@ const STROKE = 11;
 /**
  * Luecke zwischen den Segmenten.
  *
- * 10 Grad und nicht weniger: bei 7 Grad (erster Entwurf, am Bild geprueft)
- * verschmilzt der volle Ring zu einem geschlossenen Kreis, und genau dann
- * geht die Aussage verloren -- man soll SIEBEN Felder sehen, nicht eine
- * Fortschrittsanzeige.
+ * Die Luecke ist kein Geschmack, sie traegt die Aussage: man soll die FELDER
+ * sehen und nicht eine Fortschrittsanzeige. Bei 7 Grad und sieben Segmenten
+ * (erster Entwurf, am Bild geprueft) verschmolz der volle Ring zu einem
+ * geschlossenen Kreis, deshalb standen hier lange 10 Grad.
+ *
+ * Mit dem Playbook sind es zwoelf Felder, und damit misst sich das anders: ein
+ * Segment ist nur noch 30 statt 51 Grad breit, 8 Grad Luecke sind davon mehr
+ * als ein Viertel. Am Bild geprueft (12 Segmente bei 8, 12 und 16 Grad): bei
+ * 8 Grad bleibt es ein Ring mit erkennbaren Abschnitten, ab 12 zerfaellt er in
+ * einzelne Striche.
  */
-const GAP_DEG = 10;
+const GAP_DEG = 8;
 const SIZE = 200;
 const CIRC = 2 * Math.PI * R;
 const SEG = CIRC / OFFER_TEXT_FIELDS.length;

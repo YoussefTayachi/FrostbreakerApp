@@ -1649,24 +1649,62 @@ const de = {
       },
       problem: {
         label: "Welches Problem hat der Kunde vorher?",
-        hint: "Das, was ihn stört, bevor er dich kennt. Nicht das, was du anbietest.",
+        hint: "Das, was ihn stört, bevor er dich kennt. Prüffrage: Wenn das 90 Tage so weiterläuft — was kostet ihn das?",
+      },
+      friction: {
+        label: "Woran genau bleibt er hängen?",
+        hint: "Der EINE Punkt, kurz bevor jemand Geld ausgeben würde. Etwas, das dein Kunde selbst nachsehen kann — nicht „veraltete Website\", sondern „das Buchungsformular fragt neun Felder ab\".",
+      },
+      friction_reason: {
+        label: "Warum lässt das Käufer zögern?",
+        hint: "Beobachtetes Verhalten, kein Vorwurf. „Wer den Preis nicht sieht, schreibt drei andere an.\" So redet jemand, der Abläufe repariert.",
       },
       outcome: {
         label: "Was ist danach anders?",
-        hint: "Wenn du eine Zahl hast, schreib sie hin. Zahlen tragen eine Mail.",
+        hint: "Am besten als Messwert mit Zeitrahmen: „in 14 Tagen von 12 Stunden auf unter 30 Minuten Antwortzeit\".",
+      },
+      mechanism: {
+        label: "Wie entsteht das Ergebnis?",
+        hint: "In einem Satz und ohne Werkzeugwörter — kein „KI\", kein „Agent\", kein Produktname. Steht nie in der ersten Mail, trägt aber die Antwort, wenn jemand Ja sagt.",
       },
       proof: {
         label: "Womit kannst du das belegen?",
         hint: "Referenzen, Ergebnisse, Jahre. Leer lassen, wenn es nichts gibt — dann erfindet die KI ausdrücklich nichts.",
       },
+      preview_asset: {
+        label: "Was schickst du, wenn er Ja sagt?",
+        hint: "Etwas Kleines und Konkretes, das du erst NACH dem Ja baust. Klingt es wie ein Foliensatz, taugt es nicht.",
+      },
+      review_time: {
+        label: "Wie lange braucht er dafür?",
+        hint: "Exakt: „90 Sekunden\", „3 Minuten\". Je kleiner das Versprechen, desto glaubhafter die Zeit.",
+      },
       cta: {
-        label: "Was soll der Empfänger tun?",
-        hint: "Je kleiner die Bitte, desto mehr Antworten. Eine Rückfrage schlägt einen Termin.",
+        label: "Die eine Frage, auf die er Ja oder Nein sagt",
+        hint: "Eine Zeile, ein Fragezeichen, keine zweite Option. Kein Termin, kein Kalenderlink — die steht wortgleich in allen vier Mails.",
       },
       tone: {
         label: "Wie soll es klingen?",
         hint: "Optional. z. B. direkt, kein Hype, keine Fachwörter.",
       },
+    },
+    /** Die Befunde der Playbook-Prüfungen, unter dem jeweiligen Feld. */
+    findings: {
+      heading: "Prüfung",
+      outcomeNoTimeframe: "Kein Zeitrahmen. Ohne „in X Tagen\" wirkst du wie eine Dauerberatung, und der Kunde schiebt die Entscheidung.",
+      outcomeNoNumber: "Keine Zahl. Ein Ergebnis, das man nicht messen kann, kann der Kunde intern nicht rechtfertigen.",
+      mechanismJargon: (w: string[]) =>
+        `Werkzeugwörter im Mechanismus: ${w.join(", ")}. Der Kunde kauft ein Ergebnis, kein Werkzeug — beschreib, was passiert.`,
+      microYesMultiline: "Mehr als eine Zeile. Zwei Fragen sind keine Entscheidung mehr.",
+      microYesNoQuestion: "Keine Frage. Ohne Fragezeichen gibt es nichts, worauf man Ja sagt.",
+      microYesMeeting: "Das ist eine Terminbitte. Sie ist die größte Bitte, die eine Kaltmail stellen kann — deshalb wird sie am häufigsten übergangen.",
+      microYesLink: "Ein Link gehört nicht in die Frage. Der kommt, wenn jemand Ja gesagt hat.",
+      microYesTooLong: "Zu lang für eine Ja/Nein-Frage. Kürz sie auf einen Satz.",
+      reviewTimeMissing: "Du versprichst etwas, sagst aber nicht, wie lange es dauert. Genau das entscheidet, ob jemand hinsieht.",
+      reviewTimeVague: "Keine Zahl in der Zeitangabe. „Kurz\" ist keine Zusage.",
+      frictionTooBroad: "Zu allgemein. Nenn den Punkt so, dass dein Kunde ihn selbst nachsehen kann.",
+      tooLongToSay: (n: number, max: number) =>
+        `Dein Kernsatz hat ${n} Wörter, in 15 Sekunden sagt man rund ${max}. Wenn du ihn nicht ruhig aussprechen kannst, ist das Angebot noch nicht scharf.`,
     },
   },
   copyGen: {
@@ -1697,6 +1735,20 @@ const de = {
       noParagraphs: (step: number) => `Stufe ${step} ist ein Block ohne Absätze.`,
       personalizationLeadIn: (text: string) =>
         `„${text}" steht vor dem Aufhänger — der ist schon ein ganzer Satz und braucht keine Einleitung.`,
+      stepTooLong: (step: number, words: number, max: number) =>
+        `Stufe ${step} hat ${words} Wörter, erlaubt sind ${max}. Jede Stufe ist kürzer als die davor.`,
+      notShorter: (step: number) =>
+        `Stufe ${step} ist nicht kürzer als die davor. Wer bei ausbleibender Antwort mehr schreibt, läuft hinterher.`,
+      subjectTooLong: (step: number, words: number, max: number) =>
+        `Der Betreff von Stufe ${step} hat ${words} Wörter, erlaubt sind ${max}.`,
+      subjectDrift: (step: number) =>
+        `Stufe ${step} hat einen anderen Betreff als Stufe 1 — die Nachfassmails gehören ins selbe Gespräch.`,
+      subjectNoMirror: (step: number) =>
+        `Der Betreff von Stufe ${step} kündigt etwas anderes an als die Frage in der Mail.`,
+      bannedPhrase: (step: number, phrase: string) =>
+        `In Stufe ${step} steht „${phrase}" — daran erkennt man Massenpost auf den ersten Blick.`,
+      meetingAsk: (step: number) =>
+        `Stufe ${step} bittet um einen Termin. Das ist die größte Bitte, die eine Kaltmail stellen kann.`,
     },
     refine: {
       placeholder: "kürzer · direkter · mach daraus eine Abschiedsmail",
@@ -3708,21 +3760,59 @@ const en: Dictionary = {
       icp: { label: "To whom?", hint: "Industry, size, role. The narrower, the more concrete the emails." },
       problem: {
         label: "What does the customer struggle with beforehand?",
-        hint: "What bothers them before they know you. Not what you offer.",
+        hint: "What bothers them before they know you. Test it: if this runs on for 90 days, what does it cost them?",
+      },
+      friction: {
+        label: "Where exactly do they get stuck?",
+        hint: "The ONE point, right before someone would spend money. Something your customer can check themselves — not \"outdated website\" but \"the booking form asks for nine fields\".",
+      },
+      friction_reason: {
+        label: "Why does that make buyers hesitate?",
+        hint: "Observed behaviour, not an accusation. \"Someone who cannot see the price emails three competitors instead.\" That is how a person who fixes processes talks.",
       },
       outcome: {
         label: "What is different afterwards?",
-        hint: "If you have a number, write it down. Numbers carry an email.",
+        hint: "Best as a metric with a timeframe: \"in 14 days from 12 hours to under 30 minutes response time\".",
+      },
+      mechanism: {
+        label: "How does the result happen?",
+        hint: "One sentence, no tool words — no \"AI\", no \"agent\", no product names. Never goes in the first email, but it carries your reply once someone says yes.",
       },
       proof: {
         label: "What backs that up?",
         hint: "References, results, years. Leave empty if there is nothing — then the AI is explicitly told to invent none.",
       },
+      preview_asset: {
+        label: "What do you send once they say yes?",
+        hint: "Something small and concrete that you build AFTER the yes. If it sounds like a slide deck, it will not do.",
+      },
+      review_time: {
+        label: "How long does that take them?",
+        hint: "Exactly: \"90 seconds\", \"3 minutes\". The smaller the promise, the more believable the time.",
+      },
       cta: {
-        label: "What should the recipient do?",
-        hint: "The smaller the ask, the more replies. A question beats a meeting request.",
+        label: "The one question they answer yes or no to",
+        hint: "One line, one question mark, no second option. No meeting, no calendar link — it appears word for word in all four emails.",
       },
       tone: { label: "How should it sound?", hint: "Optional. e.g. direct, no hype, no jargon." },
+    },
+    /** Findings of the playbook checks, under the field they belong to. */
+    findings: {
+      heading: "Check",
+      outcomeNoTimeframe: "No timeframe. Without an \"in X days\" you read like an open-ended consultancy, and the decision gets postponed.",
+      outcomeNoNumber: "No number. A result nobody can measure is a result nobody can justify internally.",
+      mechanismJargon: (w: string[]) =>
+        `Tool words in the mechanism: ${w.join(", ")}. The buyer buys a result, not a tool — describe what happens.`,
+      microYesMultiline: "More than one line. Two questions are no longer a decision.",
+      microYesNoQuestion: "Not a question. Without a question mark there is nothing to say yes to.",
+      microYesMeeting: "That is a meeting request. It is the largest ask a cold email can make, which is why it is skipped most often.",
+      microYesLink: "A link does not belong in the question. It comes after someone has said yes.",
+      microYesTooLong: "Too long for a yes/no question. Cut it to one sentence.",
+      reviewTimeMissing: "You promise something but not how long it takes. That is exactly what decides whether anyone looks.",
+      reviewTimeVague: "No number in the time. \"Quick\" is not a promise.",
+      frictionTooBroad: "Too broad. Name it so your customer can go and check it themselves.",
+      tooLongToSay: (n: number, max: number) =>
+        `Your core sentence is ${n} words; 15 seconds holds about ${max}. If you cannot say it calmly, the offer is not sharp yet.`,
     },
   },
   copyGen: {
@@ -3753,6 +3843,20 @@ const en: Dictionary = {
       noParagraphs: (step: number) => `Step ${step} is one block without paragraphs.`,
       personalizationLeadIn: (text: string) =>
         `"${text}" sits in front of the opening line — that line is already a full sentence and needs no lead-in.`,
+      stepTooLong: (step: number, words: number, max: number) =>
+        `Step ${step} is ${words} words, the limit is ${max}. Every step is shorter than the one before it.`,
+      notShorter: (step: number) =>
+        `Step ${step} is not shorter than the one before it. Writing more when nobody answers reads as chasing.`,
+      subjectTooLong: (step: number, words: number, max: number) =>
+        `The subject of step ${step} is ${words} words, the limit is ${max}.`,
+      subjectDrift: (step: number) =>
+        `Step ${step} uses a different subject than step 1 — the follow-ups belong to the same conversation.`,
+      subjectNoMirror: (step: number) =>
+        `The subject of step ${step} announces something other than the question the email asks.`,
+      bannedPhrase: (step: number, phrase: string) =>
+        `Step ${step} contains "${phrase}" — that marks the mail as bulk mail on sight.`,
+      meetingAsk: (step: number) =>
+        `Step ${step} asks for a meeting. That is the largest ask a cold email can make.`,
     },
     refine: {
       placeholder: "shorter · more direct · turn this into a breakup email",

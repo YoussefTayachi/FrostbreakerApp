@@ -25,15 +25,36 @@ import type { WebsiteContent } from "@/lib/website-text";
 export type OfferSuggestion = Partial<Record<OfferTextField, string>>;
 
 /**
- * `tone` wird bewusst NICHT vorgeschlagen.
+ * Fuenf Felder werden bewusst NICHT vorgeschlagen.
  *
- * Der Ton ist die einzige der sieben Angaben, die nicht auf der Website
- * steht, sondern eine Entscheidung des Absenders ist. Eine Website ist ein
- * Schaufenster; wie jemand eine kalte Mail schreiben will, hat damit nichts
- * zu tun. Ein Vorschlag dort waere geraten, und geraten heisst hier: es steht
+ * Die Trennlinie ist nicht "schwer zu finden", sondern: steht es auf der
+ * Seite, oder ist es eine Entscheidung? Eine Website ist ein Schaufenster.
+ * Was jemand in einer kalten Mail versprechen und fragen will, steht dort
+ * nicht -- ein Vorschlag waere geraten, und geraten heisst hier: es steht
  * danach etwas im Feld, das niemand entschieden hat.
+ *
+ *  - tone: wie jemand schreiben will, hat mit seinem Schaufenster nichts zu tun.
+ *  - preview_asset, review_time: was er hergibt und wie lange das dauert,
+ *    entscheidet er, nicht seine Seite.
+ *  - friction_reason: eine Verhaltensbeobachtung. Genau die Sorte Satz, die
+ *    ein Modell erfindet, wenn es sie nicht findet.
+ *  - cta: DER wichtigste Ausschluss. Auf fast jeder Seite steht "Termin
+ *    buchen" oder "Demo anfragen" -- und genau das ist der Micro-Yes NICHT.
+ *    Solange dieses Feld hier mitlief, hat die Uebernahme dem Nutzer die
+ *    Terminbitte ins Angebot geschrieben, gegen die das ganze Playbook
+ *    geschrieben ist.
  */
-export const SUGGESTED_FIELDS: OfferTextField[] = OFFER_TEXT_FIELDS.filter((f) => f !== "tone");
+const NICHT_VORSCHLAGEN: OfferTextField[] = [
+  "tone",
+  "preview_asset",
+  "review_time",
+  "friction_reason",
+  "cta",
+];
+
+export const SUGGESTED_FIELDS: OfferTextField[] = OFFER_TEXT_FIELDS.filter(
+  (f) => !NICHT_VORSCHLAGEN.includes(f)
+);
 
 export function buildOfferPrompt(content: WebsiteContent, language: "de" | "en"): string {
   const sprache = language === "en" ? "English" : "German";
@@ -55,12 +76,22 @@ export function buildOfferPrompt(content: WebsiteContent, language: "de" | "en")
     "- offering: what they sell, in one sentence",
     "- icp: who they sell to (industry, size, role)",
     "- problem: what the customer struggles with beforehand",
+    // Die Friction ist der einzige der neuen Werte, der ueberhaupt auf einer
+    // Verkaeuferseite stehen KANN -- naemlich dort, wo sie das Problem ihrer
+    // Kunden beschreibt. Die Anweisung ist deshalb streng: ein konkreter
+    // Moment oder gar nichts. Ein allgemeiner Satz an dieser Stelle waere
+    // schlimmer als ein leeres Feld, weil er sich ausgefuellt anfuehlt.
+    "- friction: ONE concrete, checkable moment where that customer gets stuck, if the page names one.",
+    "  It must be something a person could go and look at. If the page only talks in general terms, return an empty string.",
     "- outcome: what is different afterwards, with a number if the page names one",
+    // Der Mechanismus steht fast immer auf der Seite -- meist in
+    // Werkzeugsprache. Genau die soll hier herausfallen.
+    "- mechanism: how the result actually comes about, in plain words.",
+    "  Never use the words AI, agent, LLM, API, platform, software, automation or any product name.",
     "- proof: references, results, figures, years in business, named clients",
-    "- cta: what they ask visitors to do (book a call, request a quote, ...)",
     "",
     "Answer with JSON only:",
-    '{"offering":"...","icp":"...","problem":"...","outcome":"...","proof":"...","cta":"..."}',
+    '{"offering":"...","icp":"...","problem":"...","friction":"...","outcome":"...","mechanism":"...","proof":"..."}',
     "",
     "THE PAGE:",
     content.title ? `Title: ${content.title}` : "",

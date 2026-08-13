@@ -16,13 +16,29 @@
 export type AddressForm = "du" | "sie";
 export type OfferLanguage = "de" | "en";
 
-/** Die inhaltlichen Felder -- die, die in den Prompt wandern. */
+/**
+ * Die inhaltlichen Felder -- die, die in den Prompt wandern.
+ *
+ * Die Reihenfolge ist nicht beliebig: sie folgt dem Aufbau der ersten Mail
+ * und damit der Reihenfolge, in der ein Mensch die Fragen beantworten kann.
+ * Wer weiss, was er verkauft und an wen, kann danach das Problem benennen;
+ * wer das Problem hat, findet den Stolperstein. Umgekehrt geht es nicht.
+ *
+ * friction/friction_reason/preview_asset/review_time kommen aus dem Playbook
+ * (Migration 0093): im Kurs sind das Recherchewerte PRO LEAD, hier stehen sie
+ * am Angebot, weil sie sich innerhalb einer Nische nicht aendern.
+ */
 export const OFFER_TEXT_FIELDS = [
   "offering",
   "icp",
   "problem",
+  "friction",
+  "friction_reason",
   "outcome",
+  "mechanism",
   "proof",
+  "preview_asset",
+  "review_time",
   "cta",
   "tone",
 ] as const;
@@ -35,8 +51,20 @@ export type Offer = {
   offering: string;
   icp: string;
   problem: string;
+  /** Der eine Stolperstein der Nische, kurz vor dem Geld. */
+  friction: string;
+  /** Warum dieser Stolperstein Kaeufer zoegern laesst -- beobachtetes
+   *  Verhalten, keine Theorie. */
+  friction_reason: string;
   outcome: string;
+  /** Wie das Ergebnis entsteht, ohne Tool-Sprache. Nicht fuer Mail 1. */
+  mechanism: string;
   proof: string;
+  /** Was der Empfaenger bekommt, wenn er Ja sagt. */
+  preview_asset: string;
+  /** Wie lange das Ansehen dauert. Exakt, sonst leer. */
+  review_time: string;
+  /** Der Micro-Yes: eine einzige binaere Ja/Nein-Frage. */
   cta: string;
   tone: string;
   address_form: AddressForm;
@@ -53,7 +81,7 @@ export type Offer = {
  *  leitet die Feldtypen aus dem String ab und faellt sonst auf
  *  GenericStringError zurueck (dieselbe Falle wie in app/ai-agent/page.tsx). */
 export const OFFER_COLUMNS =
-  "id, name, offering, icp, problem, outcome, proof, cta, tone, address_form, language, website, signature, is_default";
+  "id, name, offering, icp, problem, friction, friction_reason, outcome, mechanism, proof, preview_asset, review_time, cta, tone, address_form, language, website, signature, is_default";
 
 export function emptyOffer(name: string, language: OfferLanguage = "de"): Omit<Offer, "id" | "is_default"> {
   return {
@@ -61,8 +89,13 @@ export function emptyOffer(name: string, language: OfferLanguage = "de"): Omit<O
     offering: "",
     icp: "",
     problem: "",
+    friction: "",
+    friction_reason: "",
     outcome: "",
+    mechanism: "",
     proof: "",
+    preview_asset: "",
+    review_time: "",
     cta: "",
     tone: "",
     address_form: "du",
@@ -73,18 +106,32 @@ export function emptyOffer(name: string, language: OfferLanguage = "de"): Omit<O
 }
 
 /**
- * Die vier Felder, ohne die keine brauchbare Mail entstehen kann.
+ * Die sechs Felder, ohne die keine brauchbare Mail entstehen kann.
  *
  * Bewusst NICHT als Datenbank-Zwang (dort haben alle Felder Default ''):
  * ein halb ausgefuelltes Angebot muss speicherbar sein, sonst geht die
  * angefangene Arbeit beim Wegklicken verloren. Der Zwang greift erst dort,
  * wo er hingehoert -- am Knopf "Sequenz erzeugen".
  *
- * `proof` steht ausdruecklich NICHT in dieser Liste. Wer keine Referenzen
- * hat, soll trotzdem schreiben duerfen; der Prompt macht daraus dann ein
- * Verbot, welche zu erfinden.
+ * `friction` und `cta` sind mit dem Playbook dazugekommen, und beide zu Recht:
+ * die Friction traegt die Beobachtung, mit der die Mail anfaengt, und der
+ * Micro-Yes ist die Entscheidung, um die es geht. Ohne sie erzeugt der
+ * Generator genau die allgemeine Mail, gegen die das ganze Playbook
+ * geschrieben ist -- er koennte es gar nicht anders.
+ *
+ * `proof` steht ausdruecklich NICHT in dieser Liste, und `preview_asset` /
+ * `review_time` auch nicht. Wer nichts vorzuweisen hat, soll trotzdem
+ * schreiben duerfen; der Prompt macht aus jedem leeren Feld ein Verbot, an
+ * dieser Stelle etwas zu behaupten.
  */
-export const REQUIRED_FOR_GENERATION: OfferTextField[] = ["offering", "icp", "problem", "outcome"];
+export const REQUIRED_FOR_GENERATION: OfferTextField[] = [
+  "offering",
+  "icp",
+  "problem",
+  "friction",
+  "outcome",
+  "cta",
+];
 
 export function missingForGeneration(offer: Pick<Offer, OfferTextField>): OfferTextField[] {
   return REQUIRED_FOR_GENERATION.filter((f) => !offer[f].trim());

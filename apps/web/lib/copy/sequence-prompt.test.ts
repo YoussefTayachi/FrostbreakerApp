@@ -22,9 +22,14 @@ const angebot: Offer = {
   offering: "Monatliche Betreuung von Shopify-Shops",
   icp: "Tierfutter-Shops mit 5 bis 50 Mitarbeitern in der DACH-Region",
   problem: "Retouren fressen die Marge, niemand wertet sie aus",
+  friction: "Der Retourenschein liegt als PDF hinter dem Login",
+  friction_reason: "Wer ihn nicht findet, schreibt den Support an statt zurückzuschicken",
   outcome: "Retourenquote im Schnitt 4 Punkte niedriger nach 90 Tagen",
+  mechanism: "Jede Retoure wird beim Eingang erfasst und dem Grund zugeordnet",
   proof: "",
-  cta: "Kurze Rückfrage per Mail",
+  preview_asset: "Eine kurze Aufnahme eurer Retourenstrecke",
+  review_time: "90 Sekunden",
+  cta: "Soll ich dir die Aufnahme schicken?",
   tone: "direkt, kein Hype",
   address_form: "du",
   language: "de",
@@ -42,26 +47,31 @@ function stufe(bodies: string[], subjects = ["betreff a", "betreff b"]): DraftSt
   };
 }
 
-/** Eine gueltige Sequenz als Ausgangspunkt -- die Tests kaputtmachen sie gezielt.
- *  Jede Mail hat Anrede, Absaetze und Gruss: genau der Aufbau, den der Prompt
- *  seit dem 2026-08-12 verlangt. */
+/**
+ * Eine gueltige Sequenz als Ausgangspunkt -- die Tests kaputtmachen sie gezielt.
+ *
+ * Sie erfuellt das ganze Playbook und nicht nur die Formvorgaben: dieselbe
+ * Friction in allen vier Stufen, derselbe Micro-Yes woertlich wiederholt,
+ * derselbe Betreff, und jede Stufe kuerzer als die vorherige. Damit ist sie
+ * zugleich das lesbarste Beispiel dafuer, was der Generator liefern soll.
+ */
 function guelteSequenz(): DraftStep[] {
   return [
     stufe([
-      "Hi {{firstName}},\n\n{{personalization}}\n\nWir kümmern uns um Retouren bei Shopify-Shops.\n\nLohnt sich ein kurzer Austausch?\n\nBeste Grüße\nYoussef",
-      "Hi {{firstName}},\n\n{{personalization}}\n\nBei euch dürfte die Retourenquote Geld kosten.\n\nSoll ich dir zeigen, wo genau?\n\nBeste Grüße\nYoussef",
+      "Hi {{firstName}},\n\n{{personalization}}\n\nEuer Retourenschein liegt hinter dem Login. Wer ihn dort nicht findet, schreibt stattdessen den Support an.\n\nIch nehme eure Retourenstrecke einmal auf, 90 Sekunden, ohne dass ihr etwas vorbereiten müsst.\n\nSoll ich dir die Aufnahme schicken?\n\nBeste Grüße\nYoussef",
+      "Hi {{firstName}},\n\n{{personalization}}\n\nZwischen Bestellung und Rücksendung steht bei euch der Login. Genau dort brechen die meisten ab und melden sich lieber telefonisch.\n\nIch zeichne den Weg einmal auf, 90 Sekunden zum Ansehen.\n\nSoll ich dir die Aufnahme schicken?\n\nBeste Grüße\nYoussef",
     ]),
     stufe([
-      "Hi {{firstName}},\n\nKurz nachgehakt: die meisten Shops kennen ihre teuerste Retourengruppe nicht.\n\nBeste Grüße\nYoussef",
-      "Hi {{firstName}},\n\nAnderer Gedanke: Retouren nach Produktgruppe getrennt zu betrachten verändert die Sicht.\n\nBeste Grüße\nYoussef",
+      "Hi {{firstName}},\n\nKurz zurück zu dem Schein hinter dem Login. Wer ihn sucht und nicht findet, landet am Ende beim Support.\n\nSoll ich dir die Aufnahme schicken?\n\nBeste Grüße\nYoussef",
+      "Hi {{firstName}},\n\nNoch einmal zu der Hürde vor der Rücksendung. Jede zweite Nachfrage im Postfach hängt daran.\n\nSoll ich dir die Aufnahme schicken?\n\nBeste Grüße\nYoussef",
     ]),
     stufe([
-      "Hi {{firstName}},\n\nIst das bei euch überhaupt ein Thema?",
-      "Hi {{firstName}},\n\nPasst das gerade zeitlich bei euch?",
+      "Hi {{firstName}},\n\nEs geht am Ende um weniger Nachfragen im Postfach.\n\nSoll ich dir die Aufnahme schicken?",
+      "Hi {{firstName}},\n\nUnterm Strich: weniger Anrufe wegen einer Rücksendung.\n\nSoll ich dir die Aufnahme schicken?",
     ]),
     stufe([
-      "Hi {{firstName}},\n\nIch lasse es dabei. Melde dich gern, falls es später passt.",
-      "Hi {{firstName}},\n\nLetzte Mail von mir. Falls das Thema später kommt, weißt du wo du mich findest.",
+      "Hi {{firstName}},\n\nLetzte Mail von mir.\n\nSoll ich dir die Aufnahme schicken?",
+      "Hi {{firstName}},\n\nDanach lasse ich es.\n\nSoll ich dir die Aufnahme schicken?",
     ]),
   ];
 }
@@ -87,14 +97,30 @@ describe("buildSequencePrompt", () => {
     expect(p).not.toContain("NO proof exists");
   });
 
-  it("verbietet ohne Terminlink das Erfinden eines Links", () => {
-    expect(buildSequencePrompt(angebot, opts)).toContain("Never invent one");
+  it("verbietet jeden Terminlink in der Sequenz", () => {
+    // Frueher stand hier ein Fall, in dem der Terminlink aus den Einstellungen
+    // in die Stufen 2 bis 4 wanderte. Mit dem Playbook gibt es diesen Fall
+    // nicht mehr: eine Kaltsequenz bittet nie um einen Termin.
+    const p = buildSequencePrompt(angebot, opts);
+    expect(p).toContain("no booking link in this sequence at all");
+    expect(p).toContain("NEVER ask for a meeting");
   });
 
-  it("nennt den Terminlink, wenn einer hinterlegt ist", () => {
-    const p = buildSequencePrompt(angebot, { ...opts, calendarLink: "https://cal.com/y" });
-    expect(p).toContain("https://cal.com/y");
-    expect(p).not.toContain("Never invent one");
+  it("stellt die Friction und den Micro-Yes in den Auftrag", () => {
+    const p = buildSequencePrompt(angebot, opts);
+    expect(p).toContain("Der Retourenschein liegt als PDF hinter dem Login");
+    expect(p).toContain("Soll ich dir die Aufnahme schicken?");
+    expect(p).toContain("word for word");
+  });
+
+  it("verbietet ein Versprechen, wenn es nichts zu schicken gibt", () => {
+    const p = buildSequencePrompt({ ...angebot, preview_asset: "", review_time: "" }, opts);
+    expect(p).toContain("there is nothing to send");
+    expect(p).toContain("no time promise exists");
+  });
+
+  it("haelt den Mechanismus aus der ersten Mail heraus", () => {
+    expect(buildSequencePrompt(angebot, opts)).toContain("NEVER put this in step 1");
   });
 
   it("erfindet ohne Absendernamen keine Unterschrift", () => {
@@ -210,6 +236,77 @@ describe("unknownTags", () => {
 describe("sequenceProblems", () => {
   it("findet an einer sauberen Sequenz nichts", () => {
     expect(sequenceProblems(guelteSequenz(), opts)).toEqual([]);
+  });
+
+  it("meldet eine Stufe, die nicht kuerzer wurde", () => {
+    const s = guelteSequenz();
+    // Stufe 3 auf die Laenge von Stufe 2 aufblaehen: genau der Fehler, den das
+    // Playbook "Hinterherlaufen" nennt.
+    s[2].variants[0].body =
+      s[2].variants[0].body + " Noch ein Gedanke dazu, weil es sonst leicht untergeht und später teuer wird.";
+    expect(sequenceProblems(s, opts)).toContainEqual({ kind: "notShorter", step: 3 });
+  });
+
+  it("meldet eine Terminbitte", () => {
+    const s = guelteSequenz();
+    s[1].variants[0].body = "Hi {{firstName}},\n\nHast du Donnerstag 15 Minuten für einen Call?";
+    expect(sequenceProblems(s, opts)).toContainEqual({ kind: "meetingAsk", step: 2 });
+  });
+
+  it("meldet Wendungen, an denen man Massenpost erkennt", () => {
+    const s = guelteSequenz();
+    s[1].variants[0].body = "Hi {{firstName}},\n\nJust checking in wegen meiner letzten Mail.";
+    expect(sequenceProblems(s, opts)).toContainEqual({
+      kind: "bannedPhrase",
+      step: 2,
+      phrase: "just checking in",
+    });
+  });
+
+  it("meldet einen Betreff, der mitten in der Sequenz wechselt", () => {
+    const s = guelteSequenz();
+    s[2].variants[0].subject = "ganz anderer betreff";
+    expect(sequenceProblems(s, opts)).toContainEqual({ kind: "subjectDrift", step: 3 });
+  });
+
+  it("haelt ein anderes Satzzeichen im Betreff NICHT fuer einen Wechsel", () => {
+    const s = guelteSequenz();
+    s[2].variants[0].subject = "Betreff A?";
+    expect(sequenceProblems(s, opts).some((p) => p.kind === "subjectDrift")).toBe(false);
+  });
+
+  it("meldet einen zu langen Betreff", () => {
+    const s = guelteSequenz();
+    s[0].variants[0].subject = "eine wirklich sehr lange betreffzeile ohne not";
+    expect(sequenceProblems(s, opts)).toContainEqual({
+      kind: "subjectTooLong",
+      step: 1,
+      words: 7,
+      max: 5,
+    });
+  });
+
+  it("meldet einen Betreff, der etwas anderes ankuendigt als die Frage", () => {
+    const s = guelteSequenz();
+    expect(sequenceProblems(s, opts, "Soll ich dir die Aufnahme schicken?")).toContainEqual({
+      kind: "subjectNoMirror",
+      step: 1,
+    });
+    const gespiegelt = guelteSequenz().map((st) => ({
+      ...st,
+      variants: st.variants.map((v) => ({ ...v, subject: "Aufnahme schicken" })),
+    }));
+    expect(
+      sequenceProblems(gespiegelt, opts, "Soll ich dir die Aufnahme schicken?").some(
+        (p) => p.kind === "subjectNoMirror"
+      )
+    ).toBe(false);
+  });
+
+  it("prueft den Betreff-Spiegel gar nicht, wenn kein Micro-Yes bekannt ist", () => {
+    // Lieber keine Aussage als eine geratene: ohne Micro-Yes gibt es nichts,
+    // wogegen der Betreff gespiegelt werden koennte.
+    expect(sequenceProblems(guelteSequenz(), opts).some((p) => p.kind === "subjectNoMirror")).toBe(false);
   });
 
   it("meldet eine fehlende Aufhaengerzeile in Stufe 1", () => {

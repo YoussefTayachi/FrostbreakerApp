@@ -48,6 +48,25 @@ describe("parseOfferSuggestion", () => {
     expect(parseOfferSuggestion('{"tone":"locker und frech"}')).toEqual({});
   });
 
+  it("schlaegt den Micro-Yes NICHT aus der Website vor", () => {
+    // Auf fast jeder Seite steht "Termin buchen". Genau das ist der Micro-Yes
+    // nicht -- solange dieses Feld mitlief, hat die Uebernahme dem Nutzer die
+    // Terminbitte ins Angebot geschrieben.
+    expect(SUGGESTED_FIELDS).not.toContain("cta");
+    expect(parseOfferSuggestion('{"cta":"Kostenloses Erstgespräch buchen"}')).toEqual({});
+  });
+
+  it("schlaegt nichts vor, was eine Entscheidung ist", () => {
+    for (const feld of ["preview_asset", "review_time", "friction_reason"] as const) {
+      expect(SUGGESTED_FIELDS).not.toContain(feld);
+    }
+  });
+
+  it("schlaegt Friction und Mechanismus vor -- die stehen auf der Seite", () => {
+    expect(SUGGESTED_FIELDS).toContain("friction");
+    expect(SUGGESTED_FIELDS).toContain("mechanism");
+  });
+
   it("wirft Ausreden weg statt sie als Tatsache zu speichern", () => {
     // Sonst steht woertlich "Keine Angabe" im Beleg-Feld, und der
     // Sequenzgenerator liest das als etwas, das er erwaehnen darf.

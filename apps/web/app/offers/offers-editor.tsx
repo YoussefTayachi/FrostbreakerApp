@@ -13,6 +13,7 @@ import {
   type OfferTextField,
 } from "@/lib/offers";
 import type { OfferSuggestion } from "@/lib/copy/offer-from-website";
+import { FINDING_FIELD, offerFindings, type OfferFinding } from "@/lib/copy/offer-tests";
 import { useT } from "../language-provider";
 import { useToast } from "../toast-provider";
 import { useWorkspace } from "../workspace-provider";
@@ -93,6 +94,42 @@ function Karte({
   );
 }
 
+/** Ein Playbook-Befund als Satz. Die Texte stehen in dict.ts, entschieden wird
+ *  nichts hier -- diese Funktion ordnet nur zu. */
+function findingText(f: OfferFinding, T: ReturnType<typeof useT>["t"]["offers"]["findings"]): string {
+  switch (f.kind) {
+    case "outcomeNoTimeframe":
+      return T.outcomeNoTimeframe;
+    case "outcomeNoNumber":
+      return T.outcomeNoNumber;
+    case "mechanismJargon":
+      return T.mechanismJargon(f.words);
+    case "microYes":
+      // Nur der erste Befund: bei einer Terminbitte stimmt meistens auch das
+      // Fragezeichen nicht, und drei Saetze unter einem Feld liest niemand.
+      switch (f.problems[0]) {
+        case "multiline":
+          return T.microYesMultiline;
+        case "meeting":
+          return T.microYesMeeting;
+        case "link":
+          return T.microYesLink;
+        case "tooLong":
+          return T.microYesTooLong;
+        default:
+          return T.microYesNoQuestion;
+      }
+    case "reviewTimeMissing":
+      return T.reviewTimeMissing;
+    case "reviewTimeVague":
+      return T.reviewTimeVague;
+    case "frictionTooBroad":
+      return T.frictionTooBroad;
+    case "tooLongToSay":
+      return T.tooLongToSay(f.words, f.max);
+  }
+}
+
 /** Auswahl in Schalterform -- Sprache, Anrede. */
 function Schalter({
   active,
@@ -150,6 +187,19 @@ export default function OffersEditor({ initial }: { initial: Offer[] }) {
 
   const geaendert = JSON.stringify(entwurf) !== gespeichert;
   const fehlend = missingForGeneration(entwurf);
+  /**
+   * Die Playbook-Befunde, nach Feld sortiert.
+   *
+   * Sie stehen UNTER dem Feld und nicht in einer Liste am Rand: ein Befund,
+   * der neben dem Formular steht, muss erst zugeordnet werden, und genau das
+   * passiert dann nicht mehr. Nur ausgefuellte Felder werden geprueft -- ein
+   * frisches Angebot soll nicht mit acht roten Hinweisen begruessen.
+   */
+  const befunde = new Map<OfferTextField, OfferFinding[]>();
+  for (const f of offerFindings(entwurf)) {
+    const feld = FINDING_FIELD[f.kind];
+    befunde.set(feld, [...(befunde.get(feld) ?? []), f]);
+  }
   const prozent = completeness(entwurf);
   const gefuellt = new Set(OFFER_TEXT_FIELDS.filter((f) => entwurf[f].trim().length > 0));
 
@@ -512,6 +562,21 @@ export default function OffersEditor({ initial }: { initial: Offer[] }) {
                           rows={key === "tone" ? 2 : 4}
                           className={textfeldCls}
                         />
+                        {/* Der Befund direkt unter seinem Feld. Bernstein und
+                            nicht rot: es ist ein Hinweis auf schwächere
+                            Wirkung, kein Fehler -- speichern und erzeugen geht
+                            trotzdem. */}
+                        {(befunde.get(key) ?? []).map((f, n) => (
+                          <p
+                            key={n}
+                            className="mt-1.5 rounded-lg border-l-2 border-amber-500/50 bg-amber-500/5 px-3 py-1.5 text-[13px] leading-relaxed text-soft"
+                          >
+                            <span className="fb-label mr-1.5 text-amber-700 dark:text-amber-400">
+                              {O.findings.heading}
+                            </span>
+                            {findingText(f, O.findings)}
+                          </p>
+                        ))}
                         {vorschlaege[key] && (
                           <div
                             className="lock-pop mt-1.5 rounded-lg border-l-2 px-3 py-2"

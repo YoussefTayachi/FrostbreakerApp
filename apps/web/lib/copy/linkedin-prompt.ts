@@ -18,6 +18,7 @@
 import { LINKEDIN_PLACEHOLDERS } from "@/lib/crm/linkedin-message";
 import type { Offer } from "@/lib/offers";
 import { leadInBefore } from "./sequence-prompt";
+import { BANNED_PHRASES, bannedPhrasesIn } from "./playbook";
 
 /** LinkedIns Grenze fuer die Nachricht an einer Kontaktanfrage. Gemessen am
  *  Feld selbst, nicht geschaetzt: laengere Texte nimmt das Formular nicht an. */
@@ -34,7 +35,16 @@ export function buildLinkedInPrompt(offer: Offer): string {
     `What they sell: ${offer.offering.trim() || "(not specified)"}`,
     `Who they sell to: ${offer.icp.trim() || "(not specified)"}`,
     `Problem before: ${offer.problem.trim() || "(not specified, do not assert one)"}`,
+    // Dieselbe Friction und derselbe Micro-Yes wie in der Mailsequenz. Wer
+    // ueber beide Kanaele angeschrieben wird, soll zweimal dieselbe Sache
+    // hoeren -- zwei verschiedene Aufhaenger derselben Firma lesen sich wie
+    // zwei verschiedene Absender.
+    `The ONE friction: ${offer.friction.trim() || "(not specified, do not invent one)"}`,
+    `Why buyers hesitate at it: ${offer.friction_reason.trim() || "(not specified, do not explain why)"}`,
     `Outcome after: ${offer.outcome.trim() || "(not specified, do not promise one)"}`,
+    `THE MICRO YES (ask exactly this): ${
+      offer.cta.trim() || "(not specified, ask one small yes/no question, never a meeting)"
+    }`,
     offer.proof.trim()
       ? `Proof they may cite: ${offer.proof.trim()}`
       : "They have NO proof. Never mention clients, numbers, results or years of experience.",
@@ -60,7 +70,11 @@ export function buildLinkedInPrompt(offer: Offer): string {
     "- No link, no URL, no phone number.",
     `- Placeholders: only ${LINKEDIN_PLACEHOLDERS.map((p) => `{{${p}}}`).join(", ")}. Any other {{...}} reaches the recipient unfilled.`,
     "- Never use the characters — – or --.",
-    "- End with a small question that is easy to answer. Do not ask for a call.",
+    // Dieselbe Regel wie in der Mailsequenz, und aus demselben Grund: eine
+    // Terminbitte ist die groesste Bitte, die ein Erstkontakt stellen kann.
+    "- End with the micro yes above, or a question just as small. NEVER ask for a call, a meeting or a slot.",
+    "- Never invent numbers, percentages or client counts.",
+    `- Never write any of these: ${BANNED_PHRASES.join(", ")}.`,
     "",
     // ═══════════════════════════════════════════════════════════════════
     // DIE STELLE, AN DER DIE ERSTE FASSUNG SCHIEFGING (2026-08-12)
@@ -141,7 +155,9 @@ export function freeStandingPersonalization(text: string): string {
 export type MessageProblem =
   | { kind: "noParagraphs" }
   | { kind: "personalizationLeadIn"; text: string }
-  | { kind: "tooLong"; length: number; max: number };
+  | { kind: "tooLong"; length: number; max: number }
+  /** Eine Wendung, an der man Massenpost erkennt (lib/copy/playbook.ts). */
+  | { kind: "bannedPhrase"; phrase: string };
 
 /**
  * Was an einer LinkedIn-Vorlage noch nicht stimmt.
@@ -160,6 +176,12 @@ export function messageProblems(text: string, personalizationWords: number): Mes
   if (laenge > LINKEDIN_MAX_CHARS) {
     problems.push({ kind: "tooLong", length: laenge, max: LINKEDIN_MAX_CHARS });
   }
+
+  // Auf 300 Zeichen faellt eine Floskel doppelt auf: sie kostet Platz UND
+  // verraet die Massenaussendung.
+  const treffer = bannedPhrasesIn(text);
+  if (treffer.length > 0) problems.push({ kind: "bannedPhrase", phrase: treffer[0] });
+
   return problems;
 }
 
@@ -172,6 +194,8 @@ export function messageCorrection(problems: MessageProblem[]): string {
         return `- Remove "${p.text}" in front of {{personalization}}. That token is already a full sentence; nothing may introduce it.`;
       case "tooLong":
         return `- Once the opening line is inserted the message runs to about ${p.length} characters, LinkedIn allows ${p.max}. Cut your own sentence, not the placeholders.`;
+      case "bannedPhrase":
+        return `- Remove "${p.phrase}". It marks the message as bulk outreach on sight.`;
     }
   });
   return [
