@@ -39,19 +39,35 @@ function nachricht(zeichen: number): string {
   return "Hi {{firstName}},\n\n{{personalization}}\n\n" + "x".repeat(zeichen);
 }
 
+/** Die Zahl, die der Prompt dem Modell als eigenen Spielraum nennt. */
+function eigenBudget(prompt: string): number {
+  const m = prompt.match(/HARD LIMIT: (\d+) characters/);
+  if (!m) throw new Error("keine Zeichengrenze im Prompt");
+  return Number(m[1]);
+}
+
 describe("buildLinkedInPrompt", () => {
-  it("nennt die Zeichengrenze als harte Vorgabe", () => {
-    expect(buildLinkedInPrompt(angebot, "")).toContain(`HARD LIMIT: ${LINKEDIN_MAX_CHARS} characters`);
+  it("nennt nur den eigenen Spielraum, nicht die vollen 300", () => {
+    // Live gemessen (2026-08-13): mit "300 INCLUDING the placeholders" kam eine
+    // Nachricht heraus, die eingesetzt auf 341 Zeichen kam -- die eigenen
+    // Saetze waren kurz genug, die Platzhalter nahmen 148 vorweg, und die
+    // rechnete das Modell nicht mit. Es kann nicht zaehlen, was es nicht sieht.
+    const p = buildLinkedInPrompt(angebot, "", WOERTER);
+    expect(p).toContain("characters OF YOUR OWN TEXT");
+    expect(p).toContain(`LinkedIn allows ${LINKEDIN_MAX_CHARS}`);
+    // Der Aufhaenger und die beiden Platzhalter sind abgezogen.
+    expect(eigenBudget(p)).toBeLessThan(LINKEDIN_MAX_CHARS - WOERTER * 6);
+    expect(p).toContain("Do NOT try to count the placeholders");
   });
 
   it("verbietet Betreff und Link", () => {
-    const p = buildLinkedInPrompt(angebot, "");
+    const p = buildLinkedInPrompt(angebot, "", WOERTER);
     expect(p).toContain("No subject line");
     expect(p).toContain("No link, no URL");
   });
 
   it("laesst nur die drei LinkedIn-Platzhalter zu", () => {
-    const p = buildLinkedInPrompt(angebot, "");
+    const p = buildLinkedInPrompt(angebot, "", WOERTER);
     expect(p).toContain("{{firstName}}");
     expect(p).toContain("{{personalization}}");
     // {{email}} gibt es auf LinkedIn nicht -- er wuerde ungefuellt rausgehen.
@@ -59,12 +75,12 @@ describe("buildLinkedInPrompt", () => {
   });
 
   it("gibt die Anrede nur im Deutschen vor", () => {
-    expect(buildLinkedInPrompt({ ...angebot, address_form: "sie" }, "")).toContain('formally ("Sie")');
-    expect(buildLinkedInPrompt({ ...angebot, language: "en" }, "")).not.toContain('"Sie"');
+    expect(buildLinkedInPrompt({ ...angebot, address_form: "sie" }, "", WOERTER)).toContain('formally ("Sie")');
+    expect(buildLinkedInPrompt({ ...angebot, language: "en" }, "", WOERTER)).not.toContain('"Sie"');
   });
 
   it("verbietet die Unterschrift, solange keine hinterlegt ist", () => {
-    const p = buildLinkedInPrompt(angebot, "");
+    const p = buildLinkedInPrompt(angebot, "", WOERTER);
     expect(p).toContain("No subject line. No signature.");
     expect(p).toContain("never invent one");
   });
@@ -73,8 +89,9 @@ describe("buildLinkedInPrompt", () => {
     // Gemeldet 2026-08-13: die Signatur fehlte in der erzeugten Vorlage, weil
     // der Prompt sie ausdruecklich verbot. Jetzt wird sie angehaengt -- und das
     // Modell muss wissen, wie wenig Platz ihm dann bleibt.
-    const p = buildLinkedInPrompt(angebot, SIGNATUR);
-    expect(p).toContain(`HARD LIMIT: ${LINKEDIN_MAX_CHARS - signatureCost(SIGNATUR)} characters`);
+    const ohne = buildLinkedInPrompt(angebot, "", WOERTER);
+    const p = buildLinkedInPrompt(angebot, SIGNATUR, WOERTER);
+    expect(eigenBudget(ohne) - eigenBudget(p)).toBe(signatureCost(SIGNATUR));
     expect(p).toContain("is added under your text automatically");
     expect(p).toContain("do not type it");
     expect(p).not.toContain("No signature.");

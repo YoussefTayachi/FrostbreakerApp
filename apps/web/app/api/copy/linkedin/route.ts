@@ -75,8 +75,11 @@ export async function POST(req: Request) {
 
   const offer = offerRes.data as unknown as Offer;
   const signature = signatureFor(offer, workspaceRes.data?.reply_sender_name ?? null);
-  const prompt = buildLinkedInPrompt(offer, signature);
   const personalizationWords = workspaceRes.data?.personalization_max_words || DEFAULT_MAX_WORDS;
+  // Die Aufhaengerlaenge gehoert in den Prompt, nicht nur in die Nachpruefung:
+  // ohne sie kennt das Modell seinen eigenen Spielraum nicht und schreibt
+  // gegen die vollen 300 an (live gemessen 2026-08-13, siehe linkedin-prompt).
+  const prompt = buildLinkedInPrompt(offer, signature, personalizationWords);
 
   const result = await callOpenAi(openaiKey, [{ role: "user", content: prompt }]);
   if (!result.ok) return NextResponse.json({ error: result.error }, { status: 502 });

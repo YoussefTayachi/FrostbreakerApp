@@ -43,6 +43,14 @@ export const LINKEDIN_MAX_CHARS = 300;
 
 const LANGUAGE_NAMES: Record<string, string> = { de: "German", en: "English" };
 
+/** Womit ein Wort des eingesetzten Aufhaengers veranschlagt wird. Grob, aber
+ *  einheitlich -- Schaetzung und Prompt muessen dieselbe Zahl benutzen, sonst
+ *  rechnet das Modell gegen eine andere Grenze als die Anzeige. */
+const AVG_WORT_ZEICHEN = 6;
+/** Womit ein gewoehnlicher Platzhalter ({{firstName}}, {{companyName}})
+ *  veranschlagt wird. */
+const PLATZHALTER_ZEICHEN = 8;
+
 /**
  * Wie viele Zeichen die Signatur der Nachricht wegnimmt: sie selbst plus die
  * Leerzeile davor, die appendSignature setzt.
@@ -56,14 +64,36 @@ export function signatureCost(signature: string): number {
  * @param signature Gruss und Unterschrift, fertig ermittelt mit
  *   signatureFor() aus sequence-prompt.ts (Angebot vor Workspace). Leerer
  *   String heisst: es gibt keine, und es wird auch keine erfunden.
+ * @param personalizationWords workspaces.personalization_max_words -- wie lang
+ *   der eingesetzte Aufhaenger wird. Ohne diese Zahl kann das Modell seinen
+ *   eigenen Spielraum nicht kennen.
  */
-export function buildLinkedInPrompt(offer: Offer, signature: string): string {
+export function buildLinkedInPrompt(
+  offer: Offer,
+  signature: string,
+  personalizationWords: number
+): string {
   const sprache = LANGUAGE_NAMES[offer.language] ?? "German";
   const sig = signature.trim();
-  // Was dem Modell fuer den eigenen Text bleibt. Ihm die vollen 300 zu nennen
-  // hiesse, es um die Laenge der Signatur zu betruegen -- dieselbe Rechnung
-  // wie ownWordBudget() bei der Mailsequenz.
+  // ═══════════════════════════════════════════════════════════════════
+  // WARUM DEM MODELL DER EIGENE SPIELRAUM GENANNT WIRD, NICHT DIE 300
+  // ═══════════════════════════════════════════════════════════════════
+  //
+  // Live gemessen (2026-08-13, 22 Aufhaenger-Woerter): mit "HARD LIMIT 285
+  // INCLUDING the placeholders" kam eine Nachricht heraus, die eingesetzt auf
+  // 341 Zeichen kam. Nicht weil das Modell zu viel geschrieben haette --
+  // seine eigenen Saetze waren 177 Zeichen --, sondern weil die Platzhalter
+  // 148 davon vorwegnahmen und es sie nicht mitrechnete. Ein Modell kann
+  // Zeichen einer Zeichenkette nicht zaehlen, die es gar nicht sieht.
+  //
+  // Deshalb rechnet die App die Platzhalter ab und nennt nur noch die Zahl,
+  // die das Modell selbst beeinflusst.
+  const persoZeichen = personalizationWords * AVG_WORT_ZEICHEN;
+  // {{firstName}} in der Anrede und {{companyName}} in der Frage -- beide
+  // stehen in der Schablone unten, also sind beide eingeplant.
+  const platzhalterZeichen = persoZeichen + PLATZHALTER_ZEICHEN * 2;
   const budget = LINKEDIN_MAX_CHARS - signatureCost(sig);
+  const eigenBudget = Math.max(60, budget - platzhalterZeichen);
   const lines: string[] = [
     "You write ONE short LinkedIn connection message for cold outreach.",
     "",
@@ -101,14 +131,18 @@ export function buildLinkedInPrompt(offer: Offer, signature: string): string {
   lines.push(
     // Die Zeichengrenze ist der ganze Unterschied zur Mail. Wird sie
     // ueberschritten, schneidet LinkedIn ab -- mitten im Satz.
-    `- HARD LIMIT: ${budget} characters INCLUDING the placeholders. Count them. This is a connection request, not an email.`,
+    `- HARD LIMIT: ${eigenBudget} characters OF YOUR OWN TEXT. Count only the letters you type yourself.`,
+    `  LinkedIn allows ${LINKEDIN_MAX_CHARS}. The rest is already spoken for and is NOT yours to spend:`,
+    `  {{personalization}} becomes about ${persoZeichen} characters when the message is sent,`,
+    `  {{firstName}} and {{companyName}} about ${PLATZHALTER_ZEICHEN} each${
+      sig ? `, and the signature under your text is ${signatureCost(sig)}` : ""
+    }.`,
+    "  Do NOT try to count the placeholders. Count your own sentences and keep them under that number.",
     sig
       ? // Die Signatur wird nach der Erzeugung angehaengt. Schriebe das Modell
         // sie zusaetzlich, staende sie zweimal da -- appendSignature erkennt
         // das zwar, aber die Zeichen waeren trotzdem verplant.
-        `- No subject line. Do NOT write a sign-off or a name of your own: the sender's own signature (${signatureCost(
-          sig
-        )} characters) is added under your text automatically. That is why your limit is ${budget} and not ${LINKEDIN_MAX_CHARS}.`
+        "- No subject line. Do NOT write a sign-off or a name of your own: the sender's own signature is added under your text automatically."
       : "- No subject line. No signature. No sender name is known, never invent one.",
     "- No link, no URL, no phone number.",
     `- Placeholders: only ${LINKEDIN_PLACEHOLDERS.map((p) => `{{${p}}}`).join(", ")}. Any other {{...}} reaches the recipient unfilled.`,
@@ -324,8 +358,7 @@ export function messageCorrection(problems: MessageProblem[]): string {
  *  und ist dann rund zwanzig Woerter lang -- deshalb zaehlt er hier mit
  *  seiner geschaetzten Endlaenge, nicht mit den 19 Zeichen des Platzhalters. */
 export function estimateLinkedInLength(text: string, personalizationWords: number): number {
-  const AVG_WORT_ZEICHEN = 6;
   return text.replace(/\{\{personalization\}\}/g, "x".repeat(personalizationWords * AVG_WORT_ZEICHEN))
-    .replace(/\{\{\s*[^}]+\s*\}\}/g, "xxxxxxxx")
+    .replace(/\{\{\s*[^}]+\s*\}\}/g, "x".repeat(PLATZHALTER_ZEICHEN))
     .length;
 }
