@@ -1079,6 +1079,9 @@ const de = {
     replySentToast: "Antwort gesendet",
     replyErrorGeneric: "Antwort konnte nicht gesendet werden.",
     replySubjectPrefix: "Re: ",
+    unsubscribedBadge: "Abgemeldet",
+    unsubscribedNote:
+      "Diese Adresse steht auf der Blockliste und bekommt aus keiner Kampagne mehr Post. Antworten ist hier deshalb gesperrt — nimm sie unter Einstellungen › Blockliste heraus, wenn das ein Irrtum war.",
   },
   blocklist: {
     title: "Blockliste",
@@ -3153,6 +3156,9 @@ const en: Dictionary = {
     replySentToast: "Reply sent",
     replyErrorGeneric: "Could not send reply.",
     replySubjectPrefix: "Re: ",
+    unsubscribedBadge: "Unsubscribed",
+    unsubscribedNote:
+      "This address is on the blocklist and no campaign will mail it again. Replying is disabled here — take it off under Settings › Blocklist if that was a mistake.",
   },
   blocklist: {
     title: "Blocklist",

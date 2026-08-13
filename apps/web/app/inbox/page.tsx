@@ -2,7 +2,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
-import { filterSuppressed } from "@/lib/suppression";
+import { isSuppressed } from "@/lib/suppression";
 import { formatRelative } from "@/lib/format-time";
 import { notifyUnreadChanged } from "@/lib/unread";
 import CompanyLogo from "../company-logo";
@@ -36,9 +36,9 @@ type Msg = {
   } | null;
 };
 
-// Feldnamen email/businesses sind so gewaehlt, dass filterSuppressed() direkt auf
+// Feldnamen email/businesses sind so gewaehlt, dass isSuppressed() direkt auf
 // Konversationen anwendbar bleibt (gleiche Blockliste wie in der Leads-Ansicht --
-// sonst taucht eine geblockte Firma hier weiter auf, obwohl sie dort verschwunden ist).
+// sonst weicht der Vermerk hier von dem ab, was die Kampagne tatsaechlich tut).
 //
 // contactId ist nullable: seit die Inbox mailbox-weit synct statt nur
 // kampagnen-gebundene Antworten, kommen auch Mails von Absendern ohne
@@ -59,6 +59,8 @@ type Conversation = {
   unread: number;
   aiInterest: string | null;
   replyTarget: Msg | null;
+  /** Steht auf der Blockliste -- meist, weil jemand "stop" geantwortet hat. */
+  suppressed: boolean;
 };
 
 type Filter = "all" | "unread" | "interested" | "question" | "out_of_office" | "not_interested";
@@ -92,6 +94,7 @@ function toConversations(messages: Msg[]): Conversation[] {
         unread: 0,
         aiInterest: null,
         replyTarget: null,
+        suppressed: false,
       };
       byKey.set(key, c);
     }
@@ -194,10 +197,26 @@ export default function InboxPage() {
     return () => clearInterval(timer);
   }, [load]);
 
-  const conversations = useMemo(
-    () => filterSuppressed(toConversations(messages), suppression),
-    [messages, suppression]
-  );
+  /**
+   * Gesperrte Absender werden VERMERKT, nicht mehr weggeworfen.
+   *
+   * Vorher lief hier filterSuppressed(): wer "stop" geantwortet hatte,
+   * verschwand aus dem Posteingang. Damit war die Antwort, die zur Sperre
+   * gefuehrt hat, nirgends mehr nachlesbar -- und genau die will man sehen
+   * koennen, wenn jemand fragt, warum er keine Post mehr bekommt.
+   *
+   * In Kampagnen und Leads wird weiter gefiltert. Der Unterschied ist
+   * beabsichtigt: dort geht es ums Senden, hier ums Nachlesen.
+   *
+   * Sichtbar heisst nicht ungelesen: Migration 0092 hakt Eingaenge gesperrter
+   * Absender beim Schreiben ab. Eine Abmeldung ist ein Beleg, keine Aufgabe --
+   * sie soll auffindbar sein, aber das Badge nicht hochzaehlen.
+   */
+  const conversations = useMemo(() => {
+    const list = toConversations(messages);
+    for (const c of list) c.suppressed = isSuppressed(c, suppression);
+    return list;
+  }, [messages, suppression]);
 
   const unreadTotal = useMemo(
     () => conversations.reduce((n, c) => n + c.unread, 0),
@@ -438,12 +457,15 @@ export default function InboxPage() {
                       {/* Name/E-Mail-Zeile nur, wenn sie etwas anderes als der Titel zeigt --
                           bei kontaktlosen Absendern ist der Titel schon die E-Mail-Adresse.
                           Das KI-Badge bleibt davon unabhaengig sichtbar. */}
-                      {((c.name ?? c.email) && (c.name ?? c.email) !== title) || c.aiInterest ? (
+                      {((c.name ?? c.email) && (c.name ?? c.email) !== title) ||
+                      c.aiInterest ||
+                      c.suppressed ? (
                         <span className="mt-0.5 flex items-center gap-1.5">
                           {(c.name ?? c.email) && (c.name ?? c.email) !== title && (
                             <span className="truncate text-xs text-soft">{c.name ?? c.email}</span>
                           )}
                           {c.aiInterest && <InterestBadge value={c.aiInterest} labels={L.aiInterestLabels} />}
+                          {c.suppressed && <UnsubscribedBadge label={L.unsubscribedBadge} />}
                         </span>
                       ) : null}
                       <span className="mt-1 block truncate text-xs text-faint">
@@ -479,8 +501,11 @@ export default function InboxPage() {
                     size={30}
                   />
                   <div className="min-w-0 flex-1">
-                    <p className="truncate font-medium text-ink">
-                      {selected.businesses?.name ?? selected.name ?? selected.email ?? L.unknownContact}
+                    <p className="flex items-center gap-2 truncate font-medium text-ink">
+                      <span className="truncate">
+                        {selected.businesses?.name ?? selected.name ?? selected.email ?? L.unknownContact}
+                      </span>
+                      {selected.suppressed && <UnsubscribedBadge label={L.unsubscribedBadge} />}
                     </p>
                     <p className="truncate text-xs text-faint">
                       {[selected.name, selected.title, selected.email].filter(Boolean).join(" · ")}
@@ -535,7 +560,21 @@ export default function InboxPage() {
                   )}
                 </div>
 
-                {selected.replyTarget && (
+                {/* Abgemeldet: der Verlauf bleibt lesbar, das Antwortfeld nicht.
+                    Eine Antwort geht ueber dieselbe Instantly-Adresse hinaus,
+                    von der sich der Empfaenger gerade abgemeldet hat -- das
+                    waere genau der Griff daneben, gegen den die Sperrliste
+                    ueberall sonst schuetzt. Wer es trotzdem will, nimmt die
+                    Adresse in den Einstellungen aus der Blockliste. */}
+                {selected.suppressed ? (
+                  <div className="border-t border-edge/60 px-5 py-3.5">
+                    <p className="rounded-lg border border-amber-500/30 bg-amber-500/5 px-3.5 py-2.5 text-xs leading-relaxed text-soft">
+                      <span className="font-medium text-ink">{L.unsubscribedBadge}</span>
+                      {" — "}
+                      {L.unsubscribedNote}
+                    </p>
+                  </div>
+                ) : selected.replyTarget ? (
                   <div className="border-t border-edge/60 px-5 py-3.5">
                     {/* Die Entwuerfe stehen UEBER dem Textfeld: sie sind ein
                         Startpunkt, kein Nachschlag. Darunter wuerde man sie
@@ -587,7 +626,7 @@ export default function InboxPage() {
                       </button>
                     </div>
                   </div>
-                )}
+                ) : null}
               </>
             )}
           </div>
@@ -625,6 +664,19 @@ function PlainMessageList({
         </div>
       ))}
     </div>
+  );
+}
+
+/** Der Vermerk "abgemeldet".
+ *
+ *  Bernstein und nicht rot: es ist kein Fehler, sondern ein Zustand, den der
+ *  Empfaenger selbst gewaehlt hat. Rot stuende hier fuer "etwas ist schief
+ *  gegangen" -- schiefgegangen ist nichts. */
+function UnsubscribedBadge({ label }: { label: string }) {
+  return (
+    <span className="shrink-0 rounded-full bg-amber-500/10 px-2 py-0.5 text-[10px] font-medium text-amber-700 dark:text-amber-300">
+      {label}
+    </span>
   );
 }
 
