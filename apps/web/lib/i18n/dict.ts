@@ -1688,6 +1688,34 @@ const de = {
         hint: "Optional. z. B. direkt, kein Hype, keine Fachwörter.",
       },
     },
+    /** Die Beschriftungen der Kanten auf der Karte. Jede trägt eine Regel --
+     *  eine Kante ohne Regel wäre Zierde und gehörte entfernt. */
+    edges: {
+      // Kurz halten: die Lücke zwischen zwei Spalten ist 36 Pixel breit, und
+      // eine Beschriftung, die länger ist, ragt in den Nachbarknoten. Am
+      // Standbild geprüft mit "macht das Ja leicht" -- das lag über einer
+      // fremden Überschrift.
+      world: "gilt für",
+      concrete: "konkret",
+      why: "warum",
+      removed: "fällt weg",
+      backs: "belegt",
+      easy: "leichtes Ja",
+      takes: "dauert",
+      forThat: "dafür",
+    },
+    optional: "optional",
+    coach: {
+      run: "Angebot prüfen",
+      running: "THAW liest...",
+      clean: "Nichts zu beanstanden. Das Angebot trägt.",
+      found: (n: number) => (n === 1 ? "Eine Stelle, an der es hakt" : `${n} Stellen, an denen es hakt`),
+      verdictLabel: "THAW",
+      apply: "Übernehmen",
+      dismiss: "Passt so",
+      related: (feld: string) => `Gehört eher in: ${feld}`,
+      hint: "THAW liest dein Angebot gegen das Playbook — nicht den Text, sondern ob jedes Feld seine Frage beantwortet.",
+    },
     /** Die vier Abschnitte des Formulars. */
     stages: {
       who: {
@@ -3822,6 +3850,32 @@ const en: Dictionary = {
         hint: "One line, one question mark, no second option. No meeting, no calendar link — it appears word for word in all four emails.",
       },
       tone: { label: "How should it sound?", hint: "Optional. e.g. direct, no hype, no jargon." },
+    },
+    /** Labels on the map's edges. Each carries a rule -- an edge without one
+     *  would be decoration and should go. */
+    edges: {
+      // Keep short: the column gap is 36px, longer labels reach into the
+      // neighbouring node.
+      world: "applies to",
+      concrete: "concretely",
+      why: "why",
+      removed: "goes away",
+      backs: "backs it",
+      easy: "easy yes",
+      takes: "takes",
+      forThat: "for that",
+    },
+    optional: "optional",
+    coach: {
+      run: "Check the offer",
+      running: "THAW is reading...",
+      clean: "Nothing to flag. The offer holds.",
+      found: (n: number) => (n === 1 ? "One spot that does not hold" : `${n} spots that do not hold`),
+      verdictLabel: "THAW",
+      apply: "Use this",
+      dismiss: "Leave it",
+      related: (feld: string) => `Belongs in: ${feld}`,
+      hint: "THAW reads your offer against the playbook — not the wording, but whether each field answers its question.",
     },
     /** The four sections of the form. */
     stages: {

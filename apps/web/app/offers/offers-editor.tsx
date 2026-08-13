@@ -17,6 +17,8 @@ import {
 } from "@/lib/offers";
 import type { OfferSuggestion } from "@/lib/copy/offer-from-website";
 import { FINDING_FIELD, offerFindings, type OfferFinding } from "@/lib/copy/offer-tests";
+import type { CoachFinding } from "@/lib/copy/coach-prompt";
+import OfferMap from "./offer-map";
 import { useT } from "../language-provider";
 import { useToast } from "../toast-provider";
 import { useWorkspace } from "../workspace-provider";
@@ -198,6 +200,25 @@ export default function OffersEditor({ initial }: { initial: Offer[] }) {
    * kann aber jeden anderen aufklappen, ohne dass die Automatik zurueckspringt.
    */
   const [geoeffnetManuell, setGeoeffnetManuell] = useState<OfferStageId | null>(null);
+  const [coachBefunde, setCoachBefunde] = useState<CoachFinding[] | null>(null);
+  const [coachLaeuft, setCoachLaeuft] = useState(false);
+  /**
+   * Karte oder Liste.
+   *
+   * Die Karte braucht vier Spalten nebeneinander -- darunter waeren die Knoten
+   * schmaler als ihre Beschriftung. Statt sie zu quetschen, faellt sie auf die
+   * Abschnittsansicht zurueck: dieselben Daten, dieselben Bausteine, andere
+   * Anordnung. Gerendert wird immer nur EINE von beiden, sonst gaebe es jedes
+   * Textfeld zweimal im Dokument (und damit zwei Elemente mit derselben id).
+   */
+  const [breit, setBreit] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia("(min-width: 1180px)");
+    const an = () => setBreit(mq.matches);
+    an();
+    mq.addEventListener("change", an);
+    return () => mq.removeEventListener("change", an);
+  }, []);
 
   /**
    * Der aktuelle Stand in Refs.
@@ -438,6 +459,42 @@ export default function OffersEditor({ initial }: { initial: Offer[] }) {
     push(O.suggestionsReady(Object.keys(body.suggestion ?? {}).length), "success");
   }
 
+  /**
+   * THAW liest gegen.
+   *
+   * Ein Aufruf, ein Ergebnis, keine Korrekturrunde -- ein Befund, den das
+   * Modell im zweiten Anlauf anders formuliert, ist kein besserer Befund.
+   * Eine leere Liste ist ein gutes Ergebnis und wird auch so gemeldet: ein
+   * Coach, der immer etwas findet, ist nach zwei Wochen Rauschen.
+   */
+  async function pruefen() {
+    if (!aktuell || coachLaeuft) return;
+    // Erst sichern, sonst liest THAW den Stand von vor zwei Sekunden.
+    if (geaendert) await speichern(true);
+    setCoachLaeuft(true);
+    const res = await fetch("/api/copy/offer-review", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ offerId: aktuell.id }),
+    });
+    const body = await res.json().catch(() => ({}));
+    setCoachLaeuft(false);
+    if (!res.ok) return push(t.common.error + (body.error ?? res.status), "error");
+    const gefunden = (body.findings ?? []) as CoachFinding[];
+    setCoachBefunde(gefunden);
+    push(gefunden.length === 0 ? O.coach.clean : O.coach.found(gefunden.length), "success");
+  }
+
+  /** Einen Vorschlag von THAW uebernehmen -- und den Befund damit erledigen. */
+  function coachUebernehmen(feld: OfferTextField, wert: string) {
+    setzeFeld(feld, wert);
+    coachVerwerfen(feld);
+  }
+
+  function coachVerwerfen(feld: OfferTextField) {
+    setCoachBefunde((v) => (v ?? []).filter((c) => c.field !== feld));
+  }
+
   function uebernehmen(field: OfferTextField) {
     const wert = vorschlaege[field];
     if (!wert) return;
@@ -623,6 +680,36 @@ export default function OffersEditor({ initial }: { initial: Offer[] }) {
               <p className="mt-2 text-[13px] leading-relaxed text-mute">{O.websiteHint}</p>
             </Karte>
 
+            {/* Breit: die Karte. Schmal: dieselben Felder als Abschnitte.
+                Immer nur EINE von beiden im Dokument -- sonst gaebe es jedes
+                Textfeld zweimal, samt doppelter id. */}
+            {breit ? (
+              <OfferMap
+                werte={entwurf}
+                fehlend={fehlend}
+                befunde={Object.fromEntries(
+                  [...befunde.entries()].map(([feld, liste]) => [feld, findingText(liste[0], O.findings)])
+                )}
+                coach={coachBefunde ?? []}
+                onChange={setzeFeld}
+                onApply={coachUebernehmen}
+                onDismiss={coachVerwerfen}
+                texte={{
+                  stages: O.stages,
+                  fields: O.fields,
+                  edges: O.edges,
+                  neededForGeneration: O.neededForGeneration,
+                  optional: O.optional,
+                  coach: {
+                    verdictLabel: O.coach.verdictLabel,
+                    apply: O.coach.apply,
+                    dismiss: O.coach.dismiss,
+                    related: O.coach.related,
+                  },
+                }}
+              />
+            ) : (
+            <>
             {/* ── Die vier Stufen ───────────────────────────────────────
                 Zwoelf Textfelder untereinander waren eine Wand: man scrollt an
                 Feld vier vorbei und weiss nicht mehr, worauf das Ganze
@@ -782,6 +869,8 @@ export default function OffersEditor({ initial }: { initial: Offer[] }) {
                 })}
               </div>
             </div>
+            </>
+            )}
           </div>
 
           {/* ── Rechts: was daraus folgt ─────────────────────────────── */}
@@ -811,7 +900,34 @@ export default function OffersEditor({ initial }: { initial: Offer[] }) {
                   }
                 />
 
-                <div className="mt-5 space-y-2 border-t border-edge/60 pt-4">
+                {/* THAWs Knopf steht direkt unter ihm, nicht bei den anderen:
+                    er ist der einzige auf dieser Seite, der etwas LIEST statt
+                    etwas zu speichern oder weiterzugehen. */}
+                <div className="mt-4 border-t border-edge/60 pt-4">
+                  <button
+                    onClick={pruefen}
+                    disabled={coachLaeuft || gefuellt.size === 0}
+                    className="relative min-h-10 w-full overflow-hidden rounded-lg border text-[13.5px] font-medium transition-all hover:brightness-110 disabled:opacity-40 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500"
+                    style={{
+                      borderColor: "color-mix(in srgb, var(--fb-frost) 45%, transparent)",
+                      color: "var(--fb-frost)",
+                      background: "color-mix(in srgb, var(--fb-frost) 8%, transparent)",
+                    }}
+                  >
+                    {coachLaeuft && <span className="fb-scan" aria-hidden />}
+                    <span className="relative">{coachLaeuft ? O.coach.running : O.coach.run}</span>
+                  </button>
+                  {coachBefunde !== null && !coachLaeuft && (
+                    <p className="fb-open mt-2 text-center text-[12.5px] leading-relaxed text-soft">
+                      {coachBefunde.length === 0 ? O.coach.clean : O.coach.found(coachBefunde.length)}
+                    </p>
+                  )}
+                  {coachBefunde === null && !coachLaeuft && (
+                    <p className="mt-2 text-center text-[12px] leading-relaxed text-mute">{O.coach.hint}</p>
+                  )}
+                </div>
+
+                <div className="mt-4 space-y-2 border-t border-edge/60 pt-4">
                   {/* Kein Speicherknopf mehr, sondern eine Anzeige.
                       Der Knopf war die Ursache des gemeldeten Fehlers: ein
                       Umschalter, der eingerastet AUSSAH, war es erst nach

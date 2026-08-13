@@ -183,6 +183,117 @@ body {
   --fb-holo-halo-a: 0.55;
 }
 
+/* ── DIE ANGEBOTSKARTE ────────────────────────────────────────────────────
+   Der Rest dieser Fläche ist bewusst still, damit genau ein Moment wirkt: die
+   Kanten zeichnen sich beim Aufbau einmal selbst. Danach bewegt sich nichts
+   mehr von allein — jede weitere Dauerbewegung neben einem Textfeld ist beim
+   dritten Öffnen der Seite nur noch im Weg. */
+
+/* Bernstein für Befunde. Als Token, weil es in SVG (Kante, Pfeilspitze) und
+   in CSS (Rahmen, Fläche) dasselbe sein muss. */
+.fb-hud {
+  --fb-warn: #b45309;
+}
+.dark .fb-hud {
+  --fb-warn: #fbbf24;
+}
+
+/* Der eine Moment. pathLength=1 macht die Länge unabhängig von der
+   tatsächlichen Kurve, dadurch brauchen kurze und lange Kanten gleich lang --
+   sonst wirkt die kurze abgehackt und die lange träge. */
+@keyframes fbEdgeDraw {
+  from { stroke-dashoffset: 1; }
+  to { stroke-dashoffset: 0; }
+}
+.fb-edge {
+  stroke-dasharray: 1 1;
+  animation: fbEdgeDraw 0.7s cubic-bezier(0.65, 0, 0.35, 1) both;
+}
+/* Nach dem Aufbau: dieselbe Linie, aber ohne Animation. Würde sie bei jedem
+   Tastendruck neu gezeichnet, wäre sie ein Flackern. */
+.fb-edge-ruhig { stroke-dasharray: none; }
+
+/* Der Befund-Pfeil zwischen zwei Knoten. Er kommt später als die anderen
+   Kanten und bleibt gestrichelt: er gehört nicht zum Bauplan, er ist ein
+   Einwand. */
+@keyframes fbEdgeWarn {
+  from { opacity: 0; stroke-dashoffset: 24; }
+  to { opacity: 0.9; stroke-dashoffset: 0; }
+}
+.fb-edge-warn { animation: fbEdgeWarn 0.6s ease-out both; }
+
+.fb-edge-label {
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 9.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  /* Ein Rand in Flächenfarbe UNTER der Schrift: so bleibt die Beschriftung
+     lesbar, auch wo sie über einen Knotenrahmen läuft. Ohne paint-order läge
+     der Rand über der Schrift und würde sie ausradieren. */
+  paint-order: stroke fill;
+  stroke: var(--c-panel);
+  stroke-width: 3px;
+  stroke-linejoin: round;
+}
+
+/* Die Knoten steigen gestaffelt auf. Sechs Pixel und 0,4 Sekunden: gerade
+   genug, dass man die Reihenfolge liest (links nach rechts, oben nach unten),
+   und zu wenig, um sich als Effekt in den Vordergrund zu drängen. */
+@keyframes fbFade {
+  from { opacity: 0; transform: translateY(6px); }
+}
+.fb-fade { animation: fbFade 0.4s cubic-bezier(0.2, 0.7, 0.3, 1) both; }
+
+/* Ein Knoten klappt auf. Nur Deckkraft und ein kleiner Weg -- eine
+   Höhen-Animation würde bei jedem Zeichen im Textfeld neu rechnen. */
+@keyframes fbOpen {
+  from { opacity: 0; transform: translateY(-4px); }
+}
+.fb-open { animation: fbOpen 0.25s ease-out both; }
+
+/* Der Zustand eines Knotens steckt im Rahmen, nicht in einem Symbol daneben:
+   so trägt die Form die Aussage und nicht eine zweite Zeile. */
+.fb-node { border-color: var(--color-edge); }
+.fb-node[data-zustand="leer"] { border-style: dashed; border-color: var(--color-edge2); }
+.fb-node[data-zustand="offen"] {
+  border-style: dashed;
+  border-color: color-mix(in srgb, var(--fb-frost) 55%, transparent);
+}
+.fb-node[data-zustand="voll"] { border-color: color-mix(in srgb, var(--fb-ready) 40%, transparent); }
+.fb-node[data-zustand="warn"],
+.fb-node[data-zustand="blocker"] { border-color: color-mix(in srgb, var(--fb-warn) 55%, transparent); }
+.fb-node[data-zustand="blocker"] { box-shadow: 0 0 0 1px color-mix(in srgb, var(--fb-warn) 35%, transparent); }
+.fb-node:hover { border-color: color-mix(in srgb, var(--fb-frost) 60%, transparent); }
+
+/* Die zwei tragenden Knoten (Friction, Micro-Yes). Kein Rahmen mehr, sondern
+   eine Fahne an der Kante -- ein zweiter kräftiger Rahmen würde mit dem
+   Zustandsrahmen um dieselbe Linie streiten. */
+.fb-node-tragend::before {
+  content: "";
+  position: absolute;
+  left: -1px;
+  top: 12px;
+  bottom: 12px;
+  width: 2px;
+  border-radius: 2px;
+  background: var(--fb-frost);
+  opacity: 0.7;
+}
+
+/* Der Punkt an einem offenen Pflichtfeld. */
+.fb-dot {
+  height: 6px;
+  width: 6px;
+  border-radius: 9999px;
+  background: var(--fb-frost);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fb-edge, .fb-edge-warn, .fb-fade, .fb-open { animation: none; }
+  .fb-edge { stroke-dasharray: none; }
+  .fb-edge-warn { opacity: 0.9; }
+}
+
 /* Messfeld-Beschriftung: klein, Monoschrift, weit gesperrt. Der Unterschied
    zwischen einer Überschrift und einem Instrumentenschild. Kein Webfont --
    die App lädt keine, und ein Ladefehler wäre hier besonders sichtbar. */

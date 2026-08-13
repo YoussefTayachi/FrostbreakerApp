@@ -151,10 +151,13 @@ export const REQUIRED_FOR_GENERATION: OfferTextField[] = [
  * davon zuklappen, ohne den Faden zu verlieren.
  */
 export const OFFER_STAGES = [
-  { id: "who", fields: ["offering", "icp"] },
+  // Der Ton steht beim Absender, nicht beim Ask: er beschreibt, WIE jemand
+  // schreibt, nicht worum er bittet. Auf der Karte war er in der Ask-Spalte
+  // ein Fremdkoerper zwischen Preview, Pruefzeit und Frage.
+  { id: "who", fields: ["offering", "icp", "tone"] },
   { id: "hook", fields: ["problem", "friction", "friction_reason"] },
   { id: "value", fields: ["outcome", "mechanism", "proof"] },
-  { id: "ask", fields: ["preview_asset", "review_time", "cta", "tone"] },
+  { id: "ask", fields: ["preview_asset", "review_time", "cta"] },
 ] as const satisfies readonly { id: string; fields: readonly OfferTextField[] }[];
 
 export type OfferStageId = (typeof OFFER_STAGES)[number]["id"];
