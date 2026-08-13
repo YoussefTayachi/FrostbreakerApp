@@ -235,8 +235,11 @@ function escapeRegex(s: string): string {
  */
 export type MicroYesProblem = "empty" | "multiline" | "noQuestion" | "meeting" | "link" | "tooLong";
 
-/** Ab hier ist es keine Frage mehr, sondern ein Absatz. */
-const MICRO_YES_MAX_WORDS = 20;
+/** Ab hier ist es keine Frage mehr, sondern ein Absatz. Exportiert, weil der
+ *  Coach dem Modell dieselbe Zahl nennen muss -- sonst schlaegt er einen
+ *  Micro-Yes vor, den die App im naechsten Atemzug bemaengelt (gemessen am
+ *  Live-Stand 2026-08-13: 30 Woerter). */
+export const MICRO_YES_MAX_WORDS = 20;
 
 /**
  * Sortiert nach SCHWERE, nicht nach Pruefreihenfolge.

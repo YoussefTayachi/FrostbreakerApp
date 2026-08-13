@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { emptyOffer, type Offer } from "@/lib/offers";
 import { buildCoachPrompt, parseCoachFindings } from "./coach-prompt";
+import { MICRO_YES_MAX_WORDS } from "./playbook";
 
 const angebot: Offer = {
   ...emptyOffer("Test", "de"),
@@ -53,6 +54,11 @@ describe("buildCoachPrompt", () => {
     expect(p).toContain("- cta. No email can be built");
     expect(p).toContain("FINISHED TEXT for that field");
     expect(p).toContain("INVENT NOTHING while doing so");
+  });
+
+  it("nennt fuer den Micro-Yes die Wortgrenze, an der die App ihn misst", () => {
+    const p = buildCoachPrompt({ ...angebot, cta: "" });
+    expect(p).toContain(`HARD LIMIT ${MICRO_YES_MAX_WORDS} words`);
   });
 
   it("schweigt weiter, wenn kein Pflichtfeld leer ist", () => {
@@ -120,6 +126,24 @@ describe("parseCoachFindings", () => {
     expect(parseCoachFindings(mitZahl("5"), ohneCta)).toHaveLength(1);
   });
 
+  it("wirft einen Micro-Yes weg, den die App selbst bemaengeln wuerde", () => {
+    // Am Live-Stand aufgefallen (2026-08-13): der erste Vorschlag fuer das
+    // leere cta war fachlich richtig hergeleitet und 30 Woerter lang -- die
+    // Anzeige unter dem Feld haette ihn sofort als "zu lang" gemeldet. Ein
+    // Coach, dessen Vorschlag durch seine eigene Pruefung faellt, schickt den
+    // Nutzer im Kreis.
+    const mit = (p: string) =>
+      `[{"field":"cta","severity":"blocker","verdict":"v","proposal":${JSON.stringify(p)}}]`;
+    const zuLang =
+      "Would you like to receive a customized outreach sequence preview or a sample list of " +
+      "verified decision maker contacts personalized for your agency to look at soon?";
+    expect(parseCoachFindings(mit(zuLang), ohneCta)).toEqual([]);
+    // Terminbitte und fehlendes Fragezeichen fallen aus demselben Grund raus.
+    expect(parseCoachFindings(mit("Sollen wir einen Termin machen?"), ohneCta)).toEqual([]);
+    expect(parseCoachFindings(mit("Schicke ich dir die Vorschau."), ohneCta)).toEqual([]);
+    expect(parseCoachFindings(mit("Schicke ich dir die Vorschau?"), ohneCta)).toHaveLength(1);
+  });
+
   it("stellt ein fehlendes Pflichtfeld vor die Stilhinweise", () => {
     // Sonst verschwindet das eine blockierende Feld hinter der Kappung.
     const eins = (f: string) => `{"field":"${f}","severity":"weak","verdict":"v","proposal":"p"}`;
@@ -132,10 +156,14 @@ describe("parseCoachFindings", () => {
     expect(befunde[0].field).toBe("cta");
   });
 
+  // Diese beiden pruefen die Buchfuehrung des Parsers, nicht den Inhalt --
+  // deshalb ein Feld ohne eigene Formregeln. Mit "cta" wuerde stattdessen die
+  // Micro-Yes-Pruefung greifen, und der Test haette nichts mehr mit seinem
+  // Namen zu tun.
   it("nimmt je Feld nur den ersten Befund", () => {
     const raw =
-      '[{"field":"cta","severity":"blocker","verdict":"A","proposal":"a"},' +
-      '{"field":"cta","severity":"weak","verdict":"B","proposal":"b"}]';
+      '[{"field":"problem","severity":"blocker","verdict":"A","proposal":"a"},' +
+      '{"field":"problem","severity":"weak","verdict":"B","proposal":"b"}]';
     expect(parseCoachFindings(raw, angebot)).toHaveLength(1);
   });
 
@@ -145,7 +173,8 @@ describe("parseCoachFindings", () => {
   });
 
   it("laesst einen Verweis auf sich selbst fallen", () => {
-    const raw = '[{"field":"cta","severity":"weak","verdict":"X","proposal":"y","relatedField":"cta"}]';
+    const raw =
+      '[{"field":"problem","severity":"weak","verdict":"X","proposal":"y","relatedField":"problem"}]';
     expect(parseCoachFindings(raw, angebot)[0].relatedField).toBeUndefined();
   });
 

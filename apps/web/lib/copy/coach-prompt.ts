@@ -65,6 +65,7 @@
  */
 import type { Offer, OfferTextField } from "@/lib/offers";
 import { OFFER_TEXT_FIELDS, missingForGeneration } from "@/lib/offers";
+import { MICRO_YES_MAX_WORDS, microYesProblems } from "./playbook";
 
 /** Wie ernst ein Befund ist. Entscheidet ueber die Farbe am Knoten, nicht
  *  ueber die Reihenfolge -- die macht die Karte selbst. */
@@ -158,8 +159,19 @@ export function buildCoachPrompt(offer: Offer): string {
       "  too little to write the field honestly, say nothing about it at all.",
       // Der gemeldete Fall: cta war das einzige leere Feld. Ein Micro-Yes, der
       // nicht zu Preview und Pruefzeit passt, waere ein zweites Angebot.
+      //
+      // Die Zahl steht hier, weil sie im ersten Live-Lauf gefehlt hat: der
+      // Vorschlag war ein einziger Satz aus 30 Woertern ("Would you like to
+      // receive a customized outreach sequence preview or a sample list of
+      // verified decision-maker contacts personalized for your client's agency
+      // to review in about 5 minutes?"). Fachlich richtig hergeleitet -- und
+      // die App haette ihn beim Einsetzen sofort als "zu lang" bemaengelt.
+      // Ein Coach, dessen eigener Vorschlag durch seine eigene Pruefung
+      // faellt, ist genau die Schleife, die gemeldet wurde.
       "- For 'cta': one binary yes/no question, one line, matching exactly what they send after a yes",
       "  (preview_asset) and how long it takes to look at (review_time). Never a meeting, a call or a slot.",
+      `  HARD LIMIT ${MICRO_YES_MAX_WORDS} words, and it must end with a question mark. Shorter is better:`,
+      "  the question is a decision, not a description. Name the thing and the effort, nothing else.",
       "- The verdict names what the field has to answer. Do not just say that it is empty, they can see that.",
       "- These come FIRST in your answer, before any finding about a field that is already filled in."
     );
@@ -271,6 +283,13 @@ export function parseCoachFindings(raw: string, offer: Pick<Offer, OfferTextFiel
     // Vorschlag sieht fertig aus, und was darin steht, prueft danach niemand
     // mehr nach.
     if (leer && hasInventedNumber(proposal, offer)) continue;
+    // Der Micro-Yes wird an derselben Regel gemessen wie jeder andere: was die
+    // App unter dem Feld bemaengeln wuerde, schlaegt sie darueber nicht vor.
+    // Sonst entsteht die Schleife, die gemeldet wurde -- Vorschlag einsetzen,
+    // sofort einen Befund dazu bekommen, wieder pruefen. Am 2026-08-13 live
+    // passiert: 30 Woerter, MICRO_YES_MAX_WORDS sind 20. Der Prompt nennt die
+    // Zahl inzwischen; das hier ist die Zusicherung, nicht die Bitte.
+    if (field === "cta" && microYesProblems(proposal).length > 0) continue;
     const related = asField(o?.relatedField);
     gesehen.add(field);
     out.push({

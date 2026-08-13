@@ -735,7 +735,7 @@ export default function OffersEditor({ initial }: { initial: Offer[] }) {
                     Pixel breit ist, sind diese beiden Karten 664 statt 502
                     breit, und der Hinweis lief auf rund 85 Zeichen je Zeile.
                     Lesbar sind 60 bis 75. */}
-                <p className="mt-1.5 max-w-[68ch] text-[13px] leading-relaxed text-mute">{O.signatureHint}</p>
+                <p className="mt-1.5 max-w-[54ch] text-[13px] leading-relaxed text-mute">{O.signatureHint}</p>
               </div>
             </Karte>
 
@@ -762,7 +762,7 @@ export default function OffersEditor({ initial }: { initial: Offer[] }) {
                   <span className="relative">{lese ? O.reading : O.readWebsite}</span>
                 </button>
               </div>
-              <p className="mt-2 max-w-[68ch] text-[13px] leading-relaxed text-mute">{O.websiteHint}</p>
+              <p className="mt-2 max-w-[54ch] text-[13px] leading-relaxed text-mute">{O.websiteHint}</p>
             </Karte>
 
             {!breit && (
