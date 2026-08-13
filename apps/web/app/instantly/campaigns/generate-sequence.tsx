@@ -234,6 +234,8 @@ type ProblemTexte = {
   subjectTooLong: (step: number, words: number, max: number) => string;
   subjectDrift: (step: number) => string;
   subjectNoMirror: (step: number) => string;
+  subjectIsMicroYes: (step: number) => string;
+  subjectAsks: (step: number) => string;
   bannedPhrase: (step: number, phrase: string) => string;
   meetingAsk: (step: number) => string;
   copiedNote: (step: number, text: string) => string;
@@ -273,6 +275,10 @@ function problemText(p: SequenceProblem, T: ProblemTexte): string {
       return T.subjectDrift(p.step);
     case "subjectNoMirror":
       return T.subjectNoMirror(p.step);
+    case "subjectIsMicroYes":
+      return T.subjectIsMicroYes(p.step);
+    case "subjectAsks":
+      return T.subjectAsks(p.step);
     case "bannedPhrase":
       return T.bannedPhrase(p.step, p.phrase);
     case "meetingAsk":

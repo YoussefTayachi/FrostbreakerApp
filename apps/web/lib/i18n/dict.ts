@@ -1798,6 +1798,10 @@ const de = {
         `Stufe ${step} hat einen anderen Betreff als Stufe 1 — die Nachfassmails gehören ins selbe Gespräch.`,
       subjectNoMirror: (step: number) =>
         `Der Betreff von Stufe ${step} kündigt etwas anderes an als die Frage in der Mail.`,
+      subjectIsMicroYes: (step: number) =>
+        `Der Betreff von Stufe ${step} ist die Frage selbst. Steht sie schon im Posteingang, hat die Mail nichts mehr zu sagen — benenne stattdessen, worum es geht.`,
+      subjectAsks: (step: number) =>
+        `Der Betreff von Stufe ${step} stellt eine Frage. Ein Betreff ist ein Schild, gefragt wird in der letzten Zeile.`,
       bannedPhrase: (step: number, phrase: string) =>
         `In Stufe ${step} steht „${phrase}" — daran erkennt man Massenpost auf den ersten Blick.`,
       meetingAsk: (step: number) =>
@@ -3959,6 +3963,10 @@ const en: Dictionary = {
         `Step ${step} uses a different subject than step 1 — the follow-ups belong to the same conversation.`,
       subjectNoMirror: (step: number) =>
         `The subject of step ${step} announces something other than the question the email asks.`,
+      subjectIsMicroYes: (step: number) =>
+        `The subject of step ${step} is the question itself. If it already sits in the inbox, the mail has nothing left to say — name what it is about instead.`,
+      subjectAsks: (step: number) =>
+        `The subject of step ${step} asks a question. A subject is a label; the asking happens in the last line.`,
       bannedPhrase: (step: number, phrase: string) =>
         `Step ${step} contains "${phrase}" — that marks the mail as bulk mail on sight.`,
       meetingAsk: (step: number) =>

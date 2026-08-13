@@ -167,7 +167,11 @@ describe("buildSequencePrompt", () => {
     // an. Der zweite Abzug deckt Anrede, Gruss und Unterschrift ab -- die
     // zaehlen in der Wortzahl des Torwarts mit.
     expect(ownWordBudget(22)).toBe(FIRST_MAIL_MAX_WORDS - 22 - 8);
-    expect(buildSequencePrompt(angebot, opts)).toContain(`at most ${ownWordBudget(22)} words`);
+    // Nicht mit einer festen Zahl vergleichen: die Aufhaengerlaenge steht am
+    // Workspace und ist am 2026-08-13 von 22 auf 35 gestiegen.
+    expect(buildSequencePrompt(angebot, opts)).toContain(
+      `at most ${ownWordBudget(opts.personalizationWords)} words`
+    );
   });
 
   it("nimmt die beste eigene Fassung nur als Vorbild auf, wenn eine uebergeben wurde", () => {
@@ -301,6 +305,39 @@ describe("sequenceProblems", () => {
         (p) => p.kind === "subjectNoMirror"
       )
     ).toBe(false);
+  });
+
+  it("meldet einen Betreff, der die Frage selbst ist", () => {
+    // Gemeldet am 2026-08-13 mit Bild: in allen vier Stufen stand woertlich
+    // "Reply yes then i can send you sth over?" als Betreff -- also der
+    // Micro-Yes. Die Regel "der Betreff kuendigt die Entscheidung an" las das
+    // Modell als "nimm die Frage".
+    const frage = "Reply yes then i can send you sth over?";
+    const abgeschrieben = guelteSequenz().map((st) => ({
+      ...st,
+      variants: st.variants.map((v) => ({ ...v, subject: frage })),
+    }));
+    const befunde = sequenceProblems(abgeschrieben, opts, { ...angebot, cta: frage });
+    expect(befunde).toContainEqual({ kind: "subjectIsMicroYes", step: 1 });
+    // Der Spiegel-Befund waere hier gegenstandslos: eine Abschrift spiegelt
+    // natuerlich. Nur der schwerere Befund soll dastehen.
+    expect(befunde.some((p) => p.kind === "subjectNoMirror")).toBe(false);
+  });
+
+  it("meldet auch den gekuerzten Micro-Yes als Betreff", () => {
+    const s = guelteSequenz().map((st) => ({
+      ...st,
+      variants: st.variants.map((v) => ({ ...v, subject: "Aufnahme schicken" })),
+    }));
+    expect(
+      sequenceProblems(s, opts, { ...angebot, cta: "Soll ich dir die Aufnahme schicken?" })
+    ).toContainEqual({ kind: "subjectIsMicroYes", step: 1 });
+  });
+
+  it("meldet ein Fragezeichen im Betreff, auch ohne Micro-Yes", () => {
+    const s = guelteSequenz();
+    s[0].variants[0].subject = "Retourenschein hinter Login?";
+    expect(sequenceProblems(s, opts)).toContainEqual({ kind: "subjectAsks", step: 1 });
   });
 
   it("prueft den Betreff-Spiegel gar nicht, wenn kein Micro-Yes bekannt ist", () => {

@@ -53,6 +53,8 @@ import {
   bannedPhrasesIn,
   copiedFrom,
   mirrorsMicroYes,
+  subjectAsks,
+  subjectCopiesMicroYes,
   wordCount,
 } from "./playbook";
 
@@ -357,7 +359,16 @@ export function buildSequencePrompt(offer: Offer, opts: SequenceOptions): string
     "SUBJECT LINES",
     `- ${SUBJECT_IDEAL_WORDS} words or fewer, never more than ${SUBJECT_MAX_WORDS}.`,
     "- All four steps of a variant use the SAME subject. The follow-ups belong to the same conversation.",
-    "- The subject announces exactly the decision the micro yes asks for. It is a label, not a hook.",
+    // Gemeldet am 2026-08-13: in allen vier Stufen stand der Micro-Yes
+    // woertlich als Betreff. Die alte Zeile ("announces exactly the decision
+    // the micro yes asks for") las das Modell als Auftrag, die Frage zu
+    // nehmen. Ankuendigen heisst benennen, nicht abschreiben.
+    "- The subject is a LABEL for the thing the decision is about. It NAMES it, it does not ask it.",
+    "- NEVER the micro yes, neither word for word nor shortened. NEVER a question mark.",
+    "  A subject that already asks the question makes the mail redundant before it is opened,",
+    "  and the same question in the inbox four times reads like an automated reminder.",
+    "- Name the concrete thing the mail is about: the friction, or what you send once they say yes.",
+    '  Good: "return slip behind login". Bad: "can I send you the recording?"',
     "- No numbers, no colons, no marketing headline, no 'Re:' or 'Fwd:' fakery, no exclamation marks.",
     "- It has to read like a message from a supplier they already work with. If you can hear a marketer, rewrite it.",
     "",
@@ -488,6 +499,10 @@ export type SequenceProblem =
   | { kind: "subjectDrift"; step: number }
   /** Der Betreff kuendigt etwas anderes an als der Micro-Yes. */
   | { kind: "subjectNoMirror"; step: number }
+  /** Der Betreff ist der abgeschriebene Micro-Yes. */
+  | { kind: "subjectIsMicroYes"; step: number }
+  /** Der Betreff stellt selbst eine Frage. */
+  | { kind: "subjectAsks"; step: number }
   /** Eine Wendung, an der man Massenpost erkennt. */
   | { kind: "bannedPhrase"; step: number; phrase: string }
   /** Die Stufe bittet um einen Termin. */
@@ -610,11 +625,28 @@ export function sequenceProblems(
       }
     }
 
+    // Ein Betreff mit Fragezeichen ist der haeufigste Weg in denselben Fehler
+    // und faellt auch ohne Micro-Yes im Angebot auf.
+    for (const v of step.variants) {
+      if (subjectAsks(v.subject)) {
+        problems.push({ kind: "subjectAsks", step: i + 1 });
+        break;
+      }
+    }
+
     if (microYes?.trim()) {
-      for (const v of step.variants) {
-        if (!mirrorsMicroYes(v.subject, microYes)) {
-          problems.push({ kind: "subjectNoMirror", step: i + 1 });
-          break;
+      // Zuerst die Abschrift: sie ist der schwerere Befund und macht den
+      // Spiegel-Befund gegenstandslos -- ein abgeschriebener Micro-Yes
+      // spiegelt ihn natuerlich.
+      const abgeschrieben = step.variants.some((v) => subjectCopiesMicroYes(v.subject, microYes));
+      if (abgeschrieben) {
+        problems.push({ kind: "subjectIsMicroYes", step: i + 1 });
+      } else {
+        for (const v of step.variants) {
+          if (!mirrorsMicroYes(v.subject, microYes)) {
+            problems.push({ kind: "subjectNoMirror", step: i + 1 });
+            break;
+          }
         }
       }
     }
@@ -787,6 +819,13 @@ export function correctionInstruction(problems: SequenceProblem[]): string {
         return `- Step ${p.step} uses a different subject than step 1. All four steps of a variant share one subject.`;
       case "subjectNoMirror":
         return `- The subject of step ${p.step} announces something other than the question the email asks. Make it name that decision.`;
+      case "subjectIsMicroYes":
+        return (
+          `- The subject of step ${p.step} is the micro yes itself. Do not put the question in the subject: ` +
+          "name the thing it is about instead, in three or four words, and let the mail ask."
+        );
+      case "subjectAsks":
+        return `- The subject of step ${p.step} ends with a question mark. A subject labels, it does not ask.`;
       case "bannedPhrase":
         return `- Step ${p.step} contains "${p.phrase}". Remove it; it marks the mail as bulk mail.`;
       case "meetingAsk":

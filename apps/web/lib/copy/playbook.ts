@@ -314,6 +314,40 @@ export function copiedFrom(text: string, sources: string[]): string[] {
  * Kurze Woerter fliegen raus, damit "der" und "eine" die Pruefung nicht
  * bestehen lassen.
  */
+/**
+ * Ist der Betreff nur die abgeschriebene Frage?
+ *
+ * Gemeldet am 2026-08-13 mit Bild: in allen vier Stufen stand als Betreff
+ * woertlich "Reply yes then i can send you sth over?" -- also der Micro-Yes,
+ * neun Woerter lang, mit Fragezeichen. Damit steht die Frage schon im
+ * Posteingang, und die Mail dahinter hat nichts mehr zu sagen.
+ *
+ * Die Regel "der Betreff kuendigt die Entscheidung an" (mirrorsMicroYes)
+ * laedt genau dazu ein: das Modell liest sie als "nimm die Frage". Deshalb
+ * die Gegenprobe -- ankuendigen heisst benennen, nicht abschreiben.
+ *
+ * Geprueft wird in beide Richtungen: der ganze Micro-Yes als Betreff faellt
+ * ebenso auf wie sein Anfang ("Reply yes then i can").
+ */
+export function subjectCopiesMicroYes(subject: string, cta: string): boolean {
+  const norm = (s: string) =>
+    s
+      .toLowerCase()
+      .replace(/\{\{[^}]*\}\}/g, " ")
+      .replace(/[^\p{L}\p{N}]+/gu, " ")
+      .trim();
+  const a = norm(subject);
+  const b = norm(cta);
+  if (!a || !b) return false;
+  return b.includes(a) || a.includes(b);
+}
+
+/** Fragt der Betreff selbst? Ein Betreff ist ein Schild, keine Frage -- die
+ *  eine Frage steht in der letzten Zeile der Mail und nur dort. */
+export function subjectAsks(subject: string): boolean {
+  return subject.trim().endsWith("?");
+}
+
 export function mirrorsMicroYes(subject: string, cta: string): boolean {
   const inhalt = (s: string) =>
     new Set(
