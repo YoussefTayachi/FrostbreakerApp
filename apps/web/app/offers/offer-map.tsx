@@ -28,8 +28,33 @@ import type { CoachFinding } from "@/lib/copy/coach-prompt";
  * Zumutung -- schmaler als das Formular, das sie ersetzen sollte.
  *
  * Jetzt: vier Felder in den Ecken, THAW in der Mitte, und die Statusspalte
- * ist weg. Damit ist jeder Knoten rund 400 statt 250 Pixel breit -- die Frage
+ * ist weg. Damit ist jeder Knoten rund 470 statt 250 Pixel breit -- die Frage
  * steht auf einer Zeile, die Antwort auf zweien.
+ *
+ * ═══════════════════════════════════════════════════════════════════════
+ * WOHER DIE BREITE KOMMT -- UND WOHIN SIE GEHT
+ * ═══════════════════════════════════════════════════════════════════════
+ *
+ * Am 2026-08-13 gemeldet: "es gibt rechts und links noch genug platz --
+ * breite es aus." Am Live-Stand nachgemessen, 1920er Fenster: die Karte war
+ * 1024 Pixel breit und lag linksbuendig in einem 1216 Pixel breiten `main`.
+ * Links blieben 224 Pixel leer, rechts 416 -- und die Fragen brachen trotzdem
+ * um. Zwei Deckel lagen uebereinander: max-w-5xl auf der Seite (weg, siehe
+ * page.tsx) und max-w-7xl auf `main` (fuer diese Seite gehoben, siehe
+ * .fb-weit in globals.css). Die Karte selbst war nie das Problem.
+ *
+ * Der gewonnene Platz geht vollstaendig in die KNOTEN, nicht in die Luecke
+ * dazwischen: gap-x bleibt bei 19rem, weil dort THAW steht (17rem) und sonst
+ * nichts. Das ist auch der Grund, warum die Bezierkurven zwischen den Spalten
+ * unveraendert aussehen -- ihr Kontrollpunkt-Abstand (dx in `pfad`) haengt an
+ * genau dieser Luecke, nicht an der Knotenbreite. Wer die Luecke doch einmal
+ * vergroessert, muss dx deckeln: sehr flache, lange S-Kurven liest man als
+ * Zeichenfehler.
+ *
+ * Nachgemessen nach der Aenderung (1920er Fenster): Karte 1344, Knoten 472
+ * statt 336, alle zwoelf Fragen auf einer Zeile, gleicher Rand links wie
+ * rechts. Erst unterhalb von rund 1600 Pixeln Fensterbreite ist wieder das
+ * FENSTER die Grenze und nicht mehr eine Regel im Stylesheet.
  *
  * Die Reihenfolge laeuft IM UHRZEIGERSINN: oben links, oben rechts, unten
  * rechts, unten links. Das ist kein Geschmack, sondern der Grund, warum es
@@ -57,9 +82,30 @@ type Box = { x: number; y: number; w: number; h: number };
  *  Kante aussen herum. */
 const NACHBAR_ABSTAND = 44;
 
-/** Wie weit die Umleitung neben der Knotenkante laeuft. Muss in den seitlichen
- *  Rand der Karte passen (px-6 = 24 Pixel). */
+/**
+ * Wie weit die Umleitung neben der Knotenkante laeuft.
+ *
+ * In der seitlichen Fahrbahn (px-12 = 48 Pixel) liegen DREI Dinge nebeneinander,
+ * und alle drei muessen hineinpassen:
+ *   18  die Umleitung selbst (dieser Wert)
+ *   44  der Befund-Pfeil, der um VERSATZ_COACH weiter aussen laeuft
+ *   48  die Beschriftung, die auf der Umleitung sitzt und nach beiden Seiten
+ *       je rund 30 Pixel breit ist (laengster Wert: "fällt weg")
+ *
+ * Am Live-Bauteil durchgemessen (2026-08-13, ueber jeden Knoten gefahren,
+ * damit alle acht Beschriftungen wirklich gezeichnet werden): bei den vorher
+ * eingestellten 24 Pixeln ragten "goes away" um 22, "backs it" um 19 und
+ * "for that" um 19 Pixel aus der Zeichenflaeche und wurden abgeschnitten --
+ * dazu fehlte dem Befund-Pfeil sein aeusseres Stueck. Bei 40 Pixeln blieb es
+ * dabei, bei 48 war nichts mehr abgeschnitten. Wird die Fahrbahn wieder
+ * schmaler, kommt das Abschneiden zurueck.
+ */
 const AUSSEN = 18;
+
+/** Wie weit der Befund-Pfeil NEBEN der Umleitung laeuft. Zwischen Ergebnis und
+ *  Beleg liegt schon die Struktur-Kante; zwei Linien mit verschiedener
+ *  Bedeutung auf derselben Achse sind unlesbar. */
+const VERSATZ_COACH = 26;
 
 /**
  * Die vier Ecken, im Uhrzeigersinn ab oben links.
@@ -189,11 +235,12 @@ export default function OfferMap({
   const coachZu = (f: OfferTextField) => coach.find((c) => c.field === f);
 
   return (
-    // Der seitliche Rand (px-6) ist kein Abstand, sondern die Fahrbahn: die
-    // aussen herum gefuehrten Kanten laufen darin. Ohne ihn enden sie
-    // ausserhalb der Zeichenflaeche und werden abgeschnitten -- am Standbild
-    // gesehen.
-    <div ref={karte} className="relative px-6">
+    // Der seitliche Rand ist kein Abstand, sondern die Fahrbahn: die aussen
+    // herum gefuehrten Kanten, ihre Beschriftungen und der Befund-Pfeil laufen
+    // darin. Ist sie zu schmal, enden sie ausserhalb der Zeichenflaeche und
+    // werden abgeschnitten -- am Standbild gesehen. Warum ausgerechnet 48
+    // Pixel, steht bei AUSSEN.
+    <div ref={karte} className="relative px-12">
       {/* ── Die Kanten ─────────────────────────────────────────────────
           UEBER den Knoten, nicht darunter: die Beschriftungen sassen sonst in
           der Spaltenluecke und wurden verdeckt. Die Linien selbst laufen von
@@ -256,13 +303,12 @@ export default function OfferMap({
             const a = boxen[c.field];
             const b = boxen[c.relatedField!];
             if (!a || !b) return null;
-            // Um 26 Pixel versetzt: zwischen Ergebnis und Beleg laeuft schon
-            // die Struktur-Kante. Zwei Linien mit verschiedener Bedeutung auf
-            // derselben Achse sind unlesbar.
+            // Versetzt neben der Struktur-Kante -- warum, steht bei
+            // VERSATZ_COACH.
             return (
               <path
                 key={`coach-${c.field}`}
-                d={pfad(a, b, flaeche.w, 26)}
+                d={pfad(a, b, flaeche.w, VERSATZ_COACH)}
                 fill="none"
                 stroke="var(--fb-warn)"
                 strokeWidth="2"
@@ -277,7 +323,9 @@ export default function OfferMap({
 
       {/* ── Die vier Ecken ───────────────────────────────────────────
           Die Luecke in der Mitte ist kein Abstand, sondern der Platz, in dem
-          THAW steht. */}
+          THAW steht: 19rem sind seine 17rem plus je 1rem Luft. Sie ist deshalb
+          ein FESTER Wert und waechst nicht mit der Karte mit -- jeder
+          zusaetzliche Pixel gehoert den Knoten. */}
       <div className="grid grid-cols-2 gap-x-[19rem] gap-y-12">
         {ECKEN.map((ecke, ei) => (
           <div key={ecke.id} className="flex min-w-0 flex-col gap-2.5">

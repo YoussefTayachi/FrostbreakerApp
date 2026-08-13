@@ -183,6 +183,39 @@ body {
   --fb-holo-halo-a: 0.55;
 }
 
+/* ── EINE FLÄCHE DARF BREITER SEIN ALS EIN FORMULAR ───────────────────────
+   `main` in app/layout.tsx deckelt jede Seite bei max-w-7xl (1280 Pixel). Für
+   Formularseiten ist das genau richtig — längere Textzeilen liest niemand gern,
+   und die ganze App steht dadurch in derselben Spur.
+
+   Die Angebotskarte ist aber kein Formular, sondern eine Fläche: vier
+   Knotengruppen nebeneinander, THAW dazwischen. Ihre Breite ist keine Frage des
+   Geschmacks, sondern eine gemessene Untergrenze. Am Live-Bauteil nachgemessen
+   (2026-08-13, Inter, 1920er Fenster):
+
+     Deckel   Karte   Knoten   Rand    längste Frage
+     1280     1216      408    224     bricht um (braucht 343, bekommt 337)
+     1344     1280      440    192     einzeilig
+     1408     1344      472    160     einzeilig, 58 Pixel Luft
+
+   Bei 1280 blieben also links und rechts je 224 Pixel leer, WÄHREND die Frage
+   umbrach — genau der gemeldete Zustand ("es gibt rechts und links noch genug
+   platz"). 1344 wäre die nackte Untergrenze; 88rem lässt Luft für eine Sprache
+   oder Beschriftung, die etwas länger gerät, und behält bei 1920 immer noch
+   160 Pixel Rand, damit die Seite in der App steht und nicht an deren Kante
+   klebt.
+
+   Warum als Regel hier und nicht als max-w-* in page.tsx: die Grenze steht auf
+   `main`, und dort kommt ein Kind nicht heran. Warum nicht in layout.tsx: das
+   wäre eine app-weite Entscheidung für alle Seiten, und die ist hier nicht
+   gemeint.
+
+   Ohne :has() im Browser greift die Regel schlicht nicht und es bleibt bei
+   1280 — die Karte ist dann enger, aber nie kaputt. */
+main:has(> .fb-weit) {
+  max-width: 88rem;
+}
+
 /* ── DIE ANGEBOTSKARTE ────────────────────────────────────────────────────
    Der Rest dieser Fläche ist bewusst still, damit genau ein Moment wirkt: die
    Kanten zeichnen sich beim Aufbau einmal selbst. Danach bewegt sich nichts

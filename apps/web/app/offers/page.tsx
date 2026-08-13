@@ -12,9 +12,16 @@ import OffersEditor from "./offers-editor";
  * nur die Daten; alles Weitere passiert im Formular, weil dort getippt,
  * gewechselt und vorbefuellt wird.
  *
- * Breiter als die uebrigen Formularseiten (max-w-5xl statt 3xl): rechts steht
- * die Anzeige, die den Zustand des Angebots traegt, und die braucht eine
- * eigene Spalte, sonst waere sie eine Fussnote unter dem letzten Feld.
+ * ZUR BREITE: die Seite hat KEINE eigene Hoechstbreite mehr und traegt
+ * stattdessen `fb-weit`. Diese Klasse hebt in globals.css den Deckel von
+ * `main` -- dort steht auch, welche Messwerte dahinterstehen.
+ *
+ * Bis zum 2026-08-13 stand hier max-w-5xl. Das stammt aus der Zeit, als rechts
+ * eine 340 Pixel breite Statusspalte stand; seit THAW in der Mitte der Karte
+ * sitzt, deckelte es nur noch. Am Live-Stand nachgemessen (1920er Fenster):
+ * die Karte war 1024 breit und lag LINKSBUENDIG in einem 1216 breiten `main` --
+ * links blieben 224 Pixel frei, rechts 416, und die Knoten waren 336 Pixel
+ * schmal. Jetzt 1344 statt 1024, gleicher Rand links wie rechts.
  */
 export default async function OffersPage() {
   const lang = await getLangServer();
@@ -30,7 +37,7 @@ export default async function OffersPage() {
     .order("created_at", { ascending: true });
 
   return (
-    <div className="fade-up fb-hud max-w-5xl space-y-5">
+    <div className="fade-up fb-hud fb-weit space-y-5">
       <div className="relative overflow-hidden rounded-xl border border-edge/60 bg-panel px-6 py-5">
         <div className="fb-grid-bg absolute inset-0" aria-hidden />
         <div className="relative">

@@ -211,10 +211,17 @@ export default function OffersEditor({ initial }: { initial: Offer[] }) {
    * Abschnittsansicht zurueck: dieselben Daten, dieselben Bausteine, andere
    * Anordnung. Gerendert wird immer nur EINE von beiden, sonst gaebe es jedes
    * Textfeld zweimal im Dokument (und damit zwei Elemente mit derselben id).
+   *
+   * Die Schwelle stand bis zum 2026-08-13 bei 1180 und war damit zu niedrig.
+   * Am Live-Bauteil nachgemessen: die laengste Frage ("What does the customer
+   * struggle with beforehand?") braucht 343 Pixel, und bei einem 1180er
+   * Fenster bleiben je Knoten rund 254. Die Karte schaltete sich also genau
+   * dort ein, wo sie schmaler wurde als die Liste, die sie ersetzt. Ab 1500
+   * traegt sie -- darunter ist die Abschnittsansicht die bessere Wahl.
    */
   const [breit, setBreit] = useState(false);
   useEffect(() => {
-    const mq = window.matchMedia("(min-width: 1180px)");
+    const mq = window.matchMedia("(min-width: 1500px)");
     const an = () => setBreit(mq.matches);
     an();
     mq.addEventListener("change", an);
@@ -724,7 +731,11 @@ export default function OffersEditor({ initial }: { initial: Offer[] }) {
                   placeholder={O.signaturePlaceholder}
                   className={textfeldCls}
                 />
-                <p className="mt-1.5 text-[13px] leading-relaxed text-mute">{O.signatureHint}</p>
+                {/* Zeilenlaenge gedeckelt: seit die Seite 1408 statt 1024
+                    Pixel breit ist, sind diese beiden Karten 664 statt 502
+                    breit, und der Hinweis lief auf rund 85 Zeichen je Zeile.
+                    Lesbar sind 60 bis 75. */}
+                <p className="mt-1.5 max-w-[68ch] text-[13px] leading-relaxed text-mute">{O.signatureHint}</p>
               </div>
             </Karte>
 
@@ -751,7 +762,7 @@ export default function OffersEditor({ initial }: { initial: Offer[] }) {
                   <span className="relative">{lese ? O.reading : O.readWebsite}</span>
                 </button>
               </div>
-              <p className="mt-2 text-[13px] leading-relaxed text-mute">{O.websiteHint}</p>
+              <p className="mt-2 max-w-[68ch] text-[13px] leading-relaxed text-mute">{O.websiteHint}</p>
             </Karte>
 
             {!breit && (
