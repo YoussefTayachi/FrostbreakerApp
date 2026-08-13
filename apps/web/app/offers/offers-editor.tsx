@@ -634,9 +634,13 @@ export default function OffersEditor({ initial }: { initial: Offer[] }) {
                 Kaesten. Offen ist immer genau eine: die mit der naechsten
                 offenen Pflichtfrage. */}
             <div className="relative">
+              {/* Die Linie MUSS durch die Knotenmitte laufen, sonst laeuft sie
+                  daneben und verbindet nichts. Die Mitte liegt bei 36 Pixeln:
+                  16 Pixel Innenabstand des Kopfes (px-4) plus der halbe Knoten
+                  (40/2). Am Bild geprueft -- bei 19 lag sie links daneben. */}
               <div
                 aria-hidden
-                className="pointer-events-none absolute bottom-8 left-[19px] top-8 w-px"
+                className="pointer-events-none absolute bottom-8 left-[35px] top-8 w-px"
                 style={{
                   background:
                     "linear-gradient(to bottom, transparent, color-mix(in srgb, var(--fb-frost) 30%, transparent) 12%, color-mix(in srgb, var(--fb-frost) 30%, transparent) 88%, transparent)",
