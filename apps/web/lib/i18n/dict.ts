@@ -1622,7 +1622,7 @@ const de = {
     websiteSubtitle: "Spart das Abtippen: die App liest die Seite und schlägt die Felder unten vor.",
     websitePlaceholder: "deine-firma.de",
     websiteHint:
-      "Nichts wird automatisch übernommen. Jeder Vorschlag steht unter seinem Feld, du entscheidest einzeln.",
+      "Nichts wird automatisch übernommen — jeder Vorschlag steht unter seinem Feld, du entscheidest einzeln. Vier Felder bleiben bewusst leer, weil sie nicht auf deiner Seite stehen, sondern Entscheidungen sind: was du schickst, wie lange das dauert, deine eine Frage und der Ton.",
     signatureHeading: "Absender",
     signatureSubtitle: "Unter welchem Namen geht die Mail raus?",
     signaturePlaceholder: "Beste Grüße\nYoussef\nFrostbreaker",
@@ -1657,7 +1657,7 @@ const de = {
       },
       friction_reason: {
         label: "Warum lässt das Käufer zögern?",
-        hint: "Beobachtetes Verhalten, kein Vorwurf. „Wer den Preis nicht sieht, schreibt drei andere an.\" So redet jemand, der Abläufe repariert.",
+        hint: "Beobachtetes Verhalten, kein Vorwurf. Passend zum Beispiel oben: „Sie fangen das Formular an, sehen neun Pflichtfelder und brechen ab.\" Beschreib, was der Besucher TUT — nicht, was die Firma falsch macht.",
       },
       outcome: {
         label: "Was ist danach anders?",
@@ -1687,6 +1687,31 @@ const de = {
         label: "Wie soll es klingen?",
         hint: "Optional. z. B. direkt, kein Hype, keine Fachwörter.",
       },
+    },
+    /** Die vier Abschnitte des Formulars. */
+    stages: {
+      who: {
+        label: "Wer schreibt an wen",
+        hint: "Ohne diese zwei Sätze weiß die KI nicht, in welcher Welt sie schreibt.",
+      },
+      hook: {
+        label: "Der Haken",
+        hint: "Womit die Mail anfängt. Hier entscheidet sich, ob weitergelesen wird.",
+      },
+      value: {
+        label: "Was er davon hat",
+        hint: "Der Grund, warum sich eine Antwort lohnt.",
+      },
+      ask: {
+        label: "Worum du bittest",
+        hint: "Eine Frage — in allen vier Mails dieselbe.",
+      },
+    },
+    saveState: {
+      saving: "Speichert...",
+      saved: "Gespeichert",
+      failed: "Nicht gespeichert — nochmal versuchen",
+      hint: "Änderungen werden automatisch gespeichert.",
     },
     /** Die Befunde der Playbook-Prüfungen, unter dem jeweiligen Feld. */
     findings: {
@@ -1749,6 +1774,8 @@ const de = {
         `In Stufe ${step} steht „${phrase}" — daran erkennt man Massenpost auf den ersten Blick.`,
       meetingAsk: (step: number) =>
         `Stufe ${step} bittet um einen Termin. Das ist die größte Bitte, die eine Kaltmail stellen kann.`,
+      copiedNote: (step: number, text: string) =>
+        `Stufe ${step} übernimmt deine Notiz wörtlich: „${text}". Deine Feldeinträge sind Stichpunkte für dich, keine Sätze für den Empfänger.`,
     },
     refine: {
       placeholder: "kürzer · direkter · mach daraus eine Abschiedsmail",
@@ -3739,7 +3766,7 @@ const en: Dictionary = {
     websiteSubtitle: "Saves the typing: the app reads the page and suggests the fields below.",
     websitePlaceholder: "your-company.com",
     websiteHint:
-      "Nothing is applied automatically. Every suggestion sits under its field and you decide one by one.",
+      "Nothing is applied automatically — every suggestion sits under its field and you decide one by one. Four fields stay empty on purpose because they are not on your page but decisions: what you send, how long it takes, your one question, and the tone.",
     signatureHeading: "Sender",
     signatureSubtitle: "Which name does the email go out under?",
     signaturePlaceholder: "Best,\nYoussef\nFrostbreaker",
@@ -3768,7 +3795,7 @@ const en: Dictionary = {
       },
       friction_reason: {
         label: "Why does that make buyers hesitate?",
-        hint: "Observed behaviour, not an accusation. \"Someone who cannot see the price emails three competitors instead.\" That is how a person who fixes processes talks.",
+        hint: "Observed behaviour, not an accusation. To match the example above: \"They start the form, see nine required fields and give up.\" Describe what the visitor DOES, not what the company gets wrong.",
       },
       outcome: {
         label: "What is different afterwards?",
@@ -3795,6 +3822,31 @@ const en: Dictionary = {
         hint: "One line, one question mark, no second option. No meeting, no calendar link — it appears word for word in all four emails.",
       },
       tone: { label: "How should it sound?", hint: "Optional. e.g. direct, no hype, no jargon." },
+    },
+    /** The four sections of the form. */
+    stages: {
+      who: {
+        label: "Who writes to whom",
+        hint: "Without these two sentences the AI does not know which world it is writing in.",
+      },
+      hook: {
+        label: "The hook",
+        hint: "How the email opens. This is where it is decided whether anyone reads on.",
+      },
+      value: {
+        label: "What they get out of it",
+        hint: "The reason a reply is worth it.",
+      },
+      ask: {
+        label: "What you are asking for",
+        hint: "One question — the same one in all four emails.",
+      },
+    },
+    saveState: {
+      saving: "Saving...",
+      saved: "Saved",
+      failed: "Not saved — try again",
+      hint: "Changes are saved automatically.",
     },
     /** Findings of the playbook checks, under the field they belong to. */
     findings: {
@@ -3857,6 +3909,8 @@ const en: Dictionary = {
         `Step ${step} contains "${phrase}" — that marks the mail as bulk mail on sight.`,
       meetingAsk: (step: number) =>
         `Step ${step} asks for a meeting. That is the largest ask a cold email can make.`,
+      copiedNote: (step: number, text: string) =>
+        `Step ${step} copies your note word for word: "${text}". Your field entries are jottings for you, not sentences for the recipient.`,
     },
     refine: {
       placeholder: "shorter · more direct · turn this into a breakup email",

@@ -236,6 +236,7 @@ type ProblemTexte = {
   subjectNoMirror: (step: number) => string;
   bannedPhrase: (step: number, phrase: string) => string;
   meetingAsk: (step: number) => string;
+  copiedNote: (step: number, text: string) => string;
 };
 
 function problemText(p: SequenceProblem, T: ProblemTexte): string {
@@ -276,5 +277,7 @@ function problemText(p: SequenceProblem, T: ProblemTexte): string {
       return T.bannedPhrase(p.step, p.phrase);
     case "meetingAsk":
       return T.meetingAsk(p.step);
+    case "copiedNote":
+      return T.copiedNote(p.step, p.text);
   }
 }

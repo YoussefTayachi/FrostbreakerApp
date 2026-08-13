@@ -133,6 +133,38 @@ export const REQUIRED_FOR_GENERATION: OfferTextField[] = [
   "cta",
 ];
 
+/**
+ * Die vier Abschnitte, in denen die zwoelf Felder abgefragt werden.
+ *
+ * ═══════════════════════════════════════════════════════════════════════
+ * WARUM GRUPPEN UND KEINE LISTE
+ * ═══════════════════════════════════════════════════════════════════════
+ *
+ * Sieben Felder waren eine Liste, zwoelf sind eine Wand. Am Bild geprueft:
+ * man scrollt an Feld vier vorbei und weiss nicht mehr, worauf das Ganze
+ * hinauslaeuft.
+ *
+ * Die Gruppen sind nicht erfunden, sie sind der Aufbau der ersten Mail: wer
+ * schreibt an wen, woran bleibt der Leser haengen, was hat er davon, worum
+ * wird er gebeten. Damit beantwortet der Abschnittsname schon die Frage,
+ * warum die Felder darin ueberhaupt zusammengehoeren -- und man kann drei
+ * davon zuklappen, ohne den Faden zu verlieren.
+ */
+export const OFFER_STAGES = [
+  { id: "who", fields: ["offering", "icp"] },
+  { id: "hook", fields: ["problem", "friction", "friction_reason"] },
+  { id: "value", fields: ["outcome", "mechanism", "proof"] },
+  { id: "ask", fields: ["preview_asset", "review_time", "cta", "tone"] },
+] as const satisfies readonly { id: string; fields: readonly OfferTextField[] }[];
+
+export type OfferStageId = (typeof OFFER_STAGES)[number]["id"];
+
+/** Die Nummer eines Feldes im Formular -- ueber alle Abschnitte durchgezaehlt,
+ *  damit die Zaehlung beim Zuklappen nicht springt. */
+export function fieldNumber(field: OfferTextField): number {
+  return OFFER_TEXT_FIELDS.indexOf(field) + 1;
+}
+
 export function missingForGeneration(offer: Pick<Offer, OfferTextField>): OfferTextField[] {
   return REQUIRED_FOR_GENERATION.filter((f) => !offer[f].trim());
 }

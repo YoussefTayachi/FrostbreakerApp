@@ -238,16 +238,65 @@ export type MicroYesProblem = "empty" | "multiline" | "noQuestion" | "meeting" |
 /** Ab hier ist es keine Frage mehr, sondern ein Absatz. */
 const MICRO_YES_MAX_WORDS = 20;
 
+/**
+ * Sortiert nach SCHWERE, nicht nach Pruefreihenfolge.
+ *
+ * Unter dem Feld steht nur der erste Befund -- drei Saetze unter einem
+ * Eingabefeld liest niemand. Am Live-Stand aufgefallen (2026-08-13): bei
+ * "Book a 30-minute call to review client setup and set up the first
+ * workspace." meldete die Anzeige das fehlende Fragezeichen und verschwieg
+ * die Terminbitte. Das fehlende Fragezeichen ist ein Formfehler, die
+ * Terminbitte ist der eigentliche.
+ */
 export function microYesProblems(cta: string): MicroYesProblem[] {
   const t = cta.trim();
   if (!t) return ["empty"];
   const problems: MicroYesProblem[] = [];
-  if (t.split("\n").filter((l) => l.trim()).length > 1) problems.push("multiline");
-  if (!t.endsWith("?")) problems.push("noQuestion");
   if (bannedPhrasesIn(t, MEETING_WORDS).length > 0) problems.push("meeting");
   if (/https?:\/\/|www\./i.test(t)) problems.push("link");
+  if (t.split("\n").filter((l) => l.trim()).length > 1) problems.push("multiline");
+  if (!t.endsWith("?")) problems.push("noQuestion");
   if (wordCount(t) > MICRO_YES_MAX_WORDS) problems.push("tooLong");
   return problems;
+}
+
+/**
+ * Ab wie vielen Woertern ein woertlich uebernommener Feldinhalt als Abschrift
+ * gilt.
+ *
+ * Kurze Uebereinstimmungen sind Zufall und keine Abschrift: "mehr Termine pro
+ * Woche" steht in einem Angebotsfeld und darf auch in der Mail stehen. Ab
+ * sechs Woertern in Folge hat niemand mehr denselben Satz zufaellig
+ * geschrieben.
+ */
+const COPY_MIN_WORDS = 6;
+
+function normalisiert(s: string): string {
+  return s
+    .toLowerCase()
+    .replace(/\{\{[^}]*\}\}/g, " ")
+    .replace(/[^\p{L}\p{N}]+/gu, " ")
+    .trim();
+}
+
+/**
+ * Welche Angebotsfelder stehen WOERTLICH in diesem Text?
+ *
+ * Die Felder sind Notizen des Absenders an sich selbst. Wandern sie
+ * unveraendert in die Mail, liest der Empfaenger die Stichpunkte eines
+ * Fremden -- am Live-Stand gemessen (2026-08-13) samt Grammatikfehler und
+ * einer Terminbitte, die als Micro-Yes gemeint war.
+ *
+ * Geprueft wird auf ganze Feldinhalte, nicht auf einzelne Woerter: dass die
+ * Mail dieselben Begriffe benutzt wie das Angebot, ist ja der Zweck.
+ */
+export function copiedFrom(text: string, sources: string[]): string[] {
+  const heu = normalisiert(text);
+  return sources.filter((s) => {
+    const nadel = normalisiert(s);
+    if (nadel.split(" ").filter(Boolean).length < COPY_MIN_WORDS) return false;
+    return heu.includes(nadel);
+  });
 }
 
 /**

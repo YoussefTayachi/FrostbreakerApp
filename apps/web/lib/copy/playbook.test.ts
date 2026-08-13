@@ -3,6 +3,7 @@ import {
   PLAYBOOK_DELAYS,
   STEP_MAX_WORDS,
   bannedPhrasesIn,
+  copiedFrom,
   hasTimeframe,
   microYesProblems,
   mirrorsMicroYes,
@@ -101,6 +102,30 @@ describe("mirrorsMicroYes", () => {
 
   it("ist nachsichtig, wenn nichts zu vergleichen ist", () => {
     expect(mirrorsMicroYes("Hi", "?")).toBe(true);
+  });
+});
+
+describe("copiedFrom", () => {
+  const notiz = "Role addresses like info@ or office@ get filtered out automatically";
+
+  it("erkennt einen woertlich uebernommenen Feldinhalt", () => {
+    const mail = `Hi,\n\nRole addresses like info@ or office@ get filtered out automatically, aber das ist zu ändern.`;
+    expect(copiedFrom(mail, [notiz])).toEqual([notiz]);
+  });
+
+  it("laesst eine echte Umformulierung durch", () => {
+    const mail = "Hi,\n\nPost an info@ landet bei euch nirgends, weil dahinter niemand sitzt.";
+    expect(copiedFrom(mail, [notiz])).toEqual([]);
+  });
+
+  it("ignoriert Satzzeichen und Grossschreibung", () => {
+    expect(copiedFrom("... ROLE ADDRESSES LIKE INFO@ OR OFFICE@ GET FILTERED OUT AUTOMATICALLY!", [notiz])).toHaveLength(1);
+  });
+
+  it("schlaegt bei kurzen Feldern nicht an", () => {
+    // "90 Sekunden" steht im Angebot UND soll in der Mail stehen -- das ist
+    // keine Abschrift, das ist der Zweck.
+    expect(copiedFrom("Dauert 90 Sekunden.", ["90 Sekunden"])).toEqual([]);
   });
 });
 

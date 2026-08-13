@@ -288,7 +288,7 @@ describe("sequenceProblems", () => {
 
   it("meldet einen Betreff, der etwas anderes ankuendigt als die Frage", () => {
     const s = guelteSequenz();
-    expect(sequenceProblems(s, opts, "Soll ich dir die Aufnahme schicken?")).toContainEqual({
+    expect(sequenceProblems(s, opts, { ...angebot, cta: "Soll ich dir die Aufnahme schicken?" })).toContainEqual({
       kind: "subjectNoMirror",
       step: 1,
     });
@@ -297,7 +297,7 @@ describe("sequenceProblems", () => {
       variants: st.variants.map((v) => ({ ...v, subject: "Aufnahme schicken" })),
     }));
     expect(
-      sequenceProblems(gespiegelt, opts, "Soll ich dir die Aufnahme schicken?").some(
+      sequenceProblems(gespiegelt, opts, { ...angebot, cta: "Soll ich dir die Aufnahme schicken?" }).some(
         (p) => p.kind === "subjectNoMirror"
       )
     ).toBe(false);

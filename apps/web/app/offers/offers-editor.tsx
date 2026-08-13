@@ -1,15 +1,18 @@
 "use client";
-import { useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import {
   OFFER_COLUMNS,
+  OFFER_STAGES,
   OFFER_TEXT_FIELDS,
   REQUIRED_FOR_GENERATION,
   completeness,
   emptyOffer,
+  fieldNumber,
   missingForGeneration,
   type Offer,
+  type OfferStageId,
   type OfferTextField,
 } from "@/lib/offers";
 import type { OfferSuggestion } from "@/lib/copy/offer-from-website";
@@ -184,6 +187,32 @@ export default function OffersEditor({ initial }: { initial: Offer[] }) {
   const [vorschlaege, setVorschlaege] = useState<OfferSuggestion>({});
   const [neuerName, setNeuerName] = useState("");
   const [legeAn, setLegeAn] = useState(initial.length === 0);
+  const [speichert, setSpeichert] = useState(false);
+  const [fehler, setFehler] = useState(false);
+  /**
+   * Welcher Abschnitt aufgeklappt ist.
+   *
+   * null heisst nicht "keiner", sondern "noch nicht von Hand entschieden" --
+   * dann oeffnet sich der Abschnitt mit der naechsten offenen Pflichtfrage.
+   * So landet man beim Oeffnen der Seite immer dort, wo die Arbeit liegt,
+   * kann aber jeden anderen aufklappen, ohne dass die Automatik zurueckspringt.
+   */
+  const [geoeffnetManuell, setGeoeffnetManuell] = useState<OfferStageId | null>(null);
+
+  /**
+   * Der aktuelle Stand in Refs.
+   *
+   * Das automatische Speichern laeuft aus einem Timer heraus. Ein Timer sieht
+   * die Zustaende, die beim Aufsetzen galten -- er wuerde also einen veralteten
+   * Entwurf schreiben und die letzten Tastenanschlaege ueberschreiben. Refs
+   * zeigen immer auf das Jetzige.
+   */
+  const entwurfRef = useRef(entwurf);
+  const offersRef = useRef(offers);
+  const selectedIdRef = useRef(selectedId);
+  entwurfRef.current = entwurf;
+  offersRef.current = offers;
+  selectedIdRef.current = selectedId;
 
   const geaendert = JSON.stringify(entwurf) !== gespeichert;
   const fehlend = missingForGeneration(entwurf);
@@ -203,6 +232,13 @@ export default function OffersEditor({ initial }: { initial: Offer[] }) {
   const prozent = completeness(entwurf);
   const gefuellt = new Set(OFFER_TEXT_FIELDS.filter((f) => entwurf[f].trim().length > 0));
 
+  /** Der Abschnitt, der gerade offen steht: der von Hand gewaehlte, sonst der
+   *  mit der ersten offenen Pflichtfrage, sonst der erste. */
+  const geoeffnet: OfferStageId | null =
+    geoeffnetManuell ??
+    OFFER_STAGES.find((s) => (s.fields as readonly OfferTextField[]).some((f) => fehlend.includes(f)))?.id ??
+    OFFER_STAGES[0].id;
+
   function setzeFeld<K extends keyof Entwurf>(key: K, value: Entwurf[K]) {
     setEntwurf((v) => ({ ...v, [key]: value }));
   }
@@ -210,9 +246,16 @@ export default function OffersEditor({ initial }: { initial: Offer[] }) {
   /** Vom Ring zum Feld. Ohne den Sprung wäre die Legende eine Diagnose ohne
    *  Behandlung -- man wüsste, was fehlt, und müsste es selbst suchen. */
   function springeZu(field: OfferTextField) {
-    const el = document.getElementById(`feld-${field}`);
-    el?.scrollIntoView({ behavior: "smooth", block: "center" });
-    (el as HTMLTextAreaElement | null)?.focus({ preventScroll: true });
+    // Erst aufklappen, dann springen: seit die Felder in Abschnitten liegen,
+    // zeigt die Legende sonst auf ein Feld, das gar nicht im Dokument steht.
+    const stufe = OFFER_STAGES.find((s) => (s.fields as readonly OfferTextField[]).includes(field));
+    if (stufe) setGeoeffnetManuell(stufe.id);
+    // Ein Bildaufbau spaeter -- vorher gibt es das Element noch nicht.
+    requestAnimationFrame(() => {
+      const el = document.getElementById(`feld-${field}`);
+      el?.scrollIntoView({ behavior: "smooth", block: "center" });
+      (el as HTMLTextAreaElement | null)?.focus({ preventScroll: true });
+    });
   }
 
   async function neuLaden(selectId: string | null) {
@@ -231,10 +274,17 @@ export default function OffersEditor({ initial }: { initial: Offer[] }) {
     setVorschlaege({});
   }
 
-  /** Wechseln mit ungesicherten Aenderungen wuerde sie stillschweigend
-   *  wegwerfen -- dieselbe Ruecksicht wie im LinkedIn-Vorlageneditor. */
+  /**
+   * Angebot wechseln.
+   *
+   * Ohne Rueckfrage: seit dem automatischen Speichern gibt es nichts
+   * Ungesichertes zu verlieren. Steht doch noch etwas aus (der Timer laeuft
+   * noch, oder der letzte Versuch ist gescheitert), wird es hier zuerst
+   * geschrieben -- eine Rueckfrage waere an dieser Stelle nur die Bitte, ein
+   * Problem zu entscheiden, das die App selbst loesen kann.
+   */
   function wechsle(id: string) {
-    if (geaendert && !window.confirm(O.switchUnsaved)) return;
+    if (geaendert) speichern(true);
     const ziel = offers.find((o) => o.id === id);
     if (!ziel) return;
     setSelectedId(id);
@@ -268,20 +318,68 @@ export default function OffersEditor({ initial }: { initial: Offer[] }) {
     push(O.created, "success");
   }
 
-  async function speichern() {
-    if (!aktuell) return;
-    setBusy(true);
-    const { error } = await createClient()
-      .from("offers")
-      .update({ ...entwurf, updated_at: new Date().toISOString() })
-      .eq("id", aktuell.id)
-      .eq("workspace_id", workspaceId);
-    setBusy(false);
-    if (error) return push(t.common.error + error.message, "error");
-    setGespeichert(JSON.stringify(entwurf));
-    setOffers((list) => list.map((o) => (o.id === aktuell.id ? { ...o, ...entwurf } : o)));
-    push(t.common.savedOk, "success");
-  }
+  /**
+   * Speichern.
+   *
+   * `leise` unterdrueckt die Erfolgsmeldung -- das automatische Speichern
+   * laeuft alle paar Sekunden, und eine Meldung je Lauf waere ein Dauerfeuer.
+   * Fehler melden BEIDE Wege: ein stiller Fehlschlag ist genau das, was hier
+   * schiefgehen darf.
+   */
+  const speichern = useCallback(
+    async (leise = false) => {
+      const ziel = offersRef.current.find((o) => o.id === selectedIdRef.current);
+      const stand = entwurfRef.current;
+      if (!ziel) return;
+      setSpeichert(true);
+      const { error } = await createClient()
+        .from("offers")
+        .update({ ...stand, updated_at: new Date().toISOString() })
+        .eq("id", ziel.id)
+        .eq("workspace_id", workspaceId);
+      setSpeichert(false);
+      if (error) {
+        setFehler(true);
+        return push(t.common.error + error.message, "error");
+      }
+      setFehler(false);
+      setGespeichert(JSON.stringify(stand));
+      setOffers((list) => list.map((o) => (o.id === ziel.id ? { ...o, ...stand } : o)));
+      if (!leise) push(t.common.savedOk, "success");
+    },
+    // t und push sind ueber die Sitzung stabil; workspaceId wechselt nur beim
+    // Workspace-Wechsel, und dann wird die ganze Seite ohnehin neu geladen.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [workspaceId]
+  );
+
+  /**
+   * Automatisches Speichern.
+   *
+   * ═══════════════════════════════════════════════════════════════════════
+   * WARUM NICHT MEHR NUR AUF KNOPFDRUCK
+   * ═══════════════════════════════════════════════════════════════════════
+   *
+   * Gemeldet am 2026-08-13: "Änderungen werden nicht gespeichert -- wenn ich
+   * von Deutsch auf Englisch stelle, bleibt es Deutsch." In der Datenbank
+   * stand die Sprache richtig; die Aenderung war also angekommen, nur eben
+   * erst nach einem Klick auf Speichern.
+   *
+   * Und genau da liegt der Fehler im Entwurf: ein Schalter, der nach einem
+   * Klick eingerastet AUSSIEHT, ist damit auch angewendet. Bei einem Textfeld
+   * erwartet man einen Speicherknopf, bei einem Umschalter niemand. Wer
+   * danach das Angebot wechselte, bekam eine Rueckfrage, klickte sie weg --
+   * und die Umstellung war fort.
+   *
+   * Zwei Sekunden nach dem letzten Anschlag statt sofort: bei jedem Zeichen
+   * zu schreiben waere ein Schreibvorgang je Buchstabe.
+   */
+  useEffect(() => {
+    if (!geaendert || !selectedId) return;
+    const id = setTimeout(() => speichern(true), 2000);
+    return () => clearTimeout(id);
+  }, [geaendert, entwurf, selectedId, speichern]);
+
 
   /**
    * Standard umschalten -- erst die alte loeschen, dann die neue setzen.
@@ -525,36 +623,104 @@ export default function OffersEditor({ initial }: { initial: Offer[] }) {
               <p className="mt-2 text-[13px] leading-relaxed text-mute">{O.websiteHint}</p>
             </Karte>
 
-            <Karte label={O.fieldsHeading}>
-              <div className="space-y-5">
-                {OFFER_TEXT_FIELDS.map((key, i) => {
-                  const pflicht = REQUIRED_FOR_GENERATION.includes(key);
-                  const offen = fehlend.includes(key);
+            {/* ── Die vier Stufen ───────────────────────────────────────
+                Zwoelf Textfelder untereinander waren eine Wand: man scrollt an
+                Feld vier vorbei und weiss nicht mehr, worauf das Ganze
+                hinauslaeuft. Die Stufen sind nicht erfunden, sie sind der
+                Aufbau der ersten Mail -- wer an wen, woran haengt der Leser,
+                was hat er davon, worum wird er gebeten.
+
+                Die Linie links verbindet sie zu einem Weg statt zu vier
+                Kaesten. Offen ist immer genau eine: die mit der naechsten
+                offenen Pflichtfrage. */}
+            <div className="relative">
+              <div
+                aria-hidden
+                className="pointer-events-none absolute bottom-8 left-[19px] top-8 w-px"
+                style={{
+                  background:
+                    "linear-gradient(to bottom, transparent, color-mix(in srgb, var(--fb-frost) 30%, transparent) 12%, color-mix(in srgb, var(--fb-frost) 30%, transparent) 88%, transparent)",
+                }}
+              />
+              <div className="space-y-3">
+                {OFFER_STAGES.map((stufe) => {
+                  const felder = stufe.fields as readonly OfferTextField[];
+                  const voll = felder.filter((f) => entwurf[f].trim().length > 0).length;
+                  const offeneStufe = stufe.id === geoeffnet;
+                  const fehltHier = felder.some((f) => fehlend.includes(f));
+                  const farbe = fehltHier
+                    ? "var(--fb-frost)"
+                    : voll === felder.length
+                      ? "var(--fb-ready)"
+                      : "var(--color-edge3)";
                   return (
-                    <div key={key}>
-                      <div className="mb-1 flex items-baseline gap-2">
-                        {/* Die Nummer ist keine Zierde: die sieben Felder sind
-                            eine Reihenfolge -- was, an wen, welches Problem,
-                            was danach. Genau so ist auch die Legende am Ring
-                            sortiert. */}
-                        <span className="fb-num shrink-0 text-[11px] text-mute">
-                          {String(i + 1).padStart(2, "0")}
+                    <section
+                      key={stufe.id}
+                      className="fb-ticks relative rounded-xl border border-edge/60 bg-panel"
+                    >
+                      <button
+                        type="button"
+                        onClick={() => setGeoeffnetManuell(offeneStufe ? null : stufe.id)}
+                        aria-expanded={offeneStufe}
+                        className="flex w-full items-center gap-3.5 px-4 py-3.5 text-left"
+                      >
+                        {/* Der Knoten. Er traegt drei Aussagen auf einmal:
+                            wievielter Abschnitt, wie voll, und ob hier noch
+                            eine Pflichtfrage offen ist. */}
+                        <span
+                          aria-hidden
+                          className="fb-num relative z-[1] flex h-10 w-10 shrink-0 items-center justify-center rounded-full border-2 bg-panel text-[13px] font-semibold transition-colors"
+                          style={{ borderColor: farbe, color: farbe }}
+                        >
+                          {voll}/{felder.length}
                         </span>
-                        <label htmlFor={`feld-${key}`} className="text-[15px] font-medium text-ink">
-                          {O.fields[key].label}
-                        </label>
-                        {/* Pflicht nur fuers Erzeugen, nicht fuers Speichern:
-                            ein halb ausgefuelltes Angebot muss sicherbar
-                            sein, sonst geht angefangene Arbeit beim
-                            Wegklicken verloren. */}
-                        {pflicht && offen && (
-                          <span className="fb-label" style={{ color: "var(--fb-frost)" }}>
-                            {O.neededForGeneration}
+                        <span className="min-w-0 flex-1">
+                          <span className="block text-[15px] font-medium text-ink">
+                            {O.stages[stufe.id].label}
                           </span>
-                        )}
-                      </div>
-                      <p className="mb-2 pl-6 text-[13px] leading-relaxed text-faint">{O.fields[key].hint}</p>
-                      <div className="pl-6">
+                          <span className="mt-0.5 block text-[13px] leading-relaxed text-faint">
+                            {O.stages[stufe.id].hint}
+                          </span>
+                        </span>
+                        <span
+                          aria-hidden
+                          className="shrink-0 text-mute transition-transform duration-200"
+                          style={{ transform: offeneStufe ? "rotate(90deg)" : "none" }}
+                        >
+                          ›
+                        </span>
+                      </button>
+
+                      {offeneStufe && (
+                        <div className="space-y-5 border-t border-edge/60 px-4 pb-5 pt-4">
+                          {felder.map((key) => {
+                            const pflicht = REQUIRED_FOR_GENERATION.includes(key);
+                            const offen = fehlend.includes(key);
+                            return (
+                              <div key={key}>
+                                <div className="mb-1 flex items-baseline gap-2">
+                                  {/* Die Nummer ist keine Zierde: die zwoelf
+                                      Felder sind eine Reihenfolge, und genau so
+                                      ist auch die Legende am Ring sortiert. */}
+                                  <span className="fb-num shrink-0 text-[11px] text-mute">
+                                    {String(fieldNumber(key)).padStart(2, "0")}
+                                  </span>
+                                  <label htmlFor={`feld-${key}`} className="text-[15px] font-medium text-ink">
+                                    {O.fields[key].label}
+                                  </label>
+                                  {/* Pflicht nur fuers Erzeugen, nicht fuers
+                                      Speichern: ein halb ausgefuelltes Angebot
+                                      muss sicherbar sein. */}
+                                  {pflicht && offen && (
+                                    <span className="fb-label" style={{ color: "var(--fb-frost)" }}>
+                                      {O.neededForGeneration}
+                                    </span>
+                                  )}
+                                </div>
+                                <p className="mb-2 pl-6 text-[13px] leading-relaxed text-faint">
+                                  {O.fields[key].hint}
+                                </p>
+                                <div className="pl-6">
                         <textarea
                           id={`feld-${key}`}
                           value={entwurf[key]}
@@ -601,12 +767,17 @@ export default function OffersEditor({ initial }: { initial: Offer[] }) {
                             </div>
                           </div>
                         )}
-                      </div>
-                    </div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </section>
                   );
                 })}
               </div>
-            </Karte>
+            </div>
           </div>
 
           {/* ── Rechts: was daraus folgt ─────────────────────────────── */}
@@ -637,13 +808,39 @@ export default function OffersEditor({ initial }: { initial: Offer[] }) {
                 />
 
                 <div className="mt-5 space-y-2 border-t border-edge/60 pt-4">
+                  {/* Kein Speicherknopf mehr, sondern eine Anzeige.
+                      Der Knopf war die Ursache des gemeldeten Fehlers: ein
+                      Umschalter, der eingerastet AUSSAH, war es erst nach
+                      einem Klick woanders. Anklickbar bleibt die Anzeige nur
+                      fuer den Fall, dass ein Speichern fehlgeschlagen ist --
+                      dann braucht es einen zweiten Versuch von Hand. */}
                   <button
-                    onClick={speichern}
-                    disabled={busy || !geaendert}
-                    className="min-h-11 w-full rounded-lg text-[15px] font-medium text-white shadow-sm transition-all hover:brightness-110 active:scale-[0.98] disabled:opacity-40 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500"
-                    style={{ background: geaendert ? "var(--fb-frost)" : "var(--color-edge3)" }}
+                    onClick={() => speichern()}
+                    disabled={speichert || (!geaendert && !fehler)}
+                    aria-live="polite"
+                    className={
+                      "flex min-h-9 w-full items-center justify-center gap-2 rounded-lg text-[13px] font-medium transition-colors " +
+                      (fehler
+                        ? "border border-red-500/40 bg-red-500/5 text-red-600 dark:text-red-400"
+                        : "text-mute")
+                    }
                   >
-                    {geaendert ? t.common.save : t.common.savedOk}
+                    <span
+                      aria-hidden
+                      className={"h-1.5 w-1.5 rounded-full " + (speichert ? "fb-breathe" : "")}
+                      style={{
+                        background: fehler
+                          ? "currentColor"
+                          : speichert
+                            ? "var(--fb-frost)"
+                            : "var(--fb-ready)",
+                      }}
+                    />
+                    {fehler
+                      ? O.saveState.failed
+                      : speichert || geaendert
+                        ? O.saveState.saving
+                        : O.saveState.saved}
                   </button>
 
                   {fehlend.length === 0 ? (

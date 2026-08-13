@@ -102,7 +102,7 @@ export async function POST(req: Request) {
   }
 
   const angebot = offer as unknown as Offer;
-  let problems = sequenceProblems(steps, opts, angebot.cta);
+  let problems = sequenceProblems(steps, opts, angebot);
   let corrected = false;
   if (problems.length > 0) {
     const zweiter = await callOpenAi(openaiKey, [
@@ -117,7 +117,7 @@ export async function POST(req: Request) {
       // wegwerfen.
       if (nachgebessert.length > 0) {
         steps = nachgebessert;
-        problems = sequenceProblems(steps, opts, angebot.cta);
+        problems = sequenceProblems(steps, opts, angebot);
         corrected = true;
       }
     }

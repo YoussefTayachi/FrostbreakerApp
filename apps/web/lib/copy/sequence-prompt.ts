@@ -42,7 +42,7 @@
  */
 import { FIRST_MAIL_MAX_WORDS, estimateWords, hasLink } from "@/lib/campaign-readiness";
 import { DEFAULT_MAX_WORDS } from "@/lib/personalization-defaults";
-import type { Offer } from "@/lib/offers";
+import { OFFER_TEXT_FIELDS, type Offer, type OfferTextField } from "@/lib/offers";
 import {
   BANNED_PHRASES,
   MEETING_WORDS,
@@ -51,6 +51,7 @@ import {
   SUBJECT_IDEAL_WORDS,
   SUBJECT_MAX_WORDS,
   bannedPhrasesIn,
+  copiedFrom,
   mirrorsMicroYes,
   wordCount,
 } from "./playbook";
@@ -236,6 +237,31 @@ export function buildSequencePrompt(offer: Offer, opts: SequenceOptions): string
       "ask one small yes/no question of your own. Never request a meeting"
     ),
     fieldLine("Tone notes", offer.tone, "direct, plain, business-like"),
+    "",
+    // ═══════════════════════════════════════════════════════════════════════
+    // DIE STELLE, AN DER DIE ERSTE FASSUNG SCHIEFGING (2026-08-13)
+    // ═══════════════════════════════════════════════════════════════════════
+    //
+    // Am Live-Stand gemessen: das Modell hat die Angebotsfelder woertlich
+    // aneinandergeklebt. Aus "Role addresses like info@ get filtered out" und
+    // "Their outreach Emails are not personalized and look like spam then the
+    // buyer hesitate to reply" wurde ein Satz -- samt dem Grammatikfehler des
+    // Nutzers. Und der Micro-Yes stand woertlich als "Book a 30-minute call
+    // to review client setup and set up the first workspace." in der Mail.
+    //
+    // Der Grund liegt an der Anweisung, nicht am Modell: "nenne die Friction"
+    // liest sich als "setze den Feldinhalt ein". Die Felder sind aber NOTIZEN
+    // des Absenders an sich selbst -- oft kein Satz, oft in seiner Sprache,
+    // oft schief. Sie sind der INHALT, nicht der Wortlaut.
+    "THESE ARE NOTES, NOT SENTENCES.",
+    "Everything above is how the sender jotted it down for themselves. Their wording, sometimes clumsy,",
+    "sometimes not even a full sentence, sometimes in a different language than the email.",
+    "- NEVER copy a field into the email. Understand what it means and say it the way the RECIPIENT would want to hear it.",
+    "- Never glue two fields together into one sentence. If you can see the seams, rewrite it.",
+    "- Silently fix their grammar, their word order and their register. Do not point it out.",
+    "- The micro yes: put it into your own natural words ONCE, then repeat exactly that wording in every step.",
+    "  'word for word' means identical across the four steps, not identical to the note above.",
+    "- If a note is a meeting request, do not turn the email into one. Ask something the reader can answer with yes.",
     "",
     "HARD RULES (these override everything above):",
     `- Write every email in ${sprache}.`,
@@ -465,7 +491,9 @@ export type SequenceProblem =
   /** Eine Wendung, an der man Massenpost erkennt. */
   | { kind: "bannedPhrase"; step: number; phrase: string }
   /** Die Stufe bittet um einen Termin. */
-  | { kind: "meetingAsk"; step: number };
+  | { kind: "meetingAsk"; step: number }
+  /** Ein Angebotsfeld steht woertlich in der Mail statt formuliert. */
+  | { kind: "copiedNote"; step: number; text: string };
 
 /**
  * Ab wie vielen Woertern eine Mail ohne Leerzeile als Wand gilt.
@@ -493,12 +521,22 @@ export function sequenceProblems(
   steps: DraftStep[],
   opts: SequenceOptions,
   /**
-   * Der Micro-Yes aus dem Angebot. Optional, weil die Pruefung ohne ihn
-   * weiterlaufen muss -- ohne ihn faellt nur der Betreff-Spiegel-Test aus,
-   * und ein Ausfall ist besser als ein geratener Befund.
+   * Das Angebot, aus dem der Entwurf entstanden ist. Optional, weil die
+   * Pruefung ohne es weiterlaufen muss -- ohne es fallen nur zwei Befunde aus
+   * (Betreff-Spiegel und Abschrift), und ein Ausfall ist besser als ein
+   * geratener Befund.
    */
-  microYes?: string
+  offer?: Pick<Offer, OfferTextField>
 ): SequenceProblem[] {
+  const microYes = offer?.cta;
+  // Die Felder, deren woertliche Uebernahme auffaellt. tone bleibt draussen:
+  // "direkt, kein Hype" taucht nie in einer Mail auf, und proof SOLL zitiert
+  // werden duerfen -- eine Referenz ist eine Tatsache, keine Notiz.
+  const notizen = offer
+    ? OFFER_TEXT_FIELDS.filter((f) => f !== "tone" && f !== "proof")
+        .map((f) => offer[f])
+        .filter((v) => v.trim().length > 0)
+    : [];
   const problems: SequenceProblem[] = [];
   if (steps.length !== DEFAULT_STEP_COUNT) problems.push({ kind: "stepCount", got: steps.length });
 
@@ -753,6 +791,8 @@ export function correctionInstruction(problems: SequenceProblem[]): string {
         return `- Step ${p.step} contains "${p.phrase}". Remove it; it marks the mail as bulk mail.`;
       case "meetingAsk":
         return `- Step ${p.step} asks for a meeting, a call or a time slot. Remove it and ask the micro yes instead.`;
+      case "copiedNote":
+        return `- Step ${p.step} copies a note from the offer word for word: "${p.text}". Those are the sender's private jottings. Say the same thing in your own, natural sentence.`;
     }
   });
   return [
