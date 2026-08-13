@@ -88,7 +88,27 @@ export function constraintBlock(
 // Rueckwaertskompatibler Alias, falls irgendwo noch ohne Sprachauswahl importiert wird.
 export const DEFAULT_PROMPT = DEFAULT_PROMPT_DE;
 
-export const DEFAULT_MAX_WORDS = 22;
+/**
+ * Wie lang ein Aufhaenger hoechstens sein darf.
+ *
+ * Am 2026-08-13 von 22 auf 35 gehoben, und zwar an gemessenen Zahlen: von 737
+ * erzeugten Aufhaengern fielen 439 durch, fast alle mit "33 statt max. 22
+ * Woerter". Das Modell hat die Grenze also nicht knapp verfehlt, sondern
+ * durchgaengig -- und der Grund steht im Standardprompt selbst: er verlangt
+ * einen konkreten Fakt UND den Anschluss "deswegen melde ich mich". Beides
+ * zusammen ist in 22 Woertern nicht zu sagen.
+ *
+ * Eine Grenze, die drei von fuenf Ergebnissen als Fehler markiert, ist keine
+ * Qualitaetssicherung mehr, sondern Rauschen: der Nutzer sieht 439 rote
+ * Zeilen und hoert auf hinzusehen. Damit faellt auch der echte Fehler nicht
+ * mehr auf.
+ *
+ * ACHTUNG bei Aenderungen: dieselbe Zahl begrenzt ueber {{personalization}}
+ * auch die LinkedIn-Vorlage, und die hat nur 300 Zeichen (siehe
+ * lib/copy/linkedin-prompt.ts). 35 Woerter sind dort mit rund 210 Zeichen
+ * veranschlagt -- fuer den eigenen Satz bleibt entsprechend wenig.
+ */
+export const DEFAULT_MAX_WORDS = 35;
 
 // Gedankenstriche statt der frueheren Lob-Woerter ("Respekt", "bewundern",
 // "stolz", ...). Der Grund ist derselbe wie beim Prompt-Zusatz oben: ein

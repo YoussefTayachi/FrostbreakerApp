@@ -112,7 +112,14 @@ def default_prompt(language: str) -> str:
 # Rueckwaertskompatibler Alias fuer Aufrufer ohne Sprachwahl.
 DEFAULT_PROMPT = DEFAULT_PROMPT_DE
 
-DEFAULT_MAX_WORDS = 22
+# Am 2026-08-13 von 22 auf 35 gehoben. Gemessen: von 737 erzeugten Aufhaengern
+# fielen 439 durch, fast alle mit "33 statt max. 22 Woerter". Der
+# Standardprompt verlangt einen konkreten Fakt UND den Anschluss "deswegen
+# melde ich mich" -- beides zusammen passt nicht in 22 Woerter. Eine Grenze,
+# die drei von fuenf Ergebnissen bemaengelt, wird ueberlesen und verdeckt dann
+# den echten Fehler. Muss mit DEFAULT_MAX_WORDS in
+# apps/web/lib/personalization-defaults.ts uebereinstimmen.
+DEFAULT_MAX_WORDS = 35
 # Gedankenstriche statt der frueheren Lob-Woerter ("Respekt", "bewundern",
 # "stolz", ...): ein Gedankenstrich mitten im Satz ist inzwischen das
 # deutlichste Erkennungszeichen fuer KI-Text. Vages Lob faengt der Prompt
