@@ -1,11 +1,6 @@
 "use client";
 import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from "react";
-import {
-  OFFER_STAGES,
-  REQUIRED_FOR_GENERATION,
-  fieldNumber,
-  type OfferTextField,
-} from "@/lib/offers";
+import { REQUIRED_FOR_GENERATION, fieldNumber, type OfferStageId, type OfferTextField } from "@/lib/offers";
 import type { CoachFinding } from "@/lib/copy/coach-prompt";
 
 /**
@@ -16,48 +11,77 @@ import type { CoachFinding } from "@/lib/copy/coach-prompt";
  * ═══════════════════════════════════════════════════════════════════════
  *
  * Zwoelf Felder untereinander sehen aus wie zwoelf gleichrangige Fragen. Sie
- * sind aber keine Liste, sondern ein Gefuege: die Friction ist die konkrete
- * Stelle des Problems, der Grund erklaert die Friction, die Pruefzeit gehoert
- * zum Preview, das Preview gehoert zur Frage.
- *
- * Am 2026-08-13 hat genau diese Unsichtbarkeit einen Fehler erzeugt: derselbe
- * Termin stand in drei Feldern, die drei verschiedene Fragen stellen. In einer
- * Liste faellt das nicht auf. In einer Kette schon.
+ * sind aber ein Gefuege: die Friction ist die konkrete Stelle des Problems,
+ * der Grund erklaert die Friction, die Pruefzeit gehoert zum Preview, das
+ * Preview zur Frage. Am 2026-08-13 hat genau diese Unsichtbarkeit einen Fehler
+ * erzeugt -- derselbe Termin stand in drei Feldern, die drei verschiedene
+ * Fragen stellen.
  *
  * ═══════════════════════════════════════════════════════════════════════
- * WARUM FEST UND NICHT FREI
+ * WARUM VIER FELDER IM KREIS UND NICHT VIER SPALTEN
  * ═══════════════════════════════════════════════════════════════════════
  *
- * Das Vorbild waere ein Board, auf dem man Knoten anlegt und anordnet. Das
- * waere hier falsch: die Struktur eines Angebots gehoert nicht dem Nutzer,
- * sie steht fest. Deshalb kein Anlegen, kein Verschieben, kein Zoomen -- die
- * Position TRAEGT hier Bedeutung, und wer sie verschieben darf, zerstoert sie.
+ * Die erste Fassung waren vier Spalten nebeneinander. Am Live-Bild geprueft
+ * und sofort verworfen: neben der 340 Pixel breiten Statusspalte blieben je
+ * Spalte rund 250 Pixel, und darin brach "What does the customer struggle
+ * with beforehand?" auf vier Zeilen um. Aus einer Erleichterung wurde eine
+ * Zumutung -- schmaler als das Formular, das sie ersetzen sollte.
  *
- * Der Test gegen Zierde: wenn man alle Kanten entfernt und nichts wird
- * schlechter, waren sie Dekoration. Jede Kante hier traegt eine Regel, und die
- * steht als Beschriftung daran, sobald man einen ihrer Knoten beruehrt.
+ * Jetzt: vier Felder in den Ecken, THAW in der Mitte, und die Statusspalte
+ * ist weg. Damit ist jeder Knoten rund 400 statt 250 Pixel breit -- die Frage
+ * steht auf einer Zeile, die Antwort auf zweien.
+ *
+ * Die Reihenfolge laeuft IM UHRZEIGERSINN: oben links, oben rechts, unten
+ * rechts, unten links. Das ist kein Geschmack, sondern der Grund, warum es
+ * ueberhaupt lesbar ist -- so liegt jede Gruppe neben der, aus der sie folgt,
+ * und keine einzige Kante muss quer durch die Mitte.
  *
  * ═══════════════════════════════════════════════════════════════════════
- * DER EINE MOMENT, DEN SICH DIE FLAECHE LEISTET
+ * DER TEST GEGEN ZIERDE
  * ═══════════════════════════════════════════════════════════════════════
  *
- * Die Kanten zeichnen sich beim Aufbau selbst -- einmal, nicht bei jedem
- * Tastendruck. Und ein Coach-Befund, der zwei Felder betrifft ("dein Beleg
- * steht im Ergebnisfeld"), wird zu einem BERNSTEINFARBENEN PFEIL zwischen
- * beiden Knoten. Das ist die eine Sache, die ein Formular strukturell nicht
- * kann: dort waere es ein Satz, den man erst zuordnen muss.
+ * Wenn man alle Kanten entfernt und nichts wird schlechter, waren sie
+ * Dekoration. Jede Kante hier traegt eine Regel, und die steht als
+ * Beschriftung daran, sobald man einen ihrer Knoten beruehrt.
+ *
+ * Und der eine Moment: ein Coach-Befund, der zwei Felder betrifft ("dein
+ * Beleg steht im Ergebnisfeld"), wird zu einem bernsteinfarbenen Pfeil
+ * zwischen beiden Knoten. Das kann ein Formular strukturell nicht.
  */
 
 /** Was ein gemessener Knoten ist -- Koordinaten relativ zur Karte. */
 type Box = { x: number; y: number; w: number; h: number };
 
+/** Bis zu welchem senkrechten Abstand zwei Knoten als "direkt untereinander"
+ *  gelten. Darueber liegt mindestens ein dritter dazwischen, und dann muss die
+ *  Kante aussen herum. */
+const NACHBAR_ABSTAND = 44;
+
+/** Wie weit die Umleitung neben der Knotenkante laeuft. Muss in den seitlichen
+ *  Rand der Karte passen (px-6 = 24 Pixel). */
+const AUSSEN = 18;
+
 /**
- * Die Kanten. `regel` ist der Schluessel des Satzes, der an ihr steht.
+ * Die vier Ecken, im Uhrzeigersinn ab oben links.
  *
- * mechanism und tone haben ABSICHTLICH keine Kante: der Mechanismus kommt in
- * Mail 1 nicht vor, und der Ton wirkt auf alles. Die Abwesenheit ist hier die
- * Aussage -- im Formular stand der Mechanismus als Feld 07 mittendrin, als
- * waere er gleichrangig.
+ * Die Reihenfolge im Array IST die Reihenfolge im Raster (zeilenweise), also
+ * oben-links, oben-rechts, unten-links, unten-rechts. Damit "unten rechts"
+ * die dritte Station wird, steht `value` an dritter Stelle im Uhrzeigersinn,
+ * aber an vierter im Raster -- deshalb die getrennte `nummer`.
+ */
+const ECKEN: { id: OfferStageId; nummer: number; felder: OfferTextField[] }[] = [
+  { id: "who", nummer: 1, felder: ["offering", "icp", "tone"] },
+  { id: "hook", nummer: 2, felder: ["problem", "friction", "friction_reason"] },
+  { id: "ask", nummer: 4, felder: ["preview_asset", "review_time", "cta"] },
+  { id: "value", nummer: 3, felder: ["outcome", "mechanism", "proof"] },
+];
+
+/**
+ * Die Kanten. Jede verbindet nur BENACHBARTE Ecken -- keine laeuft quer durch
+ * die Mitte, wo THAW steht.
+ *
+ * mechanism und tone haben absichtlich keine: der Mechanismus kommt in Mail 1
+ * nicht vor, der Ton wirkt auf alles. Die Abwesenheit ist die Aussage.
  */
 export const KANTEN: { von: OfferTextField; nach: OfferTextField; regel: string }[] = [
   { von: "offering", nach: "problem", regel: "world" },
@@ -71,9 +95,8 @@ export const KANTEN: { von: OfferTextField; nach: OfferTextField; regel: string 
   { von: "preview_asset", nach: "cta", regel: "forThat" },
 ];
 
-/** Die beiden Knoten, die das Playbook als tragend bezeichnet. Sie stehen
- *  kraeftiger da als die anderen -- und es sind genau die beiden, die am
- *  2026-08-13 schiefgingen. */
+/** Die beiden Knoten, die das Playbook als tragend bezeichnet -- und genau
+ *  die beiden, die am 2026-08-13 schiefgingen. */
 const TRAGEND: OfferTextField[] = ["friction", "cta"];
 
 type Texte = {
@@ -99,25 +122,26 @@ export default function OfferMap({
   onApply,
   onDismiss,
   texte,
+  hub,
 }: {
   werte: Record<OfferTextField, string>;
   fehlend: OfferTextField[];
   /** Die messbaren Befunde aus lib/copy/offer-tests.ts, als fertiger Satz. */
   befunde: Partial<Record<OfferTextField, string>>;
-  /** Was THAW gefunden hat. */
   coach: CoachFinding[];
   onChange: (feld: OfferTextField, wert: string) => void;
   onApply: (feld: OfferTextField, wert: string) => void;
   onDismiss: (feld: OfferTextField) => void;
   texte: Texte;
+  /** Was in der Mitte steht: THAW, der Messwert und die zwei Knoepfe. */
+  hub: React.ReactNode;
 }) {
   const [offen, setOffen] = useState<OfferTextField | null>(null);
   const [beruehrt, setBeruehrt] = useState<OfferTextField | null>(null);
   const [boxen, setBoxen] = useState<Partial<Record<OfferTextField, Box>>>({});
   const [flaeche, setFlaeche] = useState({ w: 0, h: 0 });
   /** Die Kanten zeichnen sich EINMAL. Bei jedem Tastendruck neu waere ein
-   *  Flackern, und der Moment verliert seine Bedeutung, wenn er sich
-   *  wiederholt. */
+   *  Flackern, und ein Moment, der sich wiederholt, ist keiner mehr. */
   const [gezeichnet, setGezeichnet] = useState(false);
 
   const uid = useId().replace(/:/g, "");
@@ -158,24 +182,22 @@ export default function OfferMap({
   }, [messen]);
 
   useEffect(() => {
-    const id = setTimeout(() => setGezeichnet(true), 1600);
+    const id = setTimeout(() => setGezeichnet(true), 1700);
     return () => clearTimeout(id);
   }, []);
 
   const coachZu = (f: OfferTextField) => coach.find((c) => c.field === f);
 
   return (
-    <div ref={karte} className="fb-map relative">
+    // Der seitliche Rand (px-6) ist kein Abstand, sondern die Fahrbahn: die
+    // aussen herum gefuehrten Kanten laufen darin. Ohne ihn enden sie
+    // ausserhalb der Zeichenflaeche und werden abgeschnitten -- am Standbild
+    // gesehen.
+    <div ref={karte} className="relative px-6">
       {/* ── Die Kanten ─────────────────────────────────────────────────
-          Ueber den Knoten, aber ohne Mauszeiger: sie sollen die Karte
-          zusammenhalten, nicht anklickbar sein. */}
-      {/* UEBER den Knoten, nicht darunter.
-          Am Standbild geprueft: die Beschriftungen sassen in der 36 Pixel
-          breiten Spaltenluecke und wurden von den Knoten verdeckt -- lesbar
-          blieb "ILT FUE" und "AELLT WE". Die Linien selbst laufen von Kante zu
-          Kante und kreuzen keinen Knoten, oben liegen schadet ihnen also
-          nicht. Die Schrift bekommt zusaetzlich einen Rand in Flaechenfarbe
-          (paint-order), damit sie auch ueber einem Knotenrahmen lesbar ist. */}
+          UEBER den Knoten, nicht darunter: die Beschriftungen sassen sonst in
+          der Spaltenluecke und wurden verdeckt. Die Linien selbst laufen von
+          Kante zu Kante und kreuzen keinen Knoten. */}
       <svg
         aria-hidden
         className="pointer-events-none absolute left-0 top-0 z-30"
@@ -201,26 +223,22 @@ export default function OfferMap({
           const b = boxen[k.nach];
           if (!a || !b) return null;
           const aktiv = beruehrt === k.von || beruehrt === k.nach || offen === k.von || offen === k.nach;
-          const d = pfad(a, b);
           return (
             <g key={`${k.von}-${k.nach}`}>
               <path
-                d={d}
+                d={pfad(a, b, flaeche.w)}
                 fill="none"
                 stroke="var(--fb-frost)"
-                strokeWidth={aktiv ? 1.6 : 1}
+                strokeWidth={aktiv ? 1.8 : 1.1}
                 strokeLinecap="round"
-                opacity={aktiv ? 0.75 : 0.28}
+                opacity={aktiv ? 0.8 : 0.3}
                 pathLength={1}
                 className={gezeichnet ? "fb-edge-ruhig" : "fb-edge"}
-                style={{ animationDelay: `${420 + i * 70}ms` }}
+                style={{ animationDelay: `${460 + i * 70}ms` }}
               />
-              {/* Die Regel steht erst da, wenn man einen ihrer Knoten
-                  beruehrt. Neun Beschriftungen gleichzeitig waeren Rauschen;
-                  eine auf Anfrage ist eine Erklaerung. */}
               {aktiv && (
                 <text
-                  {...mitte(a, b)}
+                  {...mitte(a, b, flaeche.w)}
                   textAnchor="middle"
                   className="fb-edge-label"
                   fill="var(--fb-frost)"
@@ -232,24 +250,22 @@ export default function OfferMap({
           );
         })}
 
-        {/* Der Befund, der zwei Knoten betrifft. Das ist der Grund, warum
-            diese Flaeche eine Karte ist und kein Formular. */}
         {coach
           .filter((c) => c.relatedField)
           .map((c) => {
             const a = boxen[c.field];
             const b = boxen[c.relatedField!];
             if (!a || !b) return null;
+            // Um 26 Pixel versetzt: zwischen Ergebnis und Beleg laeuft schon
+            // die Struktur-Kante. Zwei Linien mit verschiedener Bedeutung auf
+            // derselben Achse sind unlesbar.
             return (
               <path
                 key={`coach-${c.field}`}
-                // Um 22 Pixel versetzt: zwischen Ergebnis und Beleg laeuft
-                // schon die Struktur-Kante "belegt". Zwei Linien auf derselben
-                // Achse mit verschiedener Bedeutung sind unlesbar.
-                d={pfad(a, b, 22)}
+                d={pfad(a, b, flaeche.w, 26)}
                 fill="none"
                 stroke="var(--fb-warn)"
-                strokeWidth="1.8"
+                strokeWidth="2"
                 strokeDasharray="5 4"
                 strokeLinecap="round"
                 markerEnd={`url(#pfeil-${uid})`}
@@ -259,16 +275,26 @@ export default function OfferMap({
           })}
       </svg>
 
-      {/* ── Die Knoten ──────────────────────────────────────────────── */}
-      <div className="relative grid grid-cols-4 gap-x-9 gap-y-4">
-        {OFFER_STAGES.map((stufe, si) => (
-          <div key={stufe.id} className="flex min-w-0 flex-col gap-3">
-            <div className="fb-fade" style={{ animationDelay: `${si * 90}ms` }}>
-              <p className="fb-label text-mute">{texte.stages[stufe.id].label}</p>
-              <p className="mt-1 text-[11.5px] leading-snug text-faint">{texte.stages[stufe.id].hint}</p>
+      {/* ── Die vier Ecken ───────────────────────────────────────────
+          Die Luecke in der Mitte ist kein Abstand, sondern der Platz, in dem
+          THAW steht. */}
+      <div className="grid grid-cols-2 gap-x-[19rem] gap-y-12">
+        {ECKEN.map((ecke, ei) => (
+          <div key={ecke.id} className="flex min-w-0 flex-col gap-2.5">
+            <div className="fb-fade flex items-baseline gap-2" style={{ animationDelay: `${ei * 80}ms` }}>
+              <span
+                className="fb-num flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-semibold"
+                style={{
+                  background: "color-mix(in srgb, var(--fb-frost) 12%, transparent)",
+                  color: "var(--fb-frost)",
+                }}
+              >
+                {ecke.nummer}
+              </span>
+              <p className="fb-label text-mute">{texte.stages[ecke.id].label}</p>
             </div>
 
-            {(stufe.fields as readonly OfferTextField[]).map((feld, fi) => {
+            {ecke.felder.map((feld, fi) => {
               const wert = werte[feld].trim();
               const pflicht = REQUIRED_FOR_GENERATION.includes(feld);
               const offenHier = offen === feld;
@@ -300,39 +326,45 @@ export default function OfferMap({
                     (TRAGEND.includes(feld) ? " fb-node-tragend" : "")
                   }
                   data-zustand={zustand}
-                  style={{ animationDelay: `${180 + si * 90 + fi * 60}ms` }}
+                  style={{ animationDelay: `${200 + ei * 80 + fi * 55}ms` }}
                 >
                   <button
                     type="button"
                     onClick={() => setOffen(offenHier ? null : feld)}
                     aria-expanded={offenHier}
-                    className="w-full px-3.5 py-3 text-left"
+                    className="flex w-full items-start gap-2.5 px-4 py-3 text-left"
                   >
-                    <span className="flex items-baseline gap-2">
-                      <span className="fb-num shrink-0 text-[10px] text-mute">
-                        {String(fieldNumber(feld)).padStart(2, "0")}
-                      </span>
-                      <span className="min-w-0 flex-1 text-[13.5px] font-medium leading-snug text-ink">
+                    <span className="fb-num mt-0.5 shrink-0 text-[10px] text-mute">
+                      {String(fieldNumber(feld)).padStart(2, "0")}
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-[14px] font-medium leading-snug text-ink">
                         {texte.fields[feld].label}
                       </span>
-                      {!wert && pflicht && (
-                        <span className="fb-dot shrink-0" aria-label={texte.neededForGeneration} />
-                      )}
+                      {/* KEIN "block" davor: Tailwinds display:block gewinnt je
+                          nach Reihenfolge im Stylesheet gegen -webkit-box, und
+                          dann greift die Zeilenbegrenzung nicht. Am Live-Bild
+                          gesehen -- ein Knoten war zehn Zeilen hoch. */}
+                      <span
+                        className={
+                          "fb-clamp mt-1 text-[12.5px] leading-[1.45] " + (wert ? "text-soft" : "text-mute")
+                        }
+                      >
+                        {wert || (pflicht ? texte.neededForGeneration : texte.optional)}
+                      </span>
                     </span>
+                    {!wert && pflicht && <span className="fb-dot mt-1.5 shrink-0" aria-hidden />}
                     <span
-                      className={
-                        "mt-1.5 block text-[12.5px] leading-[1.45] " +
-                        (wert
-                          ? "text-soft [display:-webkit-box] [overflow:hidden] [-webkit-box-orient:vertical] [-webkit-line-clamp:2]"
-                          : "text-mute")
-                      }
+                      aria-hidden
+                      className="mt-0.5 shrink-0 text-mute transition-transform duration-200"
+                      style={{ transform: offenHier ? "rotate(90deg)" : "none" }}
                     >
-                      {wert || (pflicht ? texte.neededForGeneration : texte.optional)}
+                      ›
                     </span>
                   </button>
 
                   {offenHier && (
-                    <div className="fb-open border-t border-edge/60 px-3.5 pb-3.5 pt-3">
+                    <div className="fb-open border-t border-edge/60 px-4 pb-4 pt-3">
                       <p className="mb-2 text-[12.5px] leading-relaxed text-faint">
                         {texte.fields[feld].hint}
                       </p>
@@ -393,6 +425,13 @@ export default function OfferMap({
           </div>
         ))}
       </div>
+
+      {/* ── THAW, in der Mitte ────────────────────────────────────────
+          Er steht dort, wo alle vier Ecken hinzeigen, und nicht in einer
+          Spalte am Rand: er liest das Ganze, nicht eine Seite davon. */}
+      <div className="pointer-events-none absolute left-1/2 top-1/2 z-40 w-[17rem] -translate-x-1/2 -translate-y-1/2">
+        <div className="pointer-events-auto">{hub}</div>
+      </div>
     </div>
   );
 }
@@ -400,35 +439,61 @@ export default function OfferMap({
 /**
  * Der Weg von Knoten A zu Knoten B.
  *
- * Zwei Faelle, und die Unterscheidung ist die Spalte, nicht die Richtung:
- * innerhalb einer Spalte eine gerade Linie von Kante zu Kante, ueber Spalten
- * hinweg eine Bezierkurve, die waagerecht aus dem einen heraus und in den
+ * Innerhalb einer Ecke eine gerade Linie von Kante zu Kante, zwischen zwei
+ * Ecken eine Bezierkurve, die waagerecht aus dem einen heraus und in den
  * anderen hineinlaeuft. Eine Kurve, die schraeg an einer Ecke ansetzt, sieht
  * aus wie ein Zeichenfehler.
  */
-function pfad(a: Box, b: Box, versatz = 0): string {
+function pfad(a: Box, b: Box, breite: number, versatz = 0): string {
   const gleicheSpalte = Math.abs(a.x - b.x) < 4;
   if (gleicheSpalte) {
-    const x = a.x + a.w / 2 + versatz;
-    const [y1, y2] = a.y < b.y ? [a.y + a.h, b.y] : [a.y, b.y + b.h];
-    return `M ${x} ${y1} L ${x} ${y2}`;
+    const luecke = a.y < b.y ? b.y - (a.y + a.h) : a.y - (b.y + b.h);
+    // Direkt untereinander: die kurze gerade Linie. Sie kreuzt nichts.
+    if (luecke < NACHBAR_ABSTAND && versatz === 0) {
+      const x = a.x + a.w / 2;
+      const [y1, y2] = a.y < b.y ? [a.y + a.h, b.y] : [a.y, b.y + b.h];
+      return `M ${x} ${y1} L ${x} ${y2}`;
+    }
+    // Sonst AUSSEN HERUM.
+    //
+    // Am Standbild gefunden: eine gerade Linie durch die Spaltenmitte laeuft
+    // mitten durch die Knoten, die dazwischen liegen -- "faellt weg" und
+    // "belegt" durchschnitten die Karten 06 und 07, und die Beschriftung lag
+    // auf fremdem Text. Aussen ist Platz: die Luecke zur Mitte ist 300 Pixel
+    // breit, nach aussen steht der Seitenrand.
+    const linkeHaelfte = a.x + a.w / 2 < breite / 2;
+    const x = linkeHaelfte ? a.x - AUSSEN - versatz : a.x + a.w + AUSSEN + versatz;
+    const xa = linkeHaelfte ? a.x : a.x + a.w;
+    const xb = linkeHaelfte ? b.x : b.x + b.w;
+    const ya = a.y + a.h / 2;
+    const yb = b.y + b.h / 2;
+    return `M ${xa} ${ya} L ${x} ${ya} L ${x} ${yb} L ${xb} ${yb}`;
   }
   const linksNachRechts = a.x < b.x;
   const x1 = linksNachRechts ? a.x + a.w : a.x;
   const x2 = linksNachRechts ? b.x : b.x + b.w;
   const y1 = a.y + a.h / 2;
   const y2 = b.y + b.h / 2;
-  const dx = Math.max(20, Math.abs(x2 - x1) / 2);
+  const dx = Math.max(24, Math.abs(x2 - x1) / 2);
   const s = linksNachRechts ? 1 : -1;
   return `M ${x1} ${y1} C ${x1 + dx * s} ${y1}, ${x2 - dx * s} ${y2}, ${x2} ${y2}`;
 }
 
 /** Wo die Beschriftung einer Kante steht. */
-function mitte(a: Box, b: Box): { x: number; y: number } {
+function mitte(a: Box, b: Box, breite: number): { x: number; y: number } {
   const gleicheSpalte = Math.abs(a.x - b.x) < 4;
   if (gleicheSpalte) {
-    const [y1, y2] = a.y < b.y ? [a.y + a.h, b.y] : [a.y, b.y + b.h];
-    return { x: a.x + a.w / 2 + 46, y: (y1 + y2) / 2 + 3 };
+    const luecke = a.y < b.y ? b.y - (a.y + a.h) : a.y - (b.y + b.h);
+    if (luecke < NACHBAR_ABSTAND) {
+      const [y1, y2] = a.y < b.y ? [a.y + a.h, b.y] : [a.y, b.y + b.h];
+      return { x: a.x + a.w / 2 + 54, y: (y1 + y2) / 2 + 3 };
+    }
+    // Auf dem senkrechten Stueck der Umleitung, nicht ueber den Knoten.
+    const linkeHaelfte = a.x + a.w / 2 < breite / 2;
+    return {
+      x: linkeHaelfte ? a.x - AUSSEN : a.x + a.w + AUSSEN,
+      y: (a.y + a.h / 2 + b.y + b.h / 2) / 2,
+    };
   }
-  return { x: (a.x + a.w + b.x) / 2, y: (a.y + a.h / 2 + b.y + b.h / 2) / 2 - 6 };
+  return { x: (a.x + a.w / 2 + b.x + b.w / 2) / 2, y: (a.y + a.h / 2 + b.y + b.h / 2) / 2 - 7 };
 }

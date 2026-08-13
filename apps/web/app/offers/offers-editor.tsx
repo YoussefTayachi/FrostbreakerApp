@@ -19,6 +19,7 @@ import type { OfferSuggestion } from "@/lib/copy/offer-from-website";
 import { FINDING_FIELD, offerFindings, type OfferFinding } from "@/lib/copy/offer-tests";
 import type { CoachFinding } from "@/lib/copy/coach-prompt";
 import OfferMap from "./offer-map";
+import Thaw from "../thaw";
 import { useT } from "../language-provider";
 import { useToast } from "../toast-provider";
 import { useWorkspace } from "../workspace-provider";
@@ -514,6 +515,77 @@ export default function OffersEditor({ initial }: { initial: Offer[] }) {
     OFFER_TEXT_FIELDS.map((f) => [f, O.fields[f].label])
   ) as Record<OfferTextField, string>;
 
+  /**
+   * Was in der Mitte der Karte steht.
+   *
+   * Alles, was frueher in der Seitenspalte stand, aber ohne die Legende: die
+   * zaehlt zwoelf Felder auf, und genau die zwoelf stehen als Knoten drumherum.
+   * Zweimal dieselbe Liste ist eine Frage zu viel.
+   */
+  const hubInhalt = (
+    <div className="fb-ticks rounded-2xl border border-edge/60 bg-panel px-4 py-4 shadow-xl">
+      <div className="flex flex-col items-center">
+        <Thaw
+          state={fehlend.length === 0 ? "ready" : gefuellt.size === 0 ? "cold" : "listening"}
+          size={96}
+        />
+        <span
+          className="fb-num -mt-1 text-[20px] font-semibold leading-none"
+          style={{ color: fehlend.length === 0 ? "var(--fb-ready)" : "var(--fb-frost)" }}
+        >
+          {prozent}%
+        </span>
+        <p className="mt-2 min-h-8 text-center text-[12.5px] leading-[1.4] text-soft">
+          {fehlend.length === 0
+            ? gefuellt.size === OFFER_TEXT_FIELDS.length
+              ? O.sayComplete
+              : O.sayReady
+            : gefuellt.size === 0
+              ? O.sayCold
+              : O.sayMissing(O.fields[fehlend[0]].label)}
+        </p>
+      </div>
+
+      <button
+        onClick={pruefen}
+        disabled={coachLaeuft || gefuellt.size === 0}
+        className="relative mt-2 min-h-10 w-full overflow-hidden rounded-lg border text-[13.5px] font-medium transition-all hover:brightness-110 disabled:opacity-40 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500"
+        style={{
+          borderColor: "color-mix(in srgb, var(--fb-frost) 45%, transparent)",
+          color: "var(--fb-frost)",
+          background: "color-mix(in srgb, var(--fb-frost) 8%, transparent)",
+        }}
+      >
+        {coachLaeuft && <span className="fb-scan" aria-hidden />}
+        <span className="relative">{coachLaeuft ? O.coach.running : O.coach.run}</span>
+      </button>
+
+      {coachBefunde !== null && !coachLaeuft && (
+        <p className="fb-open mt-1.5 text-center text-[12px] leading-snug text-soft">
+          {coachBefunde.length === 0 ? O.coach.clean : O.coach.found(coachBefunde.length)}
+        </p>
+      )}
+
+      {fehlend.length === 0 && (
+        <Link
+          href="/instantly/campaigns/new"
+          className="mt-2 flex min-h-10 w-full items-center justify-center rounded-lg border text-[13.5px] font-medium transition-all hover:brightness-110"
+          style={{
+            borderColor: "color-mix(in srgb, var(--fb-ready) 50%, transparent)",
+            color: "var(--fb-ready)",
+            background: "color-mix(in srgb, var(--fb-ready) 9%, transparent)",
+          }}
+        >
+          {O.toCampaign}
+        </Link>
+      )}
+
+      <p className="mt-2 text-center text-[11px] text-mute">
+        {fehler ? O.saveState.failed : speichert || geaendert ? O.saveState.saving : O.saveState.saved}
+      </p>
+    </div>
+  );
+
   return (
     <div className="space-y-5">
       {/* Angebotswahl als schmale Leiste über allem: sie entscheidet, was
@@ -591,11 +663,13 @@ export default function OffersEditor({ initial }: { initial: Offer[] }) {
       )}
 
       {aktuell && (
-        // 340 statt 308 Pixel: der Kern ist gewachsen (offer-core.tsx), und
-        // die Legende darunter soll dabei nicht enger werden.
-        <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_340px]">
-          {/* ── Links: hier wird geschrieben ─────────────────────────── */}
-          <div className="min-w-0 space-y-5">
+        // Breit: die Karte bekommt die GANZE Breite und THAW steht in ihrer
+        // Mitte. Am Live-Bild geprueft: neben der 340 Pixel breiten
+        // Statusspalte blieben je Kartenspalte 250 Pixel, und darin brach jede
+        // Frage auf vier Zeilen um -- die Karte war schmaler als das Formular,
+        // das sie ersetzen sollte.
+        <div className={breit ? "space-y-5" : "grid gap-5 lg:grid-cols-[minmax(0,1fr)_340px]"}>
+          <div className={breit ? "grid gap-5 lg:grid-cols-2" : "min-w-0 space-y-5"}>
             <Karte label={O.languageHeading}>
               <div className="flex flex-wrap items-start gap-x-8 gap-y-4">
                 <div>
@@ -680,35 +754,7 @@ export default function OffersEditor({ initial }: { initial: Offer[] }) {
               <p className="mt-2 text-[13px] leading-relaxed text-mute">{O.websiteHint}</p>
             </Karte>
 
-            {/* Breit: die Karte. Schmal: dieselben Felder als Abschnitte.
-                Immer nur EINE von beiden im Dokument -- sonst gaebe es jedes
-                Textfeld zweimal, samt doppelter id. */}
-            {breit ? (
-              <OfferMap
-                werte={entwurf}
-                fehlend={fehlend}
-                befunde={Object.fromEntries(
-                  [...befunde.entries()].map(([feld, liste]) => [feld, findingText(liste[0], O.findings)])
-                )}
-                coach={coachBefunde ?? []}
-                onChange={setzeFeld}
-                onApply={coachUebernehmen}
-                onDismiss={coachVerwerfen}
-                texte={{
-                  stages: O.stages,
-                  fields: O.fields,
-                  edges: O.edges,
-                  neededForGeneration: O.neededForGeneration,
-                  optional: O.optional,
-                  coach: {
-                    verdictLabel: O.coach.verdictLabel,
-                    apply: O.coach.apply,
-                    dismiss: O.coach.dismiss,
-                    related: O.coach.related,
-                  },
-                }}
-              />
-            ) : (
+            {!breit && (
             <>
             {/* ── Die vier Stufen ───────────────────────────────────────
                 Zwoelf Textfelder untereinander waren eine Wand: man scrollt an
@@ -873,7 +919,42 @@ export default function OffersEditor({ initial }: { initial: Offer[] }) {
             )}
           </div>
 
-          {/* ── Rechts: was daraus folgt ─────────────────────────────── */}
+
+          {/* Die Karte, ueber die ganze Breite. THAW steht in ihrer Mitte
+              statt in einer Spalte am Rand: er liest das Ganze. */}
+          {breit && (
+              <OfferMap
+                werte={entwurf}
+                fehlend={fehlend}
+                befunde={Object.fromEntries(
+                  [...befunde.entries()].map(([feld, liste]) => [feld, findingText(liste[0], O.findings)])
+                )}
+                coach={coachBefunde ?? []}
+                onChange={setzeFeld}
+                onApply={coachUebernehmen}
+                onDismiss={coachVerwerfen}
+                texte={{
+                  stages: O.stages,
+                  fields: O.fields,
+                  edges: O.edges,
+                  neededForGeneration: O.neededForGeneration,
+                  optional: O.optional,
+                  coach: {
+                    verdictLabel: O.coach.verdictLabel,
+                    apply: O.coach.apply,
+                    dismiss: O.coach.dismiss,
+                    related: O.coach.related,
+                  },
+                }}
+                hub={hubInhalt}
+              />
+          )}
+
+          {/* ── Rechts: was daraus folgt ───────────────────────────────
+              Nur in der schmalen Ansicht. Breit steht dasselbe in der Mitte
+              der Karte -- zweimal derselbe Messwert waere eine Frage zu viel
+              ("welcher gilt jetzt?"). */}
+          {!breit && (
           <aside className="lg:sticky lg:top-4 lg:self-start">
             <div className="fb-ticks relative overflow-hidden rounded-xl border border-edge/60 bg-panel p-6">
               <div className="fb-grid-bg absolute inset-0" aria-hidden />
@@ -1005,6 +1086,7 @@ export default function OffersEditor({ initial }: { initial: Offer[] }) {
               </div>
             </div>
           </aside>
+          )}
         </div>
       )}
     </div>

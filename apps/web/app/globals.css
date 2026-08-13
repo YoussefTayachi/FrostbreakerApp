@@ -280,6 +280,18 @@ body {
   opacity: 0.7;
 }
 
+/* Zwei Zeilen, Schluss.
+   Als eigene Klasse und NICHT als Kette von Tailwind-Arbitraries: dort stand
+   ein "block" davor, und Tailwinds display:block gewinnt je nach Reihenfolge
+   im erzeugten Stylesheet gegen -webkit-box. Am Live-Bild gesehen -- ein
+   Knoten war zehn Zeilen hoch und die Karte damit unbrauchbar. */
+.fb-clamp {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}
+
 /* Der Punkt an einem offenen Pflichtfeld. */
 .fb-dot {
   height: 6px;
