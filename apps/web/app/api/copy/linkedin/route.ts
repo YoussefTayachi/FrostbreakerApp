@@ -7,8 +7,10 @@ import { recordOpenAiUsage } from "@/lib/usage";
 import { OFFER_COLUMNS, type Offer } from "@/lib/offers";
 import { DEFAULT_MAX_WORDS } from "@/lib/personalization-defaults";
 import { unknownPlaceholders } from "@/lib/crm/linkedin-message";
+import { signatureFor } from "@/lib/copy/sequence-prompt";
 import {
   LINKEDIN_MAX_CHARS,
+  appendSignature,
   buildLinkedInPrompt,
   cleanLinkedInMessage,
   estimateLinkedInLength,
@@ -52,7 +54,14 @@ export async function POST(req: Request) {
       .eq("id", offerId)
       .eq("workspace_id", workspaceId)
       .single(),
-    supabase.from("workspaces").select("personalization_max_words").eq("id", workspaceId).single(),
+    // reply_sender_name ist der Rueckfall fuer die Signatur, genau wie bei der
+    // Mailsequenz: die Signatur am Angebot geht vor, sonst der Name am
+    // Workspace, sonst gar keine (Migration 0091).
+    supabase
+      .from("workspaces")
+      .select("personalization_max_words, reply_sender_name")
+      .eq("id", workspaceId)
+      .single(),
   ]);
   if (!offerRes.data) return NextResponse.json({ error: "Angebot nicht gefunden." }, { status: 404 });
 
@@ -64,7 +73,9 @@ export async function POST(req: Request) {
     );
   }
 
-  const prompt = buildLinkedInPrompt(offerRes.data as unknown as Offer);
+  const offer = offerRes.data as unknown as Offer;
+  const signature = signatureFor(offer, workspaceRes.data?.reply_sender_name ?? null);
+  const prompt = buildLinkedInPrompt(offer, signature);
   const personalizationWords = workspaceRes.data?.personalization_max_words || DEFAULT_MAX_WORDS;
 
   const result = await callOpenAi(openaiKey, [{ role: "user", content: prompt }]);
@@ -76,7 +87,10 @@ export async function POST(req: Request) {
   let message = freeStandingPersonalization(cleanLinkedInMessage(result.text));
   if (!message) return NextResponse.json({ error: "Keine brauchbare Vorlage entstanden." }, { status: 502 });
 
-  let problems = messageProblems(message, personalizationWords);
+  // Die Signatur zaehlt in der Zeichengrenze mit, obwohl sie erst ganz unten
+  // angehaengt wird -- sonst gilt eine Nachricht als kurz genug, die LinkedIn
+  // danach abschneidet.
+  let problems = messageProblems(message, personalizationWords, signature);
   if (problems.length > 0) {
     // Eine Korrekturrunde, wie beim Sequenzgenerator. Was danach uebrig
     // bleibt, wird trotzdem geliefert -- eine Vorlage mit zwanzig Zeichen zu
@@ -90,10 +104,16 @@ export async function POST(req: Request) {
       const nachgebessert = freeStandingPersonalization(cleanLinkedInMessage(zweiter.text));
       if (nachgebessert) {
         message = nachgebessert;
-        problems = messageProblems(message, personalizationWords);
+        problems = messageProblems(message, personalizationWords, signature);
       }
     }
   }
+
+  // Zuletzt und genau einmal: die Signatur daruntersetzen. Mechanisch, wie das
+  // Freistellen des Aufhaengers -- was eine reine Formsache ist, wird repariert
+  // und nicht erbeten. Hat das Modell trotz Verbot selbst unterschrieben,
+  // bleibt es bei seiner Fassung statt bei zwei Signaturen.
+  message = appendSignature(message, signature);
 
   return NextResponse.json({
     message,
