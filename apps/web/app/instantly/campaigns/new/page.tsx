@@ -86,7 +86,14 @@ export default function NewCampaignPage() {
         .not("email", "is", null)
         .limit(5000),
       supabase.from("suppression_list").select("email, domain").eq("workspace_id", workspaceId),
-    ]).then(([contactsRes, suppressionRes]) => {
+      // Muss mitlaufen, weil der Server-Pfad es auch tut (Migration 0095) --
+      // sonst verspricht die Vorschau Empfaenger, die beim Anlegen wegfallen.
+      supabase
+        .from("contact_archive")
+        .select("email")
+        .eq("workspace_id", workspaceId)
+        .not("email", "is", null),
+    ]).then(([contactsRes, suppressionRes, archivedRes]) => {
       if (cancelled) return;
       const rows = (contactsRes.data ?? []) as unknown as {
         email: string | null;
@@ -101,9 +108,14 @@ export default function NewCampaignPage() {
       // reagiert hat -- auch auf LinkedIn -- zaehlt hier nicht mit, sonst
       // verspricht die Vorschau mehr Empfaenger, als danach rausgehen.
       const { contactable: notDeclined } = splitByEngagement(rows);
-      const { sendable, unsendable } = splitBySendability(
-        filterSuppressed(notDeclined, suppressionRes.data ?? [])
-      );
+      const blocked = [
+        ...(suppressionRes.data ?? []),
+        ...((archivedRes.data ?? []) as { email: string | null }[]).map((a) => ({
+          email: a.email,
+          domain: null,
+        })),
+      ];
+      const { sendable, unsendable } = splitBySendability(filterSuppressed(notDeclined, blocked));
       setPreview({
         sendable: pickPrimaryContactPerBusiness(sendable).length,
         invalid: unsendable.length,

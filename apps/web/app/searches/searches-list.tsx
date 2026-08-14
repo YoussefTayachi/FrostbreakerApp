@@ -123,6 +123,50 @@ export default function SearchesList({
   const zurueckholen = (ids: string[]) =>
     aktualisieren(ids, { archived_at: null }, S.unarchivedToast(ids.length));
 
+  /**
+   * Mehrere Listen in einem Zug in den Papierkorb.
+   *
+   * Auswaehlen konnte man hier schon immer, loeschen nur einzeln ueber den
+   * Knopf in der Zeile -- bei zwoelf Listen also zwoelf Klicks und zwoelf
+   * Rueckfragen. Gemeldet am 2026-08-14.
+   *
+   * Dieselbe Wirkung wie TrashButton (search-actions.tsx), inklusive
+   * schedule: "none": eine Abo-Suche im Papierkorb wuerde sonst nachts
+   * weiterlaufen und Credits verbrauchen. Die Rueckfrage nennt die Anzahl --
+   * der Unterschied zwischen 2 und 40 Listen sollte vor dem Klick klar sein.
+   */
+  async function loeschen(ids: string[]) {
+    if (ids.length === 0) return;
+    if (!confirm(S.deleteConfirm(ids.length))) return;
+    setBusy(true);
+    const { error } = await createClient()
+      .from("searches")
+      .update({ deleted_at: new Date().toISOString(), schedule: "none" })
+      .in("id", ids)
+      .eq("workspace_id", workspaceId);
+    setBusy(false);
+    if (error) {
+      push(t.common.error + error.message, "error");
+      return;
+    }
+    setGewaehlt(new Set());
+    router.refresh();
+    // Ruecknahme wie beim Einzelknopf. schedule bleibt dabei bewusst auf
+    // "none": ein Abo muss nach dem Zurueckholen neu gesetzt werden.
+    push(S.deletedToast(ids.length), "success", {
+      label: t.searchActions.undo,
+      onClick: async () => {
+        await createClient()
+          .from("searches")
+          .update({ deleted_at: null })
+          .in("id", ids)
+          .eq("workspace_id", workspaceId);
+        router.refresh();
+        push(S.restoredToast(ids.length), "success");
+      },
+    });
+  }
+
   const verschieben = (ids: string[], folderId: string | null) =>
     aktualisieren(ids, { folder_id: folderId }, S.movedToast(ids.length));
 
@@ -298,6 +342,17 @@ export default function SearchesList({
             className="rounded-lg border border-edge2 px-2.5 py-1 text-xs text-soft transition-colors hover:border-edge3 hover:text-ink disabled:opacity-60"
           >
             {S.archive}
+          </button>
+          {/* Loeschen steht rechts und als einziges in Rot: es ist die
+              einzige Aktion hier, die Leads aus Kampagnen und dem
+              Dublettenschutz nimmt. */}
+          <button
+            disabled={busy}
+            onClick={() => void loeschen([...gewaehlt])}
+            title={t.searchActions.trashTitle}
+            className="rounded-lg border border-red-300 px-2.5 py-1 text-xs text-red-600 transition-colors hover:border-red-500 hover:text-red-500 disabled:opacity-60 dark:border-red-900/60 dark:text-red-400 dark:hover:text-red-500"
+          >
+            {t.searchActions.delete}
           </button>
           <button
             onClick={() => setGewaehlt(new Set())}

@@ -1,5 +1,5 @@
 """Unit-Tests fuer worker.dedupe (kein Netz, keine DB)."""
-from worker.dedupe import filter_blocking
+from worker.dedupe import archive_as_businesses, filter_blocking
 
 BUSINESSES = [
     {"id": "b1", "website": "https://aktiv.com", "place_id": None, "search_id": "s-aktiv"},
@@ -40,3 +40,47 @@ def test_ohne_aktive_suchen_und_ohne_kontakte_ist_nichts_gesperrt():
 def test_business_ohne_search_id_blockiert_nicht():
     orphan = [{"id": "b9", "website": "https://waise.com", "place_id": None, "search_id": None}]
     assert filter_blocking(orphan, {"s-aktiv"}, set()) == []
+
+
+# ── contact_archive (Migration 0095) ────────────────────────────────────────
+
+
+def test_archiv_wird_zur_sperrmenge():
+    """Der eigentliche Zweck: die Firma ist als Zeile weg, die Sperre bleibt."""
+    rows = archive_as_businesses(
+        [{"domain": "geloescht.com", "company_name": "Geloescht GmbH"}]
+    )
+    assert rows == [
+        {
+            "id": None,
+            "name": "Geloescht GmbH",
+            "website": "geloescht.com",
+            "place_id": None,
+            "from_archive": True,
+        }
+    ]
+
+
+def test_mehrere_kontakte_derselben_firma_ergeben_eine_sperre():
+    """Drei angeschriebene Entscheider sind eine Firma, nicht drei."""
+    rows = archive_as_businesses(
+        [
+            {"domain": "firma.com", "company_name": "Firma"},
+            {"domain": "FIRMA.com", "company_name": "firma"},
+            {"domain": "firma.com", "company_name": "Firma"},
+        ]
+    )
+    assert len(rows) == 1
+
+
+def test_archivzeile_ohne_domain_und_name_faellt_raus():
+    """Ein Kontakt ohne Firmenangabe kann nichts sperren -- er wuerde als
+    leerer Eintrag jede Suche mit leerem Namen blockieren."""
+    assert archive_as_businesses([{"domain": None, "company_name": None}]) == []
+
+
+def test_archivzeile_nur_mit_namen_bleibt():
+    """Apollos Vorschau kennt nur Namen -- deshalb reicht der Name allein."""
+    rows = archive_as_businesses([{"domain": None, "company_name": "Nur Name AG"}])
+    assert rows[0]["name"] == "Nur Name AG"
+    assert rows[0]["website"] is None

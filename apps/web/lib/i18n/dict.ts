@@ -194,6 +194,12 @@ const de = {
       n === 1 ? "Liste archiviert. Ein Abo wurde dabei angehalten." : `${n} Listen archiviert.`,
     unarchivedToast: (n: number) =>
       n === 1 ? "Liste zurückgeholt." : `${n} Listen zurückgeholt.`,
+    deleteConfirm: (n: number) =>
+      `${n === 1 ? "Diese Liste" : `Diese ${n} Listen`} in den Papierkorb legen?\n\nDie Leads verschwinden damit aus „Alle Leads“, aus LinkedIn, aus der Kampagnen-Auswahl und aus der Pipeline — nur gewonnene Kunden bleiben dort stehen. Ein Abo wird abgeschaltet.\n\nBereits angeschriebene Kontakte werden im Archiv gemerkt und nie erneut angeschrieben. Noch nicht kontaktierte Firmen zählen dagegen nicht mehr im Dublettenschutz: eine spätere Suche kann sie erneut kaufen.\n\nWenn du nur aufräumen willst, nimm „Archivieren“.`,
+    deletedToast: (n: number) =>
+      n === 1 ? "In den Papierkorb verschoben." : `${n} Listen in den Papierkorb verschoben.`,
+    restoredToast: (n: number) =>
+      n === 1 ? "Wiederhergestellt." : `${n} Listen wiederhergestellt.`,
   },
   costs: {
     title: "API-Kosten",
@@ -357,7 +363,7 @@ const de = {
   searchActions: {
     trashTitle: "In den Papierkorb",
     trashConfirm:
-      "Diese Liste in den Papierkorb legen?\n\nDamit verschwindet sie aus „Alle Leads\", aus LinkedIn und aus der Kampagnen-Auswahl, ein Abo wird abgeschaltet — und ihre noch nicht kontaktierten Firmen zählen nicht mehr im Dublettenschutz: eine spätere Suche kann sie erneut kaufen (bei Apollo rund 2 Credits pro Lead).\n\nWenn du nur aufräumen willst, nimm stattdessen „Archivieren\".",
+      "Diese Liste in den Papierkorb legen?\n\nDamit verschwindet sie aus „Alle Leads\", aus LinkedIn, aus der Kampagnen-Auswahl und aus der Pipeline — dort bleiben nur gewonnene Kunden stehen. Ein Abo wird abgeschaltet.\n\nBereits angeschriebene Kontakte werden im Archiv gemerkt und nie erneut angeschrieben. Noch nicht kontaktierte Firmen zählen dagegen nicht mehr im Dublettenschutz: eine spätere Suche kann sie erneut kaufen (bei Apollo rund 2 Credits pro Lead).\n\nWenn du nur aufräumen willst, nimm stattdessen „Archivieren\".",
     // Abbrechen ist NICHT Loeschen: der Papierkorb ruehrt den laufenden Job
     // nicht an, er wuerde weiter Credits verbrauchen (Migration 0086).
     cancel: "Abbrechen",
@@ -1108,6 +1114,16 @@ const de = {
     removeSelected: "Auswahl entfernen",
     removeSelectedConfirm: (n: number) => `${n} Einträge von der Blockliste entfernen?`,
     removedMultiple: (n: number) => `${n} Einträge entfernt.`,
+    archiveHeading: (n: number) => `Bereits angeschrieben — aus gelöschten Listen (${n})`,
+    archiveHint:
+      "Wenn du eine Lead-Liste löschst, merkt sich Frostbreaker jeden Kontakt daraus, der schon angeschrieben wurde. Diese Adressen kommen in keine neue Kampagne mehr, und ihre Firmen werden bei einer neuen Suche übersprungen — du zahlst also nicht zweimal für dieselben Leads. Nie kontaktierte Leads stehen hier bewusst nicht: die darfst du wiederfinden.",
+    archiveRelease: "Freigeben",
+    archiveReleaseTitle: "Nimmt den Eintrag aus dem Archiv. Danach darf dieser Kontakt wieder angeschrieben werden.",
+    archiveReleaseConfirm: (wen: string) =>
+      `„${wen}" wieder freigeben?\n\nDer Kontakt kann danach erneut gefunden und angeschrieben werden — und kostet dabei erneut Credits.`,
+    archiveReleased: "Freigegeben.",
+    archiveTruncated: (gezeigt: number, gesamt: number) =>
+      `${gezeigt} von ${gesamt} angezeigt.`,
   },
   // Oeffentliche Bestaetigungsseite fuer den Opt-out-Link aus Kampagnen-Mails
   // (siehe app/api/unsubscribe/route.ts). Kein Login noetig, in
@@ -2422,6 +2438,11 @@ const en: Dictionary = {
     archivedToast: (n: number) =>
       n === 1 ? "List archived. A subscription was stopped." : `${n} lists archived.`,
     unarchivedToast: (n: number) => (n === 1 ? "List restored." : `${n} lists restored.`),
+    deleteConfirm: (n: number) =>
+      `Move ${n === 1 ? "this list" : `these ${n} lists`} to the trash?\n\nTheir leads disappear from "All Leads", from LinkedIn, from the campaign picker and from the pipeline — only won customers stay there. A subscription is switched off.\n\nContacts you already reached out to are kept in the archive and will never be contacted again. Companies you never reached out to no longer count for duplicate protection: a later search can buy them again.\n\nIf you only want to tidy up, use "Archive" instead.`,
+    deletedToast: (n: number) =>
+      n === 1 ? "Moved to the trash." : `${n} lists moved to the trash.`,
+    restoredToast: (n: number) => (n === 1 ? "Restored." : `${n} lists restored.`),
   },
   costs: {
     title: "API costs",
@@ -2577,7 +2598,7 @@ const en: Dictionary = {
   searchActions: {
     trashTitle: "Move to trash",
     trashConfirm:
-      "Move this list to the trash?\n\nIt disappears from \"All Leads\", from LinkedIn and from the campaign picker, a subscription is switched off — and its companies that have not been contacted yet stop counting for duplicate protection: a later search can buy them again (around 2 Apollo credits per lead).\n\nIf you only want to tidy up, use \"Archive\" instead.",
+      "Move this list to the trash?\n\nIt disappears from \"All Leads\", from LinkedIn, from the campaign picker and from the pipeline — only won customers stay there. A subscription is switched off.\n\nContacts you already reached out to are kept in the archive and will never be contacted again. Companies you never reached out to stop counting for duplicate protection: a later search can buy them again (around 2 Apollo credits per lead).\n\nIf you only want to tidy up, use \"Archive\" instead.",
     cancel: "Cancel",
     cancelTitle: "Stops the running search before it spends more credits.",
     cancelConfirm:
@@ -3296,6 +3317,15 @@ const en: Dictionary = {
     removeSelected: "Remove selection",
     removeSelectedConfirm: (n: number) => `Remove ${n} entries from the blocklist?`,
     removedMultiple: (n: number) => `${n} entries removed.`,
+    archiveHeading: (n: number) => `Already contacted — from deleted lists (${n})`,
+    archiveHint:
+      "When you delete a lead list, Frostbreaker remembers every contact in it you had already reached out to. Those addresses never enter a new campaign again, and their companies are skipped by new searches — so you don't pay twice for the same leads. Leads you never contacted are deliberately not listed here: those you are meant to find again.",
+    archiveRelease: "Release",
+    archiveReleaseTitle: "Takes the entry out of the archive. After that this contact may be reached out to again.",
+    archiveReleaseConfirm: (who: string) =>
+      `Release "${who}" again?\n\nThe contact can then be found and contacted again — and will cost credits again.`,
+    archiveReleased: "Released.",
+    archiveTruncated: (shown: number, total: number) => `Showing ${shown} of ${total}.`,
   },
   unsubscribePage: {
     doneTitle: "You've been unsubscribed",

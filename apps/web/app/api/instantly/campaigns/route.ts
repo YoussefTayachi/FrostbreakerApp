@@ -85,7 +85,7 @@ export async function POST(req: Request) {
     );
   }
 
-  const [{ data: contacts }, { data: suppression }] = await Promise.all([
+  const [{ data: contacts }, { data: suppression }, { data: archived }] = await Promise.all([
     supabase
       .from("contacts")
       .select(
@@ -96,6 +96,10 @@ export async function POST(req: Request) {
       .not("email", "is", null)
       .limit(5000),
     supabase.from("suppression_list").select("email, domain").eq("workspace_id", workspaceId),
+    // Bereits angeschrieben, Liste inzwischen endgueltig geloescht (Migration
+    // 0095). Ohne diese Abfrage koennte dieselbe Adresse ueber eine neu
+    // gesuchte Liste ein zweites Mal in eine Kampagne rutschen.
+    supabase.from("contact_archive").select("email").eq("workspace_id", workspaceId).not("email", "is", null),
   ]);
 
   type ContactRow = {
@@ -122,10 +126,19 @@ export async function POST(req: Request) {
   // -- inklusive derer, die auf LinkedIn geantwortet hatten. isColdContactable
   // deckt alle vier Faelle ab, siehe lib/contacts.ts.
   const { contactable: notDeclined } = splitByEngagement(withEmail);
+  // Das Archiv geht als Sperrliste durch dieselbe Pruefung -- bewusst nur mit
+  // der Adresse, nicht mit der Domain. Die Domain sperrt der Dublettenschutz
+  // im Worker, damit die Firma gar nicht erst erneut gekauft wird; hier waere
+  // sie zu grob und wuerde eine bewusst gewaehlte zweite Ansprechpartnerin
+  // derselben Firma mit ausschliessen.
+  const blocked = [
+    ...(suppression ?? []),
+    ...((archived ?? []) as { email: string | null }[]).map((a) => ({ email: a.email, domain: null })),
+  ];
   // Als ungueltig erkannte Adressen nie versenden: sie bouncen garantiert und
   // beschaedigen die Absender-Reputation der ganzen Domain, nicht nur diese
   // eine Kampagne. Genau dafuer wird vorher verifiziert.
-  const { sendable, unsendable } = splitBySendability(filterSuppressed(notDeclined, suppression ?? []));
+  const { sendable, unsendable } = splitBySendability(filterSuppressed(notDeclined, blocked));
   const contactable = sendable;
   // KI-Recherche und Hunter finden bewusst mehrere moegliche Ansprechpartner
   // pro Firma (siehe lib/contacts.ts) -- fuer den tatsaechlichen Versand aber

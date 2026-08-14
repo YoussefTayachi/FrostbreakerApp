@@ -44,6 +44,20 @@ FIELD_MASK = (
 )
 
 
+def _domains(rows: list[dict]) -> set[str]:
+    """Die Domains einer Sperrmenge (businesses_to_skip) als Vergleichsmenge.
+
+    Frueher wurde hier die rohe website-Zeichenkette verglichen. Das ging
+    solange gut, wie jede Quelle dieselbe Schreibweise lieferte -- Apollo gibt
+    "x.com", Hunter "https://x.com", Places "https://www.x.com/". Ueber
+    domain_of() ist das dieselbe Firma, als Zeichenkette waren es drei.
+    """
+    out = {domain_of(r.get("website")) for r in rows if r.get("website")}
+    out.discard(None)
+    out.discard("")
+    return out  # type: ignore[return-value]
+
+
 @retry(stop=stop_after_attempt(3), wait=wait_exponential(min=2, max=30), reraise=True)
 def geocode(location: str, api_key: str) -> dict:
     r = httpx.get(GEOCODE_URL, params={"address": location, "key": api_key}, timeout=30)
@@ -142,18 +156,23 @@ def run_corporate(search: dict, ws: str) -> None:
     companies = discover_companies(search.get("filters") or {}, api_key, offset=offset)
     # Nur gegen wirklich noch relevante Firmen sperren, nicht gegen alles je
     # Gefundene -- siehe worker/dedupe.py.
-    existing = {b["website"] for b in businesses_to_skip(ws) if b.get("website")}
+    #
+    # Verglichen wird die Domain, nicht die Website-Zeichenkette: "x.com",
+    # "https://x.com" und "https://www.x.com/" sind dieselbe Firma, und seit
+    # Migration 0095 steckt in der Sperrmenge auch das Archiv, das nur die
+    # blanke Domain kennt.
+    existing = _domains(businesses_to_skip(ws))
     _, blocked_domains = load_suppression(ws)
     rows = []
     for c in companies:
         row = parse_discover_company(c)
-        if not row["website"] or row["website"] in existing:
-            continue
         d = domain_of(row["website"])
-        if d and d in blocked_domains:
+        if not d or d in existing:
+            continue
+        if d in blocked_domains:
             continue
         rows.append(row | {"workspace_id": ws, "search_id": search["id"]})
-        existing.add(row["website"])
+        existing.add(d)
         if len(rows) >= search["max_results"]:
             break
     if rows:
@@ -245,9 +264,9 @@ def _surviving_pairs(ws: str, pairs: list[dict]) -> tuple[dict[str, dict], dict[
     apollo.collect_people), die Sperrliste kann also erst nach dem
     Freischalten greifen. Was hier gespart wird, sind die Firmendaten.
     """
-    # Gegen bereits bekannte Firmen sperren (Website als Schluessel, weil
+    # Gegen bereits bekannte Firmen sperren (Domain als Schluessel, weil
     # weder Apollo noch Prospeo eine Google-place_id kennen).
-    existing = {b["website"] for b in businesses_to_skip(ws) if b.get("website")}
+    existing = _domains(businesses_to_skip(ws))
     sup_emails, blocked_domains = load_suppression(ws)
 
     # Mehrere Entscheider derselben Firma sind der Normalfall und sollen EINE
@@ -259,10 +278,10 @@ def _surviving_pairs(ws: str, pairs: list[dict]) -> tuple[dict[str, dict], dict[
     for pair in pairs:
         biz, contact = pair["business"], pair["contact"]
         website = biz.get("website")
-        if not website or website in existing:
-            continue
         d = domain_of(website)
-        if d and d in blocked_domains:
+        if not website or not d or d in existing:
+            continue
+        if d in blocked_domains:
             continue
         if contact.get("email") and is_suppressed(sup_emails, blocked_domains, email=contact["email"]):
             continue
@@ -648,7 +667,18 @@ def run(job: dict) -> None:
             return
         api_key = get_api_key(ws, "google_maps")
         loc = geocode(search["location"], api_key)
-        known = {b["place_id"] for b in businesses_to_skip(ws) if b.get("place_id")}
+        skip = businesses_to_skip(ws)
+        known = {b["place_id"] for b in skip if b.get("place_id")}
+        # Zweiter Schluessel neben der place_id, seit das Archiv mitspielt
+        # (Migration 0095): eine endgueltig geloeschte Liste hinterlaesst keine
+        # place_id, nur die Domain. Ohne diese Menge faende dieselbe
+        # Maps-Suche die bereits angeschriebene Firma erneut.
+        #
+        # Bewusst NUR die Archiv-Eintraege: Google Places liefert jede Filiale
+        # als eigene place_id mit derselben Firmen-Website. Wuerde hier gegen
+        # alle bekannten Domains gesperrt, verschwaende die zweite Suche einer
+        # Kette alle Filialen bis auf eine.
+        known_domains = _domains([b for b in skip if b.get("from_archive")])
         _, blocked_domains = load_suppression(ws)
         filters = search.get("filters") or {}
         pain_point_no_website = bool(filters.get("pain_point_no_website"))
@@ -667,7 +697,7 @@ def run(job: dict) -> None:
                 if not parsed["place_id"] or parsed["place_id"] in known:
                     continue
                 d = domain_of(parsed.get("website"))
-                if d and d in blocked_domains:
+                if d and (d in blocked_domains or d in known_domains):
                     continue
                 # Pain-Point-Filter: Firma muss dem gewaehlten Signal entsprechen,
                 # sonst wird sie gar nicht erst aufgenommen (kein Zwischenzustand noetig).

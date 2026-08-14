@@ -8,6 +8,24 @@ import { useWorkspace } from "../workspace-provider";
 
 type Row = { id: string; email: string | null; domain: string | null; reason: string };
 
+/**
+ * Eine Zeile aus public.contact_archive (Migration 0095): jemand, der bereits
+ * angeschrieben wurde und dessen Lead-Liste danach geloescht wurde.
+ *
+ * Steht hier und nicht auf einer eigenen Seite, weil es dieselbe Frage
+ * beantwortet wie die Blockliste -- "wen schreibe ich nicht (mehr) an" -- nur
+ * eben ohne Zutun des Nutzers. Getrennte Tabelle bleibt es trotzdem: die
+ * Blockliste ist eine Entscheidung, das Archiv ist ein Protokoll.
+ */
+type ArchiveRow = {
+  id: string;
+  email: string | null;
+  domain: string | null;
+  company_name: string | null;
+  outreach_status: string;
+  list_name: string | null;
+};
+
 export default function BlocklistPage() {
   const { t } = useT();
   const { push } = useToast();
@@ -15,6 +33,11 @@ export default function BlocklistPage() {
   const [rows, setRows] = useState<Row[]>([]);
   const [input, setInput] = useState("");
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [archive, setArchive] = useState<ArchiveRow[]>([]);
+  // Getrennt vom Array, weil nur die ersten 500 Zeilen geladen werden: bei
+  // einem geleerten Papierkorb mit tausenden Kontakten waere die Liste sonst
+  // sowohl unbrauchbar lang als auch in ihrer Zahl falsch.
+  const [archiveTotal, setArchiveTotal] = useState(0);
 
   async function reload() {
     const { data } = await createClient()
@@ -26,8 +49,46 @@ export default function BlocklistPage() {
     setRows(data ?? []);
   }
 
+  async function reloadArchive() {
+    const { data, count } = await createClient()
+      .from("contact_archive")
+      .select("id,email,domain,company_name,outreach_status,list_name", { count: "exact" })
+      .eq("workspace_id", wsId)
+      .order("archived_at", { ascending: false })
+      .limit(500);
+    setArchive(data ?? []);
+    setArchiveTotal(count ?? (data?.length ?? 0));
+  }
+
+  /**
+   * Einen Eintrag wieder freigeben.
+   *
+   * Bewusst moeglich: nach einem Jahr denselben Betrieb noch einmal
+   * anzuschreiben ist ein legitimer Vorgang, und ohne diesen Knopf waere die
+   * einzige Loesung, in der Datenbank zu loeschen. Ohne Ruecknahme, weil die
+   * Zeile danach ihren urspruenglichen Zeitpunkt verloren haette -- eine
+   * Rueckgaengig-Schaltflaeche, die etwas Falsches wiederherstellt, ist
+   * schlimmer als keine.
+   */
+  async function releaseArchived(row: ArchiveRow) {
+    if (!confirm(t.blocklist.archiveReleaseConfirm(row.email ?? row.company_name ?? "?"))) return;
+    const { error } = await createClient()
+      .from("contact_archive")
+      .delete()
+      .eq("id", row.id)
+      .eq("workspace_id", wsId);
+    if (error) {
+      push(t.common.error + error.message, "error");
+      return;
+    }
+    setArchive((a) => a.filter((x) => x.id !== row.id));
+    setArchiveTotal((n) => Math.max(0, n - 1));
+    push(t.blocklist.archiveReleased, "success");
+  }
+
   useEffect(() => {
     reload();
+    reloadArchive();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [wsId]);
 
@@ -213,6 +274,47 @@ export default function BlocklistPage() {
           )}
         </div>
       </div>
+
+      {/* Zugeklappt, solange niemand danach fragt: das Archiv fuellt sich von
+          selbst und waere aufgeklappt die laengste Liste der Seite -- ohne
+          dass es taeglich jemanden interessiert. */}
+      {archiveTotal > 0 && (
+        <details className="rounded-lg border border-edge/60 bg-panel">
+          <summary className="cursor-pointer px-5 py-3 text-sm text-soft hover:text-ink">
+            {t.blocklist.archiveHeading(archiveTotal)}
+          </summary>
+          <p className="border-t border-edge/60 px-5 py-3 text-xs leading-relaxed text-faint">
+            {t.blocklist.archiveHint}
+          </p>
+          <div className="max-h-96 divide-y divide-edge/60 overflow-y-auto border-t border-edge/60">
+            {archive.map((a) => (
+              <div key={a.id} className="flex items-center gap-3 px-5 py-2">
+                <span className="min-w-0 flex-1 truncate font-mono text-sm text-soft">
+                  {a.email ?? a.domain ?? a.company_name}
+                </span>
+                <span className="hidden max-w-40 truncate text-xs text-mute sm:block">
+                  {a.company_name}
+                </span>
+                <span className="rounded-full border border-edge2 bg-chip px-2 py-0.5 text-[11px] text-faint">
+                  {t.leads.statusLabels[a.outreach_status] ?? a.outreach_status}
+                </span>
+                <button
+                  onClick={() => void releaseArchived(a)}
+                  title={t.blocklist.archiveReleaseTitle}
+                  className="text-xs text-mute transition-colors hover:text-red-600 dark:hover:text-red-500"
+                >
+                  {t.blocklist.archiveRelease}
+                </button>
+              </div>
+            ))}
+            {archiveTotal > archive.length && (
+              <p className="px-5 py-3 text-center text-xs text-mute">
+                {t.blocklist.archiveTruncated(archive.length, archiveTotal)}
+              </p>
+            )}
+          </div>
+        </details>
+      )}
     </div>
   );
 }
