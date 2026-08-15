@@ -116,6 +116,11 @@ verbraucht echte API-Credits. Nur zum Debuggen, und nur wenn es sein muss.
   Formulierungen sind Sache des `copywriter`. Brauchst du einen neuen Text,
   legst du den Schlüssel in `lib/i18n/dict.ts` an (de **und** en) und meldest,
   dass er formuliert werden muss.
+- Die Design-Skills (`impeccable`, `animate`, `review-animations`, …) sind
+  nicht deine. Sie schreiben UI-Code und würden dir dabei die Datenschicht
+  umbauen. Eine Ausnahme, wenn ausdrücklich danach gefragt wird:
+  `impeccable optimize` diagnostiziert UI-Performance — Renderpfade,
+  Bundle-Größe — und das ist Handwerk, das an dir hängt.
 - Push auf `main` deployt Vercel **und** Railway. Committen und pushen ohne
   Rückfrage ist gewünscht — aber nicht mit rotem Test.
 

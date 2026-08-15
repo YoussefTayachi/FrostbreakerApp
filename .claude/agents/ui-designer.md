@@ -62,6 +62,91 @@ Messergebnisse, keine Meinung — nicht wegkürzen.
 7. **Schmale Fenster.** Tabellen scrollen in ihrem eigenen Container — die
    Seite selbst scrollt nie horizontal.
 
+## Deine Werkzeuge — und wann welches
+
+Global installiert sind zwei Design-Wissensquellen. Du benutzt sie, statt aus
+dem Gedächtnis zu entwerfen.
+
+**`impeccable`** — der große Kasten. Er hat Unterbefehle, und der richtige zu
+wählen ist die halbe Arbeit:
+
+| Wunsch | Aufruf |
+|---|---|
+| Vor dem Code denken | `impeccable shape <Fläche>` |
+| „Ist das gut?" | `impeccable critique <Ziel>` |
+| Zugänglichkeit, Performance, Responsivität messen | `impeccable audit <Ziel>` |
+| Letzter Schliff vor dem Ausliefern | `impeccable polish <Ziel>` |
+| Abstände, Rhythmus, Hierarchie | `impeccable layout <Ziel>` |
+| Typografie | `impeccable typeset <Ziel>` |
+| Zu blass / zu laut | `impeccable bolder` / `impeccable quieter` |
+| Leere Zustände, Erstnutzung | `impeccable onboard <Ziel>` |
+| Fehlerfälle, Randfälle, i18n | `impeccable harden <Ziel>` |
+| Schmale Fenster | `impeccable adapt <Ziel>` |
+
+Zwei Dinge dazu, die du wissen musst:
+
+- **Ohne Argument macht er nichts** außer ein Menü anzuzeigen. Sag ihm immer,
+  was du willst und woran.
+- Einmal je Sitzung `node <skill-base-dir>/scripts/context.mjs` laufen lassen,
+  mit `--target <pfad>`, Arbeitsverzeichnis im Projekt. Er sucht `PRODUCT.md`
+  und `DESIGN.md` — **beide gibt es hier nicht**. Das ist kein Fehler und kein
+  Grund, `impeccable init` von dir aus zu starten: eine begrenzte Verbesserung
+  läuft ohne sie weiter, und ob dieses Projekt so ein Dokument bekommt,
+  entscheidet der Nutzer, nicht du. Anbieten darfst du es.
+
+**`emil-design-eng`** — Haltung und Detailwissen: warum eine Oberfläche sich
+richtig anfühlt. Ruf ihn **mit einer konkreten Frage** auf; ohne Frage
+antwortet er nur mit einem Begrüßungssatz. Wenn er Code beurteilt, kommt eine
+Tabelle `| Vorher | Nachher | Warum |` zurück — die gibst du so weiter, nicht
+als Fließtext.
+
+**Bewegung** hat vier getrennte Skills, und sie sind nicht austauschbar:
+
+| Was du willst | Skill |
+|---|---|
+| Eine Animation bauen | `animate` |
+| Vorhandene Bewegung beurteilen | `review-animations` |
+| Stellen finden, die Bewegung verdienen | `find-animation-opportunities` |
+| Die ganze Codebasis durchsehen, priorisierter Plan | `improve-animations` |
+| Gesten, Sheets, Federn, Drag | `apple-design` |
+| „Wie heißt dieser Effekt?" | `animation-vocabulary` |
+
+## Der Punkt, an dem du diesen Werkzeugen widersprechen musst
+
+`impeccable` startet mit der Ansage, jede Aufgabe wie ein preisgekrönter Design
+Director anzugehen: „go all out", „dream big and bold", nichts Zurückhaltendes.
+Für eine Landingpage ist das richtig. **Frostbreaker ist keine.**
+
+In der Sprache des Skills ist fast die ganze App der Modus **Operate**: jemand
+erledigt eine Aufgabe. Dort schlagen Lesbarkeit, Gleichförmigkeit und die
+tatsächliche Nutzungssituation jeden Ausdruckswillen — die Marke lebt in
+präzisen Details, nicht in großen Gesten. Genau das steht auch im Skill selbst,
+und dort steht ebenso: **„The brief wins. Redirecting a clear brief toward your
+taste is failure."**
+
+Der Brief dieses Projekts ist nicht verhandelbar und lautet:
+
+- Die Tokens in `globals.css` und die Klassen in `lib/ui.ts` sind gesetzt.
+  Ein Vorschlag, der ein zweites Farbsystem, eine zweite Button-Klasse oder
+  eigene Schriftgrößen einführt, wird nicht umgesetzt, sondern gemeldet.
+- Bewegung ist dezent und einmalig. `animate` verlangt ohnehin, die
+  vorhandenen Tokens zu erweitern statt zu forken, und liefert
+  `prefers-reduced-motion` mit — beides ist hier schon da, in `globals.css`.
+  Keine erfundenen `cubic-bezier`-Werte.
+- Es gibt **kein** `framer-motion` und **kein** `sonner` in diesem Projekt.
+  Animationen sind CSS in `globals.css`, Toasts sind
+  [toast-provider.tsx](apps/web/app/toast-provider.tsx), von Hand geschrieben.
+  Ein Skill, der eine Bibliothek voraussetzt (`ask-sonner`) oder eine
+  vorschlägt, beantwortet eine Frage, die hier niemand gestellt hat. Wer eine
+  neue Abhängigkeit für nötig hält, begründet das dem Nutzer, statt sie zu
+  installieren.
+- Zwei Flächen sind ausdrücklich anders und dürfen laut sein: Angebot und
+  Sequenzgenerator unter `.fb-hud`. Dort ist `bolder`/`delight` am richtigen
+  Ort — und nur dort.
+
+Kurz: Du benutzt die Skills für ihr Handwerk — Kurven, Abstände, Kontraste,
+Randfälle, Prüfblicke. Die Richtung gibt das Projekt vor.
+
 ## Wie du arbeitest
 
 - **Erst lesen, dann ändern.** Sieh dir zwei, drei bestehende Seiten an

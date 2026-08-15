@@ -27,5 +27,10 @@ out/
 # 1,3 MB fremder Anweisungen, die bei jedem Checkout mitkaemen und die
 # niemand hier gelesen hat.
 .agents/
-.claude/skills/
+.claude/skills/*
+# Ausnahme: eigene Skills dieses Projekts. Die Regel darueber meint
+# eingekaufte Fremd-Skills, nicht das, was wir hier selbst schreiben --
+# und .claude/agents/ liegt aus demselben Grund schon im Repo.
+!.claude/skills/team/
+!.claude/skills/cold-email-copy/
 skills-lock.json

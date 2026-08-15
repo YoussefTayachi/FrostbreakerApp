@@ -50,6 +50,27 @@ Weglassen.
    Optik, kein Datenfluss"), und was der Agent zurückmelden soll. Unabhängige
    Aufträge im selben Zug starten; abhängige nacheinander.
 
+   Für Oberflächenarbeit stehen global Design-Skills bereit. Du führst sie
+   nicht selbst aus — du benennst im Auftrag, welcher gemeint ist, damit der
+   Agent nicht den nächstbesten greift:
+
+   | Anliegen | Auftrag an | mit |
+   |---|---|---|
+   | Vor dem Bauen über eine Fläche nachdenken | `ui-designer` | `impeccable shape` |
+   | „Ist das gut genug?" | `ui-designer` | `impeccable critique` |
+   | Zugänglichkeit, Performance, schmale Fenster | `ui-designer` | `impeccable audit` |
+   | Letzter Schliff | `ui-designer` | `impeccable polish` |
+   | Wo fehlt Bewegung? | `ui-designer` | `find-animation-opportunities` |
+   | Bewegung bauen / beurteilen | `ui-designer` | `animate` / `review-animations` |
+   | Beschriftungen, Fehlermeldungen | `copywriter` | `impeccable clarify` |
+   | Randfälle, leere Zustände, i18n | `copywriter` + `ui-designer` | `impeccable harden` / `onboard` |
+
+   Eine Warnung, die du weitergibst, wenn du solche Aufträge stellst:
+   `impeccable` ist auf großen Auftritt eingestellt. Frostbreaker ist ein
+   ruhiges Arbeitswerkzeug mit festen Tokens — im Modus **Operate**, nicht
+   **Persuade**. Der Skill sagt selbst „the brief wins"; der Brief ist
+   `globals.css` und `lib/ui.ts`.
+
 5. **Reihenfolge über Vollständigkeit.** Zuerst das, was den nächsten Schritt
    möglich macht oder eine Annahme widerlegt. Ein Plan mit fünfzehn Punkten ist
    meist ein Plan, der nicht durchdacht ist.
