@@ -150,10 +150,23 @@ export default function Thaw({
   state,
   size = 64,
   className = "",
+  accent,
 }: {
   state: ThawState;
   size?: number;
   className?: string;
+  /**
+   * Eine andere Leuchtfarbe als die aus dem Zustand.
+   *
+   * Ein CSS-Farbwert oder eine Eigenschaft (`var(--fb-aim)`). Gedacht fuer den
+   * Fall, dass ZWEI Kerne auf derselben Seite stehen und Verschiedenes tun:
+   * im Angebotsformular liest der eine das Angebot, der andere eine Lead-Liste.
+   * Zwei gleich aussehende Kerne waeren dort zweimal derselbe Knopf.
+   *
+   * Ohne diesen Wert bleibt alles wie bisher -- der Kern faerbt sich nach
+   * seinem Zustand (Frost bzw. Mint).
+   */
+  accent?: string;
 }) {
   // Eigene IDs je Instanz: der Kern steht auf der Angebotsseite und im
   // Kampagnengenerator, und zwei gleiche Verlaufs-IDs im selben Dokument
@@ -164,7 +177,10 @@ export default function Thaw({
   const warm = state === "ready";
   const kalt = state === "cold";
   const arbeitet = state === "working";
-  const licht = warm ? "var(--fb-ready)" : "var(--fb-frost)";
+  // Der Akzent uebersteuert nur die FARBE. Kerngroesse, Staerke und Tempo
+  // haengen weiter am Zustand -- ein Kern, der die Farbe wechselt UND anders
+  // atmet, waere eine zweite Figur.
+  const licht = accent ?? (warm ? "var(--fb-ready)" : "var(--fb-frost)");
 
   /** Der Kern waechst mit dem Wissen -- der einzige Zustandswert, den die
    *  Figur wirklich anzeigt. Alles andere ist Farbe und Tempo. */
@@ -181,7 +197,10 @@ export default function Thaw({
       viewBox="0 0 64 64"
       className={className}
       role="img"
-      aria-label="THAW"
+      // Der Bauteilname bleibt THAW (Datei, Komponente, Cookie thaw_ws) -- nach
+      // aussen heisst die Figur "Frostbreaker AI". Nicht uebersetzt: ein
+      // Produktname, der in beiden Sprachen gleich lautet.
+      aria-label="Frostbreaker AI"
       style={{ overflow: "visible" }}
     >
       <defs>

@@ -19,6 +19,7 @@ import type { OfferSuggestion } from "@/lib/copy/offer-from-website";
 import { FINDING_FIELD, offerFindings, type OfferFinding } from "@/lib/copy/offer-tests";
 import type { CoachFinding } from "@/lib/copy/coach-prompt";
 import OfferMap from "./offer-map";
+import Herkunft from "./herkunft";
 import Thaw from "../thaw";
 import { useT } from "../language-provider";
 import { useToast } from "../toast-provider";
@@ -60,6 +61,27 @@ import OfferCore from "./offer-core";
 type Entwurf = Omit<Offer, "id" | "is_default">;
 
 const MAX_OFFERS = 10;
+
+/**
+ * Eine Lead-Liste in der Auswahl des zweiten Kerns.
+ *
+ * Genau die Spalten, die in der Zeile stehen, plus der Status: eine laufende
+ * Suche hat ihre Firmenbeschreibungen noch nicht vollstaendig, und die Route
+ * lehnt sie ohnehin ab (409). Sie hier gleich stumpf zu zeigen erspart den
+ * Fehlversuch.
+ */
+type ListenOption = {
+  id: string;
+  name: string | null;
+  query: string | null;
+  location: string | null;
+  status: string | null;
+};
+
+/** Woher die Vorschlaege stammen, die gerade unter den Feldern stehen. Nur
+ *  fuer Beschriftung und Farbe -- die Uebernahme ist in beiden Faellen
+ *  dieselbe. */
+type VorschlagQuelle = "website" | "search";
 
 /**
  * Eingabefelder dieser Seite, groesser als das app-weite inputCls.
@@ -188,6 +210,24 @@ export default function OffersEditor({ initial }: { initial: Offer[] }) {
   const [busy, setBusy] = useState(false);
   const [lese, setLese] = useState(false);
   const [vorschlaege, setVorschlaege] = useState<OfferSuggestion>({});
+  const [vorschlagQuelle, setVorschlagQuelle] = useState<VorschlagQuelle>("website");
+  /** Die Listenauswahl des zweiten Kerns: zu, offen, und was gerade laeuft. */
+  const [listeOffen, setListeOffen] = useState(false);
+  const [listen, setListen] = useState<ListenOption[] | null>(null);
+  const [liestListe, setLiestListe] = useState<string | null>(null);
+  /**
+   * Der Name der Liste, aus der die Vorschlaege stammen.
+   *
+   * Er steht in jedem Vorschlagskasten, und deshalb ist er ein eigener Zustand
+   * und keine Ableitung aus `listen`: die Auswahl klappt nach dem Lesen zu, und
+   * eine Stunde spaeter soll immer noch dranstehen, WOHER der Vorschlag kam --
+   * "der violette" ist keine Antwort, die sich jemand merkt.
+   */
+  const [listenName, setListenName] = useState<string | null>(null);
+  /** Der eine Satz, warum es mit dieser Liste nicht geht. Steht im Kasten und
+   *  nicht als Hinweisblase: er gehoert zu der Liste, die man gerade angeklickt
+   *  hat, und eine Blase ist weg, bevor man die naechste waehlt. */
+  const [listenFehler, setListenFehler] = useState<string | null>(null);
   const [neuerName, setNeuerName] = useState("");
   const [legeAn, setLegeAn] = useState(initial.length === 0);
   const [speichert, setSpeichert] = useState(false);
@@ -227,6 +267,26 @@ export default function OffersEditor({ initial }: { initial: Offer[] }) {
     mq.addEventListener("change", an);
     return () => mq.removeEventListener("change", an);
   }, []);
+
+  /**
+   * Die Lead-Listen -- erst beim Aufklappen, und dann einmal.
+   *
+   * Nicht beim Laden der Seite: die meisten Besuche dieser Seite tippen ein
+   * Angebot und fassen den zweiten Kern nie an. Gefiltert wie ueberall, wo
+   * Listen angeboten werden (siehe instantly/campaigns/new): nicht geloescht,
+   * neueste zuerst.
+   */
+  useEffect(() => {
+    if (!listeOffen || listen !== null) return;
+    createClient()
+      .from("searches")
+      .select("id, name, query, location, status")
+      .eq("workspace_id", workspaceId)
+      .is("deleted_at", null)
+      .order("created_at", { ascending: false })
+      .limit(50)
+      .then(({ data }) => setListen((data ?? []) as ListenOption[]));
+  }, [listeOffen, listen, workspaceId]);
 
   /**
    * Der aktuelle Stand in Refs.
@@ -301,6 +361,7 @@ export default function OffersEditor({ initial }: { initial: Offer[] }) {
     setEntwurf(next);
     setGespeichert(JSON.stringify(next));
     setVorschlaege({});
+    setListenFehler(null);
   }
 
   /**
@@ -321,6 +382,7 @@ export default function OffersEditor({ initial }: { initial: Offer[] }) {
     setEntwurf(next);
     setGespeichert(JSON.stringify(next));
     setVorschlaege({});
+    setListenFehler(null);
     setLegeAn(false);
   }
 
@@ -463,8 +525,59 @@ export default function OffersEditor({ initial }: { initial: Offer[] }) {
     const body = await res.json().catch(() => ({}));
     setLese(false);
     if (!res.ok) return push(t.common.error + (body.error ?? res.status), "error");
+    setVorschlagQuelle("website");
     setVorschlaege(body.suggestion ?? {});
     push(O.suggestionsReady(Object.keys(body.suggestion ?? {}).length), "success");
+  }
+
+  /**
+   * Dasselbe Angebot, zugeschnitten auf EINE Lead-Liste.
+   *
+   * ═══════════════════════════════════════════════════════════════════════
+   * WARUM KEIN ZWEITES ANGEBOT MEHR
+   * ═══════════════════════════════════════════════════════════════════════
+   *
+   * Bis zum 2026-08-15 stand das auf der Suchdetailseite und legte beim
+   * Speichern eine KOPIE des Standardangebots an. Damit gab es zwei Stellen,
+   * an denen Angebote entstehen, und die Kopie wurde nie wieder angefasst --
+   * geaendert wurde weiter am Original. Jetzt reichert es das Angebot an, das
+   * hier gerade offen steht: derselbe Kasten, dieselben Uebernehmen/Verwerfen-
+   * Knoepfe wie beim Website-Vorschlag, und gespeichert wird ueber denselben
+   * Weg wie jede andere Aenderung am Angebot.
+   *
+   * Erst sichern wie bei `pruefen`: die Route liest das Angebot aus der
+   * Datenbank, und outcome/mechanism werden aus dem gelesenen Stand
+   * umformuliert. Ohne das Sichern arbeitet sie mit dem Stand von vor zwei
+   * Sekunden.
+   */
+  async function ausListe(liste: ListenOption) {
+    if (!aktuell || liestListe) return;
+    if (geaendert) await speichern(true);
+    setLiestListe(liste.id);
+    setListenFehler(null);
+    setVorschlaege({});
+    const res = await fetch("/api/offers/from-search", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ searchId: liste.id, offerId: aktuell.id }),
+    });
+    const body = await res.json().catch(() => ({}));
+    setLiestListe(null);
+    // Der Fehler bleibt im Kasten stehen, statt als Blase wegzulaufen: die
+    // haeufigsten Faelle (kein OpenAI-Schluessel, Suche laeuft noch, keine
+    // Firmenbeschreibungen) sagen dem Nutzer, was er tun muss -- das liest
+    // niemand in zwei Sekunden.
+    if (!res.ok) return setListenFehler((body.error as string) ?? String(res.status));
+
+    const vorschlag = (body.suggestion ?? {}) as OfferSuggestion;
+    if (Object.keys(vorschlag).length === 0) return setListenFehler(O.fromSearch.nothing);
+    setVorschlagQuelle("search");
+    // Derselbe Text, der in der Zeile stand, die gerade angeklickt wurde --
+    // sonst hiesse die Liste im Kasten anders als in der Auswahl.
+    setListenName(liste.name ?? liste.query ?? null);
+    setVorschlaege(vorschlag);
+    setListeOffen(false);
+    push(O.fromSearch.ready(Object.keys(vorschlag).length), "success");
   }
 
   /**
@@ -521,6 +634,25 @@ export default function OffersEditor({ initial }: { initial: Offer[] }) {
   const feldLabels = Object.fromEntries(
     OFFER_TEXT_FIELDS.map((f) => [f, O.fields[f].label])
   ) as Record<OfferTextField, string>;
+
+  /**
+   * Woher der Vorschlag kommt -- als Satz, nicht als Farbe.
+   *
+   * Die Farbe (Frost fuer die Website, --fb-aim fuer die Liste) gehoert zum
+   * Kern, der den Vorschlag erzeugt hat, und bleibt. Sie darf die Herkunft aber
+   * nicht ALLEIN tragen: eine Farbbedeutung muss man sich merken, und wer die
+   * Seite morgen wieder aufmacht, hat sechs Kaesten vor sich und keine Legende.
+   * Bei Rot-Gruen-Schwaeche oder in einem Screenreader ist sie ohnehin nicht da.
+   * Deshalb steht die Herkunft ausgeschrieben im Kasten -- bei der Liste mit
+   * ihrem Namen, weil "aus einer Liste" die Frage nur verschiebt.
+   */
+  const ausListeQuelle = vorschlagQuelle === "search";
+  const vorschlagFarbe = ausListeQuelle ? "var(--fb-aim)" : "var(--fb-frost)";
+  const vorschlagLabel = ausListeQuelle
+    ? listenName
+      ? O.fromSearch.fromList(listenName)
+      : O.fromSearch.suggestionLabel
+    : O.suggestionLabel;
 
   /**
    * Was in der Mitte der Karte steht.
@@ -740,7 +872,11 @@ export default function OffersEditor({ initial }: { initial: Offer[] }) {
             </Karte>
 
             <Karte label={O.websiteHeading}>
-              <p className="mb-3 text-[13px] text-faint">{O.websiteSubtitle}</p>
+              {/* 14 Pixel wie im Listen-Kasten daneben: die beiden Karten tun
+                  dasselbe und muessen sich gleich lesen. Die uebrigen
+                  Unterzeilen der Seite bleiben bei 13 -- die stehen an
+                  Eingabefeldern und nicht an einem Handgriff. */}
+              <p className="mb-3 text-[14px] leading-relaxed text-soft">{O.websiteSubtitle}</p>
               <div className="relative flex flex-wrap items-center gap-2">
                 <input
                   value={entwurf.website ?? ""}
@@ -762,7 +898,142 @@ export default function OffersEditor({ initial }: { initial: Offer[] }) {
                   <span className="relative">{lese ? O.reading : O.readWebsite}</span>
                 </button>
               </div>
-              <p className="mt-2 max-w-[54ch] text-[13px] leading-relaxed text-mute">{O.websiteHint}</p>
+              {/* text-faint statt text-mute: --c-mute liegt auf Weiss bei 2,4:1
+                  und ist damit fuer Platzhalter gedacht, nicht fuer einen Satz,
+                  der erklaert, was gleich mit den Feldern passiert. text-faint
+                  sind 4,5:1. Gilt hier und im Listen-Kasten -- die uebrigen
+                  Hinweise der Seite stehen noch auf text-mute. */}
+              <p className="mt-2 max-w-[54ch] text-[13px] leading-relaxed text-faint">{O.websiteHint}</p>
+            </Karte>
+
+            {/* ── Der zweite Kern ──────────────────────────────────────
+                Direkt neben dem Website-Kasten, weil beide dasselbe tun: sie
+                schlagen Felder vor, die man einzeln uebernimmt. Der
+                Unterschied steht im Material -- die Website sagt, was DU
+                verkaufst, die Lead-Liste, an WEN. Deshalb ein eigener Kern in
+                eigener Farbe (--fb-aim) und nicht ein zweiter Knopf im
+                Website-Kasten: zwei Knoepfe nebeneinander waeren zwei
+                Fassungen desselben Handgriffs. */}
+            <Karte label={O.fromSearch.heading}>
+              <div className="flex items-start gap-4">
+                <button
+                  type="button"
+                  onClick={() => setListeOffen((v) => !v)}
+                  disabled={!!liestListe}
+                  aria-expanded={listeOffen}
+                  aria-label={O.fromSearch.open}
+                  className="-m-1 shrink-0 rounded-full p-1 transition-transform hover:scale-105 disabled:cursor-wait focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500"
+                >
+                  {/* "working" nur waehrend des Aufrufs: der Kern rast dann
+                      durch seine Bahnen und ist die Wartezeitanzeige. Sonst
+                      "listening" -- er wartet auf die Liste, nicht auf das
+                      Angebot, und darf deshalb nie "ready" zeigen. */}
+                  <Thaw
+                    state={liestListe ? "working" : "listening"}
+                    size={64}
+                    accent="var(--fb-aim)"
+                  />
+                </button>
+                <div className="min-w-0 flex-1">
+                  {/* Eine Stufe groesser als die Karten-Unterzeilen sonst
+                      (13 Pixel): dieser Absatz ist nicht der Nachsatz zu einem
+                      Eingabefeld, sondern die einzige Erklaerung dessen, was
+                      der Knopf daneben tut. */}
+                  <p className="max-w-[54ch] text-[14px] leading-relaxed text-soft">
+                    {O.fromSearch.subtitle}
+                  </p>
+                  {!listeOffen && (
+                    <button
+                      type="button"
+                      onClick={() => setListeOffen(true)}
+                      disabled={!!liestListe}
+                      className="mt-2.5 min-h-9 rounded-lg border px-4 text-sm font-medium transition-all hover:brightness-110 disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500"
+                      style={{
+                        borderColor: "color-mix(in srgb, var(--fb-aim) 45%, transparent)",
+                        color: "var(--fb-aim)",
+                        background: "color-mix(in srgb, var(--fb-aim) 8%, transparent)",
+                      }}
+                    >
+                      {liestListe ? O.fromSearch.reading : O.fromSearch.open}
+                    </button>
+                  )}
+
+                  {listeOffen && (
+                    <div className="mt-3">
+                      {/* Kein fb-label: das ist eine Frage an den Nutzer und
+                          kein Instrumentenschild. Gesetzt wie die anderen
+                          Fragen dieser Seite ("Wie sprichst du an?"). */}
+                      <p className="mb-2 text-[13px] text-faint">{O.fromSearch.pickHeading}</p>
+                      <div className="max-h-64 space-y-0.5 overflow-y-auto rounded-lg border border-edge2 bg-field p-2">
+                        {listen === null && (
+                          <p className="px-2 py-2 text-[14px] text-mute">{O.fromSearch.loading}</p>
+                        )}
+                        {/* text-faint, nicht text-mute: „Lädt..." ist ein
+                            Platzhalter und darf blass sein, „noch keine Liste"
+                            ist die Antwort auf die gestellte Frage. */}
+                        {listen?.length === 0 && (
+                          <p className="px-2 py-2 text-[14px] text-faint">
+                            {O.fromSearch.noSearches}
+                          </p>
+                        )}
+                        {(listen ?? []).map((s) => {
+                          // Dieselbe Bedingung, mit der die Route ablehnt
+                          // (409): eine laufende Suche hat ihre
+                          // Firmenbeschreibungen noch nicht vollstaendig.
+                          const laeuft = s.status === "pending" || s.status === "running";
+                          return (
+                            <button
+                              key={s.id}
+                              type="button"
+                              onClick={() => void ausListe(s)}
+                              disabled={laeuft || !!liestListe}
+                              className="flex min-h-9 w-full items-center gap-2.5 rounded-md px-2.5 text-left text-[14px] text-ink transition-colors hover:bg-chip focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 disabled:cursor-not-allowed disabled:text-mute disabled:hover:bg-transparent"
+                            >
+                              <span className="min-w-0 flex-1 truncate">{s.name ?? s.query}</span>
+                              {s.location && (
+                                <span className="shrink-0 text-[13px] text-mute">{s.location}</span>
+                              )}
+                              {laeuft && (
+                                <span className="shrink-0 text-[13px] text-mute">
+                                  {O.fromSearch.running}
+                                </span>
+                              )}
+                              {liestListe === s.id && (
+                                <span
+                                  className="shrink-0 text-[13px] font-medium"
+                                  style={{ color: "var(--fb-aim)" }}
+                                >
+                                  {O.fromSearch.reading}
+                                </span>
+                              )}
+                            </button>
+                          );
+                        })}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setListeOffen(false)}
+                        className="mt-2 min-h-8 rounded text-[13px] text-faint transition-colors hover:text-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500"
+                      >
+                        {O.cancel}
+                      </button>
+                    </div>
+                  )}
+
+                  {listenFehler && (
+                    <p
+                      role="alert"
+                      className="mt-3 max-w-[54ch] text-[14px] leading-relaxed"
+                      style={{ color: "var(--fb-warn)" }}
+                    >
+                      {listenFehler}
+                    </p>
+                  )}
+                </div>
+              </div>
+              <p className="mt-3 max-w-[54ch] text-[13px] leading-relaxed text-faint">
+                {O.fromSearch.hint}
+              </p>
             </Karte>
 
             {!breit && (
@@ -891,25 +1162,36 @@ export default function OffersEditor({ initial }: { initial: Offer[] }) {
                             {findingText(f, O.findings)}
                           </p>
                         ))}
+                        {/* Der Vorschlag steht so gross wie das Feld darueber
+                            (15 Pixel): er IST der Text, der gleich im Feld
+                            stehen koennte, und wer zwischen zwei Fassungen
+                            waehlt, muss beide gleich gut lesen koennen. Auf
+                            13,5 Pixeln las er sich wie eine Fussnote zum
+                            eigenen Text. */}
                         {vorschlaege[key] && (
                           <div
-                            className="lock-pop mt-1.5 rounded-lg border-l-2 px-3 py-2"
+                            className="lock-pop mt-2 rounded-lg border-l-2 px-3.5 py-3"
                             style={{
-                              borderColor: "var(--fb-frost)",
-                              background: "color-mix(in srgb, var(--fb-frost) 7%, transparent)",
+                              borderColor: vorschlagFarbe,
+                              background: `color-mix(in srgb, ${vorschlagFarbe} 7%, transparent)`,
                             }}
                           >
-                            <p className="fb-label mb-1 text-mute">{O.suggestionLabel}</p>
-                            <p className="text-[13.5px] leading-relaxed text-soft">{vorschlaege[key]}</p>
-                            <div className="mt-2 flex gap-3 text-xs">
+                            <Herkunft farbe={vorschlagFarbe} label={vorschlagLabel} />
+                            <p className="text-[15px] leading-relaxed text-ink">{vorschlaege[key]}</p>
+                            <div className="mt-2.5 flex items-center gap-4 text-[13px]">
                               <button
+                                type="button"
                                 onClick={() => uebernehmen(key)}
-                                className="font-medium transition-opacity hover:opacity-75"
-                                style={{ color: "var(--fb-frost)" }}
+                                className="min-h-8 rounded font-medium transition-opacity hover:opacity-75 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500"
+                                style={{ color: vorschlagFarbe }}
                               >
                                 {O.applySuggestion}
                               </button>
-                              <button onClick={() => verwerfen(key)} className="text-faint hover:text-ink">
+                              <button
+                                type="button"
+                                onClick={() => verwerfen(key)}
+                                className="min-h-8 rounded text-faint transition-colors hover:text-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500"
+                              >
                                 {O.discardSuggestion}
                               </button>
                             </div>
@@ -941,15 +1223,24 @@ export default function OffersEditor({ initial }: { initial: Offer[] }) {
                   [...befunde.entries()].map(([feld, liste]) => [feld, findingText(liste[0], O.findings)])
                 )}
                 coach={coachBefunde ?? []}
+                vorschlaege={vorschlaege}
                 onChange={setzeFeld}
                 onApply={coachUebernehmen}
                 onDismiss={coachVerwerfen}
+                onApplySuggestion={uebernehmen}
+                onDiscardSuggestion={verwerfen}
                 texte={{
                   stages: O.stages,
                   fields: O.fields,
                   edges: O.edges,
                   neededForGeneration: O.neededForGeneration,
                   optional: O.optional,
+                  suggestion: {
+                    label: vorschlagLabel,
+                    farbe: vorschlagFarbe,
+                    apply: O.applySuggestion,
+                    discard: O.discardSuggestion,
+                  },
                   coach: {
                     verdictLabel: O.coach.verdictLabel,
                     apply: O.coach.apply,

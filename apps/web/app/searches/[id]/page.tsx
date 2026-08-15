@@ -138,6 +138,11 @@ export default async function SearchDetailPage({
           />
         </div>
       </div>
+      {/* Der Angebotsentwurf zu dieser Liste stand bis zum 2026-08-15 hier.
+          Er sitzt jetzt im Angebotsformular (app/offers/offers-editor.tsx):
+          zugeschnitten wird ein Angebot, das man dabei auch gleich sieht und
+          weiterschreibt -- hier war es eine zweite Stelle, an der Angebote
+          entstehen. */}
       <CampaignLinkCard
         searchId={search.id}
         hasInstantlyKey={!!instantlyKeyRes.data}

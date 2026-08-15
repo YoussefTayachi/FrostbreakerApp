@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { REQUIRED_FOR_GENERATION, fieldNumber, type OfferStageId, type OfferTextField } from "@/lib/offers";
 import type { CoachFinding } from "@/lib/copy/coach-prompt";
+import Herkunft from "./herkunft";
 
 /**
  * Die Angebotskarte.
@@ -151,6 +152,14 @@ type Texte = {
   edges: Record<string, string>;
   neededForGeneration: string;
   optional: string;
+  /**
+   * Der Vorschlagskasten. `label` und `farbe` haengen an der HERKUNFT: Website
+   * (Frost) oder Lead-Liste (--fb-aim, dann mit dem Namen der Liste). Beides
+   * kommt fertig von aussen, damit in der Karte und in der Abschnittsansicht
+   * garantiert dasselbe steht -- zweimal derselbe Vorschlag mit zwei
+   * verschiedenen Herkuenften waere schlimmer als gar keine Angabe.
+   */
+  suggestion: { label: string; farbe: string; apply: string; discard: string };
   coach: {
     verdictLabel: string;
     apply: string;
@@ -164,9 +173,12 @@ export default function OfferMap({
   fehlend,
   befunde,
   coach,
+  vorschlaege,
   onChange,
   onApply,
   onDismiss,
+  onApplySuggestion,
+  onDiscardSuggestion,
   texte,
   hub,
 }: {
@@ -175,9 +187,20 @@ export default function OfferMap({
   /** Die messbaren Befunde aus lib/copy/offer-tests.ts, als fertiger Satz. */
   befunde: Partial<Record<OfferTextField, string>>;
   coach: CoachFinding[];
+  /**
+   * Die Feldvorschlaege aus Website oder Lead-Liste.
+   *
+   * Derselbe Zustand wie in der Abschnittsansicht -- die Karte zeigt ihn nur
+   * an einer anderen Stelle. Ohne diesen Weg waeren Vorschlaege ab 1500 Pixel
+   * Fensterbreite unsichtbar: dort steht die Karte statt der Abschnitte, und
+   * der Aufruf haette Geld gekostet, ohne dass etwas erscheint.
+   */
+  vorschlaege: Partial<Record<OfferTextField, string>>;
   onChange: (feld: OfferTextField, wert: string) => void;
   onApply: (feld: OfferTextField, wert: string) => void;
   onDismiss: (feld: OfferTextField) => void;
+  onApplySuggestion: (feld: OfferTextField) => void;
+  onDiscardSuggestion: (feld: OfferTextField) => void;
   texte: Texte;
   /** Was in der Mitte steht: THAW, der Messwert und die zwei Knoepfe. */
   hub: React.ReactNode;
@@ -216,7 +239,7 @@ export default function OfferMap({
 
   useLayoutEffect(() => {
     messen();
-  }, [messen, offen, werte, coach]);
+  }, [messen, offen, werte, coach, vorschlaege]);
 
   useEffect(() => {
     const c = karte.current;
@@ -401,6 +424,27 @@ export default function OfferMap({
                         {wert || (pflicht ? texte.neededForGeneration : texte.optional)}
                       </span>
                     </span>
+                    {/* Ein Punkt in der Farbe der Herkunft: der zugeklappte
+                        Knoten muss verraten, dass unter ihm ein Vorschlag
+                        wartet. Ohne ihn haette der Nutzer sechs Vorschlaege
+                        und muesste zwoelf Knoten aufklappen, um sie zu
+                        finden.
+
+                        Der Punkt allein sagt einem Screenreader nichts --
+                        daneben steht die Herkunft als Text, den nur er liest.
+                        Sichtbar waere sie hier zu viel: der Knoten ist 440
+                        Pixel breit und traegt schon Beschriftung und
+                        Vorschau. */}
+                    {vorschlaege[feld] && !offenHier && (
+                      <>
+                        <span
+                          aria-hidden
+                          className="mt-2 h-2 w-2 shrink-0 rounded-full"
+                          style={{ background: texte.suggestion.farbe }}
+                        />
+                        <span className="sr-only">{texte.suggestion.label}</span>
+                      </>
+                    )}
                     {!wert && pflicht && <span className="fb-dot mt-1.5 shrink-0" aria-hidden />}
                     <span
                       aria-hidden
@@ -429,6 +473,48 @@ export default function OfferMap({
                         <p className="fb-open mt-2 rounded-lg border-l-2 border-amber-500/50 bg-amber-500/5 px-3 py-1.5 text-[12.5px] leading-relaxed text-soft">
                           {messbar}
                         </p>
+                      )}
+
+                      {/* Derselbe Kasten wie in der Abschnittsansicht --
+                          uebernehmen oder verwerfen, einzeln. Nichts wird
+                          automatisch eingetragen: ein falsch gelesenes Feld
+                          steht danach unsichtbar in jeder erzeugten Mail.
+
+                          Der Vorschlag steht so gross wie das Textfeld darueber
+                          (14 Pixel, eine Stufe unter der Abschnittsansicht wie
+                          alles auf der Karte): man waehlt zwischen zwei
+                          Fassungen desselben Satzes und muss beide gleich gut
+                          lesen koennen. */}
+                      {vorschlaege[feld] && (
+                        <div
+                          className="fb-open mt-2 rounded-lg border-l-2 px-3.5 py-3"
+                          style={{
+                            borderColor: texte.suggestion.farbe,
+                            background: `color-mix(in srgb, ${texte.suggestion.farbe} 7%, transparent)`,
+                          }}
+                        >
+                          <Herkunft farbe={texte.suggestion.farbe} label={texte.suggestion.label} />
+                          <p className="text-[14px] leading-relaxed text-ink">
+                            {vorschlaege[feld]}
+                          </p>
+                          <div className="mt-2.5 flex items-center gap-4 text-[13px]">
+                            <button
+                              type="button"
+                              onClick={() => onApplySuggestion(feld)}
+                              className="min-h-8 rounded font-medium transition-opacity hover:opacity-75 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500"
+                              style={{ color: texte.suggestion.farbe }}
+                            >
+                              {texte.suggestion.apply}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => onDiscardSuggestion(feld)}
+                              className="min-h-8 rounded text-faint transition-colors hover:text-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500"
+                            >
+                              {texte.suggestion.discard}
+                            </button>
+                          </div>
+                        </div>
                       )}
 
                       {c && (

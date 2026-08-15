@@ -1608,9 +1608,13 @@ const de = {
     coreReady: "Bereit — die Sequenz kann geschrieben werden.",
     coreMissing: (n: number) =>
       n === 1 ? "Noch ein Pflichtfeld, dann kann die Sequenz entstehen." : `Noch ${n} Pflichtfelder, dann kann die Sequenz entstehen.`,
-    suggestionLabel: "Vorschlag aus der Website",
+    /** Die Herkunft eines Vorschlags, nicht seine Gattung: dass es ein
+     *  Vorschlag ist, sagen schon die Knöpfe „Übernehmen/Verwerfen" darunter.
+     *  Gemeint ist die eine Frage, die der Nutzer wirklich hat — woher kommt
+     *  das hier. */
+    suggestionLabel: "Aus deiner Website",
     addressSubtitle: "Wie sprichst du an?",
-    // Was THAW sagt. Immer eine Zeile, immer der naechste Handgriff -- kein
+    // Was Frostbreaker AI sagt. Immer eine Zeile, immer der naechste Handgriff -- kein
     // Geplauder. Ein Satz, der nichts zu tun gibt, ist beim dritten Oeffnen
     // der Seite nur noch Text.
     sayCold: "Erzähl mir von deinem Angebot. Ich fange bei null an.",
@@ -1647,6 +1651,25 @@ const de = {
     readWebsite: "Aus Website übernehmen",
     reading: "Liest...",
     suggestionsReady: (n: number) => `${n} Vorschläge aus der Website`,
+    /** Der zweite Kern: dasselbe Angebot, zugeschnitten auf EINE Lead-Liste. */
+    fromSearch: {
+      heading: "Auf eine Lead-Liste zuschneiden",
+      subtitle:
+        "Frostbreaker AI liest die Firmen einer Liste und schlägt vor, was am Angebot für sie anders klingen sollte.",
+      open: "Liste wählen",
+      pickHeading: "Welche Liste?",
+      reading: "Liest...",
+      loading: "Lädt...",
+      noSearches: "Noch keine Lead-Liste.",
+      running: "läuft noch",
+      /** Nur der Notfall: die Liste ist bekannt, ihr Name aber leer. Sonst
+       *  steht fromList mit dem echten Namen im Kasten. */
+      suggestionLabel: "Aus einer Lead-Liste",
+      fromList: (name: string) => `Aus Liste: ${name}`,
+      ready: (n: number) => `${n} Vorschläge aus der Liste`,
+      hint: "Neu vorgeschlagen: Problem, Stolperstein, Grund, Zielgruppe. Nur umformuliert: Ergebnis und Mechanismus. Zahlen und Beleg bleiben.",
+      nothing: "Aus dieser Liste ließ sich nichts ableiten.",
+    },
     fieldsHeading: "Das Angebot",
     completeness: (p: number) => `${p} % ausgefüllt`,
     neededForGeneration: "nötig",
@@ -1723,14 +1746,14 @@ const de = {
     optional: "optional",
     coach: {
       run: "Angebot prüfen",
-      running: "THAW liest...",
+      running: "Liest...",
       clean: "Nichts zu beanstanden. Das Angebot trägt.",
       found: (n: number) => (n === 1 ? "Eine Stelle, an der es hakt" : `${n} Stellen, an denen es hakt`),
-      verdictLabel: "THAW",
+      verdictLabel: "Frostbreaker AI",
       apply: "Übernehmen",
       dismiss: "Passt so",
       related: (feld: string) => `Gehört eher in: ${feld}`,
-      hint: "THAW liest dein Angebot gegen das Playbook — nicht den Text, sondern ob jedes Feld seine Frage beantwortet.",
+      hint: "Frostbreaker AI liest dein Angebot gegen das Playbook — nicht den Text, sondern ob jedes Feld seine Frage beantwortet.",
     },
     /** Die vier Abschnitte des Formulars. */
     stages: {
@@ -3802,7 +3825,7 @@ const en: Dictionary = {
     coreReady: "Ready — the sequence can be written.",
     coreMissing: (n: number) =>
       n === 1 ? "One required field left, then the sequence can be written." : `${n} required fields left, then the sequence can be written.`,
-    suggestionLabel: "Suggestion from the website",
+    suggestionLabel: "From your website",
     addressSubtitle: "How do you address them?",
     sayCold: "Tell me about your offer. I am starting from nothing.",
     sayMissing: (feld: string) => `Still missing: ${feld}`,
@@ -3837,6 +3860,25 @@ const en: Dictionary = {
     readWebsite: "Read from website",
     reading: "Reading...",
     suggestionsReady: (n: number) => `${n} suggestions from the website`,
+    /** The second core: the same offer, tailored to ONE lead list. */
+    fromSearch: {
+      heading: "Tailor it to a lead list",
+      subtitle:
+        "Frostbreaker AI reads the companies on a list and suggests what should sound different for them.",
+      open: "Pick a list",
+      pickHeading: "Which list?",
+      reading: "Reading...",
+      loading: "Loading...",
+      noSearches: "No lead list yet.",
+      running: "still running",
+      /** Only the fallback: the list is known but its name is empty. Normally
+       *  fromList carries the real name. */
+      suggestionLabel: "From a lead list",
+      fromList: (name: string) => `From list: ${name}`,
+      ready: (n: number) => `${n} suggestions from the list`,
+      hint: "Rewritten: problem, friction, reason, audience. Reworded only: outcome and mechanism. Numbers and proof stay.",
+      nothing: "Nothing could be drawn from this list.",
+    },
     fieldsHeading: "The offer",
     completeness: (p: number) => `${p}% filled in`,
     neededForGeneration: "needed",
@@ -3902,14 +3944,14 @@ const en: Dictionary = {
     optional: "optional",
     coach: {
       run: "Check the offer",
-      running: "THAW is reading...",
+      running: "Reading...",
       clean: "Nothing to flag. The offer holds.",
       found: (n: number) => (n === 1 ? "One spot that does not hold" : `${n} spots that do not hold`),
-      verdictLabel: "THAW",
+      verdictLabel: "Frostbreaker AI",
       apply: "Use this",
       dismiss: "Leave it",
       related: (feld: string) => `Belongs in: ${feld}`,
-      hint: "THAW reads your offer against the playbook — not the wording, but whether each field answers its question.",
+      hint: "Frostbreaker AI reads your offer against the playbook — not the wording, but whether each field answers its question.",
     },
     /** The four sections of the form. */
     stages: {
