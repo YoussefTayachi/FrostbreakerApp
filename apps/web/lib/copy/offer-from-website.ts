@@ -114,12 +114,17 @@ function extractJsonObject(raw: string): string | null {
 /**
  * Die Antwort des Modells in Feldvorschlaege verwandeln.
  *
- * Streng in eine Richtung: unbekannte Schluessel fliegen raus, `tone` wird
- * ignoriert (siehe SUGGESTED_FIELDS), und ein Feld, das das Modell mit einer
- * Ausrede gefuellt hat ("nicht angegeben", "unknown"), gilt als leer. Genau
- * solche Saetze landen sonst als Tatsachenbehauptung im naechsten Prompt.
+ * Streng in eine Richtung: unbekannte Schluessel fliegen raus, alles ausserhalb
+ * von `erlaubt` wird ignoriert, und ein Feld, das das Modell mit einer Ausrede
+ * gefuellt hat ("nicht angegeben", "unknown"), gilt als leer. Genau solche
+ * Saetze landen sonst als Tatsachenbehauptung im naechsten Prompt.
+ *
+ * Die erlaubten Felder kommen als Parameter, weil es zwei Quellen gibt: die
+ * eigene Website (SUGGESTED_FIELDS) und eine einzelne Lead-Liste
+ * (offer-from-search.ts). Beide brauchen dieselbe Strenge -- eine zweite Kopie
+ * dieser Funktion waere eine zweite Ausreden-Liste, die auseinanderlaufen kann.
  */
-export function parseOfferSuggestion(raw: string): OfferSuggestion {
+export function parseSuggestionFields(raw: string, erlaubt: OfferTextField[]): OfferSuggestion {
   const json = extractJsonObject(raw);
   if (!json) return {};
   let parsed: unknown;
@@ -132,7 +137,7 @@ export function parseOfferSuggestion(raw: string): OfferSuggestion {
 
   const obj = parsed as Record<string, unknown>;
   const out: OfferSuggestion = {};
-  for (const field of SUGGESTED_FIELDS) {
+  for (const field of erlaubt) {
     const value = obj[field];
     if (typeof value !== "string") continue;
     const clean = value.trim();
@@ -140,6 +145,13 @@ export function parseOfferSuggestion(raw: string): OfferSuggestion {
     out[field] = clean;
   }
   return out;
+}
+
+/** Die Vorschlaege aus der eigenen Website -- ohne die fuenf Felder, die eine
+ *  Entscheidung sind und nicht auf einer Seite stehen (siehe
+ *  NICHT_VORSCHLAGEN). */
+export function parseOfferSuggestion(raw: string): OfferSuggestion {
+  return parseSuggestionFields(raw, SUGGESTED_FIELDS);
 }
 
 /**

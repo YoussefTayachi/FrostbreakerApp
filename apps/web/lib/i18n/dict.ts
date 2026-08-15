@@ -464,6 +464,31 @@ const de = {
       linkedHeading: "Verknüpfte Instantly-Kampagne:",
       linkedHint: "Weitere Bearbeitung (Pausieren, Varianten) aktuell direkt in Instantly.",
     },
+    /** Der Angebotsentwurf für genau diese Liste. */
+    offerDraft: {
+      eyebrow: "Aus dieser Liste",
+      heading: "Angebot für diese Liste",
+      description:
+        "Dein Standardangebot bleibt, wie es ist. Neu geschrieben werden nur die Felder, die von der Nische abhängen — Problem, Stolperstein und warum er zögern lässt.",
+      generate: "Entwurf erzeugen",
+      generating: "Liest die Liste...",
+      draftHint:
+        "Nichts davon ist gespeichert. Beim Speichern entsteht ein NEUES Angebot mit diesen Feldern; dein Standardangebot bleibt unangetastet.",
+      save: "Als eigenes Angebot speichern",
+      /** Hängt an den Listennamen. Der Name steht danach in der Angebotsauswahl,
+       *  also muss man dort sehen, woher er kommt. */
+      nameSuffix: "(aus Suche)",
+      saved: (name: string) => `Angebot „${name}" angelegt.`,
+      toOffer: "Zum Angebot",
+      noOffer:
+        "Dafür braucht die App zuerst dein Standardangebot: was du verkaufst, an wen und mit welchem Nutzen.",
+      noOfferLink: "Angebot anlegen",
+      noKey: "Dafür braucht die App deinen OpenAI-Schlüssel.",
+      noKeyLink: "Schlüssel eintragen",
+      running: "Die Suche läuft noch. Sobald die Firmen da sind, gibt es etwas zu lesen.",
+      noSummaries:
+        "Zu dieser Liste gibt es keine Firmenbeschreibungen — daraus lässt sich nichts ableiten.",
+    },
   },
   newSearchForm: {
     // Benannt nach dem, WAS gesucht wird, mit dem Anbieter dahinter. Muss mit
@@ -2693,6 +2718,29 @@ const en: Dictionary = {
       validationError: "Name, at least one mailbox, and complete steps (subject + body) are required.",
       linkedHeading: "Linked Instantly campaign:",
       linkedHint: "Further edits (pausing, variants) currently happen directly in Instantly.",
+    },
+    /** The offer draft for exactly this list. */
+    offerDraft: {
+      eyebrow: "From this list",
+      heading: "Offer for this list",
+      description:
+        "Your default offer stays as it is. Only the fields that depend on the niche get rewritten — the problem, the friction, and why it makes buyers hesitate.",
+      generate: "Write a draft",
+      generating: "Reading the list...",
+      draftHint:
+        "None of this is saved yet. Saving creates a NEW offer with these fields; your default offer stays untouched.",
+      save: "Save as its own offer",
+      nameSuffix: "(from search)",
+      saved: (name: string) => `Offer "${name}" created.`,
+      toOffer: "Go to the offer",
+      noOffer:
+        "For this the app needs your default offer first: what you sell, to whom and with what benefit.",
+      noOfferLink: "Create an offer",
+      noKey: "For this the app needs your OpenAI key.",
+      noKeyLink: "Add the key",
+      running: "The search is still running. Once the companies are in, there is something to read.",
+      noSummaries:
+        "There are no researched company descriptions for this list — nothing to draw on.",
     },
   },
   newSearchForm: {
