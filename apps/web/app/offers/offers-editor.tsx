@@ -19,6 +19,7 @@ import type { OfferSuggestion } from "@/lib/copy/offer-from-website";
 import { FINDING_FIELD, offerFindings, type OfferFinding } from "@/lib/copy/offer-tests";
 import type { CoachFinding } from "@/lib/copy/coach-prompt";
 import OfferMap from "./offer-map";
+import Herkunft from "./herkunft";
 import Thaw from "../thaw";
 import { useT } from "../language-provider";
 import { useToast } from "../toast-provider";
@@ -214,6 +215,15 @@ export default function OffersEditor({ initial }: { initial: Offer[] }) {
   const [listeOffen, setListeOffen] = useState(false);
   const [listen, setListen] = useState<ListenOption[] | null>(null);
   const [liestListe, setLiestListe] = useState<string | null>(null);
+  /**
+   * Der Name der Liste, aus der die Vorschlaege stammen.
+   *
+   * Er steht in jedem Vorschlagskasten, und deshalb ist er ein eigener Zustand
+   * und keine Ableitung aus `listen`: die Auswahl klappt nach dem Lesen zu, und
+   * eine Stunde spaeter soll immer noch dranstehen, WOHER der Vorschlag kam --
+   * "der violette" ist keine Antwort, die sich jemand merkt.
+   */
+  const [listenName, setListenName] = useState<string | null>(null);
   /** Der eine Satz, warum es mit dieser Liste nicht geht. Steht im Kasten und
    *  nicht als Hinweisblase: er gehoert zu der Liste, die man gerade angeklickt
    *  hat, und eine Blase ist weg, bevor man die naechste waehlt. */
@@ -540,16 +550,16 @@ export default function OffersEditor({ initial }: { initial: Offer[] }) {
    * umformuliert. Ohne das Sichern arbeitet sie mit dem Stand von vor zwei
    * Sekunden.
    */
-  async function ausListe(searchId: string) {
+  async function ausListe(liste: ListenOption) {
     if (!aktuell || liestListe) return;
     if (geaendert) await speichern(true);
-    setLiestListe(searchId);
+    setLiestListe(liste.id);
     setListenFehler(null);
     setVorschlaege({});
     const res = await fetch("/api/offers/from-search", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ searchId, offerId: aktuell.id }),
+      body: JSON.stringify({ searchId: liste.id, offerId: aktuell.id }),
     });
     const body = await res.json().catch(() => ({}));
     setLiestListe(null);
@@ -562,6 +572,9 @@ export default function OffersEditor({ initial }: { initial: Offer[] }) {
     const vorschlag = (body.suggestion ?? {}) as OfferSuggestion;
     if (Object.keys(vorschlag).length === 0) return setListenFehler(O.fromSearch.nothing);
     setVorschlagQuelle("search");
+    // Derselbe Text, der in der Zeile stand, die gerade angeklickt wurde --
+    // sonst hiesse die Liste im Kasten anders als in der Auswahl.
+    setListenName(liste.name ?? liste.query ?? null);
     setVorschlaege(vorschlag);
     setListeOffen(false);
     push(O.fromSearch.ready(Object.keys(vorschlag).length), "success");
@@ -623,15 +636,23 @@ export default function OffersEditor({ initial }: { initial: Offer[] }) {
   ) as Record<OfferTextField, string>;
 
   /**
-   * Beschriftung und Farbe der Vorschlagskasten -- nach Herkunft.
+   * Woher der Vorschlag kommt -- als Satz, nicht als Farbe.
    *
-   * Es ist derselbe Kasten und derselbe Zustand; nur "Vorschlag aus der
-   * Website" waere gelogen, wenn er aus einer Lead-Liste kommt. Die Farbe geht
-   * mit, damit der Kasten zu dem Kern gehoert, der ihn erzeugt hat.
+   * Die Farbe (Frost fuer die Website, --fb-aim fuer die Liste) gehoert zum
+   * Kern, der den Vorschlag erzeugt hat, und bleibt. Sie darf die Herkunft aber
+   * nicht ALLEIN tragen: eine Farbbedeutung muss man sich merken, und wer die
+   * Seite morgen wieder aufmacht, hat sechs Kaesten vor sich und keine Legende.
+   * Bei Rot-Gruen-Schwaeche oder in einem Screenreader ist sie ohnehin nicht da.
+   * Deshalb steht die Herkunft ausgeschrieben im Kasten -- bei der Liste mit
+   * ihrem Namen, weil "aus einer Liste" die Frage nur verschiebt.
    */
   const ausListeQuelle = vorschlagQuelle === "search";
   const vorschlagFarbe = ausListeQuelle ? "var(--fb-aim)" : "var(--fb-frost)";
-  const vorschlagLabel = ausListeQuelle ? O.fromSearch.suggestionLabel : O.suggestionLabel;
+  const vorschlagLabel = ausListeQuelle
+    ? listenName
+      ? O.fromSearch.fromList(listenName)
+      : O.fromSearch.suggestionLabel
+    : O.suggestionLabel;
 
   /**
    * Was in der Mitte der Karte steht.
@@ -851,7 +872,11 @@ export default function OffersEditor({ initial }: { initial: Offer[] }) {
             </Karte>
 
             <Karte label={O.websiteHeading}>
-              <p className="mb-3 text-[13px] text-faint">{O.websiteSubtitle}</p>
+              {/* 14 Pixel wie im Listen-Kasten daneben: die beiden Karten tun
+                  dasselbe und muessen sich gleich lesen. Die uebrigen
+                  Unterzeilen der Seite bleiben bei 13 -- die stehen an
+                  Eingabefeldern und nicht an einem Handgriff. */}
+              <p className="mb-3 text-[14px] leading-relaxed text-soft">{O.websiteSubtitle}</p>
               <div className="relative flex flex-wrap items-center gap-2">
                 <input
                   value={entwurf.website ?? ""}
@@ -873,7 +898,12 @@ export default function OffersEditor({ initial }: { initial: Offer[] }) {
                   <span className="relative">{lese ? O.reading : O.readWebsite}</span>
                 </button>
               </div>
-              <p className="mt-2 max-w-[54ch] text-[13px] leading-relaxed text-mute">{O.websiteHint}</p>
+              {/* text-faint statt text-mute: --c-mute liegt auf Weiss bei 2,4:1
+                  und ist damit fuer Platzhalter gedacht, nicht fuer einen Satz,
+                  der erklaert, was gleich mit den Feldern passiert. text-faint
+                  sind 4,5:1. Gilt hier und im Listen-Kasten -- die uebrigen
+                  Hinweise der Seite stehen noch auf text-mute. */}
+              <p className="mt-2 max-w-[54ch] text-[13px] leading-relaxed text-faint">{O.websiteHint}</p>
             </Karte>
 
             {/* ── Der zweite Kern ──────────────────────────────────────
@@ -905,7 +935,11 @@ export default function OffersEditor({ initial }: { initial: Offer[] }) {
                   />
                 </button>
                 <div className="min-w-0 flex-1">
-                  <p className="max-w-[54ch] text-[13px] leading-relaxed text-faint">
+                  {/* Eine Stufe groesser als die Karten-Unterzeilen sonst
+                      (13 Pixel): dieser Absatz ist nicht der Nachsatz zu einem
+                      Eingabefeld, sondern die einzige Erklaerung dessen, was
+                      der Knopf daneben tut. */}
+                  <p className="max-w-[54ch] text-[14px] leading-relaxed text-soft">
                     {O.fromSearch.subtitle}
                   </p>
                   {!listeOffen && (
@@ -925,14 +959,20 @@ export default function OffersEditor({ initial }: { initial: Offer[] }) {
                   )}
 
                   {listeOffen && (
-                    <div className="mt-2.5">
-                      <p className="fb-label mb-1.5 text-mute">{O.fromSearch.pickHeading}</p>
-                      <div className="max-h-56 space-y-1 overflow-y-auto rounded-lg border border-edge2 bg-field p-2">
+                    <div className="mt-3">
+                      {/* Kein fb-label: das ist eine Frage an den Nutzer und
+                          kein Instrumentenschild. Gesetzt wie die anderen
+                          Fragen dieser Seite ("Wie sprichst du an?"). */}
+                      <p className="mb-2 text-[13px] text-faint">{O.fromSearch.pickHeading}</p>
+                      <div className="max-h-64 space-y-0.5 overflow-y-auto rounded-lg border border-edge2 bg-field p-2">
                         {listen === null && (
-                          <p className="px-2 py-1.5 text-[13px] text-mute">{O.fromSearch.loading}</p>
+                          <p className="px-2 py-2 text-[14px] text-mute">{O.fromSearch.loading}</p>
                         )}
+                        {/* text-faint, nicht text-mute: „Lädt..." ist ein
+                            Platzhalter und darf blass sein, „noch keine Liste"
+                            ist die Antwort auf die gestellte Frage. */}
                         {listen?.length === 0 && (
-                          <p className="px-2 py-1.5 text-[13px] text-mute">
+                          <p className="px-2 py-2 text-[14px] text-faint">
                             {O.fromSearch.noSearches}
                           </p>
                         )}
@@ -945,22 +985,22 @@ export default function OffersEditor({ initial }: { initial: Offer[] }) {
                             <button
                               key={s.id}
                               type="button"
-                              onClick={() => void ausListe(s.id)}
+                              onClick={() => void ausListe(s)}
                               disabled={laeuft || !!liestListe}
-                              className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-[13px] text-ink transition-colors hover:bg-chip disabled:cursor-not-allowed disabled:text-mute disabled:hover:bg-transparent"
+                              className="flex min-h-9 w-full items-center gap-2.5 rounded-md px-2.5 text-left text-[14px] text-ink transition-colors hover:bg-chip focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 disabled:cursor-not-allowed disabled:text-mute disabled:hover:bg-transparent"
                             >
                               <span className="min-w-0 flex-1 truncate">{s.name ?? s.query}</span>
                               {s.location && (
-                                <span className="shrink-0 text-[12px] text-mute">{s.location}</span>
+                                <span className="shrink-0 text-[13px] text-mute">{s.location}</span>
                               )}
                               {laeuft && (
-                                <span className="fb-label shrink-0 text-mute">
+                                <span className="shrink-0 text-[13px] text-mute">
                                   {O.fromSearch.running}
                                 </span>
                               )}
                               {liestListe === s.id && (
                                 <span
-                                  className="fb-label shrink-0"
+                                  className="shrink-0 text-[13px] font-medium"
                                   style={{ color: "var(--fb-aim)" }}
                                 >
                                   {O.fromSearch.reading}
@@ -973,7 +1013,7 @@ export default function OffersEditor({ initial }: { initial: Offer[] }) {
                       <button
                         type="button"
                         onClick={() => setListeOffen(false)}
-                        className="mt-2 text-[13px] text-faint transition-colors hover:text-ink"
+                        className="mt-2 min-h-8 rounded text-[13px] text-faint transition-colors hover:text-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500"
                       >
                         {O.cancel}
                       </button>
@@ -982,7 +1022,8 @@ export default function OffersEditor({ initial }: { initial: Offer[] }) {
 
                   {listenFehler && (
                     <p
-                      className="mt-2 max-w-[54ch] text-[13px] leading-relaxed"
+                      role="alert"
+                      className="mt-3 max-w-[54ch] text-[14px] leading-relaxed"
                       style={{ color: "var(--fb-warn)" }}
                     >
                       {listenFehler}
@@ -990,7 +1031,7 @@ export default function OffersEditor({ initial }: { initial: Offer[] }) {
                   )}
                 </div>
               </div>
-              <p className="mt-2.5 max-w-[54ch] text-[13px] leading-relaxed text-mute">
+              <p className="mt-3 max-w-[54ch] text-[13px] leading-relaxed text-faint">
                 {O.fromSearch.hint}
               </p>
             </Karte>
@@ -1121,25 +1162,36 @@ export default function OffersEditor({ initial }: { initial: Offer[] }) {
                             {findingText(f, O.findings)}
                           </p>
                         ))}
+                        {/* Der Vorschlag steht so gross wie das Feld darueber
+                            (15 Pixel): er IST der Text, der gleich im Feld
+                            stehen koennte, und wer zwischen zwei Fassungen
+                            waehlt, muss beide gleich gut lesen koennen. Auf
+                            13,5 Pixeln las er sich wie eine Fussnote zum
+                            eigenen Text. */}
                         {vorschlaege[key] && (
                           <div
-                            className="lock-pop mt-1.5 rounded-lg border-l-2 px-3 py-2"
+                            className="lock-pop mt-2 rounded-lg border-l-2 px-3.5 py-3"
                             style={{
                               borderColor: vorschlagFarbe,
                               background: `color-mix(in srgb, ${vorschlagFarbe} 7%, transparent)`,
                             }}
                           >
-                            <p className="fb-label mb-1 text-mute">{vorschlagLabel}</p>
-                            <p className="text-[13.5px] leading-relaxed text-soft">{vorschlaege[key]}</p>
-                            <div className="mt-2 flex gap-3 text-xs">
+                            <Herkunft farbe={vorschlagFarbe} label={vorschlagLabel} />
+                            <p className="text-[15px] leading-relaxed text-ink">{vorschlaege[key]}</p>
+                            <div className="mt-2.5 flex items-center gap-4 text-[13px]">
                               <button
+                                type="button"
                                 onClick={() => uebernehmen(key)}
-                                className="font-medium transition-opacity hover:opacity-75"
+                                className="min-h-8 rounded font-medium transition-opacity hover:opacity-75 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500"
                                 style={{ color: vorschlagFarbe }}
                               >
                                 {O.applySuggestion}
                               </button>
-                              <button onClick={() => verwerfen(key)} className="text-faint hover:text-ink">
+                              <button
+                                type="button"
+                                onClick={() => verwerfen(key)}
+                                className="min-h-8 rounded text-faint transition-colors hover:text-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500"
+                              >
                                 {O.discardSuggestion}
                               </button>
                             </div>

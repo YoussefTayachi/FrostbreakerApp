@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { REQUIRED_FOR_GENERATION, fieldNumber, type OfferStageId, type OfferTextField } from "@/lib/offers";
 import type { CoachFinding } from "@/lib/copy/coach-prompt";
+import Herkunft from "./herkunft";
 
 /**
  * Die Angebotskarte.
@@ -151,8 +152,13 @@ type Texte = {
   edges: Record<string, string>;
   neededForGeneration: string;
   optional: string;
-  /** Beschriftung und Farbe des Vorschlagskastens. Beides kommt von aussen,
-   *  weil es an der HERKUNFT haengt: Website (Frost) oder Lead-Liste (--fb-aim). */
+  /**
+   * Der Vorschlagskasten. `label` und `farbe` haengen an der HERKUNFT: Website
+   * (Frost) oder Lead-Liste (--fb-aim, dann mit dem Namen der Liste). Beides
+   * kommt fertig von aussen, damit in der Karte und in der Abschnittsansicht
+   * garantiert dasselbe steht -- zweimal derselbe Vorschlag mit zwei
+   * verschiedenen Herkuenften waere schlimmer als gar keine Angabe.
+   */
   suggestion: { label: string; farbe: string; apply: string; discard: string };
   coach: {
     verdictLabel: string;
@@ -422,13 +428,22 @@ export default function OfferMap({
                         Knoten muss verraten, dass unter ihm ein Vorschlag
                         wartet. Ohne ihn haette der Nutzer sechs Vorschlaege
                         und muesste zwoelf Knoten aufklappen, um sie zu
-                        finden. */}
+                        finden.
+
+                        Der Punkt allein sagt einem Screenreader nichts --
+                        daneben steht die Herkunft als Text, den nur er liest.
+                        Sichtbar waere sie hier zu viel: der Knoten ist 440
+                        Pixel breit und traegt schon Beschriftung und
+                        Vorschau. */}
                     {vorschlaege[feld] && !offenHier && (
-                      <span
-                        aria-hidden
-                        className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full"
-                        style={{ background: texte.suggestion.farbe }}
-                      />
+                      <>
+                        <span
+                          aria-hidden
+                          className="mt-2 h-2 w-2 shrink-0 rounded-full"
+                          style={{ background: texte.suggestion.farbe }}
+                        />
+                        <span className="sr-only">{texte.suggestion.label}</span>
+                      </>
                     )}
                     {!wert && pflicht && <span className="fb-dot mt-1.5 shrink-0" aria-hidden />}
                     <span
@@ -463,30 +478,38 @@ export default function OfferMap({
                       {/* Derselbe Kasten wie in der Abschnittsansicht --
                           uebernehmen oder verwerfen, einzeln. Nichts wird
                           automatisch eingetragen: ein falsch gelesenes Feld
-                          steht danach unsichtbar in jeder erzeugten Mail. */}
+                          steht danach unsichtbar in jeder erzeugten Mail.
+
+                          Der Vorschlag steht so gross wie das Textfeld darueber
+                          (14 Pixel, eine Stufe unter der Abschnittsansicht wie
+                          alles auf der Karte): man waehlt zwischen zwei
+                          Fassungen desselben Satzes und muss beide gleich gut
+                          lesen koennen. */}
                       {vorschlaege[feld] && (
                         <div
-                          className="fb-open mt-2 rounded-lg border-l-2 px-3 py-2.5"
+                          className="fb-open mt-2 rounded-lg border-l-2 px-3.5 py-3"
                           style={{
                             borderColor: texte.suggestion.farbe,
                             background: `color-mix(in srgb, ${texte.suggestion.farbe} 7%, transparent)`,
                           }}
                         >
-                          <p className="fb-label mb-1 text-mute">{texte.suggestion.label}</p>
-                          <p className="text-[12.5px] leading-relaxed text-soft">
+                          <Herkunft farbe={texte.suggestion.farbe} label={texte.suggestion.label} />
+                          <p className="text-[14px] leading-relaxed text-ink">
                             {vorschlaege[feld]}
                           </p>
-                          <div className="mt-2 flex gap-3 text-xs">
+                          <div className="mt-2.5 flex items-center gap-4 text-[13px]">
                             <button
+                              type="button"
                               onClick={() => onApplySuggestion(feld)}
-                              className="font-medium transition-opacity hover:opacity-75"
+                              className="min-h-8 rounded font-medium transition-opacity hover:opacity-75 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500"
                               style={{ color: texte.suggestion.farbe }}
                             >
                               {texte.suggestion.apply}
                             </button>
                             <button
+                              type="button"
                               onClick={() => onDiscardSuggestion(feld)}
-                              className="text-faint hover:text-ink"
+                              className="min-h-8 rounded text-faint transition-colors hover:text-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500"
                             >
                               {texte.suggestion.discard}
                             </button>

@@ -197,7 +197,10 @@ export default function Thaw({
       viewBox="0 0 64 64"
       className={className}
       role="img"
-      aria-label="THAW"
+      // Der Bauteilname bleibt THAW (Datei, Komponente, Cookie thaw_ws) -- nach
+      // aussen heisst die Figur "Frostbreaker AI". Nicht uebersetzt: ein
+      // Produktname, der in beiden Sprachen gleich lautet.
+      aria-label="Frostbreaker AI"
       style={{ overflow: "visible" }}
     >
       <defs>
