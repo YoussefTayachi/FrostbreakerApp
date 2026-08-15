@@ -464,31 +464,6 @@ const de = {
       linkedHeading: "Verknüpfte Instantly-Kampagne:",
       linkedHint: "Weitere Bearbeitung (Pausieren, Varianten) aktuell direkt in Instantly.",
     },
-    /** Der Angebotsentwurf für genau diese Liste. */
-    offerDraft: {
-      eyebrow: "Aus dieser Liste",
-      heading: "Angebot für diese Liste",
-      description:
-        "Dein Standardangebot bleibt, wie es ist. Neu geschrieben werden nur die Felder, die von der Nische abhängen — Problem, Stolperstein und warum er zögern lässt.",
-      generate: "Entwurf erzeugen",
-      generating: "Liest die Liste...",
-      draftHint:
-        "Nichts davon ist gespeichert. Beim Speichern entsteht ein NEUES Angebot mit diesen Feldern; dein Standardangebot bleibt unangetastet.",
-      save: "Als eigenes Angebot speichern",
-      /** Hängt an den Listennamen. Der Name steht danach in der Angebotsauswahl,
-       *  also muss man dort sehen, woher er kommt. */
-      nameSuffix: "(aus Suche)",
-      saved: (name: string) => `Angebot „${name}" angelegt.`,
-      toOffer: "Zum Angebot",
-      noOffer:
-        "Dafür braucht die App zuerst dein Standardangebot: was du verkaufst, an wen und mit welchem Nutzen.",
-      noOfferLink: "Angebot anlegen",
-      noKey: "Dafür braucht die App deinen OpenAI-Schlüssel.",
-      noKeyLink: "Schlüssel eintragen",
-      running: "Die Suche läuft noch. Sobald die Firmen da sind, gibt es etwas zu lesen.",
-      noSummaries:
-        "Zu dieser Liste gibt es keine Firmenbeschreibungen — daraus lässt sich nichts ableiten.",
-    },
   },
   newSearchForm: {
     // Benannt nach dem, WAS gesucht wird, mit dem Anbieter dahinter. Muss mit
@@ -1672,6 +1647,25 @@ const de = {
     readWebsite: "Aus Website übernehmen",
     reading: "Liest...",
     suggestionsReady: (n: number) => `${n} Vorschläge aus der Website`,
+    /**
+     * Der zweite Kern: dasselbe Angebot, zugeschnitten auf EINE Lead-Liste.
+     * Noch nicht vom Texter gelesen.
+     */
+    fromSearch: {
+      heading: "Auf eine Lead-Liste zuschneiden",
+      subtitle:
+        "THAW liest die Firmen einer deiner Listen und schlägt dir vor, was an diesem Angebot für sie anders klingen sollte.",
+      open: "Liste wählen",
+      pickHeading: "Welche Liste?",
+      reading: "Liest die Liste...",
+      loading: "Lädt...",
+      noSearches: "Du hast noch keine Lead-Liste.",
+      running: "läuft noch",
+      suggestionLabel: "Vorschlag aus der Liste",
+      ready: (n: number) => `${n} Vorschläge aus der Liste`,
+      hint: "Vorgeschlagen werden Problem, Stolperstein, Grund und Zielgruppe neu — Ergebnis und Mechanismus nur anders formuliert. Deine Zahlen und dein Beleg bleiben unangetastet.",
+      nothing: "Aus dieser Liste ließ sich nichts ableiten.",
+    },
     fieldsHeading: "Das Angebot",
     completeness: (p: number) => `${p} % ausgefüllt`,
     neededForGeneration: "nötig",
@@ -2718,29 +2712,6 @@ const en: Dictionary = {
       validationError: "Name, at least one mailbox, and complete steps (subject + body) are required.",
       linkedHeading: "Linked Instantly campaign:",
       linkedHint: "Further edits (pausing, variants) currently happen directly in Instantly.",
-    },
-    /** The offer draft for exactly this list. */
-    offerDraft: {
-      eyebrow: "From this list",
-      heading: "Offer for this list",
-      description:
-        "Your default offer stays as it is. Only the fields that depend on the niche get rewritten — the problem, the friction, and why it makes buyers hesitate.",
-      generate: "Write a draft",
-      generating: "Reading the list...",
-      draftHint:
-        "None of this is saved yet. Saving creates a NEW offer with these fields; your default offer stays untouched.",
-      save: "Save as its own offer",
-      nameSuffix: "(from search)",
-      saved: (name: string) => `Offer "${name}" created.`,
-      toOffer: "Go to the offer",
-      noOffer:
-        "For this the app needs your default offer first: what you sell, to whom and with what benefit.",
-      noOfferLink: "Create an offer",
-      noKey: "For this the app needs your OpenAI key.",
-      noKeyLink: "Add the key",
-      running: "The search is still running. Once the companies are in, there is something to read.",
-      noSummaries:
-        "There are no researched company descriptions for this list — nothing to draw on.",
     },
   },
   newSearchForm: {
@@ -3885,6 +3856,23 @@ const en: Dictionary = {
     readWebsite: "Read from website",
     reading: "Reading...",
     suggestionsReady: (n: number) => `${n} suggestions from the website`,
+    /** The second core: the same offer, tailored to ONE lead list. Not yet
+     *  read by a copywriter. */
+    fromSearch: {
+      heading: "Tailor it to a lead list",
+      subtitle:
+        "THAW reads the companies on one of your lists and suggests what should sound different in this offer for them.",
+      open: "Pick a list",
+      pickHeading: "Which list?",
+      reading: "Reading the list...",
+      loading: "Loading...",
+      noSearches: "You do not have a lead list yet.",
+      running: "still running",
+      suggestionLabel: "Suggestion from the list",
+      ready: (n: number) => `${n} suggestions from the list`,
+      hint: "Problem, friction, reason and audience get rewritten — outcome and mechanism only get reworded. Your numbers and your proof stay untouched.",
+      nothing: "Nothing could be drawn from this list.",
+    },
     fieldsHeading: "The offer",
     completeness: (p: number) => `${p}% filled in`,
     neededForGeneration: "needed",

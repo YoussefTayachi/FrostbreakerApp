@@ -79,15 +79,39 @@ describe("buildOfferFromSearchPrompt", () => {
     expect(p).toContain("never material to quote");
   });
 
-  it("erzeugt nichts zu den Feldern, die aus dem Standardangebot uebernommen werden", () => {
-    // Der Micro-Yes und das Preview-Asset gehoeren dem Standardangebot. Stuenden
-    // sie im Prompt, wuerde das Modell sie irgendwann mit ausgeben -- und die
+  it("erzeugt nichts zu den Feldern, die aus dem Angebot uebernommen werden", () => {
+    // Der Micro-Yes und das Preview-Asset gehoeren dem Angebot. Stuenden sie im
+    // Prompt, wuerde das Modell sie irgendwann mit ausgeben -- und die
     // Uebernahme haette sie ueberschrieben.
     const p = buildOfferFromSearchPrompt(liste, angebot);
     expect(p).not.toContain("Soll ich sie dir schicken?");
     expect(p).not.toContain("Eine Aufnahme des Bestellwegs");
     expect(p).not.toContain("90 Sekunden");
+  });
+
+  it("haelt den Beleg vollstaendig aus dem Aufruf heraus", () => {
+    // proof ist die einzige Tatsachenbehauptung ueber den ABSENDER: eine je
+    // Liste "angepasste" Zahl waere eine erfundene Behauptung ueber sein
+    // Geschaeft. Der Wert geht nicht mit, und das Verbot steht ausdruecklich
+    // im Prompt.
+    const p = buildOfferFromSearchPrompt(liste, angebot);
     expect(p).not.toContain("40 Shops seit 2019");
+    expect(p).toContain("Do not return a 'proof' field");
+    expect(SEARCH_SUGGESTED_FIELDS).not.toContain("proof");
+    expect(parseOfferFromSearch('{"proof":"120 Shops seit 2015","problem":"Retouren"}')).toEqual({
+      problem: "Retouren",
+    });
+  });
+
+  it("laesst Ergebnis und Mechanismus umformulieren statt neu erfinden", () => {
+    const p = buildOfferFromSearchPrompt(liste, angebot);
+    // Beide Werte gehen als VORLAGE mit -- ohne sie waere "reframe" eine
+    // Anweisung ohne Gegenstand.
+    expect(p).toContain("in 14 Tagen 12 Prozent weniger");
+    expect(p).toContain("Wir raeumen den Bestellabschluss auf");
+    expect(p).toContain("REFRAME the sender's outcome");
+    expect(p).toContain("REFRAME the sender's mechanism");
+    expect(p).toContain("never change, add or drop a number");
   });
 
   it("zeigt die bisherigen drei Felder als das, was ersetzt werden soll", () => {
@@ -116,21 +140,24 @@ describe("buildOfferFromSearchPrompt", () => {
 });
 
 describe("parseOfferFromSearch", () => {
-  it("liest genau die vier Felder, auch aus einem Codeblock", () => {
+  it("liest genau die sechs Felder, auch aus einem Codeblock", () => {
     const raw =
-      '```json\n{"problem":"Retouren","friction":"Schein hinter Login","friction_reason":"Sie brechen ab","icp":"Supplement-Shops"}\n```';
+      '```json\n{"problem":"Retouren","friction":"Schein hinter Login","friction_reason":"Sie brechen ab","icp":"Supplement-Shops","outcome":"in 14 Tagen 12 Prozent weniger Retouren im Supplement-Abo","mechanism":"Wir raeumen den Weg vom Warenkorb zur Bestellung auf"}\n```';
     expect(parseOfferFromSearch(raw)).toEqual({
       problem: "Retouren",
       friction: "Schein hinter Login",
       friction_reason: "Sie brechen ab",
       icp: "Supplement-Shops",
+      outcome: "in 14 Tagen 12 Prozent weniger Retouren im Supplement-Abo",
+      mechanism: "Wir raeumen den Weg vom Warenkorb zur Bestellung auf",
     });
   });
 
-  it("ignoriert alles, was dem Standardangebot gehoert", () => {
-    // Der gefaehrlichste Fall: das Modell liefert einen Micro-Yes mit, und die
-    // Kopie ueberschreibt damit die Frage, die in allen vier Mails steht.
-    for (const feld of ["cta", "offering", "outcome", "proof", "tone"] as const) {
+  it("ignoriert alles, was dem Angebot gehoert", () => {
+    // Der gefaehrlichste Fall: das Modell liefert einen Micro-Yes mit und
+    // ueberschreibt damit die Frage, die in allen vier Mails steht. proof ist
+    // der zweite -- siehe den Test weiter oben.
+    for (const feld of ["cta", "offering", "proof", "tone", "preview_asset"] as const) {
       expect(SEARCH_SUGGESTED_FIELDS).not.toContain(feld);
     }
     expect(parseOfferFromSearch('{"cta":"Termin buchen?","problem":"Retouren"}')).toEqual({

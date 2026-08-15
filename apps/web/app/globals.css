@@ -164,6 +164,21 @@ body {
      Dunklen darf er stärker sein — dort ist Licht der Kontrast, auf Weiß ist
      es die Linie. */
   --fb-holo-halo-a: 0.2;
+  /* Die Zielgruppe: alles, was nicht das Angebot selbst betrifft, sondern die
+     eine Liste, an die es geschickt wird (der zweite THAW im Angebotsformular
+     und die Vorschläge, die aus einer Lead-Liste kommen).
+
+     Warum eine vierte Farbe und keine der drei vorhandenen: Frost und Mint
+     sind EINE Skala und bedeuten zusammen den Zustand des Angebots — ein
+     zweiter Kern in Frost hieße „dasselbe nochmal". Bernstein ist in dieser
+     Fläche bereits vergeben und heißt „hier hakt etwas"; ein Knopf in
+     Bernstein läse sich als Warnung. Violett steht in keiner der beiden
+     Bedeutungen und ist in beiden Themes eindeutig unterscheidbar.
+
+     Kontrast gerechnet, nicht geschätzt: #7c3aed auf Weiß sind 5,7:1,
+     #a78bfa auf --fb-inset (#0b1016) sind 7,1:1. Der helle Wert ist der
+     dunklere von beiden -- gleiche Begründung wie oben bei Frost und Mint. */
+  --fb-aim: #7c3aed;
 }
 
 .dark .fb-hud {
@@ -181,6 +196,7 @@ body {
   --fb-holo-a2: 0.68;
   --fb-holo-a3: 0.64;
   --fb-holo-halo-a: 0.55;
+  --fb-aim: #a78bfa;
 }
 
 /* ── EINE FLÄCHE DARF BREITER SEIN ALS EIN FORMULAR ───────────────────────

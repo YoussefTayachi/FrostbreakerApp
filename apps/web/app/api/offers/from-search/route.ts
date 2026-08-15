@@ -20,16 +20,23 @@ import {
  *
  * ZWEI TEILE, NUR EINER KOSTET
  *
- * Was der Absender verkauft und wie er klingt, steht bereits im
- * Standardangebot und wird hier NICHT neu erzeugt -- kein Website-Abruf, kein
- * zweiter Ton. Der Modellaufruf betrifft nur die vier Felder, die sich von
- * Liste zu Liste wirklich unterscheiden (siehe lib/copy/offer-from-search.ts).
+ * Was der Absender verkauft, worauf er sich beruft und wie er klingt, steht
+ * bereits im Angebot und wird hier NICHT neu erzeugt -- kein Website-Abruf,
+ * kein zweiter Ton, kein neuer Beleg. Der Modellaufruf betrifft nur die
+ * Felder, die von der Nische abhaengen (siehe lib/copy/offer-from-search.ts).
  *
- * Was zurueckkommt, wird NICHT gespeichert. Der Nutzer sieht die Felder,
- * aendert sie und legt daraus ein NEUES Angebot an; das Standardangebot bleibt
- * unangetastet. Gleiche Begruendung wie bei api/offers/from-website: ein falsch
- * gelesenes Feld vergiftet sonst unsichtbar jede Mail, die danach aus diesem
- * Angebot entsteht.
+ * DAS ANGEBOT KOMMT ALS ID MIT
+ *
+ * Und zwar das, das im Formular gerade offen steht -- nicht das
+ * Standardangebot. Grund: outcome und mechanism werden fuer diese Zielgruppe
+ * UMFORMULIERT, und eine Umformulierung des falschen Angebots waere keine
+ * Umformulierung, sondern ein fremder Satz.
+ *
+ * Was zurueckkommt, wird NICHT gespeichert. Es landet als Vorschlag unter dem
+ * jeweiligen Feld, und der Nutzer uebernimmt oder verwirft einzeln. Gleiche
+ * Begruendung wie bei api/offers/from-website: ein falsch gelesenes Feld
+ * vergiftet sonst unsichtbar jede Mail, die danach aus diesem Angebot
+ * entsteht.
  *
  * Der Aufruf laeuft hier und nicht im Worker: ein einzelner, interaktiver
  * Handgriff mit sofortiger Antwort.
@@ -49,7 +56,9 @@ export async function POST(req: Request) {
 
   const body = await req.json().catch(() => ({}));
   const searchId = (body?.searchId as string | undefined)?.trim();
+  const offerId = (body?.offerId as string | undefined)?.trim();
   if (!searchId) return NextResponse.json({ error: "searchId fehlt" }, { status: 400 });
+  if (!offerId) return NextResponse.json({ error: "offerId fehlt" }, { status: 400 });
 
   // Workspace-Filter zusaetzlich zur RLS: RLS regelt, auf welche Accounts
   // jemand zugreifen darf -- nicht, welcher der eigenen Workspaces gemeint ist
@@ -72,14 +81,11 @@ export async function POST(req: Request) {
   const { data: offerRow } = await supabase
     .from("offers")
     .select(OFFER_COLUMNS)
+    .eq("id", offerId)
     .eq("workspace_id", workspaceId)
-    .eq("is_default", true)
     .maybeSingle();
   if (!offerRow) {
-    return NextResponse.json(
-      { error: "Kein Standardangebot hinterlegt." },
-      { status: 404 }
-    );
+    return NextResponse.json({ error: "Angebot nicht gefunden." }, { status: 404 });
   }
   const offer = offerRow as unknown as Offer;
 

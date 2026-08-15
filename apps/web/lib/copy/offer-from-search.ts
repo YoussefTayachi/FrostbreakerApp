@@ -16,10 +16,9 @@
  * WAS HIER NICHT PASSIERT
  *
  * Kein zweiter Website-Abruf, keine neue Tonbestimmung, kein neuer Micro-Yes.
- * offering/outcome/mechanism/proof/preview_asset/review_time/cta/tone werden
- * aus dem Standardangebot UEBERNOMMEN, nicht neu erzeugt -- sie stehen hier nur
- * als Kontext im Prompt, damit die vier erzeugten Felder in derselben Welt und
- * im selben Ton landen.
+ * offering/proof/preview_asset/review_time/cta/tone werden aus dem Angebot
+ * UEBERNOMMEN, nicht neu erzeugt -- sie stehen hier nur als Kontext im Prompt,
+ * damit die erzeugten Felder in derselben Welt und im selben Ton landen.
  *
  * DIE ENTSCHEIDENDE EINSCHRAENKUNG
  *
@@ -38,17 +37,47 @@ import type { FilterLine } from "@/lib/search-filter-lines";
 import { parseSuggestionFields, type OfferSuggestion } from "./offer-from-website";
 
 /**
- * Die vier Felder, die sich von Liste zu Liste wirklich unterscheiden.
+ * Die Felder, die sich von Liste zu Liste unterscheiden -- in zwei Sorten.
  *
- * `icp` ist dabei der einzige optionale: das Standardangebot hat schon einen,
- * und die Liste darf ihn nur VERENGEN. Der Prompt sagt das, und ein leerer
- * String ist hier der Normalfall, nicht der Fehler.
+ * NEU GESCHRIEBEN werden problem, friction und friction_reason: woran diese
+ * Empfaenger haengen, steht in ihren Firmenbeschreibungen und nirgends sonst.
+ *
+ * UMFORMULIERT werden outcome und mechanism. Das Ergebnis und der Weg dorthin
+ * aendern sich nicht, wenn der Absender statt Zahnarztpraxen Shopify-Shops
+ * anschreibt -- was sich aendert, ist, welcher Teil davon zuerst genannt
+ * gehoert und in wessen Worten. Der Prompt sagt deshalb ausdruecklich
+ * "reframe", nicht "write": neue Tatsachen sind hier verboten, eine andere
+ * Betonung ist der ganze Zweck.
+ *
+ * `icp` ist der einzige optionale: das Angebot hat schon einen, und die Liste
+ * darf ihn nur VERENGEN. Ein leerer String ist hier der Normalfall, nicht der
+ * Fehler.
+ *
+ * ─────────────────────────────────────────────────────────────────────────
+ * WARUM `proof` HIER NIE STEHEN WIRD
+ * ─────────────────────────────────────────────────────────────────────────
+ *
+ * `proof` ist die einzige Tatsachenbehauptung ueber den ABSENDER in diesem
+ * Satz Felder: Referenzen, Jahre, Antwortquoten, Kundennamen. Ein Modell, das
+ * daran je Liste "die Betonung anpasst", schreibt in der zweiten Fassung eine
+ * andere Zahl hin -- und die steht danach als Beleg in jeder Mail an diese
+ * Liste. Das ist keine Formulierungsfrage mehr, sondern eine erfundene
+ * Behauptung ueber das Geschaeft des Absenders.
+ *
+ * Dieselbe Grenze wie in lib/offers.ts (proof ist bewusst keine Pflicht) und
+ * in lib/copy/offer-from-website.ts (dort darf proof nur enthalten, was
+ * woertlich auf der Seite steht): was nicht belegt ist, bleibt leer. Der
+ * Ausschluss gilt an drei Stellen zugleich -- proof fehlt in dieser Liste,
+ * der Prompt verbietet es ausdruecklich, und parseSuggestionFields wirft das
+ * Feld weg, falls das Modell es trotzdem liefert.
  */
 export const SEARCH_SUGGESTED_FIELDS: OfferTextField[] = [
   "problem",
   "friction",
   "friction_reason",
   "icp",
+  "outcome",
+  "mechanism",
 ];
 
 /**
@@ -126,9 +155,20 @@ export function buildOfferFromSearchPrompt(ctx: LeadListContext, offer: Offer): 
     // ein erfundenes Problem steht danach in jeder Mail an diese Liste und
     // faellt erst dem Empfaenger auf.
     "- Only use the filters and the company descriptions below. Never add industry knowledge of your own.",
+    "  The one exception is the sender's own outcome and mechanism: those are given below and you may",
+    "  only rephrase them, never extend them.",
     "- If the material does not support a field, return an empty string for it. Never guess.",
     "- Never invent numbers, percentages, revenue figures or client counts.",
-    "- These are descriptions of the RECIPIENTS. Write about what THEY struggle with, never about what the sender does.",
+    // Gilt ausdruecklich nur fuer die drei neu geschriebenen Felder: outcome
+    // und mechanism handeln naturgemaess davon, was der Absender tut.
+    "- For problem, friction and friction_reason: these describe the RECIPIENTS. Write about what THEY",
+    "  struggle with, never about what the sender does.",
+    // proof steht bewusst NICHT in der Feldliste weiter unten -- diese Zeile
+    // sagt es zusaetzlich, weil ein Modell sonst gelegentlich "hilfsbereit"
+    // einen Beleg mitliefert. Warum das hier dauerhaft verboten ist, steht bei
+    // SEARCH_SUGGESTED_FIELDS.
+    "- Never write about the sender's own track record. References, client counts, years in business and",
+    "  reply rates are not part of your answer. Do not return a 'proof' field.",
     "- One or two plain sentences per field. No marketing language, no bullet points.",
     "- Match the sender's voice below. Do not copy their sentences.",
     `- Write the values in ${sprache}.`,
@@ -148,21 +188,35 @@ export function buildOfferFromSearchPrompt(ctx: LeadListContext, offer: Offer): 
     "  and only if the material actually shows it. This is the field a model invents most easily. Prefer an empty string.",
     "- icp: ONLY if this list is narrower than the sender's own audience below. If it is the same audience,",
     "  return an empty string. Never widen it.",
+    // Die beiden einzigen Felder, die NICHT aus dem Material entstehen, sondern
+    // aus dem Angebot selbst. Deshalb steht hier "reframe" und nirgends
+    // "write": das Ergebnis und der Weg dorthin sind Tatsachen des Absenders,
+    // die Betonung ist es nicht.
+    "- outcome: REFRAME the sender's outcome below for this audience. Same result, same numbers, same",
+    "  timeframe -- only the emphasis and the wording change to what these companies would care about.",
+    "  Never add a fact the sender did not state and never change, add or drop a number.",
+    "  If their outcome is empty, or you would only hand it back unchanged, return an empty string.",
+    "- mechanism: REFRAME the sender's mechanism below for this audience. The mechanism itself does not",
+    "  change -- only which part of it comes first and in whose words. No new steps, no tool words,",
+    "  no product names. If their mechanism is empty, return an empty string.",
     "",
     "Answer with JSON only, no prose around it:",
-    '{"problem":"...","friction":"...","friction_reason":"...","icp":"..."}',
+    '{"problem":"...","friction":"...","friction_reason":"...","icp":"...","outcome":"...","mechanism":"..."}',
     "",
-    "THE SENDER (context for voice and scope, never material to quote):",
+    "THE SENDER (context for voice and scope; their sentences are never material to quote):",
     kontext("What they sell", offer.offering),
     kontext("Who they normally sell to", offer.icp),
-    kontext("What is different afterwards", offer.outcome),
-    kontext("How the result comes about", offer.mechanism),
+    kontext("Their outcome -- what is different afterwards", offer.outcome),
+    kontext("Their mechanism -- how the result comes about", offer.mechanism),
     kontext("Tone notes", offer.tone),
   ];
 
-  // Was heute in den drei Feldern steht, kommt ausdruecklich als "das ist die
-  // allgemeine Fassung" mit. Ohne diesen Block schreibt das Modell sie
-  // gelegentlich einfach ab -- und der ganze Aufruf haette nichts gebracht.
+  // Was heute in den drei NEU geschriebenen Feldern steht, kommt ausdruecklich
+  // als "das ist die allgemeine Fassung" mit. Ohne diesen Block schreibt das
+  // Modell sie gelegentlich einfach ab -- und der ganze Aufruf haette nichts
+  // gebracht. outcome und mechanism fehlen hier mit Absicht: sie stehen schon
+  // oben beim Absender, und dort sind sie die Vorlage und nicht das, was
+  // ersetzt wird.
   const bisher = [
     kontext("problem", offer.problem),
     kontext("friction", offer.friction),
@@ -171,7 +225,7 @@ export function buildOfferFromSearchPrompt(ctx: LeadListContext, offer: Offer): 
   if (bisher.length > 0) {
     zeilen.push(
       "",
-      "Their CURRENT, generic wording of the fields you are about to write.",
+      "Their CURRENT, generic wording of the three fields you are about to write from scratch.",
       "You are replacing these for this one list. Do not hand them back unchanged:",
       ...bisher.map((z) => `  ${z}`)
     );

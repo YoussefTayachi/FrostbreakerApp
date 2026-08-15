@@ -5,11 +5,9 @@ import { filterSuppressed } from "@/lib/suppression";
 import { getLangServer, formatDate } from "@/lib/i18n/lang";
 import { dict } from "@/lib/i18n/dict";
 import { searchSourceBadgeClass, searchSourceLabel } from "@/lib/search-source";
-import { OFFER_COLUMNS, type Offer } from "@/lib/offers";
 import LeadsTable from "../../leads/leads-table";
 import SearchSettings from "./search-settings";
 import CampaignLinkCard from "./campaign-link-card";
-import OfferDraftCard from "./offer-draft-card";
 import AutoRefresh from "../../auto-refresh";
 import LocalTime from "../../local-time";
 import SaveAsPreset from "./save-as-preset";
@@ -40,9 +38,6 @@ export default async function SearchDetailPage({
     instantlyKeyRes,
     localCampaignRes,
     offeneAufhaengerRes,
-    defaultOfferRes,
-    openaiKeyRes,
-    summaryCountRes,
   ] = await Promise.all([
     supabase.from("searches").select("*").eq("id", id).eq("workspace_id", workspaceId).single(),
     supabase
@@ -79,33 +74,6 @@ export default async function SearchDetailPage({
       .eq("search_id", id)
       .is("personalization", null)
       .not("website", "is", null),
-    /**
-     * Das Standardangebot -- Grundlage fuer den Listen-Entwurf daneben.
-     *
-     * Es wird ganz gelesen und nicht nur gezaehlt: die Kopie, die beim
-     * Speichern entsteht, uebernimmt alle seine Felder, und ein zweiter
-     * Rundgang zum Server allein dafuer waere eine Wartezeit ohne Gegenwert.
-     */
-    supabase
-      .from("offers")
-      .select(OFFER_COLUMNS)
-      .eq("workspace_id", workspaceId)
-      .eq("is_default", true)
-      .maybeSingle(),
-    supabase
-      .from("api_keys")
-      .select("provider")
-      .eq("workspace_id", workspaceId)
-      .eq("provider", "openai")
-      .maybeSingle(),
-    /** Gibt es zu dieser Liste ueberhaupt etwas zu lesen? Nur die Zahl -- die
-     *  Beschreibungen selbst holt die Route, die den Prompt baut. */
-    supabase
-      .from("businesses")
-      .select("id", { count: "exact", head: true })
-      .eq("workspace_id", workspaceId)
-      .eq("search_id", id)
-      .not("company_summary", "is", null),
   ]);
   const search = searchRes.data;
 
@@ -170,17 +138,11 @@ export default async function SearchDetailPage({
           />
         </div>
       </div>
-      {/* Zwischen Kopf und Kampagne, weil das die Reihenfolge der Arbeit ist:
-          erst wissen, was man diesen Firmen schreibt, dann die Kampagne
-          anlegen. */}
-      <OfferDraftCard
-        searchId={search.id}
-        searchName={search.name ?? search.query ?? ""}
-        running={search.status === "pending" || search.status === "running"}
-        hasOpenAiKey={!!openaiKeyRes.data}
-        hasSummaries={(summaryCountRes.count ?? 0) > 0}
-        defaultOffer={(defaultOfferRes.data as unknown as Offer | null) ?? null}
-      />
+      {/* Der Angebotsentwurf zu dieser Liste stand bis zum 2026-08-15 hier.
+          Er sitzt jetzt im Angebotsformular (app/offers/offers-editor.tsx):
+          zugeschnitten wird ein Angebot, das man dabei auch gleich sieht und
+          weiterschreibt -- hier war es eine zweite Stelle, an der Angebote
+          entstehen. */}
       <CampaignLinkCard
         searchId={search.id}
         hasInstantlyKey={!!instantlyKeyRes.data}
