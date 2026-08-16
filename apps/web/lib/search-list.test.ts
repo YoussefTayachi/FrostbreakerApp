@@ -12,6 +12,7 @@ const basis: SearchListRow = {
   max_results: 50, target_email_count: 50, created_at: "2026-08-09T12:09:00Z",
   archived_at: null, folder_id: null,
   businesses: 39, businesses_done: 39, contacts: 47, with_email: 47,
+  is_search_group: false, child_count: 0, children_done: 0, children_failed: 0,
 };
 const offen = { q: "", quelle: "", status: "", ordner: FILTER_ALL };
 

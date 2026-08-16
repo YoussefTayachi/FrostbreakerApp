@@ -97,6 +97,30 @@ describe("searchRowToPresetConfig -- Maps", () => {
     expect(c.maxRating).toBe("");
     expect(c.noWebsite).toBe(false);
   });
+
+  it("holt bei einer gebuendelten Suche die urspruenglichen Kommalisten zurueck", () => {
+    // Die Gruppen-Zeile traegt in query/location Zusammenfassungen fuers Auge
+    // (Migration 0096). Landeten die in der Vorlage, wuerde die naechste Suche
+    // nach dem Ort "15 Orte" fahnden.
+    const gruppe = {
+      source: "maps",
+      query: "Zahnarzt, Zahnklinik",
+      location: "15 Orte",
+      radius_m: 2000,
+      target_email_count: 300,
+      filters: {
+        group_queries: ["Zahnarzt", "Zahnklinik"],
+        group_locations: ["Amsterdam, Netherlands", "Rotterdam, Netherlands"],
+        group_target_email_count: 20,
+      },
+    };
+    const c = searchRowToPresetConfig(gruppe);
+    expect(c.query).toBe("Zahnarzt, Zahnklinik");
+    expect(c.location).toBe("Amsterdam, Netherlands, Rotterdam, Netherlands");
+    // Die Zielzahl PRO Teilsuche, nicht die Summe: 300 waere im Formularfeld
+    // (max. 20) ein ungueltiger Wert, den niemand getippt hat.
+    expect(c.targetEmails).toBe(20);
+  });
 });
 
 describe("searchRowToPresetConfig -- Corporate", () => {

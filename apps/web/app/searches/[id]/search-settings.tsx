@@ -7,11 +7,19 @@ import { useWorkspace } from "../../workspace-provider";
 
 export default function SearchSettings({
   searchId,
+  scheduleTargetIds,
   initialName,
   initialSchedule,
   initialInstantlyCampaignId,
 }: {
   searchId: string;
+  /**
+   * Wer das Abo traegt. Bei einer gewoehnlichen Suche sie selbst, bei einer
+   * gebuendelten Mehrfach-Suche ihre Teilsuchen (Migration 0096): die
+   * Gruppen-Huelle darf kein Abo bekommen, weil process_due_schedules im
+   * Worker daraufhin einen Suchlauf ohne Ort einreihen wuerde.
+   */
+  scheduleTargetIds: string[];
   initialName: string;
   initialSchedule: string;
   initialInstantlyCampaignId: string | null;
@@ -52,7 +60,7 @@ export default function SearchSettings({
     await createClient()
       .from("searches")
       .update({ schedule: value, next_run_at: nextRun })
-      .eq("id", searchId)
+      .in("id", scheduleTargetIds)
       .eq("workspace_id", workspaceId);
     router.refresh();
   }

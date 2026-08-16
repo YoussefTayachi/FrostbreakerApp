@@ -1,6 +1,7 @@
 "use client";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { groupScopeFilter, withChildIds } from "@/lib/search-group";
 import { useT } from "../language-provider";
 import { useToast } from "../toast-provider";
 import { useWorkspace } from "../workspace-provider";
@@ -34,10 +35,15 @@ export function TrashButton({ searchId }: { searchId: string }) {
         // schedule wird beim Loeschen mit zurueckgesetzt, damit der Worker
         // keine Abo-Suche im Papierkorb weiterlaufen laesst. Beim Rueckgaengig
         // bleibt es deshalb bewusst auf "none": das Abo muss neu gesetzt werden.
+        //
+        // groupScopeFilter statt .eq("id", …): bei einer gebuendelten
+        // Mehrfach-Suche haengen n Teilsuchen an dieser Zeile (Migration 0096).
+        // Ohne sie liefen die unsichtbar weiter, waehrend die Gruppe im
+        // Papierkorb liegt -- inklusive ihrer Abos.
         await createClient()
           .from("searches")
           .update({ deleted_at: new Date().toISOString(), schedule: "none" })
-          .eq("id", searchId)
+          .or(groupScopeFilter([searchId]))
           .eq("workspace_id", workspaceId);
         router.refresh();
         push(t.searchActions.trashed, "success", {
@@ -46,7 +52,7 @@ export function TrashButton({ searchId }: { searchId: string }) {
             await createClient()
               .from("searches")
               .update({ deleted_at: null })
-              .eq("id", searchId)
+              .or(groupScopeFilter([searchId]))
               .eq("workspace_id", workspaceId);
             router.refresh();
             push(t.searchActions.restored, "success");
@@ -113,7 +119,7 @@ export function RestoreButton({ searchId }: { searchId: string }) {
         await createClient()
           .from("searches")
           .update({ deleted_at: null })
-          .eq("id", searchId)
+          .or(groupScopeFilter([searchId]))
           .eq("workspace_id", workspaceId);
         router.refresh();
         push(t.searchActions.restored, "success");
@@ -135,7 +141,17 @@ export function HardDeleteButton({ searchId }: { searchId: string }) {
       onClick={async () => {
         if (!confirm(t.searchActions.hardDeleteConfirm)) return;
         const supabase = createClient();
-        await supabase.from("businesses").delete().eq("search_id", searchId).eq("workspace_id", workspaceId);
+        // Die Firmen haengen an den Teilsuchen, nicht an der Gruppe (Migration
+        // 0096) -- deren IDs muessen also wirklich vorliegen. Fuer die
+        // searches-Zeilen selbst genuegt der Fremdschluessel: parent_search_id
+        // loescht mit "on delete cascade".
+        const { data: kinder } = await supabase
+          .from("searches")
+          .select("id, parent_search_id")
+          .eq("workspace_id", workspaceId)
+          .eq("parent_search_id", searchId);
+        const alleIds = withChildIds([searchId], kinder ?? []);
+        await supabase.from("businesses").delete().in("search_id", alleIds).eq("workspace_id", workspaceId);
         await supabase.from("searches").delete().eq("id", searchId).eq("workspace_id", workspaceId);
         router.refresh();
         push(t.searchActions.hardDeleted, "success");
@@ -172,12 +188,21 @@ export function EmptyTrashButton({ searchIds }: { searchIds: string[] }) {
         // zwischen 3 und 45 Suchen sollte vor dem Klick klar sein.
         if (!confirm(t.searchActions.emptyTrashConfirm(searchIds.length))) return;
         const supabase = createClient();
+        // Die Teilsuchen gebuendelter Mehrfach-Suchen stehen nicht in der
+        // Papierkorb-Liste (die zeigt nur Gruppen), ihre Firmen muessen aber
+        // mit weg -- sonst bleiben sie als Waisen ohne Liste stehen.
+        const { data: kinder } = await supabase
+          .from("searches")
+          .select("id, parent_search_id")
+          .eq("workspace_id", workspaceId)
+          .in("parent_search_id", searchIds);
+        const alleIds = withChildIds(searchIds, kinder ?? []);
         // businesses zuerst: haengt an search_id, und ein Abbruch nach dem
         // Loeschen der Suche wuerde sie als Waisen zuruecklassen.
         const { error: bizError } = await supabase
           .from("businesses")
           .delete()
-          .in("search_id", searchIds)
+          .in("search_id", alleIds)
           .eq("workspace_id", workspaceId);
         if (bizError) {
           push(t.common.error + bizError.message, "error");

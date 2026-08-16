@@ -784,6 +784,16 @@ export default function NewSearchForm({
     const rawResults = estimateRawResults(targetEmails);
 
     let rows: Record<string, unknown>[];
+    /**
+     * Die Gruppen-Huelle einer gebuendelten Mehrfach-Suche, oder null.
+     *
+     * Sie wird VOR den Teilsuchen eingefuegt, damit deren parent_search_id auf
+     * eine existierende Zeile zeigen kann. Fuer sie feuert der Trigger keinen
+     * get_businesses-Job (Migration 0096) -- sie hat weder Ort noch Firmen und
+     * existiert allein, damit die Suchen-Seite EINEN Eintrag zeigt statt
+     * sechzig.
+     */
+    let groupRow: Record<string, unknown> | null = null;
     if (mode === "maps") {
       // Im Abdeckungs-Modus laeuft jede Teilsuche voll aus (20 Ziel-Leads /
       // 100 Firmen); gesteuert wird ueber die Anzahl der Staedte, nicht ueber
@@ -832,6 +842,54 @@ export default function NewSearchForm({
           ...(Object.keys(painPointFilters).length > 0 ? { filters: painPointFilters } : {}),
         }))
       );
+
+      /**
+       * Ab zwei Kombinationen: eine Huelle darueber.
+       *
+       * Bei genau einer Kombination bleibt alles wie bisher -- eine Gruppe fuer
+       * eine einzige Teilsuche waere zusaetzlicher Ballast im haeufigsten Fall
+       * und eine zweite Zeile, die jeder Sammelaktion erklaert werden muesste.
+       */
+      if (fanoutCount > 1) {
+        // Fuers Auge: die Ortsliste, solange sie in eine Zeile passt. Sechzig
+        // Staedte wuerden die Zeile in der Suchliste ueber drei Zeilen
+        // umbrechen -- dann lieber die Anzahl. Die vollstaendigen Listen stehen
+        // ohnehin in filters (siehe unten).
+        const alleOrte = effectiveLocations.join(", ");
+        groupRow = {
+          name: listName.trim() || null,
+          // Die Huelle traegt bewusst KEIN Abo: process_due_schedules im Worker
+          // (worker/main.py) sucht faellige Suchen allein ueber schedule und
+          // next_run_at und wuerde fuer sie einen get_businesses-Job einreihen.
+          // Das Abo haengt an den Teilsuchen; angezeigt wird es trotzdem an der
+          // Gruppe, search_overview holt es sich von dort (Migration 0096).
+          schedule: "none",
+          workspace_id: workspaceId, source: "maps", is_search_group: true,
+          query: queryList.join(", "),
+          location: alleOrte.length <= 120 ? alleOrte : t.newSearchForm.groupLocationCount(effectiveLocations.length),
+          // Die Summen ueber alle Teilsuchen. search_overview rechnet sie
+          // ohnehin aus den Kindern zusammen; hier stehen sie, damit auch die
+          // Zeile fuer sich genommen stimmt.
+          max_results: fanoutCount * mapsRaw,
+          target_email_count: fanoutCount * mapsTarget,
+          radius_m: radius,
+          filters: {
+            ...painPointFilters,
+            // Die Kommalisten, wie sie getippt wurden. query/location oben sind
+            // zusammengefasst und als Vorlage unbrauchbar -- ohne diese beiden
+            // wuerde "Suche wiederholen" auf einer gebuendelten Suche nach dem
+            // Ort "15 Orte" fahnden (siehe lib/search-presets.ts).
+            group_queries: queryList,
+            group_locations: effectiveLocations,
+            // Die Zielzahl PRO Teilsuche. target_email_count der Gruppe ist die
+            // Summe (bis 1200) und passt nicht in das Formularfeld, das bei 20
+            // gedeckelt ist -- eine Vorlage daraus wuerde einen Wert ausserhalb
+            // von min/max ins Zahlenfeld schreiben. Genau daran ist das
+            // Apollo-Zielfeld schon einmal gescheitert (stepMismatch).
+            group_target_email_count: mapsTarget,
+          },
+        };
+      }
     } else if (mode === "apollo") {
       const titleList = parseList(personTitles);
       if (!hasAnyApolloFilter(apolloFilters)) {
@@ -915,18 +973,34 @@ export default function NewSearchForm({
     const nextRun = days ? new Date(Date.now() + days * 86400000).toISOString() : null;
     rows = rows.map((r) => ({ ...r, next_run_at: nextRun }));
 
+    // RLS blockiert den Insert bei abgelaufener Testphase/fehlendem Abo
+    // (searches_owner_insert, Migration 0024) -- freundliche Meldung statt des
+    // rohen Postgres-Fehlertexts.
+    const meldeFehler = (fehler: { code?: string; message: string }) =>
+      push(fehler.code === "42501" ? t.newSearchForm.billingBlocked : fehler.message, "error");
+
     setLoading(true);
-    const { error } = await createClient().from("searches").insert(rows);
+    const supabase = createClient();
+    let parentId: string | null = null;
+    if (groupRow) {
+      const { data, error } = await supabase.from("searches").insert(groupRow).select("id").single();
+      if (error || !data) {
+        setLoading(false);
+        meldeFehler(error ?? { message: t.newSearchForm.groupCreateFailed });
+        return;
+      }
+      parentId = data.id as string;
+      rows = rows.map((r) => ({ ...r, parent_search_id: parentId }));
+    }
+    const { error } = await supabase.from("searches").insert(rows);
     setLoading(false);
     if (error) {
-      // RLS blockiert den Insert bei abgelaufener Testphase/fehlendem Abo
-      // (searches_owner_insert, Migration 0024) -- freundliche Meldung statt
-      // des rohen Postgres-Fehlertexts.
-      if (error.code === "42501") {
-        push(t.newSearchForm.billingBlocked, "error");
-      } else {
-        push(error.message, "error");
-      }
+      // Die Huelle steht schon, die Teilsuchen nicht: sie jetzt stehen zu
+      // lassen hiesse, dem Nutzer eine leere Liste hinzustellen, die nie etwas
+      // liefern wird. Sie hat keine Kinder und keinen Job -- Wegraeumen ist
+      // gefahrlos.
+      if (parentId) await supabase.from("searches").delete().eq("id", parentId).eq("workspace_id", workspaceId);
+      meldeFehler(error);
       return;
     }
     setQuery(""); setLocation(""); setKeywords(""); setCity(""); setUsState(""); setListName("");

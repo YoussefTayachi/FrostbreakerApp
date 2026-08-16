@@ -157,6 +157,10 @@ export default async function Dashboard({
       .select("*")
       .eq("workspace_id", workspaceId)
       .is("deleted_at", null)
+      // Nur Listen, die es auch auf der Suchen-Seite gibt: die Teilsuchen einer
+      // gebuendelten Mehrfach-Suche wuerden die sechs Plaetze hier komplett
+      // belegen und dabei sechsmal dasselbe zeigen (Migration 0096).
+      .is("parent_search_id", null)
       .order("created_at", { ascending: false })
       .limit(6),
     supabase

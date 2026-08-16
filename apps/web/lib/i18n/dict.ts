@@ -152,6 +152,12 @@ const de = {
     failed: "Fehlgeschlagen",
     failureReason: "Grund:",
     noResultReason: "Warum leer:",
+    // Gebuendelte Mehrfach-Suche (Migration 0096): eine Zeile, die fuer n
+    // Teilsuchen steht.
+    groupBadge: (teilsuchen: number) => `${teilsuchen} Teilsuchen`,
+    groupProgress: (fertig: number, gesamt: number) => `${fertig}/${gesamt} Teilsuchen fertig`,
+    groupFailed: (fehlgeschlagen: number, gesamt: number) =>
+      `${fehlgeschlagen} von ${gesamt} Teilsuchen fehlgeschlagen — die übrigen Leads sind vollständig in dieser Liste.`,
     searchingBusinesses: "Firmen werden gesucht",
     enriching: "Anreicherung",
     done: "Fertig",
@@ -402,6 +408,10 @@ const de = {
   searchDetail: {
     back: "← Alle Suchen",
     notFound: "Suche nicht gefunden.",
+    // Gebuendelte Mehrfach-Suche (Migration 0096): erklaert, warum hier Leads
+    // aus mehreren Orten in einer Liste stehen.
+    groupHint: (gesamt: number, fertig: number) =>
+      `Sammel-Liste aus ${gesamt} Teilsuchen · ${fertig} fertig. Die Leads aller Teilsuchen stehen zusammen in dieser Liste.`,
     usedFilters: "Verwendete Filter",
     filterYes: "ja",
     // Bewusst dieselben Woerter wie im Suchformular. Eigene Karte statt
@@ -552,6 +562,10 @@ const de = {
       `${count} einzelne Suchen mit je bis zu ${raw} Firmen wirklich jetzt starten (insgesamt bis zu ${count * raw})?`,
     fanoutTooMany: (max: number) =>
       `Zu viele Kombinationen aus Nischen und Orten: max. ${max} Suchen auf einmal.`,
+    // Ortsangabe der Gruppen-Zeile, wenn die Liste zu lang fuers Auge ist
+    // (Migration 0096). Die vollstaendige Liste steht in filters.
+    groupLocationCount: (orte: number) => `${orte} Orte`,
+    groupCreateFailed: "Die Sammel-Liste konnte nicht angelegt werden.",
     coverageToggle: "Land automatisch abdecken",
     coverageToggleHint:
       "Statt jede Stadt einzeln zu tippen: Land und Zielzahl wählen, die Städte kommen aus einer gepflegten Liste.",
@@ -2475,6 +2489,10 @@ const en: Dictionary = {
     failed: "Failed",
     failureReason: "Reason:",
     noResultReason: "Why empty:",
+    groupBadge: (teilsuchen: number) => `${teilsuchen} sub-searches`,
+    groupProgress: (fertig: number, gesamt: number) => `${fertig}/${gesamt} sub-searches done`,
+    groupFailed: (fehlgeschlagen: number, gesamt: number) =>
+      `${fehlgeschlagen} of ${gesamt} sub-searches failed — the leads from the rest are all in this list.`,
     searchingBusinesses: "Searching for companies",
     enriching: "Enriching",
     done: "Done",
@@ -2712,6 +2730,8 @@ const en: Dictionary = {
   },
   searchDetail: {
     back: "← All searches",
+    groupHint: (gesamt: number, fertig: number) =>
+      `Combined list from ${gesamt} sub-searches · ${fertig} done. The leads of all sub-searches sit together in this list.`,
     usedFilters: "Filters used",
     filterYes: "yes",
     filterLabels: {
@@ -2852,6 +2872,8 @@ const en: Dictionary = {
       `Really start ${count} separate searches with up to ${raw} companies each (up to ${count * raw} total)?`,
     fanoutTooMany: (max: number) =>
       `Too many niche × location combinations: max. ${max} searches at once.`,
+    groupLocationCount: (orte: number) => `${orte} locations`,
+    groupCreateFailed: "Could not create the combined list.",
     coverageToggle: "Cover a country automatically",
     coverageToggleHint:
       "Instead of typing every city: pick a country and a target, the cities come from a curated list.",

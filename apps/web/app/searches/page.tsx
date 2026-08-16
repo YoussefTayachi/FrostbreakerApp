@@ -4,6 +4,7 @@ import { getCurrentWorkspace } from "@/lib/workspace/server";
 import { getLangServer } from "@/lib/i18n/lang";
 import { dict } from "@/lib/i18n/dict";
 import type { SearchListRow } from "@/lib/search-list";
+import { parentByChild } from "@/lib/search-group";
 import AutoRefresh from "../auto-refresh";
 import SearchesList, { type Folder } from "./searches-list";
 import { EmptyTrashButton, HardDeleteButton, RestoreButton } from "./search-actions";
@@ -16,13 +17,17 @@ export default async function SearchesPage() {
   if (!ws) return <p className="text-faint">Kein Workspace gefunden.</p>;
   const workspaceId = ws.workspace.id;
 
-  const [{ data }, trashRes, instantlyStatsRes, failedJobsRes, foldersRes] = await Promise.all([
+  const [{ data }, trashRes, instantlyStatsRes, failedJobsRes, foldersRes, groupLinksRes] = await Promise.all([
     supabase.rpc("search_overview", { p_workspace_id: workspaceId }),
     supabase
       .from("searches")
       .select("id, name, query, location, deleted_at")
       .eq("workspace_id", workspaceId)
       .not("deleted_at", "is", null)
+      // Teilsuchen einer gebuendelten Mehrfach-Suche wandern mit ihrer Gruppe
+      // in den Papierkorb (Migration 0096). Sie dort einzeln aufzufuehren
+      // hiesse, aus einer geloeschten Liste einundsechzig Eintraege zu machen.
+      .is("parent_search_id", null)
       .order("deleted_at", { ascending: false }),
     supabase
       .from("instantly_campaign_stats")
@@ -44,6 +49,13 @@ export default async function SearchesPage() {
       .select("id, name, color")
       .eq("workspace_id", workspaceId)
       .order("created_at", { ascending: true }),
+    // Nur die Teilsuchen: gebraucht, um den Fehlgrund eines Kind-Jobs an der
+    // Gruppenzeile anzeigen zu koennen. Die Gruppe selbst hat keine Jobs.
+    supabase
+      .from("searches")
+      .select("id, parent_search_id")
+      .eq("workspace_id", workspaceId)
+      .not("parent_search_id", "is", null),
   ]);
   const searches = (data ?? []) as SearchListRow[];
   const folders = (foldersRes.data ?? []) as Folder[];
@@ -52,8 +64,12 @@ export default async function SearchesPage() {
   // Client-Komponente muss durch die Serialisierung, und eine Map kommt
   // drueben als leeres Objekt an.
   const errorBySearch: Record<string, string> = {};
+  // Ein fehlgeschlagener Job kennt nur die Teilsuche. Angezeigt wird aber die
+  // Gruppe -- ohne diese Umrechnung bliebe ihre Zeile kommentarlos rot.
+  const elternVon = parentByChild(groupLinksRes.data ?? []);
   for (const job of failedJobsRes.data ?? []) {
-    const searchId = (job.payload as { search_id?: string } | null)?.search_id;
+    const jobSearchId = (job.payload as { search_id?: string } | null)?.search_id;
+    const searchId = jobSearchId ? (elternVon[jobSearchId] ?? jobSearchId) : undefined;
     if (searchId && !errorBySearch[searchId]) errorBySearch[searchId] = job.last_error as string;
   }
   const statsBySearch = Object.fromEntries(

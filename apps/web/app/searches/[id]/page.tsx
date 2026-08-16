@@ -33,6 +33,7 @@ export default async function SearchDetailPage({
   // der falsche Kontext.
   const [
     searchRes,
+    kinderRes,
     contactsRes,
     suppressionRes,
     instantlyKeyRes,
@@ -40,6 +41,21 @@ export default async function SearchDetailPage({
     offeneAufhaengerRes,
   ] = await Promise.all([
     supabase.from("searches").select("*").eq("id", id).eq("workspace_id", workspaceId).single(),
+    /**
+     * Die Teilsuchen dieser Zeile, falls es eine gebuendelte Mehrfach-Suche ist
+     * (Migration 0096).
+     *
+     * Laeuft fuer JEDE Suchdetailseite mit, auch fuer gewoehnliche Suchen --
+     * dort kommt eine leere Liste zurueck. Das kostet eine indizierte Abfrage
+     * und erspart die Fallunterscheidung "erst nachsehen, ob es eine Gruppe
+     * ist, dann nochmal fragen", die jeden Seitenaufruf um eine Serverrunde
+     * verlaengert haette.
+     */
+    supabase
+      .from("searches")
+      .select("id, status, schedule")
+      .eq("workspace_id", workspaceId)
+      .eq("parent_search_id", id),
     supabase
       .from("contacts")
       .select("*, businesses!inner(name, website, personalization, company_summary, search_id, address, phone_national, decisionmaker_status, hunter_status)")
@@ -81,16 +97,75 @@ export default async function SearchDetailPage({
     return <p className="text-faint">{t.searchDetail.notFound}</p>;
   }
 
-  const contacts = filterSuppressed(contactsRes.data ?? [], suppressionRes.data ?? []);
+  /**
+   * Die Leads einer Gruppe stehen bei ihren Teilsuchen.
+   *
+   * An der Gruppen-Huelle selbst haengt keine einzige Firma -- ohne diesen
+   * zweiten Durchgang zeigte die Seite, in die man gerade wegen der Leads
+   * geklickt hat, eine leere Tabelle. Nur fuer Gruppen: bei einer
+   * gewoehnlichen Suche ist kinder leer und oben steht bereits alles.
+   */
+  const kinder = (kinderRes.data ?? []) as { id: string; status: string; schedule: string }[];
+  const istGruppe = kinder.length > 0;
+  const leadIds = istGruppe ? kinder.map((k) => k.id) : [id];
+  // Der zweite Durchgang laeuft nur fuer Gruppen. Die drei Abfragen aus dem
+  // ersten sind fuer sie in Sekundenbruchteilen leer zurueckgekommen -- an der
+  // Huelle haengt nichts -- und werden hier mit dem richtigen Umfang wiederholt.
+  const [gruppenContactsRes, gruppenAufhaengerRes, gruppenCampaignRes] = istGruppe
+    ? await Promise.all([
+        supabase
+          .from("contacts")
+          .select("*, businesses!inner(name, website, personalization, company_summary, search_id, address, phone_national, decisionmaker_status, hunter_status)")
+          .eq("workspace_id", workspaceId)
+          .in("businesses.search_id", leadIds)
+          .order("created_at", { ascending: false })
+          .limit(1000),
+        supabase
+          .from("businesses")
+          .select("id", { count: "exact", head: true })
+          .eq("workspace_id", workspaceId)
+          .in("search_id", leadIds)
+          .is("personalization", null)
+          .not("website", "is", null),
+        // Die Kampagne haengt an einer Teilsuche: api/instantly/campaigns
+        // schreibt campaigns.search_id und searches.instantly_campaign_id auf
+        // die ausgewaehlten IDs, und ausgewaehlt sind bei einer Gruppe ihre
+        // Kinder. Ohne diese Zeile boete die Karte darunter ewig an, eine
+        // zweite Kampagne fuer dieselben Leads anzulegen.
+        supabase
+          .from("campaigns")
+          .select("id, status")
+          .in("search_id", leadIds)
+          .eq("workspace_id", workspaceId)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle(),
+      ])
+    : [contactsRes, offeneAufhaengerRes, localCampaignRes];
+
+  const contacts = filterSuppressed(gruppenContactsRes.data ?? [], suppressionRes.data ?? []);
 
   // Solange die Suche laeuft oder noch ein Aufhaenger fehlt, holt sich die
   // Seite alle fuenf Sekunden den neuen Stand. Nach zehn Minuten hoert sie
   // auf: was dann noch fehlt, kommt nicht mehr von allein, und ein Tab, der
   // bis zum Abend weiterlaedt, hilft niemandem.
+  //
+  // Bei einer Gruppe zaehlt der Zustand der Teilsuchen. Ihr eigener bleibt
+  // lebenslang auf 'pending' (kein Worker fasst sie an) -- danach zu gehen
+  // hiesse, dass die Seite bis zum Timeout weiterlaedt.
   const nochInArbeit =
-    search.status === "pending" ||
-    search.status === "running" ||
-    (offeneAufhaengerRes.count ?? 0) > 0;
+    (istGruppe
+      ? kinder.some((k) => k.status === "pending" || k.status === "running")
+      : search.status === "pending" || search.status === "running") ||
+    (gruppenAufhaengerRes.count ?? 0) > 0;
+
+  // Das Abo haengt bei einer Gruppe an den Teilsuchen, nicht an der Huelle --
+  // siehe new-search-form.tsx: haette sie eins, wuerde process_due_schedules
+  // im Worker fuer sie einen Suchlauf ohne Ort einreihen.
+  const scheduleTargetIds = istGruppe ? leadIds : [id];
+  const schedule = istGruppe
+    ? (kinder.find((k) => k.schedule && k.schedule !== "none")?.schedule ?? "none")
+    : (search.schedule ?? "none");
 
   return (
     <div className="fade-up space-y-6">
@@ -102,8 +177,9 @@ export default async function SearchDetailPage({
         <div className="mt-1 flex flex-wrap items-center gap-2.5">
           <SearchSettings
             searchId={search.id}
+            scheduleTargetIds={scheduleTargetIds}
             initialName={search.name ?? search.query}
-            initialSchedule={search.schedule ?? "none"}
+            initialSchedule={schedule}
             initialInstantlyCampaignId={search.instantly_campaign_id ?? null}
           />
           <span
@@ -126,6 +202,17 @@ export default async function SearchDetailPage({
             })}
           />
         </p>
+        {/* Erklaert, warum in dieser einen Liste Leads aus mehreren Orten
+            stehen -- ohne den Satz sieht die Zusammenfassung wie ein Fehler
+            aus. */}
+        {istGruppe && (
+          <p className="mt-1 text-xs text-mute">
+            {t.searchDetail.groupHint(
+              kinder.length,
+              kinder.filter((k) => k.status === "completed").length
+            )}
+          </p>
+        )}
         {/* Beides beantwortet dieselbe Kundenfrage vom 2026-08-10 -- "was
             hatte ich nochmal ausgewaehlt": einmal zum Nachlesen, einmal zum
             Wiederverwenden. */}
@@ -144,10 +231,10 @@ export default async function SearchDetailPage({
           weiterschreibt -- hier war es eine zweite Stelle, an der Angebote
           entstehen. */}
       <CampaignLinkCard
-        searchId={search.id}
+        searchIds={leadIds}
         hasInstantlyKey={!!instantlyKeyRes.data}
-        localCampaign={localCampaignRes.data}
-        manuallyLinkedCampaignId={localCampaignRes.data ? null : (search.instantly_campaign_id ?? null)}
+        localCampaign={gruppenCampaignRes.data}
+        manuallyLinkedCampaignId={gruppenCampaignRes.data ? null : (search.instantly_campaign_id ?? null)}
         contactsWithEmailCount={contacts.filter((c) => !!c.email).length}
       />
       <LeadsTable

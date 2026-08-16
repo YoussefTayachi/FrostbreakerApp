@@ -42,6 +42,14 @@ import type { ProspeoFilters } from "./prospeo-query";
  *    Kombination, nicht die urspruengliche Kommaliste. Das ist die richtige
  *    Auslegung von "speichere mir DIESE Suche".
  *
+ *    Seit Migration 0096 haengen diese Zeilen an einer Gruppen-Huelle, und die
+ *    ist es auch, die man auf der Suchen-Seite anklickt. Deren query/location
+ *    sind fuer das Auge zusammengefasst ("15 Orte") und als Vorlage unbrauchbar
+ *    -- deshalb legt das Formular die urspruenglichen Kommalisten zusaetzlich
+ *    als group_queries/group_locations in filters ab, und von dort holt sie
+ *    diese Uebersetzung zurueck. "Suche wiederholen" auf einer gebuendelten
+ *    Suche fuellt das Formular damit wieder genau so, wie es abgeschickt wurde.
+ *
  * 3. Technologien ohne Slug beim jeweiligen Anbieter fehlen. Sie fehlen aber
  *    schon in der Suche selbst -- resolveTechnologies hat sie beim Anlegen
  *    fallen lassen. Hier geht nichts verloren, was vorher da gewesen waere.
@@ -138,13 +146,26 @@ function isMode(value: unknown): value is SearchMode {
 export function searchRowToPresetConfig(row: SearchRowForPreset): PresetConfig {
   const mode: SearchMode = isMode(row.source) ? row.source : "maps";
   const f = row.filters ?? {};
-  const ziel = row.target_email_count ?? row.max_results ?? DEFAULTS.targetEmails;
+  // Bei einer gebuendelten Suche ist target_email_count die SUMME ueber alle
+  // Teilsuchen (bis 1200). Ins Formularfeld gehoert die Zahl pro Teilsuche --
+  // das Feld ist bei 20 gedeckelt, und ein Wert darueber macht es ungueltig,
+  // ohne dass jemand ihn getippt haette.
+  const ziel =
+    (typeof f.group_target_email_count === "number" ? f.group_target_email_count : null) ??
+    row.target_email_count ??
+    row.max_results ??
+    DEFAULTS.targetEmails;
+
+  // Gebuendelte Mehrfach-Suche: die Kommalisten, wie sie getippt wurden. In
+  // der Gruppen-Zeile selbst stehen zusammengefasste Texte fuers Auge.
+  const gruppenNischen = strList(f.group_queries);
+  const gruppenOrte = strList(f.group_locations);
 
   const basis: PresetConfig = {
     mode,
     // Nur im Maps-Modus ist das die Eingabe des Nutzers, siehe Kopfkommentar.
-    query: mode === "maps" ? str(row.query) : "",
-    location: mode === "maps" ? str(row.location) : "",
+    query: mode === "maps" ? (gruppenNischen.join(", ") || str(row.query)) : "",
+    location: mode === "maps" ? (gruppenOrte.join(", ") || str(row.location)) : "",
     radius: row.radius_m ?? DEFAULTS.radius,
     targetEmails: ziel,
     noWebsite: f.pain_point_no_website === true,

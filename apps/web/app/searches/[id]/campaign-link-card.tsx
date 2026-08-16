@@ -18,13 +18,16 @@ export default async function CampaignLinkCard({
   localCampaign,
   manuallyLinkedCampaignId,
   contactsWithEmailCount,
-  searchId,
+  searchIds,
 }: {
   hasInstantlyKey: boolean;
   localCampaign: { id: string; status: string } | null;
   manuallyLinkedCampaignId: string | null;
   contactsWithEmailCount: number;
-  searchId: string;
+  /** Die Listen, aus denen die Kampagne ihre Empfaenger zieht. Bei einer
+   *  gebuendelten Mehrfach-Suche sind das ihre Teilsuchen und nicht sie selbst:
+   *  an der Gruppen-Huelle haengt keine Firma (Migration 0096). */
+  searchIds: string[];
 }) {
   const lang = await getLangServer();
   const t = dict[lang];
@@ -61,7 +64,7 @@ export default async function CampaignLinkCard({
 
   return (
     <Link
-      href={`/instantly/campaigns/new?searchId=${searchId}`}
+      href={`/instantly/campaigns/new?${searchIds.map((id) => `searchId=${id}`).join("&")}`}
       className="flex items-center justify-between rounded-lg border border-dashed border-edge3 px-4 py-3 text-sm text-faint transition-colors hover:border-sky-500/60 hover:text-sky-600 dark:hover:text-sky-400"
     >
       <span>{t.searchDetail.campaignBuilder.description(contactsWithEmailCount)}</span>

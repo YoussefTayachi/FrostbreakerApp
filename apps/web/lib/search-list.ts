@@ -28,6 +28,16 @@ export type SearchListRow = {
   businesses_done: number;
   contacts: number;
   with_email: number;
+  /**
+   * Gebuendelte Mehrfach-Suche (Migration 0096). Die vier Felder kommen aus
+   * search_overview: bei einer Einzelsuche ist is_search_group false und die
+   * Zaehler stehen auf 0, bei einer Gruppe sind alle Zahlen oben bereits die
+   * Summe ihrer Teilsuchen.
+   */
+  is_search_group: boolean;
+  child_count: number;
+  children_done: number;
+  children_failed: number;
 };
 
 export const FILTER_ALL = "__alle__";

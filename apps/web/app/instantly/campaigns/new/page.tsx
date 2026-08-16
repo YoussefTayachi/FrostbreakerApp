@@ -1,8 +1,9 @@
 "use client";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { pickPrimaryContactPerBusiness, splitByEngagement, splitBySendability } from "@/lib/contacts";
+import { groupPickerOptions } from "@/lib/search-group";
 import { filterSuppressed } from "@/lib/suppression";
 import { useT } from "../../../language-provider";
 import { useToast } from "../../../toast-provider";
@@ -11,7 +12,18 @@ import CampaignForm, { emptyCampaignFormValue, type CampaignFormValue } from "..
 import CampaignReadinessPanel, { type ReadinessResult } from "../campaign-readiness-panel";
 import GenerateSequence from "../generate-sequence";
 
-type SearchOption = { id: string; name: string | null; query: string; location: string; instantly_campaign_id: string | null };
+type SearchOption = {
+  id: string;
+  name: string | null;
+  query: string;
+  location: string;
+  instantly_campaign_id: string | null;
+  // Gebuendelte Mehrfach-Suche (Migration 0096): angeboten wird die Gruppe,
+  // ausgewaehlt werden ihre Teilsuchen -- an der Huelle selbst haengt keine
+  // einzige Firma. Siehe lib/search-group.ts.
+  parent_search_id: string | null;
+  is_search_group: boolean;
+};
 
 /** Vorschau auf die Menge, die tatsaechlich versendet wuerde -- dieselben
  *  Filter wie in api/instantly/campaigns (ungueltig, blockiert, kein
@@ -63,8 +75,21 @@ export default function NewCampaignPage() {
   const { workspaceId } = useWorkspace();
 
   const [searches, setSearches] = useState<SearchOption[] | null>(null);
-  const preselected = searchParams.get("searchId");
-  const [searchIds, setSearchIds] = useState<string[]>(preselected ? [preselected] : []);
+  /**
+   * Vorausgewaehlte Listen aus ?searchId=.
+   *
+   * Mehrfach erlaubt: eine gebuendelte Mehrfach-Suche schickt von ihrer
+   * Detailseite alle Teilsuchen mit, weil an ihrer eigenen ID keine Firmen
+   * haengen (Migration 0096). Der Umweg ueber den zusammengefuegten String
+   * haelt die Abhaengigkeit der Effekte unten stabil -- getAll() gibt bei
+   * jedem Rendern ein neues Array zurueck und wuerde sie endlos ausloesen.
+   */
+  const preselectedRaw = searchParams.getAll("searchId").join(",");
+  const preselected = useMemo(
+    () => (preselectedRaw ? preselectedRaw.split(",") : []),
+    [preselectedRaw]
+  );
+  const [searchIds, setSearchIds] = useState<string[]>(preselected);
   const [value, setValue] = useState<CampaignFormValue>(emptyCampaignFormValue());
   const [creating, setCreating] = useState(false);
   const [preview, setPreview] = useState<LeadPreview | null>(null);
@@ -101,8 +126,15 @@ export default function NewCampaignPage() {
     });
   }, []);
 
-  function toggleSearch(id: string) {
-    setSearchIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  /** Ein Haken kann mehrere Listen meinen: bei einer Gruppe sind es ihre
+   *  Teilsuchen. Alles dahinter -- Vorschau, Anlegen, campaign_searches --
+   *  arbeitet unveraendert mit echten Such-IDs weiter. */
+  function toggleSearch(ids: string[]) {
+    setSearchIds((prev) =>
+      ids.every((id) => prev.includes(id))
+        ? prev.filter((x) => !ids.includes(x))
+        : Array.from(new Set([...prev, ...ids]))
+    );
   }
 
   function forgetDraft() {
@@ -118,7 +150,7 @@ export default function NewCampaignPage() {
    *  Nutzer ueberhaupt auf dieser Seite steht. */
   function discardDraft() {
     forgetDraft();
-    setSearchIds(preselected ? [preselected] : []);
+    setSearchIds(preselected);
     setValue(emptyCampaignFormValue());
     setRestoreNotice(false);
   }
@@ -137,7 +169,7 @@ export default function NewCampaignPage() {
         // Eine per ?searchId= mitgebrachte Liste schlaegt den Entwurf nicht,
         // sie kommt dazu: wer aus einer Liste heraus hierher klickt, meint sie.
         const ids = draft.searchIds ?? [];
-        setSearchIds(preselected && !ids.includes(preselected) ? [...ids, preselected] : ids);
+        setSearchIds(Array.from(new Set([...ids, ...preselected])));
         setRestoreNotice(true);
       }
     } catch {
@@ -169,7 +201,7 @@ export default function NewCampaignPage() {
   useEffect(() => {
     createClient()
       .from("searches")
-      .select("id, name, query, location, instantly_campaign_id")
+      .select("id, name, query, location, instantly_campaign_id, parent_search_id, is_search_group")
       .eq("workspace_id", workspaceId)
       .is("deleted_at", null)
       .order("created_at", { ascending: false })
@@ -231,6 +263,19 @@ export default function NewCampaignPage() {
       cancelled = true;
     };
   }, [searchIds, workspaceId]);
+
+  /**
+   * Die angebotenen Listen: Teilsuchen verschwinden hinter ihrer Gruppe.
+   *
+   * Ohne das stuenden hier bei einer Laender-Abdeckung sechzig Zeilen "Nische ·
+   * Stadt" und eine leere Huelle dazwischen -- und wer die Huelle anhakt,
+   * bekaeme null Empfaenger.
+   */
+  const listenOptionen = useMemo(() => groupPickerOptions(searches ?? []), [searches]);
+  const listenNachId = useMemo(
+    () => new Map((searches ?? []).map((s) => [s.id, s])),
+    [searches]
+  );
 
   const blocked = (readiness?.blockers ?? 0) > 0;
 
@@ -317,8 +362,11 @@ export default function NewCampaignPage() {
         <p className="mb-2 text-xs text-faint">{F.searchHint}</p>
         {searches !== null && searches.length === 0 && <p className="text-xs text-faint">{F.noSearches}</p>}
         <div className="max-h-64 space-y-1 overflow-y-auto rounded-lg border border-edge2 bg-field p-2">
-          {(searches ?? []).map((s) => {
-            const linked = !!s.instantly_campaign_id;
+          {listenOptionen.map(({ row: s, searchIds: ids }) => {
+            // "Bereits verknuepft" gilt fuer eine Gruppe erst, wenn ALLE ihre
+            // Teilsuchen an einer Kampagne haengen -- die Verknuepfung schreibt
+            // die API auf die Teilsuchen, nie auf die Huelle.
+            const linked = ids.every((i) => !!listenNachId.get(i)?.instantly_campaign_id);
             return (
               <label
                 key={s.id}
@@ -329,9 +377,9 @@ export default function NewCampaignPage() {
               >
                 <input
                   type="checkbox"
-                  checked={searchIds.includes(s.id)}
+                  checked={ids.every((i) => searchIds.includes(i))}
                   disabled={linked}
-                  onChange={() => toggleSearch(s.id)}
+                  onChange={() => toggleSearch(ids)}
                 />
                 <span className="truncate">
                   {(s.name || s.query) + " · " + s.location}

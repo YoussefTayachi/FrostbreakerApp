@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { searchSourceBadgeClass, searchSourceLabel } from "@/lib/search-source";
 import { matchesSearchFilter, type SearchListRow } from "@/lib/search-list";
+import { groupScopeFilter } from "@/lib/search-group";
 import LocalTime from "../local-time";
 import { formatDate } from "@/lib/format-time";
 import { useT } from "../language-provider";
@@ -87,13 +88,21 @@ export default function SearchesList({
     });
   }
 
+  /**
+   * Eine Aenderung auf die ausgewaehlten Listen -- und auf ihre Teilsuchen.
+   *
+   * groupScopeFilter statt .in("id", ids): eine gebuendelte Mehrfach-Suche ist
+   * eine Zeile in der Anzeige, aber n+1 Zeilen in der Datenbank (Migration
+   * 0096). Ohne die Kinder wuerde Archivieren das Abo der Gruppe nur scheinbar
+   * anhalten und der Papierkorb sechzig weiterlaufende Teilsuchen zuruecklassen.
+   */
   async function aktualisieren(ids: string[], patch: Record<string, unknown>, meldung: string) {
     if (ids.length === 0) return;
     setBusy(true);
     const { error } = await createClient()
       .from("searches")
       .update(patch)
-      .in("id", ids)
+      .or(groupScopeFilter(ids))
       .eq("workspace_id", workspaceId);
     setBusy(false);
     if (error) {
@@ -142,7 +151,8 @@ export default function SearchesList({
     const { error } = await createClient()
       .from("searches")
       .update({ deleted_at: new Date().toISOString(), schedule: "none" })
-      .in("id", ids)
+      // Teilsuchen mit, siehe aktualisieren().
+      .or(groupScopeFilter(ids))
       .eq("workspace_id", workspaceId);
     setBusy(false);
     if (error) {
@@ -159,7 +169,7 @@ export default function SearchesList({
         await createClient()
           .from("searches")
           .update({ deleted_at: null })
-          .in("id", ids)
+          .or(groupScopeFilter(ids))
           .eq("workspace_id", workspaceId);
         router.refresh();
         push(S.restoredToast(ids.length), "success");
@@ -451,6 +461,9 @@ function SearchRow({
   const bounceRate =
     stat && stat.emails_sent_count > 0 ? (stat.bounced_count / stat.emails_sent_count) * 100 : null;
   const folder = folders.find((f) => f.id === s.folder_id);
+  /** Gruppe, bei der einzelne Teilsuchen ausgefallen sind -- der Rest der
+   *  Liste ist vollstaendig und soll nicht wie ein Totalausfall aussehen. */
+  const teilausfall = s.is_search_group && s.children_failed > 0 && s.status !== "failed";
 
   // Die ganze Zeile bleibt ein Link auf die Liste -- das ist der Weg, den
   // jemand neunmal von zehn geht. Alles, was daneben klickbar ist, muss den
@@ -489,6 +502,19 @@ function SearchRow({
             {folder && (
               <span className="rounded-full border border-edge2 bg-chip px-2 py-0.5 text-[11px] text-soft">
                 {folder.name}
+              </span>
+            )}
+            {/* Gebuendelte Mehrfach-Suche: eine Zeile, die fuer n Teilsuchen
+                steht. Ohne diesen Hinweis waere nicht erklaerbar, warum eine
+                einzelne "Suche" Leads aus fuenfzehn Staedten enthaelt --
+                sichtbar bleiben soll die Buendelung, nur eben nicht als
+                sechzig Eintraege. */}
+            {s.is_search_group && s.child_count > 0 && (
+              <span
+                title={S.groupProgress(s.children_done, s.child_count)}
+                className="rounded-full border border-edge2 bg-chip px-2 py-0.5 text-[11px] text-soft"
+              >
+                {S.groupBadge(s.child_count)}
               </span>
             )}
             {s.schedule !== "none" && (
@@ -547,10 +573,31 @@ function SearchRow({
               {S.cancelled}
             </span>
           ) : s.status !== "completed" ? (
-            <span className="flex items-center gap-1.5 text-xs text-blue-600 dark:text-blue-300">
-              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-blue-400" />
-              {S.searchingBusinesses}
-            </span>
+            // Bei einer Gruppe sagt "Firmen werden gesucht" allein nichts: das
+            // steht bei sechzig Teilsuchen unter Umstaenden eine Stunde lang
+            // da. Der Balken zaehlt die fertigen Teilsuchen -- die einzige
+            // Zahl, die sich hier sichtbar bewegt.
+            s.is_search_group && s.child_count > 0 ? (
+              <div title={S.groupProgress(s.children_done, s.child_count)}>
+                <div className="mb-1 flex justify-between text-[11px] text-faint">
+                  <span>{S.searchingBusinesses}</span>
+                  <span>
+                    {s.children_done}/{s.child_count}
+                  </span>
+                </div>
+                <div className="h-1.5 overflow-hidden rounded-full bg-chip">
+                  <div
+                    className="h-full rounded-full bg-blue-400 transition-all"
+                    style={{ width: Math.round((s.children_done / s.child_count) * 100) + "%" }}
+                  />
+                </div>
+              </div>
+            ) : (
+              <span className="flex items-center gap-1.5 text-xs text-blue-600 dark:text-blue-300">
+                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-blue-400" />
+                {S.searchingBusinesses}
+              </span>
+            )
           ) : enriching ? (
             <div>
               <div className="mb-1 flex justify-between text-[11px] text-faint">
@@ -600,10 +647,29 @@ function SearchRow({
         </button>
         <TrashButton searchId={s.id} />
       </div>
-      {error && (
-        <p className="mt-3 rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-xs leading-relaxed text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-300">
-          <span className="font-medium">{S.failureReason}</span> {error}
+      {/* Ausgefallene Teilsuchen als Zahl, nicht als roter Kasten: bei sechzig
+          Kombinationen ist eine Stadt ohne Treffer der Normalfall, und der
+          Grund der einen gilt fuer die anderen neunundfuenfzig nicht
+          (Migration 0096). Deshalb steht die Gruppe auch nur dann auf
+          "fehlgeschlagen", wenn ALLE Teilsuchen gescheitert sind. Der Grund
+          aus jobs.last_error haengt hinten dran -- er stammt von einer der
+          ausgefallenen Teilsuchen und erklaert in der Regel alle. */}
+      {teilausfall ? (
+        <p className="mt-3 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs leading-relaxed text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
+          {S.groupFailed(s.children_failed, s.child_count)}
+          {error && (
+            <>
+              {" "}
+              <span className="font-medium">{S.failureReason}</span> {error}
+            </>
+          )}
         </p>
+      ) : (
+        error && (
+          <p className="mt-3 rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-xs leading-relaxed text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-300">
+            <span className="font-medium">{S.failureReason}</span> {error}
+          </p>
+        )
       )}
       {s.note && !error && (
         <p className="mt-3 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs leading-relaxed text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
