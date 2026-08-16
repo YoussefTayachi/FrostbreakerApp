@@ -1418,6 +1418,9 @@ const de = {
         saving: "Speichert…",
         saved: "Änderungen gespeichert",
         validationError: "Lead-Quelle, Name, mindestens eine Mailbox und vollständige Schritte (Betreff + Text) erforderlich.",
+        draftRestored: "Entwurf von deinem letzten Besuch wiederhergestellt.",
+        draftDiscard: "Von vorn anfangen",
+        draftDismiss: "Hinweis ausblenden",
         quality: {
           heading: "Textqualität",
           showDetails: "Details",
@@ -3638,6 +3641,9 @@ const en: Dictionary = {
         saving: "Saving…",
         saved: "Changes saved",
         validationError: "Lead source, name, at least one mailbox, and complete steps (subject + body) are required.",
+        draftRestored: "Draft restored from your last visit.",
+        draftDiscard: "Start over",
+        draftDismiss: "Dismiss notice",
         quality: {
           heading: "Copy quality",
           showDetails: "Details",

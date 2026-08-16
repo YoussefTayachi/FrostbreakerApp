@@ -19,6 +19,41 @@ type SearchOption = { id: string; name: string | null; query: string; location: 
  *  als die spaeter tatsaechlich angelegte Kampagne. */
 type LeadPreview = { sendable: number; invalid: number };
 
+/**
+ * Der halbfertige Entwurf im Browser.
+ *
+ * Postfaecher waehlen, vier Stufen erzeugen, drueberlesen, Zeitplan setzen --
+ * das dauert Minuten, und bis hierher war jeder Klick auf einen anderen
+ * Menuepunkt der Verlust von allem: die Seite haelt ihren Zustand in React,
+ * und React unmountet sie beim Routenwechsel.
+ *
+ * Bewusst nur localStorage und bewusst nur dieser eine Fluss. Server-seitige
+ * Entwuerfe waeren eine Tabelle, eine Migration und die Frage, wann sie
+ * aufgeraeumt wird -- fuer ein Formular, das in derselben Sitzung fertig wird.
+ *
+ * Der Schluessel haengt am Workspace: sonst taucht der Entwurf der einen
+ * Agentur-Kundschaft im Formular der naechsten auf.
+ */
+const DRAFT_KEY = "thaw:campaign-draft:";
+type CampaignDraft = { searchIds: string[]; value: CampaignFormValue };
+
+/**
+ * Lohnt sich das Speichern ueberhaupt?
+ *
+ * Ein unangetastetes Formular zu sichern hiesse, beim naechsten Besuch
+ * "Entwurf wiederhergestellt" ueber leere Felder zu schreiben. Gezaehlt wird
+ * nur, was der Nutzer selbst getan haben muss -- Zeitplan und Messung sind
+ * vorbelegt und sagen nichts darueber aus, ob hier jemand gearbeitet hat.
+ */
+function hatInhalt(searchIds: string[], v: CampaignFormValue): boolean {
+  return (
+    searchIds.length > 0 ||
+    v.name.trim().length > 0 ||
+    v.mailboxes.length > 0 ||
+    v.steps.some((s) => s.variants.some((x) => x.subject.trim().length > 0 || x.body.trim().length > 0))
+  );
+}
+
 export default function NewCampaignPage() {
   const { t } = useT();
   const F = t.instantly.campaigns.form;
@@ -47,6 +82,16 @@ export default function NewCampaignPage() {
    *  damit das Nachschaerfen denselben Zusammenhang kennt. */
   const [offerId, setOfferId] = useState<string | null>(null);
   const handleOfferChange = useCallback((id: string | null) => setOfferId(id), []);
+  /**
+   * Der wiederhergestellte Entwurf und der Workspace, fuer den er geholt
+   * wurde.
+   *
+   * `restoredFor` ist die Bremse fuers Speichern: erst wenn fuer DIESEN
+   * Workspace gelesen wurde, darf geschrieben werden. Sonst kippt der leere
+   * Anfangszustand den gespeicherten Entwurf, bevor er ankommt.
+   */
+  const [restoredFor, setRestoredFor] = useState<string | null>(null);
+  const [restoreNotice, setRestoreNotice] = useState(false);
 
   const handleReadiness = useCallback((r: ReadinessResult | null) => {
     setReadiness((prev) => {
@@ -59,6 +104,67 @@ export default function NewCampaignPage() {
   function toggleSearch(id: string) {
     setSearchIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
   }
+
+  function forgetDraft() {
+    try {
+      localStorage.removeItem(DRAFT_KEY + workspaceId);
+    } catch {
+      // Gesperrter Storage: dann gab es auch nichts zu loeschen.
+    }
+  }
+
+  /** Von vorn anfangen: der Entwurf ist weg, das Formular wieder leer. Die
+   *  per ?searchId= mitgebrachte Liste bleibt -- sie ist der Grund, warum der
+   *  Nutzer ueberhaupt auf dieser Seite steht. */
+  function discardDraft() {
+    forgetDraft();
+    setSearchIds(preselected ? [preselected] : []);
+    setValue(emptyCampaignFormValue());
+    setRestoreNotice(false);
+  }
+
+  // Entwurf holen. Laeuft vor dem Speichern-Effekt und setzt restoredFor --
+  // ohne diese Reihenfolge ueberschreibt der leere Anfangszustand das
+  // Gespeicherte, bevor es im Formular ankommt.
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(DRAFT_KEY + workspaceId);
+      const draft = raw ? (JSON.parse(raw) as CampaignDraft) : null;
+      if (draft?.value) {
+        // Fehlende Felder aus dem Leerwert auffuellen: ein Entwurf von vor
+        // einer Formularerweiterung darf kein undefined ins Formular tragen.
+        setValue({ ...emptyCampaignFormValue(), ...draft.value });
+        // Eine per ?searchId= mitgebrachte Liste schlaegt den Entwurf nicht,
+        // sie kommt dazu: wer aus einer Liste heraus hierher klickt, meint sie.
+        const ids = draft.searchIds ?? [];
+        setSearchIds(preselected && !ids.includes(preselected) ? [...ids, preselected] : ids);
+        setRestoreNotice(true);
+      }
+    } catch {
+      // Kaputter oder gesperrter Storage (Privatmodus): dann eben ohne
+      // Entwurf. Ein leeres Formular ist hier kein Fehlerfall.
+    }
+    setRestoredFor(workspaceId);
+  }, [workspaceId, preselected]);
+
+  // Entwurf sichern. Verzoegert, weil er einen Seitenwechsel ueberleben muss
+  // und nicht jeden Tastendruck.
+  useEffect(() => {
+    if (restoredFor !== workspaceId) return;
+    const timer = setTimeout(() => {
+      try {
+        if (hatInhalt(searchIds, value)) {
+          localStorage.setItem(DRAFT_KEY + workspaceId, JSON.stringify({ searchIds, value } satisfies CampaignDraft));
+        } else {
+          localStorage.removeItem(DRAFT_KEY + workspaceId);
+        }
+      } catch {
+        // Voller oder gesperrter Storage. Der Entwurf ist eine Bequemlichkeit
+        // und kein Grund, das Anlegen scheitern zu lassen.
+      }
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [restoredFor, workspaceId, searchIds, value]);
 
   useEffect(() => {
     createClient()
@@ -169,6 +275,9 @@ export default function NewCampaignPage() {
         body.skipped_unverified > 0 ? `${F.created} · ${F.previewSkipped(body.skipped_unverified)}` : F.created,
         "success"
       );
+      // Die Kampagne steht, der Entwurf hat sich erledigt: sonst begruesst er
+      // beim naechsten Anlegen mit einer Sequenz, die schon verschickt wird.
+      forgetDraft();
       router.push(`/instantly/campaigns/${body.campaign_id}`);
     } else {
       push(t.common.error + (body.error ?? res.status), "error");
@@ -180,6 +289,28 @@ export default function NewCampaignPage() {
       <div>
         <h1 className="text-2xl font-semibold tracking-tight text-ink">{t.instantly.campaigns.newPageTitle}</h1>
       </div>
+
+      {/* Steht ganz oben, weil es erklaert, warum in den Feldern schon etwas
+          steht. Ohne den Hinweis waere das Wiederherstellen eine stille
+          Ueberraschung -- und niemand traut Feldern, die sich selbst
+          ausfuellen. */}
+      {restoreNotice && (
+        <div className="flex items-start justify-between gap-3 rounded-lg border border-edge2 bg-field px-3 py-2 text-xs text-faint">
+          <span>{F.draftRestored}</span>
+          <div className="flex shrink-0 items-center gap-3">
+            <button
+              type="button"
+              onClick={discardDraft}
+              className="font-medium text-sky-600 hover:text-sky-500 dark:text-sky-400"
+            >
+              {F.draftDiscard}
+            </button>
+            <button type="button" onClick={() => setRestoreNotice(false)} aria-label={F.draftDismiss}>
+              ×
+            </button>
+          </div>
+        </div>
+      )}
 
       <div>
         <p className="mb-1.5 text-xs font-medium text-faint">{F.searchLabel}</p>
