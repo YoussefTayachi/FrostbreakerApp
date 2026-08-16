@@ -147,7 +147,7 @@ export function ownWordBudget(personalizationWords: number): number {
  * ausdruecklich. Ein erfundener Name unter einer Geschaeftsmail ist schlimmer
  * als gar keiner.
  */
-export function signatureFor(offer: Offer, senderName: string | null): string {
+export function signatureFor(offer: Pick<Offer, "signature" | "language">, senderName: string | null): string {
   const eigene = offer.signature.trim();
   if (eigene) return eigene;
   const name = (senderName ?? "").trim();
@@ -487,6 +487,8 @@ export type SequenceProblem =
   | { kind: "variantsTooSimilar"; step: number }
   | { kind: "noParagraphs"; step: number }
   | { kind: "noGreeting"; step: number }
+  /** Die Stufe endet ohne die hinterlegte Unterschrift. */
+  | { kind: "missingSignature"; step: number }
   | { kind: "personalizationLeadIn"; text: string }
   // ── Playbook ────────────────────────────────────────────────────────────
   /** Die Stufe reisst ihre Wortgrenze. */
@@ -537,13 +539,18 @@ export function sequenceProblems(
   opts: SequenceOptions,
   /**
    * Das Angebot, aus dem der Entwurf entstanden ist. Optional, weil die
-   * Pruefung ohne es weiterlaufen muss -- ohne es fallen nur zwei Befunde aus
-   * (Betreff-Spiegel und Abschrift), und ein Ausfall ist besser als ein
-   * geratener Befund.
+   * Pruefung ohne es weiterlaufen muss -- ohne es fallen nur drei Befunde aus
+   * (Betreff-Spiegel, Abschrift und fehlende Unterschrift), und ein Ausfall
+   * ist besser als ein geratener Befund.
    */
-  offer?: Pick<Offer, OfferTextField>
+  offer?: Pick<Offer, OfferTextField | "signature" | "language">
 ): SequenceProblem[] {
   const microYes = offer?.cta;
+  // Dieselbe Unterschrift, die buildSequencePrompt vorgibt -- aus derselben
+  // Funktion, damit Auftrag und Nachmessung nicht auseinanderlaufen koennen.
+  // Ist sie leer, gibt es nichts zu pruefen: dann SOLL die Mail ohne
+  // Unterschrift enden, statt einen Namen zu erfinden (siehe signatureFor).
+  const signatur = offer ? signatureFor(offer, opts.senderName) : "";
   // Die Felder, deren woertliche Uebernahme auffaellt. tone bleibt draussen:
   // "direkt, kein Hype" taucht nie in einer Mail auf, und proof SOLL zitiert
   // werden duerfen -- eine Referenz ist eine Tatsache, keine Notiz.
@@ -576,6 +583,12 @@ export function sequenceProblems(
     // 2026-08-12 hatte weder Anrede noch Gruss.
     if (step.variants.some((v) => !hatAnrede(v.body))) {
       problems.push({ kind: "noGreeting", step: i + 1 });
+    }
+    // Und die andere Haelfte desselben Falls: der Gruss. Der Prompt verlangt
+    // die Unterschrift woertlich, geprueft wurde bisher nur die Anrede -- eine
+    // Mail, die mitten in der Frage aufhoert, sieht abgeschnitten aus.
+    if (signatur && step.variants.some((v) => !hatSignatur(v.body, signatur))) {
+      problems.push({ kind: "missingSignature", step: i + 1 });
     }
     // Absaetze: erst ab einer Laenge, ab der ein Block wirklich stoert.
     if (
@@ -657,7 +670,7 @@ export function sequenceProblems(
     if (i > 0 && steps[0]) {
       const abgewichen = step.variants.some((v, k) => {
         const erste = steps[0].variants[k];
-        return erste && normBetreff(v.subject) !== normBetreff(erste.subject);
+        return erste && normVergleich(v.subject) !== normVergleich(erste.subject);
       });
       if (abgewichen) problems.push({ kind: "subjectDrift", step: i + 1 });
     }
@@ -748,9 +761,30 @@ function hatAnrede(body: string): boolean {
   return ersteZeile.includes("{{firstName}}");
 }
 
-/** Betreffe vergleichbar machen: Kleinschreibung, Satzzeichen weg, ein
- *  Leerzeichen. Ein nachgestelltes Fragezeichen ist keine Abweichung. */
-function normBetreff(s: string): string {
+/**
+ * Steht die hinterlegte Unterschrift unter der Mail?
+ *
+ * Verglichen wird normalisiert und nicht woertlich, aus zwei gemessenen
+ * Gruenden (2026-08-16, an den erzeugten Entwuerfen nachgesehen): das Modell
+ * haengt gern ein Komma an den Gruss ("Beste Grüße," statt "Beste Grüße") und
+ * setzt die Zeilen der Signatur anders um. Beides ist dieselbe Unterschrift.
+ * Was zaehlt, ist die Wortfolge -- und die muss vollstaendig vorkommen, weil
+ * der Prompt sie woertlich vorgibt.
+ */
+function hatSignatur(body: string, signature: string): boolean {
+  const nadel = normVergleich(signature);
+  if (!nadel) return true;
+  return normVergleich(body).includes(nadel);
+}
+
+/**
+ * Text vergleichbar machen: Kleinschreibung, Satzzeichen weg, ein Leerzeichen.
+ *
+ * Beim Betreff heisst das: ein nachgestelltes Fragezeichen ist keine
+ * Abweichung. Bei der Signatur: Zeilenumbrueche fallen zu Leerzeichen
+ * zusammen, ein mehrzeiliger Gruss laesst sich damit am Stueck suchen.
+ */
+function normVergleich(s: string): string {
   return s
     .toLowerCase()
     .replace(/[^\p{L}\p{N}\s]/gu, " ")
@@ -805,6 +839,8 @@ export function correctionInstruction(problems: SequenceProblem[]): string {
         return `- The two variants of step ${p.step} say the same thing. Rewrite variant B with a different angle and a different question.`;
       case "noGreeting":
         return `- Step ${p.step} has no greeting. Start it with a greeting line containing {{firstName}}, followed by a blank line.`;
+      case "missingSignature":
+        return `- Step ${p.step} does not end with the signature you were given. Put it back, word for word, on its own lines after the question.`;
       case "noParagraphs":
         return `- Step ${p.step} is one solid block. Break it into paragraphs of one to three sentences, separated by blank lines.`;
       case "personalizationLeadIn":

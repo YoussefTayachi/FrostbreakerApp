@@ -227,6 +227,7 @@ type ProblemTexte = {
   dash: (step: number) => string;
   variantsTooSimilar: (step: number) => string;
   noGreeting: (step: number) => string;
+  missingSignature: (step: number) => string;
   noParagraphs: (step: number) => string;
   personalizationLeadIn: (text: string) => string;
   stepTooLong: (step: number, words: number, max: number) => string;
@@ -261,6 +262,8 @@ function problemText(p: SequenceProblem, T: ProblemTexte): string {
       return T.variantsTooSimilar(p.step);
     case "noGreeting":
       return T.noGreeting(p.step);
+    case "missingSignature":
+      return T.missingSignature(p.step);
     case "noParagraphs":
       return T.noParagraphs(p.step);
     case "personalizationLeadIn":

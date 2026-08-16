@@ -1824,6 +1824,7 @@ const de = {
       variantsTooSimilar: (step: number) =>
         `Die zwei Fassungen von Stufe ${step} sagen dasselbe — so misst der Vergleich nichts.`,
       noGreeting: (step: number) => `Stufe ${step} hat keine Anrede.`,
+      missingSignature: (step: number) => `Stufe ${step} endet ohne deine Unterschrift.`,
       noParagraphs: (step: number) => `Stufe ${step} ist ein Block ohne Absätze.`,
       personalizationLeadIn: (text: string) =>
         `„${text}" steht vor dem Aufhänger — der ist schon ein ganzer Satz und braucht keine Einleitung.`,
@@ -4022,6 +4023,7 @@ const en: Dictionary = {
       variantsTooSimilar: (step: number) =>
         `The two variants of step ${step} say the same thing — the comparison measures nothing.`,
       noGreeting: (step: number) => `Step ${step} has no greeting.`,
+      missingSignature: (step: number) => `Step ${step} ends without your signature.`,
       noParagraphs: (step: number) => `Step ${step} is one block without paragraphs.`,
       personalizationLeadIn: (text: string) =>
         `"${text}" sits in front of the opening line — that line is already a full sentence and needs no lead-in.`,

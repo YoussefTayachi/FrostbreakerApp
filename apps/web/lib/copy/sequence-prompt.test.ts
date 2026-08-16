@@ -394,6 +394,44 @@ describe("sequenceProblems", () => {
     expect(sequenceProblems(s, opts)).toContainEqual({ kind: "noGreeting", step: 1 });
   });
 
+  it("meldet eine fehlende Unterschrift", () => {
+    // Die andere Haelfte des Falls vom 2026-08-12 ("weder Anrede noch Gruss"):
+    // geprueft wurde bisher nur die Anrede. Die Stufen 3 und 4 der Beispiel-
+    // sequenz enden absichtlich ohne Gruss und fallen damit auf, sobald eine
+    // Signatur hinterlegt ist.
+    const mitSignatur = { ...angebot, signature: "Beste Grüße\nYoussef" };
+    const befunde = sequenceProblems(guelteSequenz(), opts, mitSignatur);
+    expect(befunde).toContainEqual({ kind: "missingSignature", step: 3 });
+    expect(befunde).toContainEqual({ kind: "missingSignature", step: 4 });
+    // Stufe 1 und 2 tragen sie -- die duerfen nicht mitgemeldet werden.
+    expect(befunde.filter((p) => p.kind === "missingSignature")).toHaveLength(2);
+  });
+
+  it("haelt ein Komma hinter dem Gruss NICHT fuer eine fehlende Unterschrift", () => {
+    const s = guelteSequenz();
+    s[0].variants[0].body = s[0].variants[0].body.replace("Beste Grüße\nYoussef", "Beste Grüße,\nYoussef");
+    const befunde = sequenceProblems(s, opts, { ...angebot, signature: "Beste Grüße\nYoussef" });
+    expect(befunde.some((p) => p.kind === "missingSignature" && p.step === 1)).toBe(false);
+  });
+
+  it("prueft die Unterschrift gar nicht, wenn keine hinterlegt ist", () => {
+    // Ohne Signatur am Angebot UND ohne Absendernamen soll die Mail ohne
+    // Unterschrift enden -- eine erfundene waere schlimmer als keine.
+    const s = guelteSequenz();
+    s[0].variants[0].body = "Hi {{firstName}},\n\n{{personalization}}\n\nSoll ich dir die Aufnahme schicken?";
+    expect(sequenceProblems(s, opts, angebot).some((p) => p.kind === "missingSignature")).toBe(false);
+    expect(sequenceProblems(s, opts).some((p) => p.kind === "missingSignature")).toBe(false);
+  });
+
+  it("nimmt den Workspace-Namen als Unterschrift, wenn das Angebot keine hat", () => {
+    // signatureFor faellt auf reply_sender_name zurueck -- die Pruefung muss
+    // denselben Weg gehen wie der Prompt, sonst verlangt sie etwas anderes.
+    const s = guelteSequenz();
+    s[0].variants[0].body = "Hi {{firstName}},\n\n{{personalization}}\n\nSoll ich dir die Aufnahme schicken?";
+    const befunde = sequenceProblems(s, { ...opts, senderName: "Youssef" }, angebot);
+    expect(befunde).toContainEqual({ kind: "missingSignature", step: 1 });
+  });
+
   it("meldet eine Textwand ohne Absaetze", () => {
     const s = guelteSequenz();
     s[1].variants[0].body =
