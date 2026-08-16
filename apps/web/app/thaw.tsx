@@ -151,6 +151,7 @@ export default function Thaw({
   size = 64,
   className = "",
   accent,
+  label = "Frostbreaker AI",
 }: {
   state: ThawState;
   size?: number;
@@ -167,6 +168,17 @@ export default function Thaw({
    * seinem Zustand (Frost bzw. Mint).
    */
   accent?: string;
+  /**
+   * Wie die Figur an DIESER Stelle heisst -- fuer Screenreader.
+   *
+   * Im Angebotsformular stehen zwei Kerne nebeneinander, die Verschiedenes
+   * tun: "Core" liest das Angebot selbst, "Aim" eine Lead-Liste. Zwei Bilder
+   * mit derselben Ansage waeren dort zweimal derselbe Knopf -- fuer einen
+   * Screenreader waere die Farbe, die sie unterscheidet, ohnehin nicht da.
+   *
+   * Nicht uebersetzt: Produktnamen, die in beiden Sprachen gleich lauten.
+   */
+  label?: string;
 }) {
   // Eigene IDs je Instanz: der Kern steht auf der Angebotsseite und im
   // Kampagnengenerator, und zwei gleiche Verlaufs-IDs im selben Dokument
@@ -198,9 +210,8 @@ export default function Thaw({
       className={className}
       role="img"
       // Der Bauteilname bleibt THAW (Datei, Komponente, Cookie thaw_ws) -- nach
-      // aussen heisst die Figur "Frostbreaker AI". Nicht uebersetzt: ein
-      // Produktname, der in beiden Sprachen gleich lautet.
-      aria-label="Frostbreaker AI"
+      // aussen traegt jede Stelle ihren eigenen Namen (siehe `label`).
+      aria-label={label}
       style={{ overflow: "visible" }}
     >
       <defs>

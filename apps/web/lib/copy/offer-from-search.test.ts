@@ -137,6 +137,33 @@ describe("buildOfferFromSearchPrompt", () => {
     expect(p).not.toContain("Location:");
     expect(p).not.toContain("Source:");
   });
+
+  it("grenzt auf das gewaehlte Produkt ein, wenn das Angebot mehrere beschreibt", () => {
+    const p = buildOfferFromSearchPrompt(liste, angebot, {
+      name: "Chatarmin",
+      description: "WhatsApp-Marketing fuer Shops",
+    });
+    expect(p).toContain("THE ONE PRODUCT OR SERVICE THIS LIST IS ABOUT");
+    expect(p).toContain("Name: Chatarmin");
+    expect(p).toContain("What it is: WhatsApp-Marketing fuer Shops");
+    expect(p).toContain("Write about that one only");
+    expect(p).toContain("Do not mention the others");
+  });
+
+  it("nimmt ein Produkt ohne Beschreibung an -- der Freitext liefert nur einen Namen", () => {
+    const p = buildOfferFromSearchPrompt(liste, angebot, { name: "Armincx", description: "" });
+    expect(p).toContain("Name: Armincx");
+    expect(p).not.toContain("What it is:");
+  });
+
+  it("bleibt ohne Produkt Wort fuer Wort der bisherige Prompt", () => {
+    // Der eindeutige Fall ist der Normalfall: ein Angebot mit genau einer Sache
+    // darf von der Erkennung nichts merken.
+    const p = buildOfferFromSearchPrompt(liste, angebot);
+    expect(p).not.toContain("PRODUCT OR SERVICE");
+    expect(p).not.toContain("The sender sells more than one thing");
+    expect(p).toEqual(buildOfferFromSearchPrompt(liste, angebot, null));
+  });
 });
 
 describe("parseOfferFromSearch", () => {

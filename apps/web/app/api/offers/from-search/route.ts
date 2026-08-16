@@ -13,6 +13,7 @@ import {
   parseOfferFromSearch,
   sampleSummaries,
 } from "@/lib/copy/offer-from-search";
+import { cleanProduct } from "@/lib/copy/offer-products";
 
 /**
  * Aus einer Lead-Liste Vorschlaege fuer die nischen-spezifischen
@@ -59,6 +60,16 @@ export async function POST(req: Request) {
   const offerId = (body?.offerId as string | undefined)?.trim();
   if (!searchId) return NextResponse.json({ error: "searchId fehlt" }, { status: 400 });
   if (!offerId) return NextResponse.json({ error: "offerId fehlt" }, { status: 400 });
+  /**
+   * Auf welche der verkauften Sachen diese Liste zielt -- optional.
+   *
+   * Gesetzt nur, wenn api/offers/detect-products mehrere gefunden HAT und der
+   * Nutzer danach eine gewaehlt hat (auch von Hand eingetippt). Fehlt der
+   * Wert, ist der Prompt Wort fuer Wort der von vorher. Der Wert wird
+   * bewusst nicht gegen die Erkennung geprueft: das Freitextfeld in der
+   * Oberflaeche existiert genau fuer den Fall, dass die Erkennung danebenlag.
+   */
+  const product = cleanProduct(body?.product);
 
   // Workspace-Filter zusaetzlich zur RLS: RLS regelt, auf welche Accounts
   // jemand zugreifen darf -- nicht, welcher der eigenen Workspaces gemeint ist
@@ -132,7 +143,8 @@ export async function POST(req: Request) {
       summaries,
       totalWithSummary: count ?? summaries.length,
     },
-    offer
+    offer,
+    product
   );
 
   const result = await callOpenAi(openaiKey, [{ role: "user", content: prompt }]);

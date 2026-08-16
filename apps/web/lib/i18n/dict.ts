@@ -1617,7 +1617,7 @@ const de = {
      *  das hier. */
     suggestionLabel: "Aus deiner Website",
     addressSubtitle: "Wie sprichst du an?",
-    // Was Frostbreaker AI sagt. Immer eine Zeile, immer der naechste Handgriff -- kein
+    // Was Core sagt. Immer eine Zeile, immer der naechste Handgriff -- kein
     // Geplauder. Ein Satz, der nichts zu tun gibt, ist beim dritten Oeffnen
     // der Seite nur noch Text.
     sayCold: "Erzähl mir von deinem Angebot. Ich fange bei null an.",
@@ -1654,11 +1654,12 @@ const de = {
     readWebsite: "Aus Website übernehmen",
     reading: "Liest...",
     suggestionsReady: (n: number) => `${n} Vorschläge aus der Website`,
-    /** Der zweite Kern: dasselbe Angebot, zugeschnitten auf EINE Lead-Liste. */
+    /** Der zweite Kern — „Aim": dasselbe Angebot, zugeschnitten auf EINE
+     *  Lead-Liste. Der Name steht in beiden Sprachen gleich da. */
     fromSearch: {
       heading: "Auf eine Lead-Liste zuschneiden",
       subtitle:
-        "Frostbreaker AI liest die Firmen einer Liste und schlägt vor, was am Angebot für sie anders klingen sollte.",
+        "Aim liest die Firmen einer Liste und schlägt vor, was am Angebot für sie anders klingen sollte.",
       open: "Liste wählen",
       pickHeading: "Welche Liste?",
       reading: "Liest...",
@@ -1672,6 +1673,17 @@ const de = {
       ready: (n: number) => `${n} Vorschläge aus der Liste`,
       hint: "Neu vorgeschlagen: Problem, Stolperstein, Grund, Zielgruppe. Nur umformuliert: Ergebnis und Mechanismus. Zahlen und Beleg bleiben.",
       nothing: "Aus dieser Liste ließ sich nichts ableiten.",
+      /**
+       * Die Zwischenfrage, wenn das Angebot mehr als ein Produkt oder eine
+       * Leistung beschreibt. Schlichte Fassung — noch nicht formuliert.
+       */
+      product: {
+        heading: (liste: string) => `Worum geht es bei „${liste}"?`,
+        hint: "Aim hat in deinem Angebot mehr als ein Produkt oder eine Leistung gefunden. Für eine Liste gilt immer nur eines davon.",
+        other: "Etwas anderes",
+        otherPlaceholder: "z. B. Chatarmin — WhatsApp-Marketing für Shops",
+        confirm: "Weiter",
+      },
     },
     fieldsHeading: "Das Angebot",
     completeness: (p: number) => `${p} % ausgefüllt`,
@@ -1752,11 +1764,11 @@ const de = {
       running: "Liest...",
       clean: "Nichts zu beanstanden. Das Angebot trägt.",
       found: (n: number) => (n === 1 ? "Eine Stelle, an der es hakt" : `${n} Stellen, an denen es hakt`),
-      verdictLabel: "Frostbreaker AI",
+      verdictLabel: "Core",
       apply: "Übernehmen",
       dismiss: "Passt so",
       related: (feld: string) => `Gehört eher in: ${feld}`,
-      hint: "Frostbreaker AI liest dein Angebot gegen das Playbook — nicht den Text, sondern ob jedes Feld seine Frage beantwortet.",
+      hint: "Core liest dein Angebot gegen das Playbook — nicht den Text, sondern ob jedes Feld seine Frage beantwortet.",
     },
     /** Die vier Abschnitte des Formulars. */
     stages: {
@@ -3867,11 +3879,11 @@ const en: Dictionary = {
     readWebsite: "Read from website",
     reading: "Reading...",
     suggestionsReady: (n: number) => `${n} suggestions from the website`,
-    /** The second core: the same offer, tailored to ONE lead list. */
+    /** The second core -- "Aim": the same offer, tailored to ONE lead list. */
     fromSearch: {
       heading: "Tailor it to a lead list",
       subtitle:
-        "Frostbreaker AI reads the companies on a list and suggests what should sound different for them.",
+        "Aim reads the companies on a list and suggests what should sound different for them.",
       open: "Pick a list",
       pickHeading: "Which list?",
       reading: "Reading...",
@@ -3885,6 +3897,15 @@ const en: Dictionary = {
       ready: (n: number) => `${n} suggestions from the list`,
       hint: "Rewritten: problem, friction, reason, audience. Reworded only: outcome and mechanism. Numbers and proof stay.",
       nothing: "Nothing could be drawn from this list.",
+      /** The follow-up question when the offer describes more than one product
+       *  or service. Plain wording -- not a final copy pass. */
+      product: {
+        heading: (liste: string) => `What is "${liste}" about?`,
+        hint: "Aim found more than one product or service in your offer. A list is always about just one of them.",
+        other: "Something else",
+        otherPlaceholder: "e.g. Chatarmin — WhatsApp marketing for shops",
+        confirm: "Continue",
+      },
     },
     fieldsHeading: "The offer",
     completeness: (p: number) => `${p}% filled in`,
@@ -3954,11 +3975,11 @@ const en: Dictionary = {
       running: "Reading...",
       clean: "Nothing to flag. The offer holds.",
       found: (n: number) => (n === 1 ? "One spot that does not hold" : `${n} spots that do not hold`),
-      verdictLabel: "Frostbreaker AI",
+      verdictLabel: "Core",
       apply: "Use this",
       dismiss: "Leave it",
       related: (feld: string) => `Belongs in: ${feld}`,
-      hint: "Frostbreaker AI reads your offer against the playbook — not the wording, but whether each field answers its question.",
+      hint: "Core reads your offer against the playbook — not the wording, but whether each field answers its question.",
     },
     /** The four sections of the form. */
     stages: {

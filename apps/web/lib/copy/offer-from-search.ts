@@ -35,6 +35,7 @@
 import { type Offer, type OfferTextField } from "@/lib/offers";
 import type { FilterLine } from "@/lib/search-filter-lines";
 import { parseSuggestionFields, type OfferSuggestion } from "./offer-from-website";
+import type { OfferProduct } from "./offer-products";
 
 /**
  * Die Felder, die sich von Liste zu Liste unterscheiden -- in zwei Sorten.
@@ -142,8 +143,18 @@ function kontext(label: string, value: string): string | null {
  * mit der uebersetzten Beschriftung aus dem Woerterbuch: die Schluessel sind
  * bereits englische, sprechende Woerter, und eine zweite Beschriftungstabelle
  * neben searchDetail.filterLabels waere eine, die auseinanderlaeuft.
+ *
+ * `produkt` ist gesetzt, wenn das Angebot mehr als eine Sache beschreibt und
+ * der Nutzer gesagt hat, um welche es bei DIESER Liste geht (siehe
+ * offer-products.ts). Ohne den Wert bleibt der Prompt Wort fuer Wort der von
+ * vorher -- der eindeutige Fall ist der Normalfall und darf sich nicht
+ * aendern.
  */
-export function buildOfferFromSearchPrompt(ctx: LeadListContext, offer: Offer): string {
+export function buildOfferFromSearchPrompt(
+  ctx: LeadListContext,
+  offer: Offer,
+  produkt?: OfferProduct | null
+): string {
   const sprache = LANGUAGE_NAMES[offer.language] ?? "German";
 
   const zeilen: (string | null)[] = [
@@ -157,6 +168,14 @@ export function buildOfferFromSearchPrompt(ctx: LeadListContext, offer: Offer): 
     "- Only use the filters and the company descriptions below. Never add industry knowledge of your own.",
     "  The one exception is the sender's own outcome and mechanism: those are given below and you may",
     "  only rephrase them, never extend them.",
+    // Nur wenn das Angebot mehr als eine Sache beschreibt UND der Nutzer
+    // entschieden hat, welche gemeint ist. Der Satz steht doppelt -- hier als
+    // Regel und unten am Produkt selbst: was hier als Aufzaehlungspunkt
+    // zwischen zehn anderen steht, wird sonst mit ueberlesen.
+    produkt
+      ? "- The sender sells more than one thing. THIS list is about exactly ONE of them, named below." +
+        " Write about that one only and ignore the rest of what they sell."
+      : null,
     "- If the material does not support a field, return an empty string for it. Never guess.",
     "- Never invent numbers, percentages, revenue figures or client counts.",
     // Gilt ausdruecklich nur fuer die drei neu geschriebenen Felder: outcome
@@ -210,6 +229,22 @@ export function buildOfferFromSearchPrompt(ctx: LeadListContext, offer: Offer): 
     kontext("Their mechanism -- how the result comes about", offer.mechanism),
     kontext("Tone notes", offer.tone),
   ];
+
+  // Das gewaehlte Produkt steht NACH dem Absender und nicht davor: es ist eine
+  // Einschraenkung dessen, was gerade darueber steht ("What they sell" nennt
+  // alle), und eine Einschraenkung muss hinter dem stehen, was sie
+  // einschraenkt.
+  if (produkt) {
+    zeilen.push(
+      "",
+      "THE ONE PRODUCT OR SERVICE THIS LIST IS ABOUT:",
+      kontext("Name", produkt.name),
+      kontext("What it is", produkt.description),
+      "Everything you write -- problem, friction, friction_reason, icp, outcome, mechanism -- is about THIS",
+      "one. The parts of 'What they sell' that belong to their other products or services are off limits.",
+      "Do not mention the others and do not blend them in."
+    );
+  }
 
   // Was heute in den drei NEU geschriebenen Feldern steht, kommt ausdruecklich
   // als "das ist die allgemeine Fassung" mit. Ohne diesen Block schreibt das

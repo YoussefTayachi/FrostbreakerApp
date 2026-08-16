@@ -103,8 +103,11 @@ export function buildOfferPrompt(content: WebsiteContent, language: "de" | "en")
     .join("\n");
 }
 
-/** Das erste JSON-Objekt im Text -- auch mit Vorrede oder Codeblock drumherum. */
-function extractJsonObject(raw: string): string | null {
+/** Das erste JSON-Objekt im Text -- auch mit Vorrede oder Codeblock drumherum.
+ *  Exportiert, weil offer-products.ts dieselbe Antwortform bekommt (JSON,
+ *  gelegentlich mit Vorrede) -- eine zweite Kopie waere eine zweite Stelle, an
+ *  der ein Codeblock nicht erkannt wird. */
+export function extractJsonObject(raw: string): string | null {
   const start = raw.indexOf("{");
   const end = raw.lastIndexOf("}");
   if (start === -1 || end === -1 || end <= start) return null;
@@ -160,8 +163,12 @@ export function parseOfferSuggestion(raw: string): OfferSuggestion {
  * Ohne diese Pruefung steht spaeter woertlich "Keine Angabe auf der Website"
  * im Feld `proof`, und der Sequenzgenerator liest das als Beleg, den er
  * erwaehnen darf.
+ *
+ * Exportiert aus demselben Grund wie extractJsonObject: die Produkterkennung
+ * (offer-products.ts) bekommt Produktnamen zurueck, und "nicht angegeben" ist
+ * dort genauso wenig ein Name wie hier ein Beleg.
  */
-function istAusrede(value: string): boolean {
+export function istAusrede(value: string): boolean {
   const v = value.toLowerCase().replace(/[.!]/g, "").trim();
   if (v.length > 60) return false;
   return /^(n\/?a|keine? angaben?|nicht angegeben|nicht (ersichtlich|genannt|erkennbar|vorhanden)|unbekannt|unknown|not (specified|stated|mentioned|available)|none|kein[e]? .{0,30}(gefunden|genannt|angegeben))$/.test(

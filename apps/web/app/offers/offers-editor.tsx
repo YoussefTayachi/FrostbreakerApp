@@ -16,6 +16,7 @@ import {
   type OfferTextField,
 } from "@/lib/offers";
 import type { OfferSuggestion } from "@/lib/copy/offer-from-website";
+import type { OfferProduct } from "@/lib/copy/offer-products";
 import { FINDING_FIELD, offerFindings, type OfferFinding } from "@/lib/copy/offer-tests";
 import type { CoachFinding } from "@/lib/copy/coach-prompt";
 import OfferMap from "./offer-map";
@@ -82,6 +83,12 @@ type ListenOption = {
  *  fuer Beschriftung und Farbe -- die Uebernahme ist in beiden Faellen
  *  dieselbe. */
 type VorschlagQuelle = "website" | "search";
+
+/** Die letzte Zeile der Produktauswahl: keiner der Vorschlaege passt, der
+ *  Nutzer schreibt selbst hin, worum es geht. Ein Index, der nie ein Produkt
+ *  meint -- die Auswahl bleibt damit EIN Zustand statt zweier, die sich
+ *  widersprechen koennen. */
+const FREITEXT = -1;
 
 /**
  * Eingabefelder dieser Seite, groesser als das app-weite inputCls.
@@ -228,6 +235,29 @@ export default function OffersEditor({ initial }: { initial: Offer[] }) {
    *  nicht als Hinweisblase: er gehoert zu der Liste, die man gerade angeklickt
    *  hat, und eine Blase ist weg, bevor man die naechste waehlt. */
   const [listenFehler, setListenFehler] = useState<string | null>(null);
+  /**
+   * Die Zwischenfrage: verkauft dieses Angebot mehr als eine Sache?
+   *
+   * null heisst, dass es nichts zu entscheiden gibt -- entweder wurde noch
+   * nicht gefragt, oder das Angebot beschreibt genau eine Sache. Die Liste
+   * wandert mit, weil die Auswahl sie ueberdauern muss: der Nutzer waehlt erst
+   * die Liste, dann das Produkt, und der Zuschnitt braucht beides.
+   */
+  const [produktWahl, setProduktWahl] = useState<{
+    liste: ListenOption;
+    produkte: OfferProduct[];
+  } | null>(null);
+  const [produktIndex, setProduktIndex] = useState(0);
+  const [produktFrei, setProduktFrei] = useState("");
+  /**
+   * Was die Produkterkennung zuletzt gesagt hat.
+   *
+   * Der Schluessel enthaelt den Text selbst und nicht nur die Angebots-ID: wer
+   * "was verkaufst du" umschreibt, hat womoeglich gerade ein zweites Produkt
+   * ergaenzt. Ohne diesen Zwischenspeicher kostete jeder Listenwechsel einen
+   * zweiten bezahlten Aufruf fuer dieselbe Antwort.
+   */
+  const produktCache = useRef<{ key: string; produkte: OfferProduct[] } | null>(null);
   const [neuerName, setNeuerName] = useState("");
   const [legeAn, setLegeAn] = useState(initial.length === 0);
   const [speichert, setSpeichert] = useState(false);
@@ -362,6 +392,7 @@ export default function OffersEditor({ initial }: { initial: Offer[] }) {
     setGespeichert(JSON.stringify(next));
     setVorschlaege({});
     setListenFehler(null);
+    setProduktWahl(null);
   }
 
   /**
@@ -383,6 +414,7 @@ export default function OffersEditor({ initial }: { initial: Offer[] }) {
     setGespeichert(JSON.stringify(next));
     setVorschlaege({});
     setListenFehler(null);
+    setProduktWahl(null);
     setLegeAn(false);
   }
 
@@ -554,17 +586,92 @@ export default function OffersEditor({ initial }: { initial: Offer[] }) {
    * Datenbank, und outcome/mechanism werden aus dem gelesenen Stand
    * umformuliert. Ohne das Sichern arbeitet sie mit dem Stand von vor zwei
    * Sekunden.
+   *
+   * ═══════════════════════════════════════════════════════════════════════
+   * WARUM DAZWISCHEN EINE FRAGE STEHEN KANN
+   * ═══════════════════════════════════════════════════════════════════════
+   *
+   * Manche Firmen verkaufen unter einem Angebot mehr als eine Sache -- eine
+   * App fuer WhatsApp-Marketing UND eine fuer Support-Automatisierung. Beides
+   * steht dann in "was verkaufst du", und der Zuschnitt las es bis dahin als
+   * EINE Sache: heraus kam ein Mischsatz, der auf keine von beiden passt.
+   *
+   * Deshalb zuerst der billige Aufruf (api/offers/detect-products) und nur bei
+   * mehreren Treffern die Rueckfrage. Sie steht VOR dem teuren Aufruf, nicht
+   * danach -- eine Rueckfrage zu einem bereits bezahlten Ergebnis wuerde es
+   * wegwerfen. Ist das Angebot eindeutig, merkt der Nutzer von alldem nichts.
    */
   async function ausListe(liste: ListenOption) {
     if (!aktuell || liestListe) return;
     if (geaendert) await speichern(true);
+    setListenFehler(null);
+    setProduktWahl(null);
+    // Der Kern rast schon waehrend der Erkennung -- fuer den Nutzer ist das
+    // EIN Handgriff, auch wenn dahinter zwei Aufrufe stehen.
+    setLiestListe(liste.id);
+
+    const produkte = await erkenneProdukte(aktuell.id, entwurfRef.current.offering);
+    if (produkte.length >= 2) {
+      setLiestListe(null);
+      setProduktIndex(0);
+      setProduktFrei("");
+      setProduktWahl({ liste, produkte });
+      return;
+    }
+    await erzeuge(liste, null);
+  }
+
+  /**
+   * Beschreibt das Angebot mehr als eine Sache?
+   *
+   * Ein leeres Ergebnis heisst "eindeutig" -- und das gilt ausdruecklich auch,
+   * wenn der Aufruf scheitert: eine Zwischenfrage, die nicht gestellt werden
+   * kann, darf den Zuschnitt nicht verhindern. Fehlt zum Beispiel der
+   * OpenAI-Schluessel, sagt das der Hauptaufruf zwei Zeilen spaeter ohnehin,
+   * und zwar mit dem Satz, der dem Nutzer sagt, was zu tun ist.
+   *
+   * Ein Fehlschlag wird NICHT gespeichert: sonst bliebe eine Stoerung von
+   * zehn Sekunden fuer den Rest der Sitzung als "eindeutig" haengen.
+   */
+  async function erkenneProdukte(offerId: string, offering: string): Promise<OfferProduct[]> {
+    const key = `${offerId} ${offering.trim()}`;
+    if (produktCache.current?.key === key) return produktCache.current.produkte;
+    const res = await fetch("/api/offers/detect-products", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ offerId }),
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) return [];
+    const produkte = (body.products ?? []) as OfferProduct[];
+    produktCache.current = { key, produkte };
+    return produkte;
+  }
+
+  /** Die Auswahl bestaetigen und den Zuschnitt starten. */
+  function weiterMitProdukt() {
+    if (!produktWahl) return;
+    const gewaehlt =
+      produktIndex === FREITEXT
+        ? { name: produktFrei.trim(), description: "" }
+        : produktWahl.produkte[produktIndex];
+    if (!gewaehlt?.name) return;
+    const liste = produktWahl.liste;
+    setProduktWahl(null);
+    void erzeuge(liste, gewaehlt);
+  }
+
+  /** Der eigentliche, teure Aufruf. `produkt` ist gesetzt, wenn das Angebot
+   *  mehr als eine Sache beschreibt und der Nutzer eine gewaehlt hat. */
+  async function erzeuge(liste: ListenOption, produkt: OfferProduct | null) {
+    if (!aktuell) return;
     setLiestListe(liste.id);
     setListenFehler(null);
     setVorschlaege({});
     const res = await fetch("/api/offers/from-search", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ searchId: liste.id, offerId: aktuell.id }),
+      body: JSON.stringify({ searchId: liste.id, offerId: aktuell.id, product: produkt }),
     });
     const body = await res.json().catch(() => ({}));
     setLiestListe(null);
@@ -672,6 +779,7 @@ export default function OffersEditor({ initial }: { initial: Offer[] }) {
         <Thaw
           state={fehlend.length === 0 ? "ready" : gefuellt.size === 0 ? "cold" : "listening"}
           size={96}
+          label="Core"
         />
         <span
           className="fb-num -mt-1 text-[20px] font-semibold leading-none"
@@ -942,7 +1050,13 @@ export default function OffersEditor({ initial }: { initial: Offer[] }) {
               <div className="flex items-start gap-4">
                 <button
                   type="button"
-                  onClick={() => setListeOffen((v) => !v)}
+                  // Steht die Produktfrage offen, nimmt der Klick auf den Kern
+                  // sie zurueck: er ist der Knopf, der diesen Vorgang
+                  // aufgemacht hat, und muss ihn auch wieder zumachen koennen.
+                  onClick={() => {
+                    if (produktWahl) return setProduktWahl(null);
+                    setListeOffen((v) => !v);
+                  }}
                   disabled={!!liestListe}
                   aria-expanded={listeOffen}
                   aria-label={O.fromSearch.open}
@@ -956,6 +1070,7 @@ export default function OffersEditor({ initial }: { initial: Offer[] }) {
                     state={liestListe ? "working" : "listening"}
                     size={64}
                     accent="var(--fb-aim)"
+                    label="Aim"
                   />
                 </button>
                 <div className="min-w-0 flex-1">
@@ -966,7 +1081,7 @@ export default function OffersEditor({ initial }: { initial: Offer[] }) {
                   <p className="max-w-[54ch] text-[14px] leading-relaxed text-soft">
                     {O.fromSearch.subtitle}
                   </p>
-                  {!listeOffen && (
+                  {!listeOffen && !produktWahl && (
                     <button
                       type="button"
                       onClick={() => setListeOffen(true)}
@@ -982,7 +1097,11 @@ export default function OffersEditor({ initial }: { initial: Offer[] }) {
                     </button>
                   )}
 
-                  {listeOffen && (
+                  {/* Die Listenauswahl weicht der Produktfrage: beides
+                      gleichzeitig waeren zwei offene Fragen zu einem
+                      Handgriff, und die zweite gehoert erst beantwortet,
+                      nachdem die erste steht. */}
+                  {listeOffen && !produktWahl && (
                     <div className="mt-3">
                       {/* Kein fb-label: das ist eine Frage an den Nutzer und
                           kein Instrumentenschild. Gesetzt wie die anderen
@@ -1041,6 +1160,131 @@ export default function OffersEditor({ initial }: { initial: Offer[] }) {
                       >
                         {O.cancel}
                       </button>
+                    </div>
+                  )}
+
+                  {/* ── Die Zwischenfrage ────────────────────────────────
+                      Nur wenn das Angebot mehr als eine Sache beschreibt. Sie
+                      steht an derselben Stelle wie die Listenauswahl davor:
+                      derselbe Handgriff, einen Schritt weiter.
+
+                      Die letzte Zeile ist der Ausweg. Die Erkennung liest
+                      einen Freitext und kann danebenliegen -- ohne eigenes
+                      Feld haette der Nutzer dann nur die Wahl zwischen zwei
+                      falschen Antworten und dem Abbruch. */}
+                  {produktWahl && (
+                    <div className="mt-3">
+                      <p className="text-[13px] text-faint">
+                        {O.fromSearch.product.heading(
+                          produktWahl.liste.name ?? produktWahl.liste.query ?? ""
+                        )}
+                      </p>
+                      <p className="mb-2 mt-0.5 max-w-[54ch] text-[13px] leading-relaxed text-mute">
+                        {O.fromSearch.product.hint}
+                      </p>
+                      <div className="space-y-1.5">
+                        {produktWahl.produkte.map((p, i) => (
+                          <label
+                            key={p.name}
+                            className={
+                              "block cursor-pointer rounded-lg border p-3 text-sm transition-colors " +
+                              (produktIndex === i ? "" : "border-edge2 hover:border-edge3")
+                            }
+                            style={
+                              produktIndex === i
+                                ? {
+                                    borderColor:
+                                      "color-mix(in srgb, var(--fb-aim) 55%, transparent)",
+                                    background:
+                                      "color-mix(in srgb, var(--fb-aim) 7%, transparent)",
+                                  }
+                                : undefined
+                            }
+                          >
+                            <span className="flex items-center gap-2">
+                              <input
+                                type="radio"
+                                name="aim-produkt"
+                                checked={produktIndex === i}
+                                onChange={() => setProduktIndex(i)}
+                                className="h-3.5 w-3.5"
+                                style={{ accentColor: "var(--fb-aim)" }}
+                              />
+                              <span className="font-medium text-ink">{p.name}</span>
+                            </span>
+                            {p.description && (
+                              <span className="mt-1 block pl-[22px] text-[13px] leading-relaxed text-faint">
+                                {p.description}
+                              </span>
+                            )}
+                          </label>
+                        ))}
+                        <label
+                          className={
+                            "block cursor-pointer rounded-lg border p-3 text-sm transition-colors " +
+                            (produktIndex === FREITEXT ? "" : "border-edge2 hover:border-edge3")
+                          }
+                          style={
+                            produktIndex === FREITEXT
+                              ? {
+                                  borderColor:
+                                    "color-mix(in srgb, var(--fb-aim) 55%, transparent)",
+                                  background: "color-mix(in srgb, var(--fb-aim) 7%, transparent)",
+                                }
+                              : undefined
+                          }
+                        >
+                          <span className="flex items-center gap-2">
+                            <input
+                              type="radio"
+                              name="aim-produkt"
+                              checked={produktIndex === FREITEXT}
+                              onChange={() => setProduktIndex(FREITEXT)}
+                              className="h-3.5 w-3.5"
+                              style={{ accentColor: "var(--fb-aim)" }}
+                            />
+                            <span className="font-medium text-ink">
+                              {O.fromSearch.product.other}
+                            </span>
+                          </span>
+                        </label>
+                        {/* Das Textfeld steht AUSSERHALB der Beschriftung: ein
+                            zweites Bedienelement in einem <label> laesst den
+                            Klick ins Textfeld je nach Browser den Radioknopf
+                            treffen. */}
+                        {produktIndex === FREITEXT && (
+                          <input
+                            autoFocus
+                            value={produktFrei}
+                            onChange={(e) => setProduktFrei(e.target.value)}
+                            onKeyDown={(e) => e.key === "Enter" && weiterMitProdukt()}
+                            placeholder={O.fromSearch.product.otherPlaceholder}
+                            className={feldBasis + " w-full"}
+                          />
+                        )}
+                      </div>
+                      <div className="mt-2.5 flex items-center gap-4">
+                        <button
+                          type="button"
+                          onClick={weiterMitProdukt}
+                          disabled={produktIndex === FREITEXT && !produktFrei.trim()}
+                          className="min-h-9 rounded-lg border px-4 text-sm font-medium transition-all hover:brightness-110 disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500"
+                          style={{
+                            borderColor: "color-mix(in srgb, var(--fb-aim) 45%, transparent)",
+                            color: "var(--fb-aim)",
+                            background: "color-mix(in srgb, var(--fb-aim) 8%, transparent)",
+                          }}
+                        >
+                          {O.fromSearch.product.confirm}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setProduktWahl(null)}
+                          className="min-h-8 rounded text-[13px] text-faint transition-colors hover:text-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500"
+                        >
+                          {O.cancel}
+                        </button>
+                      </div>
                     </div>
                   )}
 

@@ -179,7 +179,13 @@ export default function OfferCore({
             Ring, innerhalb der Segmente. */}
         <div className="pointer-events-none absolute inset-0">
           <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
-            <Thaw state={ready ? "ready" : filled.size === 0 ? "cold" : "listening"} size={112} />
+            {/* "Core": der Kern, der das Angebot selbst liest. Der zweite auf
+                dieser Seite heisst "Aim" und liest eine Lead-Liste. */}
+            <Thaw
+              state={ready ? "ready" : filled.size === 0 ? "cold" : "listening"}
+              size={112}
+              label="Core"
+            />
           </div>
           <span
             className="fb-num absolute bottom-[38px] left-1/2 -translate-x-1/2 text-[17px] font-semibold leading-none"
