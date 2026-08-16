@@ -498,18 +498,23 @@ export default function OffersEditor({ initial }: { initial: Offer[] }) {
     await neuLaden(aktuell.id);
   }
 
-  async function loeschen() {
-    if (!aktuell) return;
-    if (!window.confirm(O.deleteConfirm(aktuell.name))) return;
+  /** Loescht ein beliebiges Angebot, nicht nur das gerade offene -- die
+   *  Angebotsleiste ruft das direkt pro Reiter auf. neuLaden(selectedId)
+   *  haelt die Ansicht auf dem bisher offenen Angebot, wenn das geloeschte
+   *  ein anderes war; faellt selectedId selbst weg, springt neuLaden ohnehin
+   *  auf Standard bzw. das erste Angebot zurueck -- ein einziger Aufruf
+   *  deckt beide Faelle ab. */
+  async function loeschen(id: string, name: string) {
+    if (!window.confirm(O.deleteConfirm(name))) return;
     setBusy(true);
     const { error } = await createClient()
       .from("offers")
       .delete()
-      .eq("id", aktuell.id)
+      .eq("id", id)
       .eq("workspace_id", workspaceId);
     setBusy(false);
     if (error) return push(t.common.error + error.message, "error");
-    await neuLaden(null);
+    await neuLaden(selectedId);
     push(O.deleted, "success");
   }
 
@@ -731,12 +736,10 @@ export default function OffersEditor({ initial }: { initial: Offer[] }) {
           darunter steht. */}
       <div className="flex flex-wrap items-center gap-1.5">
         {offers.map((o) => (
-          <button
+          <div
             key={o.id}
-            type="button"
-            onClick={() => wechsle(o.id)}
             className={
-              "flex min-h-9 items-center gap-1.5 rounded-lg border px-3 text-[13px] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 " +
+              "group flex min-h-9 items-center rounded-lg border transition-all duration-200 " +
               (o.id === selectedId
                 ? "border-transparent font-medium text-ink shadow-sm"
                 : "border-edge2 text-soft hover:border-edge3 hover:text-ink")
@@ -750,13 +753,34 @@ export default function OffersEditor({ initial }: { initial: Offer[] }) {
                 : undefined
             }
           >
-            {o.name}
-            {o.is_default && (
-              <span title={O.defaultTitle} aria-label={O.defaultTitle} className="text-[10px] text-amber-500">
-                ★
-              </span>
-            )}
-          </button>
+            <button
+              type="button"
+              onClick={() => wechsle(o.id)}
+              className="flex items-center gap-1.5 py-1.5 pl-3 pr-1.5 text-[13px] focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500"
+            >
+              {o.name}
+              {o.is_default && (
+                <span title={O.defaultTitle} aria-label={O.defaultTitle} className="text-[10px] text-amber-500">
+                  ★
+                </span>
+              )}
+            </button>
+            {/* Eigener Knopf statt verschachtelt im obigen: ein <button> im
+                <button> waere ungueltiges HTML, und ein Klick auf das × soll
+                nicht auch noch den Reiter wechseln. Erst ab Hover/Fokus
+                sichtbar, damit die Leiste in Ruhe nicht nach zwoelf
+                Loeschknoepfen aussieht. */}
+            <button
+              type="button"
+              onClick={() => loeschen(o.id, o.name)}
+              disabled={busy}
+              title={t.common.delete}
+              aria-label={O.deleteConfirm(o.name)}
+              className="mr-1.5 rounded px-1 text-sm text-mute opacity-0 transition-opacity hover:text-red-600 focus-visible:opacity-100 focus-visible:outline-none group-hover:opacity-100 disabled:opacity-40 dark:hover:text-red-400"
+            >
+              ×
+            </button>
+          </div>
         ))}
         {offers.length < MAX_OFFERS && !legeAn && (
           <button
@@ -1378,7 +1402,7 @@ export default function OffersEditor({ initial }: { initial: Offer[] }) {
                     <span className="fb-label text-mute">{O.defaultTitle}</span>
                   )}
                   <button
-                    onClick={loeschen}
+                    onClick={() => loeschen(aktuell.id, aktuell.name)}
                     disabled={busy}
                     className="text-faint transition-colors hover:text-red-600 disabled:opacity-40 dark:hover:text-red-400"
                   >
