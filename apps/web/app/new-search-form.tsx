@@ -18,6 +18,14 @@ import {
   hasAnyApolloFilter,
   type ApolloFilters,
 } from "@/lib/apollo-query";
+import {
+  LEADS_PER_COMBINATION,
+  MAPS_MAX_TARGET_EMAILS,
+  MAPS_REGIONS,
+  MAX_COUNTRY_FANOUT,
+  MAX_RAW_RESULTS,
+  planCountryCoverage,
+} from "@/lib/maps-regions";
 import { searchRowToPresetConfig, type PresetConfig, type SearchMode } from "@/lib/search-presets";
 import { useT } from "./language-provider";
 import { useToast } from "./toast-provider";
@@ -289,9 +297,10 @@ const presetsKey = (workspaceId: string) => `fb_search_presets_${workspaceId}`;
 // Gemessene Trefferquote fuer E-Mail-Funde ueber die KI-Websuche liegt laut
 // worker/pipelines/get_businesses.py bei ca. 22%. Hier konservativ mit 20%
 // gerechnet (eher zu viele als zu wenige Firmen durchsuchen), gedeckelt bei
-// MAX_RAW_RESULTS -- dem Limit pro Suche.
+// MAX_RAW_RESULTS -- dem Limit pro Suche. MAX_RAW_RESULTS steht seit dem
+// 2026-08-16 in lib/maps-regions.ts, weil die Laender-Abdeckung damit die
+// Vorschau rechnet und zwei Kopien auseinanderlaufen wuerden.
 const EMAIL_HIT_RATE = 0.2;
-const MAX_RAW_RESULTS = 100;
 function estimateRawResults(targetEmails: number): number {
   return Math.min(MAX_RAW_RESULTS, Math.ceil(targetEmails / EMAIL_HIT_RATE));
 }
@@ -303,6 +312,11 @@ function estimateRawResults(targetEmails: number): number {
 // Kommagetrennte Eingabe in beiden Feldern ergibt das Kreuzprodukt; Dedupe
 // (place_id pro Workspace) verhindert Dopplungen zwischen den Teilsuchen
 // automatisch, siehe worker/pipelines/get_businesses.py.
+//
+// Gilt fuer die HANDGETIPPTE Ortsliste. Im Modus "Land automatisch abdecken"
+// greift stattdessen MAX_COUNTRY_FANOUT (60) aus lib/maps-regions.ts: dort
+// tippt niemand versehentlich zwanzig Orte, die Staedte kommen aus einer
+// gepflegten Liste und der Sinn des Modus ist gerade die Menge.
 const MAX_FANOUT = 20;
 function parseList(value: string): string[] {
   return Array.from(new Set(value.split(",").map((v) => v.trim()).filter(Boolean)));
@@ -589,6 +603,17 @@ export default function NewSearchForm({
   const [location, setLocation] = useState("");
   const [targetEmails, setTargetEmails] = useState(10);
   const [radius, setRadius] = useState(2000);
+  // "Land automatisch abdecken": Alternative zum handgetippten Orte-Feld.
+  // coverageTarget ist bewusst ein eigener Zustand und nicht targetEmails --
+  // das ist eine Gesamtzahl (bis 900), targetEmails eine Zahl pro Suche (max
+  // 20). Beides in ein Feld zu legen hiesse, dass eine gespeicherte Vorlage
+  // spaeter einen Wert ausserhalb von min/max ins Zahlenfeld schreibt; genau
+  // daran ist das Apollo-Zielfeld schon einmal gescheitert (stepMismatch,
+  // siehe dort). Vorgabe niedrig gehalten: jede Teilsuche kostet Places- und
+  // OpenAI-Aufrufe, wer mehr will, tippt es bewusst hoch.
+  const [coverageOn, setCoverageOn] = useState(false);
+  const [coverageCountry, setCoverageCountry] = useState("");
+  const [coverageTarget, setCoverageTarget] = useState(100);
   const [industry, setIndustry] = useState("");
   const [city, setCity] = useState("");
   const [usState, setUsState] = useState("");
@@ -720,7 +745,25 @@ export default function NewSearchForm({
   const isUs = country === "US";
   const queryList = parseList(query);
   const locationList = parseList(location);
-  const fanoutCount = mode === "maps" ? Math.max(1, queryList.length * locationList.length) : 1;
+
+  // Der Plan ist Vorschau UND Grundlage der eingefuegten Zeilen -- deshalb
+  // genau eine Rechnung. Wuerde die Vorschau anders rechnen als das Absenden,
+  // waere die angezeigte Zahl eine Zusage, die die Suche nicht einloest.
+  // Ohne useMemo: reine Arithmetik plus ein slice, und anders als apolloFilters
+  // haengt kein Effekt an der Objektidentitaet.
+  const coverage = coverageOn
+    ? planCountryCoverage({
+        country: coverageCountry,
+        niches: queryList,
+        targetLeads: coverageTarget,
+      })
+    : null;
+
+  const useCoverage = mode === "maps" && coverageOn;
+  const effectiveLocations = useCoverage ? (coverage?.locations ?? []) : locationList;
+  const fanoutCount =
+    mode === "maps" ? Math.max(1, queryList.length * effectiveLocations.length) : 1;
+  const fanoutLimit = useCoverage ? MAX_COUNTRY_FANOUT : MAX_FANOUT;
 
   // Vorpruefung: welche Keys fehlen fuer genau diesen Suchweg? Wird sowohl
   // oben im Formular angezeigt (damit man es sieht, BEVOR man alles ausfuellt)
@@ -742,19 +785,50 @@ export default function NewSearchForm({
 
     let rows: Record<string, unknown>[];
     if (mode === "maps") {
-      if (fanoutCount > MAX_FANOUT) {
-        push(t.newSearchForm.fanoutTooMany(MAX_FANOUT), "error");
+      // Im Abdeckungs-Modus laeuft jede Teilsuche voll aus (20 Ziel-Leads /
+      // 100 Firmen); gesteuert wird ueber die Anzahl der Staedte, nicht ueber
+      // die Tiefe je Stadt. Die Planung rechnet trotzdem konservativ mit 15
+      // Leads je Kombination -- siehe LEADS_PER_COMBINATION.
+      const mapsTarget = useCoverage ? MAPS_MAX_TARGET_EMAILS : targetEmails;
+      const mapsRaw = useCoverage ? MAX_RAW_RESULTS : rawResults;
+
+      if (useCoverage && (coverage?.combinations ?? 0) === 0) {
+        push(
+          coverage?.limit === "fanout_limit"
+            ? t.newSearchForm.coverageTooManyNiches(MAX_COUNTRY_FANOUT)
+            : t.newSearchForm.coverageIncomplete,
+          "error"
+        );
         return;
       }
-      if (fanoutCount > 1 && !confirm(t.newSearchForm.fanoutConfirm(fanoutCount, rawResults))) {
+      if (fanoutCount > fanoutLimit) {
+        push(t.newSearchForm.fanoutTooMany(fanoutLimit), "error");
         return;
       }
+      // Die Rueckfrage greift in beiden Modi. Im Abdeckungs-Modus nennt sie
+      // zusaetzlich die Staedtezahl und die geschaetzten Leads: dort hat der
+      // Nutzer die Menge nicht selbst getippt und soll vor dem Start sehen,
+      // worauf er sich einlaesst.
+      const bestaetigung = useCoverage
+        ? t.newSearchForm.coverageConfirm(
+            fanoutCount,
+            coverage?.cities.length ?? 0,
+            fanoutCount * mapsRaw,
+            coverage?.estimatedLeads ?? 0
+          )
+        : t.newSearchForm.fanoutConfirm(fanoutCount, mapsRaw);
+      if (fanoutCount > 1 && !confirm(bestaetigung)) {
+        return;
+      }
+      // Dieselbe Zeilenstruktur wie bei handgetippten Orten: die automatisch
+      // erzeugte Staedteliste tritt nur an die Stelle von locationList, sonst
+      // aendert sich nichts -- es sind technisch dieselben get_businesses-Jobs.
       rows = queryList.flatMap((q) =>
-        locationList.map((loc) => ({
+        effectiveLocations.map((loc) => ({
           name: listName.trim() || null,
           schedule,
           workspace_id: workspaceId, source: "maps", query: q, location: loc,
-          max_results: rawResults, target_email_count: targetEmails, radius_m: radius,
+          max_results: mapsRaw, target_email_count: mapsTarget, radius_m: radius,
           ...(Object.keys(painPointFilters).length > 0 ? { filters: painPointFilters } : {}),
         }))
       );
@@ -872,6 +946,10 @@ export default function NewSearchForm({
     setMode(preset.mode);
     setQuery(preset.query);
     setLocation(preset.location);
+    // Eine Vorlage traegt eine fertige Ortsliste. Bliebe die Laender-Abdeckung
+    // dabei eingeschaltet, wuerde genau diese Liste ignoriert -- der Nutzer
+    // saehe seine Orte im Feld und suchte woanders.
+    setCoverageOn(false);
     setRadius(preset.radius);
     setTargetEmails(preset.targetEmails ?? preset.maxResults ?? 10);
     setPainPointNoWebsite(preset.noWebsite);
@@ -954,7 +1032,15 @@ export default function NewSearchForm({
     const name = prompt(t.newSearchForm.presetNamePrompt)?.trim();
     if (!name) return;
     const config: PresetConfig = {
-      mode, query, location, radius, targetEmails,
+      mode,
+      query,
+      // Im Abdeckungs-Modus die aufgeloeste Staedteliste speichern, nicht das
+      // leere Orte-Feld: die Vorlage soll dieselbe Suche noch einmal erzeugen.
+      // Sie laedt danach als normale Ortsliste -- das ist die richtige
+      // Auslegung von "speichere mir DIESE Suche" (siehe lib/search-presets.ts).
+      location: useCoverage ? effectiveLocations.join(", ") : location,
+      radius,
+      targetEmails,
       noWebsite: painPointNoWebsite, maxRating: painPointMaxRating,
       industry, city, state: usState, country, headcount, keywords,
       personTitles, apolloCountries, apolloSeniorities, technologies, marketSegments,
@@ -1103,6 +1189,23 @@ export default function NewSearchForm({
           </select>
         </label>
       </div>
+      {/* Der Umschalter steht VOR den Feldern, weil er bestimmt, welche Felder
+          darunter ueberhaupt stehen -- unter dem Formular waere er die
+          Erklaerung fuer etwas, das man schon ausgefuellt hat. */}
+      {mode === "maps" && (
+        <label className="flex cursor-pointer items-start gap-2 text-sm text-soft">
+          <input
+            type="checkbox"
+            checked={coverageOn}
+            onChange={(e) => setCoverageOn(e.target.checked)}
+            className="mt-0.5 h-4 w-4 rounded accent-sky-500"
+          />
+          <span>
+            {t.newSearchForm.coverageToggle}
+            <span className="block text-xs text-mute">{t.newSearchForm.coverageToggleHint}</span>
+          </span>
+        </label>
+      )}
       {mode === "maps" ? (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <label className={labelCls + " lg:col-span-2"}>
@@ -1110,26 +1213,128 @@ export default function NewSearchForm({
             <input required placeholder={t.newSearchForm.nichePlaceholder} value={query}
               onChange={(e) => setQuery(e.target.value)} className={inputCls} />
           </label>
-          <label className={labelCls + " lg:col-span-2"}>
-            {t.newSearchForm.location}
-            <input required placeholder={t.newSearchForm.locationPlaceholder} value={location}
-              onChange={(e) => setLocation(e.target.value)} className={inputCls} />
-          </label>
-          <label className={labelCls}>
-            {t.newSearchForm.targetEmailCount}
-            <input type="number" min={1} max={20} value={targetEmails}
-              onChange={(e) => setTargetEmails(Number(e.target.value))} className={inputCls} />
-          </label>
+          {/* Orte-Feld und Laenderauswahl stehen an derselben Stelle: es ist
+              dieselbe Angabe, nur einmal getippt und einmal gefuehrt. Beide
+              gleichzeitig anzuzeigen hiesse, dass eines davon wirkungslos
+              waere, ohne dass man es sieht. */}
+          {useCoverage ? (
+            <label className={labelCls + " lg:col-span-2"}>
+              {t.newSearchForm.coverageCountry}
+              <select
+                value={coverageCountry}
+                onChange={(e) => setCoverageCountry(e.target.value)}
+                className={inputCls}
+              >
+                <option value="">{t.newSearchForm.coverageCountryNone}</option>
+                {MAPS_REGIONS.map((region) => (
+                  <option key={region.code} value={region.code}>
+                    {t.newSearchForm.countryLabels[region.code] ?? region.code}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ) : (
+            <label className={labelCls + " lg:col-span-2"}>
+              {t.newSearchForm.location}
+              <input required placeholder={t.newSearchForm.locationPlaceholder} value={location}
+                onChange={(e) => setLocation(e.target.value)} className={inputCls} />
+            </label>
+          )}
+          {useCoverage ? (
+            <label className={labelCls}>
+              {t.newSearchForm.coverageTarget}
+              {/* step=1: ein anderer Schritt laesst den Browser jeden getippten
+                  Zwischenwert als stepMismatch ablehnen -- stiller Fehltritt
+                  ohne Fehlermeldung, siehe apolloTarget. Obergrenze ist die
+                  echte Decke eines Durchgangs (60 Kombinationen a 15 Leads). */}
+              <input
+                type="number"
+                min={1}
+                max={MAX_COUNTRY_FANOUT * LEADS_PER_COMBINATION}
+                step={1}
+                value={coverageTarget}
+                onChange={(e) => setCoverageTarget(Number(e.target.value))}
+                className={inputCls}
+              />
+            </label>
+          ) : (
+            <label className={labelCls}>
+              {t.newSearchForm.targetEmailCount}
+              <input type="number" min={1} max={MAPS_MAX_TARGET_EMAILS} value={targetEmails}
+                onChange={(e) => setTargetEmails(Number(e.target.value))} className={inputCls} />
+            </label>
+          )}
           <label className={labelCls}>
             {t.newSearchForm.radius}
             <input type="number" min={100} max={50000} step={100} value={radius}
               onChange={(e) => setRadius(Number(e.target.value))} className={inputCls} />
           </label>
-          <p className="text-xs text-mute sm:col-span-2 lg:col-span-4">
-            {fanoutCount > 1
-              ? t.newSearchForm.fanoutHint(fanoutCount, estimateRawResults(targetEmails))
-              : t.newSearchForm.targetEmailCountHint(estimateRawResults(targetEmails))}
-          </p>
+
+          {useCoverage ? (
+            <div className="sm:col-span-2 lg:col-span-4">
+              {coverage && coverage.combinations > 0 ? (
+                <div
+                  className={
+                    "rounded-lg border px-3 py-2 text-xs leading-relaxed " +
+                    (coverage.shortfall
+                      ? "border-amber-300 bg-amber-50 text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200"
+                      : "border-edge/60 bg-panel text-soft")
+                  }
+                  aria-live="polite"
+                >
+                  <p className="font-medium">
+                    {t.newSearchForm.coveragePreview(
+                      coverage.combinations,
+                      coverage.nicheCount,
+                      coverage.cities.length,
+                      coverage.scannedCompanies,
+                      coverage.estimatedLeads
+                    )}
+                  </p>
+                  {/* Die Staedte offen hinschreiben: der Nutzer hat sie nicht
+                      selbst gewaehlt und soll vor dem Start sehen, wohin die
+                      Suche laeuft. */}
+                  <p className="mt-1 text-mute">
+                    {t.newSearchForm.coverageCities(coverage.cities.join(", "))}
+                  </p>
+                  {coverage.limit === "city_limit" && (
+                    <p className="mt-1">
+                      {t.newSearchForm.coverageCityLimit(
+                        coverageTarget,
+                        coverage.citiesNeeded,
+                        coverage.citiesAvailable,
+                        coverage.estimatedLeads
+                      )}
+                    </p>
+                  )}
+                  {coverage.limit === "fanout_limit" && (
+                    <p className="mt-1">
+                      {t.newSearchForm.coverageFanoutLimit(
+                        coverageTarget,
+                        coverage.citiesNeeded,
+                        MAX_COUNTRY_FANOUT
+                      )}
+                    </p>
+                  )}
+                  <p className="mt-1 text-mute">{t.newSearchForm.coverageQueueHint}</p>
+                </div>
+              ) : (
+                <p className="text-xs text-mute">
+                  {coverage?.limit === "no_niche"
+                    ? t.newSearchForm.coverageNeedsNiche
+                    : coverage?.limit === "fanout_limit"
+                      ? t.newSearchForm.coverageTooManyNiches(MAX_COUNTRY_FANOUT)
+                      : t.newSearchForm.coverageNeedsCountry}
+                </p>
+              )}
+            </div>
+          ) : (
+            <p className="text-xs text-mute sm:col-span-2 lg:col-span-4">
+              {fanoutCount > 1
+                ? t.newSearchForm.fanoutHint(fanoutCount, estimateRawResults(targetEmails))
+                : t.newSearchForm.targetEmailCountHint(estimateRawResults(targetEmails))}
+            </p>
+          )}
         </div>
       ) : null}
 

@@ -552,6 +552,28 @@ const de = {
       `${count} einzelne Suchen mit je bis zu ${raw} Firmen wirklich jetzt starten (insgesamt bis zu ${count * raw})?`,
     fanoutTooMany: (max: number) =>
       `Zu viele Kombinationen aus Nischen und Orten: max. ${max} Suchen auf einmal.`,
+    coverageToggle: "Land automatisch abdecken",
+    coverageToggleHint:
+      "Statt jede Stadt einzeln zu tippen: Land und Zielzahl wählen, die Städte kommen aus einer gepflegten Liste.",
+    coverageCountry: "Land",
+    coverageCountryNone: "Land wählen",
+    coverageTarget: "Ziel: Leads insgesamt",
+    coverageCities: (cities: string) => `Städte: ${cities}`,
+    coveragePreview: (combinations: number, niches: number, cities: number, companies: number, leads: number) =>
+      `→ ${combinations} Suchen (${niches} Nischen × ${cities} Städte), insgesamt bis zu ${companies} durchsuchte Firmen. Konservativ geschätzt ~${leads} Leads mit E-Mail.`,
+    coverageQueueHint:
+      "Die Warteschlange arbeitet die Suchen nacheinander ab. Je nach Auslastung dauert das deutlich länger als eine einzelne Suche — eine feste Zeit lässt sich nicht zusagen.",
+    coverageCityLimit: (target: number, needed: number, available: number, estimated: number) =>
+      `Für ${target} Leads bräuchte es ${needed} Städte, unsere Liste für dieses Land hat ${available}. Mehr als ~${estimated} Leads sind daraus nicht zu holen — für mehr Volumen ein zweites Land oder eine zweite Nische nehmen.`,
+    coverageFanoutLimit: (target: number, needed: number, max: number) =>
+      `Für ${target} Leads bräuchte es ${needed} Städte. Pro Absenden sind ${max} Kombinationen erlaubt: den Rest als zweite Tranche starten, sobald du siehst, was die erste tatsächlich hergibt.`,
+    coverageTooManyNiches: (max: number) =>
+      `Zu viele Nischen für einen Durchgang: max. ${max} Kombinationen pro Absenden.`,
+    coverageNeedsNiche: "Trage zuerst mindestens eine Nische ein.",
+    coverageNeedsCountry: "Wähle ein Land aus.",
+    coverageIncomplete: "Für die Länder-Abdeckung fehlt noch die Nische oder das Land.",
+    coverageConfirm: (combinations: number, cities: number, companies: number, leads: number) =>
+      `${combinations} Suchen für ${cities} Städte wirklich jetzt starten? Es werden bis zu ${companies} Firmen durchsucht, geschätzt kommen ~${leads} Leads mit E-Mail dabei heraus.`,
     radius: "Radius (m)",
     painPointHeading: "Erweiterte Filter",
     painPointNoWebsite: "Nur Firmen ohne Website",
@@ -596,6 +618,10 @@ const de = {
     countryLabels: {
       AT: "Österreich", DE: "Deutschland", CH: "Schweiz", GB: "UK", US: "USA",
       NL: "Niederlande", FR: "Frankreich", IT: "Italien", ES: "Spanien",
+      // BE nur für die Länder-Abdeckung im Maps-Modus. Steht bewusst NICHT in
+      // COUNTRY_CODES: Hunter/Apollo bieten Belgien im Formular nicht an, und
+      // eine Beschriftung ohne Auswahlmöglichkeit wäre nur verwirrend.
+      BE: "Belgien",
     } as Record<string, string>,
   },
   leads: {
@@ -2826,6 +2852,28 @@ const en: Dictionary = {
       `Really start ${count} separate searches with up to ${raw} companies each (up to ${count * raw} total)?`,
     fanoutTooMany: (max: number) =>
       `Too many niche × location combinations: max. ${max} searches at once.`,
+    coverageToggle: "Cover a country automatically",
+    coverageToggleHint:
+      "Instead of typing every city: pick a country and a target, the cities come from a curated list.",
+    coverageCountry: "Country",
+    coverageCountryNone: "Pick a country",
+    coverageTarget: "Target: leads in total",
+    coverageCities: (cities: string) => `Cities: ${cities}`,
+    coveragePreview: (combinations: number, niches: number, cities: number, companies: number, leads: number) =>
+      `→ ${combinations} searches (${niches} niches × ${cities} cities), up to ${companies} companies searched in total. Conservatively estimated ~${leads} leads with an email.`,
+    coverageQueueHint:
+      "The queue works through the searches one after another. Depending on load this takes considerably longer than a single search — no fixed time can be promised.",
+    coverageCityLimit: (target: number, needed: number, available: number, estimated: number) =>
+      `${target} leads would need ${needed} cities, our list for this country has ${available}. There are no more than ~${estimated} leads to get from it — for more volume add a second country or a second niche.`,
+    coverageFanoutLimit: (target: number, needed: number, max: number) =>
+      `${target} leads would need ${needed} cities. Each submit allows ${max} combinations: start the rest as a second batch once you see what the first one actually returns.`,
+    coverageTooManyNiches: (max: number) =>
+      `Too many niches for one run: max. ${max} combinations per submit.`,
+    coverageNeedsNiche: "Enter at least one niche first.",
+    coverageNeedsCountry: "Pick a country.",
+    coverageIncomplete: "Country coverage still needs a niche or a country.",
+    coverageConfirm: (combinations: number, cities: number, companies: number, leads: number) =>
+      `Really start ${combinations} searches across ${cities} cities now? Up to ${companies} companies will be searched, with an estimated ~${leads} leads with an email.`,
     radius: "Radius (m)",
     painPointHeading: "Advanced filters",
     painPointNoWebsite: "Only companies without a website",
@@ -2870,6 +2918,7 @@ const en: Dictionary = {
     countryLabels: {
       AT: "Austria", DE: "Germany", CH: "Switzerland", GB: "UK", US: "USA",
       NL: "Netherlands", FR: "France", IT: "Italy", ES: "Spain",
+      BE: "Belgium",
     },
   },
   leads: {
