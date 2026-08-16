@@ -21,6 +21,7 @@ import { FINDING_FIELD, offerFindings, type OfferFinding } from "@/lib/copy/offe
 import type { CoachFinding } from "@/lib/copy/coach-prompt";
 import OfferMap from "./offer-map";
 import Herkunft from "./herkunft";
+import ProduktWahl, { FREITEXT } from "./produkt-wahl";
 import Thaw from "../thaw";
 import { useT } from "../language-provider";
 import { useToast } from "../toast-provider";
@@ -83,12 +84,6 @@ type ListenOption = {
  *  fuer Beschriftung und Farbe -- die Uebernahme ist in beiden Faellen
  *  dieselbe. */
 type VorschlagQuelle = "website" | "search";
-
-/** Die letzte Zeile der Produktauswahl: keiner der Vorschlaege passt, der
- *  Nutzer schreibt selbst hin, worum es geht. Ein Index, der nie ein Produkt
- *  meint -- die Auswahl bleibt damit EIN Zustand statt zweier, die sich
- *  widersprechen koennen. */
-const FREITEXT = -1;
 
 /**
  * Eingabefelder dieser Seite, groesser als das app-weite inputCls.
@@ -250,14 +245,40 @@ export default function OffersEditor({ initial }: { initial: Offer[] }) {
   const [produktIndex, setProduktIndex] = useState(0);
   const [produktFrei, setProduktFrei] = useState("");
   /**
-   * Was die Produkterkennung zuletzt gesagt hat.
+   * Dieselbe Zwischenfrage, aber fuer Core: beschreibt die eigene Website mehr
+   * als eine Sache?
    *
-   * Der Schluessel enthaelt den Text selbst und nicht nur die Angebots-ID: wer
-   * "was verkaufst du" umschreibt, hat womoeglich gerade ein zweites Produkt
-   * ergaenzt. Ohne diesen Zwischenspeicher kostete jeder Listenwechsel einen
-   * zweiten bezahlten Aufruf fuer dieselbe Antwort.
+   * Eigener Zustand und nicht `produktWahl` mitbenutzt, obwohl die Frage
+   * dieselbe ist: die beiden Kerne stehen gleichzeitig auf der Seite, und ein
+   * gemeinsamer Zustand hiesse, dass die Frage des einen die des anderen
+   * verdraengt. null heisst "nichts zu entscheiden" -- noch nicht gefragt, oder
+   * die Seite beschreibt genau eine Sache.
+   *
+   * Die Adresse wandert mit, aus demselben Grund, aus dem bei Aim die Liste
+   * mitwandert: die Auswahl muss sie ueberdauern, und der Entwurf braucht
+   * beides.
    */
-  const produktCache = useRef<{ key: string; produkte: OfferProduct[] } | null>(null);
+  const [websiteProdukte, setWebsiteProdukte] = useState<{
+    adresse: string;
+    produkte: OfferProduct[];
+  } | null>(null);
+  const [websiteIndex, setWebsiteIndex] = useState(0);
+  const [websiteFrei, setWebsiteFrei] = useState("");
+  /**
+   * Was die Produkterkennung zu einem Material zuletzt gesagt hat.
+   *
+   * Der Schluessel enthaelt das Material selbst und nicht nur seine Herkunft:
+   * wer "was verkaufst du" umschreibt, hat womoeglich gerade ein zweites
+   * Produkt ergaenzt, und wer die Adresse aendert, meint eine andere Seite.
+   * Ohne diesen Zwischenspeicher kostete jeder Listenwechsel einen zweiten
+   * bezahlten Aufruf fuer dieselbe Antwort.
+   *
+   * Eine Map und kein einzelner Platz, seit beide Kerne fragen: sonst wirft
+   * jede Frage von Core die Antwort fuer Aim weg und umgekehrt. Sie waechst
+   * nur mit den Handgriffen einer Sitzung -- ein Deckel waere Buchhaltung fuer
+   * ein Dutzend Eintraege.
+   */
+  const produktCache = useRef(new Map<string, OfferProduct[]>());
   const [neuerName, setNeuerName] = useState("");
   const [legeAn, setLegeAn] = useState(initial.length === 0);
   const [speichert, setSpeichert] = useState(false);
@@ -393,6 +414,7 @@ export default function OffersEditor({ initial }: { initial: Offer[] }) {
     setVorschlaege({});
     setListenFehler(null);
     setProduktWahl(null);
+    setWebsiteProdukte(null);
   }
 
   /**
@@ -415,6 +437,7 @@ export default function OffersEditor({ initial }: { initial: Offer[] }) {
     setVorschlaege({});
     setListenFehler(null);
     setProduktWahl(null);
+    setWebsiteProdukte(null);
     setLegeAn(false);
   }
 
@@ -550,14 +573,73 @@ export default function OffersEditor({ initial }: { initial: Offer[] }) {
     push(O.deleted, "success");
   }
 
+  /**
+   * Die eigene Website lesen und daraus die Felder vorschlagen.
+   *
+   * ═══════════════════════════════════════════════════════════════════════
+   * WARUM DAZWISCHEN EINE FRAGE STEHEN KANN
+   * ═══════════════════════════════════════════════════════════════════════
+   *
+   * Dieselbe Falle wie bei Aim, nur eine Stufe frueher: manche Betriebe
+   * beschreiben auf ihrer Seite mehr als eine Sache -- eine App fuer
+   * WhatsApp-Marketing UND eine fuer Support-Automatisierung. Ohne Rueckfrage
+   * entsteht daraus EIN Entwurf, der beides vermengt: ein "offering", das auf
+   * keines der beiden Produkte passt, und ein Problem, das die Kunden des
+   * einen mit dem Werkzeug des anderen loesen sollen.
+   *
+   * Deshalb zuerst der billige Aufruf (api/offers/detect-products, hier mit
+   * der Adresse statt einer Angebots-ID -- das Feld "was verkaufst du" gibt es
+   * ja noch nicht) und nur bei mehreren Treffern die Frage. Sie steht VOR dem
+   * teuren Aufruf, nicht danach. Ist die Seite eindeutig, merkt der Nutzer von
+   * alldem nichts.
+   */
   async function ausWebsite() {
-    if (!entwurf.website?.trim()) return;
+    const adresse = entwurf.website?.trim();
+    if (!adresse || lese) return;
+    setWebsiteProdukte(null);
+    // Der Kern liest schon waehrend der Erkennung -- fuer den Nutzer ist das
+    // EIN Handgriff, auch wenn dahinter zwei Aufrufe stehen.
     setLese(true);
+
+    const produkte = await erkenneProdukte(`web ${entwurf.language} ${adresse}`, {
+      website: adresse,
+      language: entwurf.language,
+    });
+    if (produkte.length >= 2) {
+      setLese(false);
+      setWebsiteIndex(0);
+      setWebsiteFrei("");
+      setWebsiteProdukte({ adresse, produkte });
+      return;
+    }
+    await erzeugeAusWebsite(adresse, null);
+  }
+
+  /** Die Auswahl bestaetigen und den Entwurf erzeugen. Gelesen wird die
+   *  Adresse, zu der gefragt wurde -- wer waehrend der Frage im Feld
+   *  weitertippt, bekommt sonst einen Entwurf zu einer Seite, auf der dieses
+   *  Produkt nie stand. */
+  function weiterMitWebsiteProdukt() {
+    if (!websiteProdukte) return;
+    const gewaehlt =
+      websiteIndex === FREITEXT
+        ? { name: websiteFrei.trim(), description: "" }
+        : websiteProdukte.produkte[websiteIndex];
+    if (!gewaehlt?.name) return;
+    const adresse = websiteProdukte.adresse;
+    setWebsiteProdukte(null);
+    setLese(true);
+    void erzeugeAusWebsite(adresse, gewaehlt);
+  }
+
+  /** Der eigentliche, teure Aufruf. `produkt` ist gesetzt, wenn die Seite mehr
+   *  als eine Sache beschreibt und der Nutzer eine gewaehlt hat. */
+  async function erzeugeAusWebsite(adresse: string, produkt: OfferProduct | null) {
     setVorschlaege({});
     const res = await fetch("/api/offers/from-website", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ website: entwurf.website, language: entwurf.language }),
+      body: JSON.stringify({ website: adresse, language: entwurf.language, product: produkt }),
     });
     const body = await res.json().catch(() => ({}));
     setLese(false);
@@ -610,7 +692,10 @@ export default function OffersEditor({ initial }: { initial: Offer[] }) {
     // EIN Handgriff, auch wenn dahinter zwei Aufrufe stehen.
     setLiestListe(liste.id);
 
-    const produkte = await erkenneProdukte(aktuell.id, entwurfRef.current.offering);
+    const produkte = await erkenneProdukte(
+      `offer ${aktuell.id} ${entwurfRef.current.offering.trim()}`,
+      { offerId: aktuell.id }
+    );
     if (produkte.length >= 2) {
       setLiestListe(null);
       setProduktIndex(0);
@@ -622,29 +707,37 @@ export default function OffersEditor({ initial }: { initial: Offer[] }) {
   }
 
   /**
-   * Beschreibt das Angebot mehr als eine Sache?
+   * Beschreibt das Material mehr als eine Sache?
+   *
+   * EIN Weg fuer beide Kerne: Aim schickt die Angebots-ID, Core die Adresse
+   * der Website (siehe api/offers/detect-products). Der Schluessel fuer den
+   * Zwischenspeicher kommt vom Aufrufer, weil nur er weiss, was sein Ergebnis
+   * veralten laesst -- bei Aim der Text im Feld, bei Core Adresse und Sprache.
    *
    * Ein leeres Ergebnis heisst "eindeutig" -- und das gilt ausdruecklich auch,
    * wenn der Aufruf scheitert: eine Zwischenfrage, die nicht gestellt werden
-   * kann, darf den Zuschnitt nicht verhindern. Fehlt zum Beispiel der
+   * kann, darf den Hauptaufruf nicht verhindern. Fehlt zum Beispiel der
    * OpenAI-Schluessel, sagt das der Hauptaufruf zwei Zeilen spaeter ohnehin,
    * und zwar mit dem Satz, der dem Nutzer sagt, was zu tun ist.
    *
    * Ein Fehlschlag wird NICHT gespeichert: sonst bliebe eine Stoerung von
    * zehn Sekunden fuer den Rest der Sitzung als "eindeutig" haengen.
    */
-  async function erkenneProdukte(offerId: string, offering: string): Promise<OfferProduct[]> {
-    const key = `${offerId} ${offering.trim()}`;
-    if (produktCache.current?.key === key) return produktCache.current.produkte;
+  async function erkenneProdukte(
+    key: string,
+    anfrage: Record<string, unknown>
+  ): Promise<OfferProduct[]> {
+    const bekannt = produktCache.current.get(key);
+    if (bekannt) return bekannt;
     const res = await fetch("/api/offers/detect-products", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ offerId }),
+      body: JSON.stringify(anfrage),
     });
     const body = await res.json().catch(() => ({}));
     if (!res.ok) return [];
     const produkte = (body.products ?? []) as OfferProduct[];
-    produktCache.current = { key, produkte };
+    produktCache.current.set(key, produkte);
     return produkte;
   }
 
@@ -1030,6 +1123,34 @@ export default function OffersEditor({ initial }: { initial: Offer[] }) {
                   <span className="relative">{lese ? O.reading : O.readWebsite}</span>
                 </button>
               </div>
+
+              {/* ── Die Zwischenfrage ──────────────────────────────────────
+                  Nur wenn auf der Seite mehr als eine Sache steht. Sie steht
+                  zwischen Adresse und Hinweis, also genau dort, wo der
+                  Vorgang gerade haengt -- und dasselbe Bauteil stellt sie im
+                  Listen-Kasten darunter. */}
+              {websiteProdukte && (
+                <ProduktWahl
+                  produkte={websiteProdukte.produkte}
+                  index={websiteIndex}
+                  onIndex={setWebsiteIndex}
+                  frei={websiteFrei}
+                  onFrei={setWebsiteFrei}
+                  onConfirm={weiterMitWebsiteProdukt}
+                  onCancel={() => setWebsiteProdukte(null)}
+                  accent="var(--fb-frost)"
+                  radioName="core-produkt"
+                  inputCls={feldBasis}
+                  texte={{
+                    heading: O.websiteProduct.heading,
+                    hint: O.websiteProduct.hint,
+                    other: O.websiteProduct.other,
+                    otherPlaceholder: O.websiteProduct.otherPlaceholder,
+                    confirm: O.websiteProduct.confirm,
+                    cancel: O.cancel,
+                  }}
+                />
+              )}
               {/* text-faint statt text-mute: --c-mute liegt auf Weiss bei 2,4:1
                   und ist damit fuer Platzhalter gedacht, nicht fuer einen Satz,
                   der erklaert, was gleich mit den Feldern passiert. text-faint
@@ -1163,129 +1284,35 @@ export default function OffersEditor({ initial }: { initial: Offer[] }) {
                     </div>
                   )}
 
-                  {/* ── Die Zwischenfrage ────────────────────────────────
+                  {/* ── Die Zwischenfrage ────────────────────
                       Nur wenn das Angebot mehr als eine Sache beschreibt. Sie
                       steht an derselben Stelle wie die Listenauswahl davor:
-                      derselbe Handgriff, einen Schritt weiter.
-
-                      Die letzte Zeile ist der Ausweg. Die Erkennung liest
-                      einen Freitext und kann danebenliegen -- ohne eigenes
-                      Feld haette der Nutzer dann nur die Wahl zwischen zwei
-                      falschen Antworten und dem Abbruch. */}
+                      derselbe Handgriff, einen Schritt weiter. Dasselbe
+                      Bauteil stellt sie im Website-Kasten weiter oben — es
+                      ist dieselbe Frage und muss sich gleich anfuehlen. */}
                   {produktWahl && (
-                    <div className="mt-3">
-                      <p className="text-[13px] text-faint">
-                        {O.fromSearch.product.heading(
+                    <ProduktWahl
+                      produkte={produktWahl.produkte}
+                      index={produktIndex}
+                      onIndex={setProduktIndex}
+                      frei={produktFrei}
+                      onFrei={setProduktFrei}
+                      onConfirm={weiterMitProdukt}
+                      onCancel={() => setProduktWahl(null)}
+                      accent="var(--fb-aim)"
+                      radioName="aim-produkt"
+                      inputCls={feldBasis}
+                      texte={{
+                        heading: O.fromSearch.product.heading(
                           produktWahl.liste.name ?? produktWahl.liste.query ?? ""
-                        )}
-                      </p>
-                      <p className="mb-2 mt-0.5 max-w-[54ch] text-[13px] leading-relaxed text-mute">
-                        {O.fromSearch.product.hint}
-                      </p>
-                      <div className="space-y-1.5">
-                        {produktWahl.produkte.map((p, i) => (
-                          <label
-                            key={p.name}
-                            className={
-                              "block cursor-pointer rounded-lg border p-3 text-sm transition-colors " +
-                              (produktIndex === i ? "" : "border-edge2 hover:border-edge3")
-                            }
-                            style={
-                              produktIndex === i
-                                ? {
-                                    borderColor:
-                                      "color-mix(in srgb, var(--fb-aim) 55%, transparent)",
-                                    background:
-                                      "color-mix(in srgb, var(--fb-aim) 7%, transparent)",
-                                  }
-                                : undefined
-                            }
-                          >
-                            <span className="flex items-center gap-2">
-                              <input
-                                type="radio"
-                                name="aim-produkt"
-                                checked={produktIndex === i}
-                                onChange={() => setProduktIndex(i)}
-                                className="h-3.5 w-3.5"
-                                style={{ accentColor: "var(--fb-aim)" }}
-                              />
-                              <span className="font-medium text-ink">{p.name}</span>
-                            </span>
-                            {p.description && (
-                              <span className="mt-1 block pl-[22px] text-[13px] leading-relaxed text-faint">
-                                {p.description}
-                              </span>
-                            )}
-                          </label>
-                        ))}
-                        <label
-                          className={
-                            "block cursor-pointer rounded-lg border p-3 text-sm transition-colors " +
-                            (produktIndex === FREITEXT ? "" : "border-edge2 hover:border-edge3")
-                          }
-                          style={
-                            produktIndex === FREITEXT
-                              ? {
-                                  borderColor:
-                                    "color-mix(in srgb, var(--fb-aim) 55%, transparent)",
-                                  background: "color-mix(in srgb, var(--fb-aim) 7%, transparent)",
-                                }
-                              : undefined
-                          }
-                        >
-                          <span className="flex items-center gap-2">
-                            <input
-                              type="radio"
-                              name="aim-produkt"
-                              checked={produktIndex === FREITEXT}
-                              onChange={() => setProduktIndex(FREITEXT)}
-                              className="h-3.5 w-3.5"
-                              style={{ accentColor: "var(--fb-aim)" }}
-                            />
-                            <span className="font-medium text-ink">
-                              {O.fromSearch.product.other}
-                            </span>
-                          </span>
-                        </label>
-                        {/* Das Textfeld steht AUSSERHALB der Beschriftung: ein
-                            zweites Bedienelement in einem <label> laesst den
-                            Klick ins Textfeld je nach Browser den Radioknopf
-                            treffen. */}
-                        {produktIndex === FREITEXT && (
-                          <input
-                            autoFocus
-                            value={produktFrei}
-                            onChange={(e) => setProduktFrei(e.target.value)}
-                            onKeyDown={(e) => e.key === "Enter" && weiterMitProdukt()}
-                            placeholder={O.fromSearch.product.otherPlaceholder}
-                            className={feldBasis + " w-full"}
-                          />
-                        )}
-                      </div>
-                      <div className="mt-2.5 flex items-center gap-4">
-                        <button
-                          type="button"
-                          onClick={weiterMitProdukt}
-                          disabled={produktIndex === FREITEXT && !produktFrei.trim()}
-                          className="min-h-9 rounded-lg border px-4 text-sm font-medium transition-all hover:brightness-110 disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500"
-                          style={{
-                            borderColor: "color-mix(in srgb, var(--fb-aim) 45%, transparent)",
-                            color: "var(--fb-aim)",
-                            background: "color-mix(in srgb, var(--fb-aim) 8%, transparent)",
-                          }}
-                        >
-                          {O.fromSearch.product.confirm}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setProduktWahl(null)}
-                          className="min-h-8 rounded text-[13px] text-faint transition-colors hover:text-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500"
-                        >
-                          {O.cancel}
-                        </button>
-                      </div>
-                    </div>
+                        ),
+                        hint: O.fromSearch.product.hint,
+                        other: O.fromSearch.product.other,
+                        otherPlaceholder: O.fromSearch.product.otherPlaceholder,
+                        confirm: O.fromSearch.product.confirm,
+                        cancel: O.cancel,
+                      }}
+                    />
                   )}
 
                   {listenFehler && (

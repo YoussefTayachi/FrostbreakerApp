@@ -171,3 +171,57 @@ export function normalizeWebsiteUrl(input: string): string | null {
     return null;
   }
 }
+
+/** Wie lange auf die fremde Seite gewartet wird. Grosszuegiger als noetig,
+ *  aber weit unter dem maxDuration der aufrufenden Routen -- der Modellaufruf
+ *  braucht danach auch noch Zeit. */
+export const SEITEN_TIMEOUT_MS = 12_000;
+
+export type WebsiteFetchResult =
+  | { ok: true; content: WebsiteContent }
+  | { ok: false; error: string; status: number };
+
+/**
+ * Eine Seite holen und auf lesbaren Text bringen.
+ *
+ * Steht hier und nicht in einer Route, weil ZWEI Routen dieselbe Seite lesen:
+ * api/offers/from-website macht daraus die Feldvorschlaege, und
+ * api/offers/detect-products beantwortet vorher die Frage, ob die Seite
+ * ueberhaupt nur EINE Sache beschreibt. Zwei Kopien dieses Abrufs waeren zwei
+ * Kennzeichner, zwei Zeitlimits und zwei Fassungen der Frage, ab wann eine
+ * Seite zu duenn ist.
+ *
+ * Die Fehlertexte sind Deutsch und gehen unveraendert an den Nutzer -- sie
+ * sagen ihm, was zu tun ist.
+ */
+export async function fetchWebsiteContent(url: string): Promise<WebsiteFetchResult> {
+  let html: string;
+  try {
+    const res = await fetch(url, {
+      // Gleicher Kennzeichner wie im Worker (personalize.py): wer den
+      // Zugriff in seinen Logs sieht, soll erkennen koennen, wer da liest.
+      headers: { "User-Agent": "Mozilla/5.0 (compatible; ThawBot/1.0)" },
+      redirect: "follow",
+      signal: AbortSignal.timeout(SEITEN_TIMEOUT_MS),
+    });
+    if (!res.ok) {
+      return { ok: false, error: `Website antwortet mit ${res.status}.`, status: 502 };
+    }
+    html = await res.text();
+  } catch {
+    return { ok: false, error: "Website nicht erreichbar.", status: 502 };
+  }
+
+  const content = extractWebsiteContent(html);
+  if (!hasEnoughContent(content)) {
+    // Ehrlich melden statt das Modell auf 40 Zeichen raten zu lassen. Der
+    // haeufigste Fall dahinter: eine Seite, die ihren Inhalt erst im Browser
+    // per JavaScript aufbaut.
+    return {
+      ok: false,
+      error: "Auf der Seite steht zu wenig Text. Bitte die Felder von Hand ausfüllen.",
+      status: 422,
+    };
+  }
+  return { ok: true, content };
+}

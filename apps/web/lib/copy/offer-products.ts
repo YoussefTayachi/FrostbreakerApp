@@ -14,6 +14,20 @@
  * Deshalb ein eigener, kleiner Aufruf VOR dem teuren: er beantwortet nur die
  * eine Frage, und die Antwort entscheidet, ob der Nutzer vorher gefragt wird.
  *
+ * ZWEI QUELLEN, EINE FRAGE
+ *
+ * Dasselbe passiert eine Stufe frueher: Core liest die eigene Website und legt
+ * daraus das erste Angebot an (lib/copy/offer-from-website.ts). Steht auf der
+ * Seite mehr als eine Sache, entsteht ohne Rueckfrage genau derselbe
+ * Mischentwurf -- nur dass es das Feld `offering` da noch gar nicht gibt, aus
+ * dem Aim seine Frage beantwortet. Material ist dann der Seitentext.
+ *
+ * Beurteilt wird in beiden Faellen dasselbe ("eine Sache oder mehrere, und
+ * welche"), deshalb ein Prompt mit zwei Materialsorten (ProductSource) statt
+ * zweier Prompts. Zwei waeren zwei Regelsaetze, die irgendwann verschieden
+ * entscheiden -- und die Regel, die den teuren Fehlalarm verhindert, steht nur
+ * in einem davon.
+ *
  * WARUM EIN EIGENER AUFRUF UND KEIN ZUSATZFELD IM GROSSEN PROMPT
  *
  * Die Oberflaeche muss auf "mehrere gefunden" reagieren, BEVOR der teure
@@ -30,11 +44,39 @@
  * verkauft. Wird eine echte zweite Sache uebersehen, bleibt alles so, wie es
  * vorher war.
  */
+import { hasEnoughContent, type WebsiteContent } from "@/lib/website-text";
 import { extractJsonObject, istAusrede } from "./offer-from-website";
 
 /** Eine Sache, die der Absender verkauft. `description` darf leer sein -- der
  *  Freitext-Ausweg in der Oberflaeche liefert nur einen Namen. */
 export type OfferProduct = { name: string; description: string };
+
+/**
+ * Woraus die Frage beantwortet wird.
+ *
+ * `offering` ist der Weg von Aim: das ausgefuellte Feld "was verkaufst du",
+ * dazu die Zielgruppe als Hintergrund. `website` ist der Weg von Core: die
+ * eigene Seite, gelesen bevor es ueberhaupt ein Angebot gibt.
+ */
+export type ProductSource =
+  | { kind: "offering"; offering: string; icp: string }
+  | { kind: "website"; content: WebsiteContent };
+
+/**
+ * Lohnt die Frage ueberhaupt?
+ *
+ * Ohne Material gibt es nichts zu unterscheiden -- und dafuer wird kein
+ * bezahlter Aufruf ausgegeben. Beide Faelle sind echt: ein frisch angelegtes
+ * Angebot hat ein leeres `offering`, und eine Seite, die ihren Inhalt erst im
+ * Browser aufbaut, liefert einen leeren Text. Die Schwelle fuer die Seite ist
+ * dieselbe wie ueberall (hasEnoughContent) -- eine zweite waere eine zweite
+ * Antwort auf die Frage, ab wann eine Seite zu duenn ist.
+ */
+export function hasProductMaterial(source: ProductSource): boolean {
+  return source.kind === "offering"
+    ? source.offering.trim().length > 0
+    : hasEnoughContent(source.content);
+}
 
 /**
  * Obergrenzen.
@@ -72,21 +114,40 @@ const LANGUAGE_NAMES: Record<string, string> = { de: "German", en: "English" };
  * Ebenso ausdruecklich: die Zielgruppe darf nie der Grund fuer eine Teilung
  * sein. Dieselbe Sache an zwei Branchen zu verkaufen ist genau der Fall, fuer
  * den es den Listen-Zuschnitt ueberhaupt gibt.
+ *
+ * ─────────────────────────────────────────────────────────────────────────
+ * WAS AN EINER WEBSITE ANDERS IST
+ * ─────────────────────────────────────────────────────────────────────────
+ *
+ * Nur das Material, nicht die Beurteilung. Ein Freitextfeld enthaelt fast nur
+ * das Angebot; eine Seite enthaelt daneben Integrationslogos, Kundennamen,
+ * Blogtitel und Stellenanzeigen. Genau die liest ein Modell sonst als
+ * "verkauft auch das" -- deshalb stehen fuer diesen Weg zwei zusaetzliche
+ * Regeln im Prompt. Die Richtung bleibt dieselbe: im Zweifel EINE Sache.
  */
-export function buildProductDetectPrompt(
-  offering: string,
-  icp: string,
-  language: "de" | "en"
-): string {
+export function buildProductDetectPrompt(source: ProductSource, language: "de" | "en"): string {
   const sprache = LANGUAGE_NAMES[language] ?? "German";
+  const website = source.kind === "website";
   const zeilen: (string | null)[] = [
-    "You are reading how a sender describes what their business sells.",
+    website
+      ? "You are reading a company's own website."
+      : "You are reading how a sender describes what their business sells.",
     "Your ONLY job: decide whether this describes ONE product or service, or SEVERAL DISTINCT ones.",
     "",
     "RULES:",
-    "- Only use the text below. Never add knowledge of your own about this company or its market.",
+    website
+      ? "- Only use the page below. Never add knowledge of your own about this company or its market."
+      : "- Only use the text below. Never add knowledge of your own about this company or its market.",
     "- The test for 'distinct': a buyer could buy one of them WITHOUT the other, and the text actually",
     "  names it or clearly describes it as a separate thing.",
+    // Nur bei der Website: auf einer Seite stehen fremde Namen (Integrationen,
+    // Referenzen, Presse) genauso gross wie die eigenen. Ohne diese Regel wird
+    // "Shopify" zum zweiten Produkt des Absenders.
+    website
+      ? "- Only things this company sells THEMSELVES. Tools they integrate with, platforms they build on,"
+      : null,
+    website ? "  partners, named clients and press mentions are NOT their products." : null,
+    website ? "- Ignore blog posts, job ads, legal text and cookie notices." : null,
     // Der wichtigste Satz. Ohne ihn wird jede Feature-Aufzaehlung zu einem
     // Produktkatalog -- und genau so ist ein gut ausgefuelltes Feld gebaut.
     "- Several features, benefits, steps, modules, packages or price tiers of ONE thing are NOT several",
@@ -108,18 +169,30 @@ export function buildProductDetectPrompt(
     '{"multiple":false,"products":[]}',
     "If there really are several:",
     '{"multiple":true,"products":[{"name":"...","description":"..."},{"name":"...","description":"..."}]}',
-    "",
-    "WHAT THEY SELL:",
-    offering.trim(),
   ];
-  const zielgruppe = icp.trim();
-  if (zielgruppe) {
+
+  if (source.kind === "offering") {
+    zeilen.push("", "WHAT THEY SELL:", source.offering.trim());
+    const zielgruppe = source.icp.trim();
+    if (zielgruppe) {
+      zeilen.push("", "WHO THEY SELL TO (background only -- never a reason to split):", zielgruppe);
+    }
+  } else {
+    // Titel und Meta-Beschreibung getrennt und zuerst, wie in
+    // buildOfferPrompt: sie sind die vom Betreiber SELBST gewaehlte
+    // Kurzfassung dessen, was er tut, und stehen oft genau dann noch da, wenn
+    // der Fliesstext in Referenzlogos untergeht.
+    const { title, description, text } = source.content;
     zeilen.push(
       "",
-      "WHO THEY SELL TO (background only -- never a reason to split):",
-      zielgruppe
+      "THE PAGE:",
+      title ? `Title: ${title}` : null,
+      description ? `Description: ${description}` : null,
+      "",
+      text
     );
   }
+
   return zeilen.filter((z): z is string => z !== null).join("\n");
 }
 

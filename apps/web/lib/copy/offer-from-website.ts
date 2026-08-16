@@ -21,6 +21,10 @@
  */
 import { OFFER_TEXT_FIELDS, type OfferTextField } from "@/lib/offers";
 import type { WebsiteContent } from "@/lib/website-text";
+// Nur der Typ, und deshalb unbedenklich, obwohl offer-products.ts umgekehrt
+// zwei Funktionen von hier holt: ein `import type` steht nach dem Uebersetzen
+// nicht mehr da, es entsteht also kein Ladekreis.
+import type { OfferProduct } from "./offer-products";
 
 export type OfferSuggestion = Partial<Record<OfferTextField, string>>;
 
@@ -56,7 +60,21 @@ export const SUGGESTED_FIELDS: OfferTextField[] = OFFER_TEXT_FIELDS.filter(
   (f) => !NICHT_VORSCHLAGEN.includes(f)
 );
 
-export function buildOfferPrompt(content: WebsiteContent, language: "de" | "en"): string {
+/**
+ * Der Auftrag ans Modell.
+ *
+ * `produkt` ist gesetzt, wenn die Seite mehr als eine Sache beschreibt und der
+ * Nutzer gesagt hat, um welche es in DIESEM Angebot geht (siehe
+ * offer-products.ts). Ohne den Wert ist der Prompt Wort fuer Wort der von
+ * vorher -- die eindeutige Seite ist der Normalfall und darf sich nicht
+ * aendern. Gleiche Form wie in offer-from-search.ts: eine Regelzeile oben und
+ * der Block direkt vor dem Material, das er einschraenkt.
+ */
+export function buildOfferPrompt(
+  content: WebsiteContent,
+  language: "de" | "en",
+  produkt?: OfferProduct | null
+): string {
   const sprache = language === "en" ? "English" : "German";
   return [
     "You read a company website and fill in a short profile of what this company SELLS.",
@@ -64,6 +82,13 @@ export function buildOfferPrompt(content: WebsiteContent, language: "de" | "en")
     "",
     "RULES:",
     "- Only use what is actually on the page. Never add industry knowledge of your own.",
+    // Der Satz steht doppelt -- hier als Regel und unten am Produkt selbst.
+    // Was hier als ein Punkt zwischen acht anderen steht, wird sonst
+    // mitueberlesen.
+    produkt
+      ? "- This company sells more than one thing. This profile is about exactly ONE of them, named below." +
+        " Write about that one only and ignore the rest of the page."
+      : "",
     // Der wichtigste Satz. Eine erfundene Referenz landet sonst in jeder
     // spaeter erzeugten Mail und faellt erst dem Empfaenger auf.
     "- If the page does not say something, return an empty string for that field. Never guess.",
@@ -92,6 +117,20 @@ export function buildOfferPrompt(content: WebsiteContent, language: "de" | "en")
     "",
     "Answer with JSON only:",
     '{"offering":"...","icp":"...","problem":"...","friction":"...","outcome":"...","mechanism":"...","proof":"..."}',
+    "",
+    // Der Block steht DIREKT vor der Seite und nicht bei den Regeln oben: er
+    // schraenkt ein, was gleich darunter zu lesen ist, und eine
+    // Einschraenkung gehoert unmittelbar vor das, was sie einschraenkt.
+    produkt ? "THE ONE PRODUCT OR SERVICE THIS PROFILE IS ABOUT:" : "",
+    produkt ? `Name: ${produkt.name}` : "",
+    produkt && produkt.description ? `What it is: ${produkt.description}` : "",
+    produkt
+      ? "The page below also describes their other products or services. Every field you fill in --"
+      : "",
+    produkt
+      ? "offering, icp, problem, friction, outcome, mechanism, proof -- is about THIS one only."
+      : "",
+    produkt ? "Do not mention the others and do not blend them in." : "",
     "",
     "THE PAGE:",
     content.title ? `Title: ${content.title}` : "",

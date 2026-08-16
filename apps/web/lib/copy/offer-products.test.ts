@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
+import type { WebsiteContent } from "@/lib/website-text";
 import {
   MAX_PRODUCTS,
   PRODUCT_DESC_MAX,
   PRODUCT_NAME_MAX,
   buildProductDetectPrompt,
   cleanProduct,
+  hasProductMaterial,
   parseProductDetection,
 } from "./offer-products";
 
@@ -19,13 +21,39 @@ const EIN_PRODUKT_VIELE_VORTEILE =
   "Produktseiten, automatische Groessenberatung, monatliches Reporting und ein " +
   "Onboarding fuer das Team.";
 
+/** Das Feld "was verkaufst du" als Quelle -- der Weg von Aim. */
+const feld = (offering: string, icp = "") => ({ kind: "offering" as const, offering, icp });
+
+/** Eine Seite als Quelle -- der Weg von Core. */
+const seite = (text: string, title: string | null = null, description: string | null = null) => ({
+  kind: "website" as const,
+  content: { title, description, text } satisfies WebsiteContent,
+});
+
+/** Dieselben zwei Apps, aber so, wie sie auf einer Startseite stehen --
+ *  einschliesslich der fremden Namen, die keine eigenen Produkte sind. */
+const WEBSITE_ZWEI_PRODUKTE =
+  "Chatarmin ist die WhatsApp-Marketing-App fuer Shopify-Shops. Newsletter, " +
+  "Automationen, Rueckgewinnung.\n" +
+  "Armincx automatisiert den Kundensupport: Anfragen werden gelesen, sortiert und " +
+  "beantwortet.\n" +
+  "Integrationen: Shopify, Klaviyo, Zendesk. Vertrauen uns: Snocks, waterdrop.";
+
+/** Eine Seite zu EINEM Produkt, wie sie wirklich aussieht: fuenf Abschnitte,
+ *  die alle dasselbe verkaufen. */
+const WEBSITE_EIN_PRODUKT =
+  "Weniger Retouren in deinem Onlineshop.\n" +
+  "Analyse des Bestellwegs. Umbau der Produktseiten. Automatische Groessenberatung.\n" +
+  "Monatliches Reporting. Onboarding fuer dein Team.\n" +
+  "Pakete: Start, Wachstum, Enterprise.";
+
 describe("buildProductDetectPrompt", () => {
   it("gibt das Angebotsfeld mit", () => {
-    expect(buildProductDetectPrompt(ZWEI_PRODUKTE, "", "de")).toContain("Chatarmin");
+    expect(buildProductDetectPrompt(feld(ZWEI_PRODUKTE), "de")).toContain("Chatarmin");
   });
 
   it("nennt die Zielgruppe als Hintergrund und verbietet sie als Trenngrund", () => {
-    const p = buildProductDetectPrompt(ZWEI_PRODUKTE, "Onlineshops und Agenturen", "de");
+    const p = buildProductDetectPrompt(feld(ZWEI_PRODUKTE, "Onlineshops und Agenturen"), "de");
     expect(p).toContain("Onlineshops und Agenturen");
     expect(p).toContain("never a reason to split");
     // Zwei Branchen sind zwei Listen, nicht zwei Produkte -- genau dafuer gibt
@@ -34,30 +62,117 @@ describe("buildProductDetectPrompt", () => {
   });
 
   it("laesst den Zielgruppenblock weg, wenn das Feld leer ist", () => {
-    expect(buildProductDetectPrompt(ZWEI_PRODUKTE, "  ", "de")).not.toContain("WHO THEY SELL TO");
+    expect(buildProductDetectPrompt(feld(ZWEI_PRODUKTE, "  "), "de")).not.toContain(
+      "WHO THEY SELL TO"
+    );
   });
 
   it("verbietet das Zerlegen einer Feature-Aufzaehlung", () => {
     // Der wichtigste Satz des Prompts: ein gut ausgefuelltes Feld zaehlt fast
     // immer mehrere Vorteile auf.
-    const p = buildProductDetectPrompt(EIN_PRODUKT_VIELE_VORTEILE, "", "de");
+    const p = buildProductDetectPrompt(feld(EIN_PRODUKT_VIELE_VORTEILE), "de");
     expect(p).toContain("are NOT several");
     expect(p).toContain("If you are unsure, answer with one");
   });
 
   it("verbietet erfundene Namen und eigenes Branchenwissen", () => {
-    const p = buildProductDetectPrompt(ZWEI_PRODUKTE, "", "de");
+    const p = buildProductDetectPrompt(feld(ZWEI_PRODUKTE), "de");
     expect(p).toContain("Never invent a name");
     expect(p).toContain("Never add knowledge of your own");
   });
 
   it("gibt die Ausgabesprache aus dem Angebot vor", () => {
-    expect(buildProductDetectPrompt(ZWEI_PRODUKTE, "", "de")).toContain(
+    expect(buildProductDetectPrompt(feld(ZWEI_PRODUKTE), "de")).toContain(
       "Write the descriptions in German"
     );
-    expect(buildProductDetectPrompt(ZWEI_PRODUKTE, "", "en")).toContain(
+    expect(buildProductDetectPrompt(feld(ZWEI_PRODUKTE), "en")).toContain(
       "Write the descriptions in English"
     );
+  });
+});
+
+describe("buildProductDetectPrompt (Website)", () => {
+  it("gibt Titel, Beschreibung und Seitentext mit", () => {
+    const p = buildProductDetectPrompt(
+      seite(WEBSITE_ZWEI_PRODUKTE, "Chatarmin", "WhatsApp-Marketing und Support"),
+      "de"
+    );
+    expect(p).toContain("THE PAGE:");
+    expect(p).toContain("Title: Chatarmin");
+    expect(p).toContain("Description: WhatsApp-Marketing und Support");
+    expect(p).toContain("Armincx");
+    // Das Angebotsfeld gibt es an dieser Stelle noch gar nicht -- seine
+    // Ueberschrift darf also auch nicht im Prompt stehen.
+    expect(p).not.toContain("WHAT THEY SELL:");
+    expect(p).not.toContain("WHO THEY SELL TO");
+  });
+
+  it("laesst Titel und Beschreibung weg, wenn die Seite keine hat", () => {
+    const p = buildProductDetectPrompt(seite(WEBSITE_ZWEI_PRODUKTE), "de");
+    expect(p).not.toContain("Title:");
+    expect(p).not.toContain("Description:");
+  });
+
+  it("beurteilt nach denselben Regeln wie das Angebotsfeld", () => {
+    // Eine Seite zu EINEM Produkt zaehlt immer mehrere Bausteine und Pakete
+    // auf. Der Satz, der genau das vom zweiten Produkt trennt, muss auch auf
+    // diesem Weg im Prompt stehen -- sonst zerlegt das Modell jede Startseite.
+    const p = buildProductDetectPrompt(seite(WEBSITE_EIN_PRODUKT), "de");
+    expect(p).toContain("are NOT several");
+    expect(p).toContain("If you are unsure, answer with one");
+    expect(p).toContain("Never invent a name");
+    expect(p).toContain("Never add knowledge of your own");
+    expect(p).toContain("Write the descriptions in German");
+  });
+
+  it("verbietet fremde Namen als eigene Produkte", () => {
+    // Der Fehlalarm, den es nur auf einer Website gibt: Shopify, Klaviyo und
+    // die Kundenlogos stehen dort so gross wie das eigene Produkt.
+    const p = buildProductDetectPrompt(seite(WEBSITE_ZWEI_PRODUKTE), "de");
+    expect(p).toContain("Only things this company sells THEMSELVES");
+    expect(p).toContain("Ignore blog posts, job ads, legal text and cookie notices");
+  });
+
+  it("liest die Antwort zur Seite mit derselben Funktion", () => {
+    // Die Antwortform ist quellenunabhaengig -- ausdruecklich geprueft, weil
+    // sonst irgendwann jemand fuer die Website eine zweite Auswertung baut.
+    const zwei =
+      '{"multiple":true,"products":[{"name":"Chatarmin","description":"WhatsApp-Marketing fuer Shops"},' +
+      '{"name":"Armincx","description":"Automatisiert den Kundensupport"}]}';
+    expect(parseProductDetection(zwei)).toEqual([
+      { name: "Chatarmin", description: "WhatsApp-Marketing fuer Shops" },
+      { name: "Armincx", description: "Automatisiert den Kundensupport" },
+    ]);
+    // Die Seite zu EINEM Produkt: viele Bausteine, trotzdem keine Frage an
+    // den Nutzer.
+    expect(parseProductDetection('{"multiple":false,"products":[]}')).toEqual([]);
+  });
+
+  it("stellt diese beiden Regeln nur der Website", () => {
+    // Im Freitextfeld gibt es weder Integrationslogos noch Blogtitel. Zwei
+    // Regeln ohne Gegenstand kosten dort nur Aufmerksamkeit des Modells.
+    const p = buildProductDetectPrompt(feld(ZWEI_PRODUKTE), "de");
+    expect(p).not.toContain("Only things this company sells THEMSELVES");
+    expect(p).not.toContain("Ignore blog posts");
+  });
+});
+
+describe("hasProductMaterial", () => {
+  it("erkennt beide Quellen als brauchbar", () => {
+    expect(hasProductMaterial(feld(ZWEI_PRODUKTE))).toBe(true);
+    expect(hasProductMaterial(seite(WEBSITE_ZWEI_PRODUKTE))).toBe(true);
+  });
+
+  it("haelt ein leeres Feld fuer eindeutig -- ohne bezahlten Aufruf", () => {
+    expect(hasProductMaterial(feld("   "))).toBe(false);
+  });
+
+  it("haelt eine leere oder unlesbare Seite fuer eindeutig", () => {
+    // Der haeufigste Fall dahinter: eine Seite, die ihren Inhalt erst im
+    // Browser per JavaScript aufbaut. Es gibt dann nichts zu unterscheiden,
+    // und der Hauptaufruf meldet das Problem gleich danach selbst.
+    expect(hasProductMaterial(seite(""))).toBe(false);
+    expect(hasProductMaterial(seite("Cookies akzeptieren"))).toBe(false);
   });
 });
 

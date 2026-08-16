@@ -1654,6 +1654,19 @@ const de = {
     readWebsite: "Aus Website übernehmen",
     reading: "Liest...",
     suggestionsReady: (n: number) => `${n} Vorschläge aus der Website`,
+    /**
+     * Die Zwischenfrage von Core, wenn auf der Website mehr als ein Produkt
+     * oder eine Leistung steht. Eigene Schlüssel statt der von Aim: dort steht
+     * die Lead-Liste in der Frage („Worum geht es bei X?"), hier gibt es noch
+     * keine. Schlichte Fassung — noch nicht formuliert.
+     */
+    websiteProduct: {
+      heading: "Worum soll es in diesem Angebot gehen?",
+      hint: "Core hat auf deiner Website mehr als ein Produkt oder eine Leistung gefunden. Ein Angebot beschreibt immer nur eines davon — für das zweite legst du später ein eigenes an.",
+      other: "Etwas anderes",
+      otherPlaceholder: "z. B. Chatarmin — WhatsApp-Marketing für Shops",
+      confirm: "Weiter",
+    },
     /** Der zweite Kern — „Aim": dasselbe Angebot, zugeschnitten auf EINE
      *  Lead-Liste. Der Name steht in beiden Sprachen gleich da. */
     fromSearch: {
@@ -3879,6 +3892,15 @@ const en: Dictionary = {
     readWebsite: "Read from website",
     reading: "Reading...",
     suggestionsReady: (n: number) => `${n} suggestions from the website`,
+    /** Core's follow-up question when the website describes more than one
+     *  product or service. Plain wording -- not a final copy pass. */
+    websiteProduct: {
+      heading: "Which one should this offer be about?",
+      hint: "Core found more than one product or service on your website. An offer is always about just one of them -- you can add a second offer for the other one later.",
+      other: "Something else",
+      otherPlaceholder: "e.g. Chatarmin — WhatsApp marketing for shops",
+      confirm: "Continue",
+    },
     /** The second core -- "Aim": the same offer, tailored to ONE lead list. */
     fromSearch: {
       heading: "Tailor it to a lead list",

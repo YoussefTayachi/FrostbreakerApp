@@ -31,6 +31,35 @@ describe("buildOfferPrompt", () => {
     expect(buildOfferPrompt(seite, "en")).toContain("Write the values in English");
     expect(buildOfferPrompt(seite, "de")).toContain("Write the values in German");
   });
+
+  it("bleibt ohne gewaehltes Produkt Wort fuer Wort der alte", () => {
+    // Die eindeutige Seite ist der Normalfall. Weder null noch ein fehlender
+    // Wert darf am Prompt etwas aendern -- sonst haette die Erkennung den
+    // Entwurf jeder anderen Seite mitverschoben.
+    expect(buildOfferPrompt(seite, "de", null)).toBe(buildOfferPrompt(seite, "de"));
+    expect(buildOfferPrompt(seite, "de")).not.toContain("THE ONE PRODUCT");
+  });
+
+  it("grenzt auf das gewaehlte Produkt ein -- als Regel UND am Produkt selbst", () => {
+    const p = buildOfferPrompt(seite, "de", {
+      name: "Armincx",
+      description: "Automatisiert den Kundensupport",
+    });
+    expect(p).toContain("This company sells more than one thing");
+    expect(p).toContain("THE ONE PRODUCT OR SERVICE THIS PROFILE IS ABOUT:");
+    expect(p).toContain("Name: Armincx");
+    expect(p).toContain("What it is: Automatisiert den Kundensupport");
+    expect(p).toContain("Do not mention the others");
+    // Der Block gehoert vor die Seite: er schraenkt ein, was gleich darunter
+    // zu lesen ist.
+    expect(p.indexOf("THE ONE PRODUCT")).toBeLessThan(p.indexOf("THE PAGE:"));
+  });
+
+  it("laesst die Beschreibung weg, wenn der Nutzer nur einen Namen getippt hat", () => {
+    const p = buildOfferPrompt(seite, "de", { name: "Armincx", description: "" });
+    expect(p).toContain("Name: Armincx");
+    expect(p).not.toContain("What it is:");
+  });
 });
 
 describe("parseOfferSuggestion", () => {

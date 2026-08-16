@@ -4,8 +4,9 @@ import { getCurrentWorkspace } from "@/lib/workspace/server";
 import { getApiKey } from "@/lib/api-keys";
 import { callOpenAi } from "@/lib/openai";
 import { recordOpenAiUsage } from "@/lib/usage";
-import { extractWebsiteContent, hasEnoughContent, normalizeWebsiteUrl } from "@/lib/website-text";
+import { fetchWebsiteContent, normalizeWebsiteUrl } from "@/lib/website-text";
 import { buildOfferPrompt, parseOfferSuggestion } from "@/lib/copy/offer-from-website";
+import { cleanProduct } from "@/lib/copy/offer-products";
 
 /**
  * Die eigene Website lesen und daraus Feldvorschlaege machen.
@@ -20,11 +21,6 @@ import { buildOfferPrompt, parseOfferSuggestion } from "@/lib/copy/offer-from-we
  * Knopf, der einmal je Angebot gedrueckt wird.
  */
 export const maxDuration = 45;
-
-/** Wie lange auf die fremde Seite gewartet wird. Grosszuegiger als noetig,
- *  aber weit unter maxDuration -- der Modellaufruf braucht danach auch noch
- *  Zeit. */
-const SEITEN_TIMEOUT_MS = 12_000;
 
 export async function POST(req: Request) {
   const supabase = await createClient();
@@ -41,6 +37,17 @@ export async function POST(req: Request) {
   const url = normalizeWebsiteUrl(String(body?.website ?? ""));
   if (!url) return NextResponse.json({ error: "Keine gültige Adresse." }, { status: 400 });
   const language = body?.language === "en" ? "en" : "de";
+  /**
+   * Auf welche der beschriebenen Sachen dieses Angebot zielt -- optional.
+   *
+   * Gesetzt nur, wenn api/offers/detect-products auf derselben Seite mehrere
+   * gefunden HAT und der Nutzer danach eine gewaehlt hat (auch von Hand
+   * eingetippt). Fehlt der Wert, ist der Prompt Wort fuer Wort der von vorher.
+   * Wie in api/offers/from-search wird der Wert bewusst nicht gegen die
+   * Erkennung geprueft: das Freitextfeld existiert genau fuer den Fall, dass
+   * die Erkennung danebenlag.
+   */
+  const product = cleanProduct(body?.product);
 
   const openaiKey = await getApiKey(supabase, workspaceId, "openai");
   if (!openaiKey) {
@@ -50,36 +57,13 @@ export async function POST(req: Request) {
     );
   }
 
-  let html: string;
-  try {
-    const res = await fetch(url, {
-      // Gleicher Kennzeichner wie im Worker (personalize.py): wer den
-      // Zugriff in seinen Logs sieht, soll erkennen koennen, wer da liest.
-      headers: { "User-Agent": "Mozilla/5.0 (compatible; ThawBot/1.0)" },
-      redirect: "follow",
-      signal: AbortSignal.timeout(SEITEN_TIMEOUT_MS),
-    });
-    if (!res.ok) {
-      return NextResponse.json({ error: `Website antwortet mit ${res.status}.` }, { status: 502 });
-    }
-    html = await res.text();
-  } catch {
-    return NextResponse.json({ error: "Website nicht erreichbar." }, { status: 502 });
-  }
-
-  const content = extractWebsiteContent(html);
-  if (!hasEnoughContent(content)) {
-    // Ehrlich melden statt das Modell auf 40 Zeichen raten zu lassen. Der
-    // haeufigste Fall dahinter: eine Seite, die ihren Inhalt erst im Browser
-    // per JavaScript aufbaut.
-    return NextResponse.json(
-      { error: "Auf der Seite steht zu wenig Text. Bitte die Felder von Hand ausfüllen." },
-      { status: 422 }
-    );
-  }
+  // Abruf und Entkernung stehen in lib/website-text.ts, weil
+  // api/offers/detect-products dieselbe Seite liest (siehe dort).
+  const seite = await fetchWebsiteContent(url);
+  if (!seite.ok) return NextResponse.json({ error: seite.error }, { status: seite.status });
 
   const result = await callOpenAi(openaiKey, [
-    { role: "user", content: buildOfferPrompt(content, language) },
+    { role: "user", content: buildOfferPrompt(seite.content, language, product) },
   ]);
   if (!result.ok) return NextResponse.json({ error: result.error }, { status: 502 });
   await recordOpenAiUsage(supabase, workspaceId, "offer_from_website", result.json);
