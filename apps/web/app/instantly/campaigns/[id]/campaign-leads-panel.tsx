@@ -136,10 +136,16 @@ export default function CampaignLeadsPanel({ campaignId }: { campaignId: string 
         </p>
       )}
 
-      <div className="overflow-x-auto rounded-lg border border-edge/60">
+      {/* max-h + overflow-y-auto begrenzt den scrollbaren Bereich auf die
+          sichtbare Flaeche: ohne das sitzt der horizontale Scrollbalken von
+          overflow-x-auto bei 293 Zeilen ganz unten auf der Seite, weit
+          hinter dem letzten Eintrag -- praktisch unerreichbar, ohne vorher
+          durch die ganze Liste zu scrollen. sticky auf dem Kopf haelt die
+          Spaltenueberschriften waehrend des Scrollens sichtbar. */}
+      <div className="max-h-[28rem] overflow-x-auto overflow-y-auto rounded-lg border border-edge/60">
         <table className="w-full min-w-[44rem] border-collapse text-left text-sm">
           <thead>
-            <tr className="border-b border-edge2/60 bg-panel2 text-[11px] font-medium uppercase tracking-wide text-mute">
+            <tr className="sticky top-0 z-10 border-b border-edge2/60 bg-panel2 text-[11px] font-medium uppercase tracking-wide text-mute">
               <th className="px-4 py-2.5">{L.colContact}</th>
               <th className="px-3 py-2.5">{L.colCompany}</th>
               <th className="px-3 py-2.5">{L.colStatus}</th>
