@@ -6,7 +6,15 @@
       "Bash(gh api *)",
       "Bash(python3 -c ' *)",
       "Read(//tmp/**)",
-      "Bash(grep -rEn 'requests\\\\.\\(get|post\\)|urllib|urlopen|fetch\\\\\\(|axios|http\\\\.request|https\\\\.request|XMLHttpRequest|WebSocket' __CMDSUB_OUTPUT__/raw)"
+      "Bash(grep -rEn 'requests\\\\.\\(get|post\\)|urllib|urlopen|fetch\\\\\\(|axios|http\\\\.request|https\\\\.request|XMLHttpRequest|WebSocket' __CMDSUB_OUTPUT__/raw)",
+      "Bash(sed -i 's|^const SEL = .*|const SEL = \"div[class~=\\\\\\\\\"sm:p-8\\\\\\\\\"][class~=\\\\\\\\\"shadow-card\\\\\\\\\"]\";|' fb-anim2.js)",
+      "Bash(node fb-anim2.js)",
+      "Bash(sed -i 's|await new Promise\\(\\(r\\) => setTimeout\\(r, 1600\\)\\);|await new Promise\\(\\(r\\) => setTimeout\\(r, 2500\\)\\);|' fb-schmal.js)",
+      "Bash(sed -i 's|waitUntil: \"networkidle2\", timeout: 90000 }\\);|waitUntil: \"networkidle2\", timeout: 90000 }\\); await new Promise\\(\\(r\\) => setTimeout\\(r, 1200\\)\\);|' fb-schmal.js)",
+      "Bash(node fb-schmal.js)",
+      "Read(//c/Users/Youssef Tayachi/Desktop/Frostbreaker_Website/**)",
+      "Bash(awk '/id=\"torwart\"/{s=NR} s&&/^      <\\\\/section>/{print s\"-\"NR; exit}' app/page.tsx)",
+      "Bash(sed -n '/id=\"torwart\"/,/^      <\\\\/section>/p' app/page.tsx)"
     ]
   }
 }

@@ -3,7 +3,7 @@ import type { Lang } from "../types";
 // Formulierungen, die LLMs auffaellig haeufig produzieren. Das ist explizit
 // eine Stil-Liste, kein Beweis: ein Mensch darf "nahtlos" schreiben, und ein
 // Modell kann jede dieser Wendungen vermeiden. Der Nutzen liegt darin, dass
-// genau diese Floskeln in Kaltakquise ohnehin schlecht funktionieren -- sie
+// genau diese Floskeln in Kaltakquise ohnehin schlecht funktionieren — sie
 // klingen nach Broschuere statt nach einer Mail von einem Menschen.
 
 const DE = [
@@ -40,7 +40,7 @@ const DE = [
   // Speziell fuer KI-generierte Kaltakquise-Mails (nicht nur allgemeines
   // Konzern-Deutsch): typische Eroeffnungs- und Struktur-Floskeln, wenn ein
   // Modell explizit um eine Cold-Email gebeten wird. Bewusst als laengere,
-  // mehrteilige Wendungen statt einzelner Woerter -- "kurz gesagt" oder "bin
+  // mehrteilige Wendungen statt einzelner Woerter — "kurz gesagt" oder "bin
   // auf" allein kommen auch in ganz normal von Menschen geschriebenen Mails
   // vor und wuerden zu oft falsch anschlagen.
   "das ist genau der grund, warum wir",

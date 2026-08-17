@@ -56,7 +56,7 @@ import OfferCore from "./offer-core";
  *
  * Links wird geschrieben, rechts steht, was daraus folgt: der Ring, die
  * fehlenden Felder und der Weg zur Kampagne. Beides gleichzeitig sichtbar,
- * weil die Frage beim Tippen immer dieselbe ist -- "reicht das jetzt?".
+ * weil die Frage beim Tippen immer dieselbe ist — "reicht das jetzt?".
  * Unter den Feldern haette die Antwort erst gescrollt werden muessen.
  */
 
@@ -81,14 +81,14 @@ type ListenOption = {
 };
 
 /** Woher die Vorschlaege stammen, die gerade unter den Feldern stehen. Nur
- *  fuer Beschriftung und Farbe -- die Uebernahme ist in beiden Faellen
+ *  fuer Beschriftung und Farbe — die Uebernahme ist in beiden Faellen
  *  dieselbe. */
 type VorschlagQuelle = "website" | "search";
 
 /**
  * Eingabefelder dieser Seite, groesser als das app-weite inputCls.
  *
- * Hier wird nicht ein Wert eingetragen, sondern ein Absatz formuliert -- und
+ * Hier wird nicht ein Wert eingetragen, sondern ein Absatz formuliert — und
  * denselben Text liest der Generator danach als Vorgabe. Auf 14 Pixeln in
  * einer 40 Pixel hohen Zeile las sich das wie ein Suchfeld; jetzt 15 Pixel mit
  * offener Zeilenhoehe.
@@ -125,7 +125,7 @@ function Karte({
 }
 
 /** Ein Playbook-Befund als Satz. Die Texte stehen in dict.ts, entschieden wird
- *  nichts hier -- diese Funktion ordnet nur zu. */
+ *  nichts hier — diese Funktion ordnet nur zu. */
 function findingText(f: OfferFinding, T: ReturnType<typeof useT>["t"]["offers"]["findings"]): string {
   switch (f.kind) {
     case "outcomeNoTimeframe":
@@ -160,7 +160,7 @@ function findingText(f: OfferFinding, T: ReturnType<typeof useT>["t"]["offers"][
   }
 }
 
-/** Auswahl in Schalterform -- Sprache, Anrede. */
+/** Auswahl in Schalterform — Sprache, Anrede. */
 function Schalter({
   active,
   onClick,
@@ -233,7 +233,7 @@ export default function OffersEditor({ initial }: { initial: Offer[] }) {
   /**
    * Die Zwischenfrage: verkauft dieses Angebot mehr als eine Sache?
    *
-   * null heisst, dass es nichts zu entscheiden gibt -- entweder wurde noch
+   * null heisst, dass es nichts zu entscheiden gibt — entweder wurde noch
    * nicht gefragt, oder das Angebot beschreibt genau eine Sache. Die Liste
    * wandert mit, weil die Auswahl sie ueberdauern muss: der Nutzer waehlt erst
    * die Liste, dann das Produkt, und der Zuschnitt braucht beides.
@@ -251,7 +251,7 @@ export default function OffersEditor({ initial }: { initial: Offer[] }) {
    * Eigener Zustand und nicht `produktWahl` mitbenutzt, obwohl die Frage
    * dieselbe ist: die beiden Kerne stehen gleichzeitig auf der Seite, und ein
    * gemeinsamer Zustand hiesse, dass die Frage des einen die des anderen
-   * verdraengt. null heisst "nichts zu entscheiden" -- noch nicht gefragt, oder
+   * verdraengt. null heisst "nichts zu entscheiden" — noch nicht gefragt, oder
    * die Seite beschreibt genau eine Sache.
    *
    * Die Adresse wandert mit, aus demselben Grund, aus dem bei Aim die Liste
@@ -275,7 +275,7 @@ export default function OffersEditor({ initial }: { initial: Offer[] }) {
    *
    * Eine Map und kein einzelner Platz, seit beide Kerne fragen: sonst wirft
    * jede Frage von Core die Antwort fuer Aim weg und umgekehrt. Sie waechst
-   * nur mit den Handgriffen einer Sitzung -- ein Deckel waere Buchhaltung fuer
+   * nur mit den Handgriffen einer Sitzung — ein Deckel waere Buchhaltung fuer
    * ein Dutzend Eintraege.
    */
   const produktCache = useRef(new Map<string, OfferProduct[]>());
@@ -297,7 +297,7 @@ export default function OffersEditor({ initial }: { initial: Offer[] }) {
   /**
    * Karte oder Liste.
    *
-   * Die Karte braucht vier Spalten nebeneinander -- darunter waeren die Knoten
+   * Die Karte braucht vier Spalten nebeneinander — darunter waeren die Knoten
    * schmaler als ihre Beschriftung. Statt sie zu quetschen, faellt sie auf die
    * Abschnittsansicht zurueck: dieselben Daten, dieselben Bausteine, andere
    * Anordnung. Gerendert wird immer nur EINE von beiden, sonst gaebe es jedes
@@ -308,7 +308,7 @@ export default function OffersEditor({ initial }: { initial: Offer[] }) {
    * struggle with beforehand?") braucht 343 Pixel, und bei einem 1180er
    * Fenster bleiben je Knoten rund 254. Die Karte schaltete sich also genau
    * dort ein, wo sie schmaler wurde als die Liste, die sie ersetzt. Ab 1500
-   * traegt sie -- darunter ist die Abschnittsansicht die bessere Wahl.
+   * traegt sie — darunter ist die Abschnittsansicht die bessere Wahl.
    */
   const [breit, setBreit] = useState(false);
   useEffect(() => {
@@ -320,7 +320,7 @@ export default function OffersEditor({ initial }: { initial: Offer[] }) {
   }, []);
 
   /**
-   * Die Lead-Listen -- erst beim Aufklappen, und dann einmal.
+   * Die Lead-Listen — erst beim Aufklappen, und dann einmal.
    *
    * Nicht beim Laden der Seite: die meisten Besuche dieser Seite tippen ein
    * Angebot und fassen den zweiten Kern nie an. Gefiltert wie ueberall, wo
@@ -343,7 +343,7 @@ export default function OffersEditor({ initial }: { initial: Offer[] }) {
    * Der aktuelle Stand in Refs.
    *
    * Das automatische Speichern laeuft aus einem Timer heraus. Ein Timer sieht
-   * die Zustaende, die beim Aufsetzen galten -- er wuerde also einen veralteten
+   * die Zustaende, die beim Aufsetzen galten — er wuerde also einen veralteten
    * Entwurf schreiben und die letzten Tastenanschlaege ueberschreiben. Refs
    * zeigen immer auf das Jetzige.
    */
@@ -361,7 +361,7 @@ export default function OffersEditor({ initial }: { initial: Offer[] }) {
    *
    * Sie stehen UNTER dem Feld und nicht in einer Liste am Rand: ein Befund,
    * der neben dem Formular steht, muss erst zugeordnet werden, und genau das
-   * passiert dann nicht mehr. Nur ausgefuellte Felder werden geprueft -- ein
+   * passiert dann nicht mehr. Nur ausgefuellte Felder werden geprueft — ein
    * frisches Angebot soll nicht mit acht roten Hinweisen begruessen.
    */
   const befunde = new Map<OfferTextField, OfferFinding[]>();
@@ -384,13 +384,13 @@ export default function OffersEditor({ initial }: { initial: Offer[] }) {
   }
 
   /** Vom Ring zum Feld. Ohne den Sprung wäre die Legende eine Diagnose ohne
-   *  Behandlung -- man wüsste, was fehlt, und müsste es selbst suchen. */
+   *  Behandlung — man wüsste, was fehlt, und müsste es selbst suchen. */
   function springeZu(field: OfferTextField) {
     // Erst aufklappen, dann springen: seit die Felder in Abschnitten liegen,
     // zeigt die Legende sonst auf ein Feld, das gar nicht im Dokument steht.
     const stufe = OFFER_STAGES.find((s) => (s.fields as readonly OfferTextField[]).includes(field));
     if (stufe) setGeoeffnetManuell(stufe.id);
-    // Ein Bildaufbau spaeter -- vorher gibt es das Element noch nicht.
+    // Ein Bildaufbau spaeter — vorher gibt es das Element noch nicht.
     requestAnimationFrame(() => {
       const el = document.getElementById(`feld-${field}`);
       el?.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -423,7 +423,7 @@ export default function OffersEditor({ initial }: { initial: Offer[] }) {
    * Ohne Rueckfrage: seit dem automatischen Speichern gibt es nichts
    * Ungesichertes zu verlieren. Steht doch noch etwas aus (der Timer laeuft
    * noch, oder der letzte Versuch ist gescheitert), wird es hier zuerst
-   * geschrieben -- eine Rueckfrage waere an dieser Stelle nur die Bitte, ein
+   * geschrieben — eine Rueckfrage waere an dieser Stelle nur die Bitte, ein
    * Problem zu entscheiden, das die App selbst loesen kann.
    */
   function wechsle(id: string) {
@@ -467,7 +467,7 @@ export default function OffersEditor({ initial }: { initial: Offer[] }) {
   /**
    * Speichern.
    *
-   * `leise` unterdrueckt die Erfolgsmeldung -- das automatische Speichern
+   * `leise` unterdrueckt die Erfolgsmeldung — das automatische Speichern
    * laeuft alle paar Sekunden, und eine Meldung je Lauf waere ein Dauerfeuer.
    * Fehler melden BEIDE Wege: ein stiller Fehlschlag ist genau das, was hier
    * schiefgehen darf.
@@ -506,7 +506,7 @@ export default function OffersEditor({ initial }: { initial: Offer[] }) {
    * WARUM NICHT MEHR NUR AUF KNOPFDRUCK
    * ═══════════════════════════════════════════════════════════════════════
    *
-   * Gemeldet am 2026-08-13: "Änderungen werden nicht gespeichert -- wenn ich
+   * Gemeldet am 2026-08-13: "Änderungen werden nicht gespeichert — wenn ich
    * von Deutsch auf Englisch stelle, bleibt es Deutsch." In der Datenbank
    * stand die Sprache richtig; die Aenderung war also angekommen, nur eben
    * erst nach einem Klick auf Speichern.
@@ -528,7 +528,7 @@ export default function OffersEditor({ initial }: { initial: Offer[] }) {
 
 
   /**
-   * Standard umschalten -- erst die alte loeschen, dann die neue setzen.
+   * Standard umschalten — erst die alte loeschen, dann die neue setzen.
    *
    * Der Teilindex aus Migration 0090 laesst hoechstens ein Standardangebot je
    * Workspace zu. Die umgekehrte Reihenfolge liefe in eine
@@ -553,11 +553,11 @@ export default function OffersEditor({ initial }: { initial: Offer[] }) {
     await neuLaden(aktuell.id);
   }
 
-  /** Loescht ein beliebiges Angebot, nicht nur das gerade offene -- die
+  /** Loescht ein beliebiges Angebot, nicht nur das gerade offene — die
    *  Angebotsleiste ruft das direkt pro Reiter auf. neuLaden(selectedId)
    *  haelt die Ansicht auf dem bisher offenen Angebot, wenn das geloeschte
    *  ein anderes war; faellt selectedId selbst weg, springt neuLaden ohnehin
-   *  auf Standard bzw. das erste Angebot zurueck -- ein einziger Aufruf
+   *  auf Standard bzw. das erste Angebot zurueck — ein einziger Aufruf
    *  deckt beide Faelle ab. */
   async function loeschen(id: string, name: string) {
     if (!window.confirm(O.deleteConfirm(name))) return;
@@ -581,14 +581,14 @@ export default function OffersEditor({ initial }: { initial: Offer[] }) {
    * ═══════════════════════════════════════════════════════════════════════
    *
    * Dieselbe Falle wie bei Aim, nur eine Stufe frueher: manche Betriebe
-   * beschreiben auf ihrer Seite mehr als eine Sache -- eine App fuer
+   * beschreiben auf ihrer Seite mehr als eine Sache — eine App fuer
    * WhatsApp-Marketing UND eine fuer Support-Automatisierung. Ohne Rueckfrage
    * entsteht daraus EIN Entwurf, der beides vermengt: ein "offering", das auf
    * keines der beiden Produkte passt, und ein Problem, das die Kunden des
    * einen mit dem Werkzeug des anderen loesen sollen.
    *
    * Deshalb zuerst der billige Aufruf (api/offers/detect-products, hier mit
-   * der Adresse statt einer Angebots-ID -- das Feld "was verkaufst du" gibt es
+   * der Adresse statt einer Angebots-ID — das Feld "was verkaufst du" gibt es
    * ja noch nicht) und nur bei mehreren Treffern die Frage. Sie steht VOR dem
    * teuren Aufruf, nicht danach. Ist die Seite eindeutig, merkt der Nutzer von
    * alldem nichts.
@@ -597,7 +597,7 @@ export default function OffersEditor({ initial }: { initial: Offer[] }) {
     const adresse = entwurf.website?.trim();
     if (!adresse || lese) return;
     setWebsiteProdukte(null);
-    // Der Kern liest schon waehrend der Erkennung -- fuer den Nutzer ist das
+    // Der Kern liest schon waehrend der Erkennung — fuer den Nutzer ist das
     // EIN Handgriff, auch wenn dahinter zwei Aufrufe stehen.
     setLese(true);
 
@@ -616,7 +616,7 @@ export default function OffersEditor({ initial }: { initial: Offer[] }) {
   }
 
   /** Die Auswahl bestaetigen und den Entwurf erzeugen. Gelesen wird die
-   *  Adresse, zu der gefragt wurde -- wer waehrend der Frage im Feld
+   *  Adresse, zu der gefragt wurde — wer waehrend der Frage im Feld
    *  weitertippt, bekommt sonst einen Entwurf zu einer Seite, auf der dieses
    *  Produkt nie stand. */
   function weiterMitWebsiteProdukt() {
@@ -673,14 +673,14 @@ export default function OffersEditor({ initial }: { initial: Offer[] }) {
    * WARUM DAZWISCHEN EINE FRAGE STEHEN KANN
    * ═══════════════════════════════════════════════════════════════════════
    *
-   * Manche Firmen verkaufen unter einem Angebot mehr als eine Sache -- eine
+   * Manche Firmen verkaufen unter einem Angebot mehr als eine Sache — eine
    * App fuer WhatsApp-Marketing UND eine fuer Support-Automatisierung. Beides
    * steht dann in "was verkaufst du", und der Zuschnitt las es bis dahin als
    * EINE Sache: heraus kam ein Mischsatz, der auf keine von beiden passt.
    *
    * Deshalb zuerst der billige Aufruf (api/offers/detect-products) und nur bei
    * mehreren Treffern die Rueckfrage. Sie steht VOR dem teuren Aufruf, nicht
-   * danach -- eine Rueckfrage zu einem bereits bezahlten Ergebnis wuerde es
+   * danach — eine Rueckfrage zu einem bereits bezahlten Ergebnis wuerde es
    * wegwerfen. Ist das Angebot eindeutig, merkt der Nutzer von alldem nichts.
    */
   async function ausListe(liste: ListenOption) {
@@ -688,7 +688,7 @@ export default function OffersEditor({ initial }: { initial: Offer[] }) {
     if (geaendert) await speichern(true);
     setListenFehler(null);
     setProduktWahl(null);
-    // Der Kern rast schon waehrend der Erkennung -- fuer den Nutzer ist das
+    // Der Kern rast schon waehrend der Erkennung — fuer den Nutzer ist das
     // EIN Handgriff, auch wenn dahinter zwei Aufrufe stehen.
     setLiestListe(liste.id);
 
@@ -712,9 +712,9 @@ export default function OffersEditor({ initial }: { initial: Offer[] }) {
    * EIN Weg fuer beide Kerne: Aim schickt die Angebots-ID, Core die Adresse
    * der Website (siehe api/offers/detect-products). Der Schluessel fuer den
    * Zwischenspeicher kommt vom Aufrufer, weil nur er weiss, was sein Ergebnis
-   * veralten laesst -- bei Aim der Text im Feld, bei Core Adresse und Sprache.
+   * veralten laesst — bei Aim der Text im Feld, bei Core Adresse und Sprache.
    *
-   * Ein leeres Ergebnis heisst "eindeutig" -- und das gilt ausdruecklich auch,
+   * Ein leeres Ergebnis heisst "eindeutig" — und das gilt ausdruecklich auch,
    * wenn der Aufruf scheitert: eine Zwischenfrage, die nicht gestellt werden
    * kann, darf den Hauptaufruf nicht verhindern. Fehlt zum Beispiel der
    * OpenAI-Schluessel, sagt das der Hauptaufruf zwei Zeilen spaeter ohnehin,
@@ -770,7 +770,7 @@ export default function OffersEditor({ initial }: { initial: Offer[] }) {
     setLiestListe(null);
     // Der Fehler bleibt im Kasten stehen, statt als Blase wegzulaufen: die
     // haeufigsten Faelle (kein OpenAI-Schluessel, Suche laeuft noch, keine
-    // Firmenbeschreibungen) sagen dem Nutzer, was er tun muss -- das liest
+    // Firmenbeschreibungen) sagen dem Nutzer, was er tun muss — das liest
     // niemand in zwei Sekunden.
     if (!res.ok) return setListenFehler((body.error as string) ?? String(res.status));
 
@@ -788,7 +788,7 @@ export default function OffersEditor({ initial }: { initial: Offer[] }) {
   /**
    * THAW liest gegen.
    *
-   * Ein Aufruf, ein Ergebnis, keine Korrekturrunde -- ein Befund, den das
+   * Ein Aufruf, ein Ergebnis, keine Korrekturrunde — ein Befund, den das
    * Modell im zweiten Anlauf anders formuliert, ist kein besserer Befund.
    * Eine leere Liste ist ein gutes Ergebnis und wird auch so gemeldet: ein
    * Coach, der immer etwas findet, ist nach zwei Wochen Rauschen.
@@ -811,7 +811,7 @@ export default function OffersEditor({ initial }: { initial: Offer[] }) {
     push(gefunden.length === 0 ? O.coach.clean : O.coach.found(gefunden.length), "success");
   }
 
-  /** Einen Vorschlag von THAW uebernehmen -- und den Befund damit erledigen. */
+  /** Einen Vorschlag von THAW uebernehmen — und den Befund damit erledigen. */
   function coachUebernehmen(feld: OfferTextField, wert: string) {
     setzeFeld(feld, wert);
     coachVerwerfen(feld);
@@ -841,14 +841,14 @@ export default function OffersEditor({ initial }: { initial: Offer[] }) {
   ) as Record<OfferTextField, string>;
 
   /**
-   * Woher der Vorschlag kommt -- als Satz, nicht als Farbe.
+   * Woher der Vorschlag kommt — als Satz, nicht als Farbe.
    *
    * Die Farbe (Frost fuer die Website, --fb-aim fuer die Liste) gehoert zum
    * Kern, der den Vorschlag erzeugt hat, und bleibt. Sie darf die Herkunft aber
    * nicht ALLEIN tragen: eine Farbbedeutung muss man sich merken, und wer die
    * Seite morgen wieder aufmacht, hat sechs Kaesten vor sich und keine Legende.
    * Bei Rot-Gruen-Schwaeche oder in einem Screenreader ist sie ohnehin nicht da.
-   * Deshalb steht die Herkunft ausgeschrieben im Kasten -- bei der Liste mit
+   * Deshalb steht die Herkunft ausgeschrieben im Kasten — bei der Liste mit
    * ihrem Namen, weil "aus einer Liste" die Frage nur verschiebt.
    */
   const ausListeQuelle = vorschlagQuelle === "search";
@@ -1030,7 +1030,7 @@ export default function OffersEditor({ initial }: { initial: Offer[] }) {
         // Breit: die Karte bekommt die GANZE Breite und THAW steht in ihrer
         // Mitte. Am Live-Bild geprueft: neben der 340 Pixel breiten
         // Statusspalte blieben je Kartenspalte 250 Pixel, und darin brach jede
-        // Frage auf vier Zeilen um -- die Karte war schmaler als das Formular,
+        // Frage auf vier Zeilen um — die Karte war schmaler als das Formular,
         // das sie ersetzen sollte.
         <div className={breit ? "space-y-5" : "grid gap-5 lg:grid-cols-[minmax(0,1fr)_340px]"}>
           <div className={breit ? "grid gap-5 lg:grid-cols-2" : "min-w-0 space-y-5"}>
@@ -1050,7 +1050,7 @@ export default function OffersEditor({ initial }: { initial: Offer[] }) {
                     ))}
                   </div>
                 </div>
-                {/* Die Anrede gibt es im Englischen nicht -- eine Auswahl
+                {/* Die Anrede gibt es im Englischen nicht — eine Auswahl
                     zwischen "du" und "Sie" waere dort eine Frage ohne
                     Bedeutung. */}
                 {entwurf.language === "de" && (
@@ -1099,7 +1099,7 @@ export default function OffersEditor({ initial }: { initial: Offer[] }) {
             <Karte label={O.websiteHeading}>
               {/* 14 Pixel wie im Listen-Kasten daneben: die beiden Karten tun
                   dasselbe und muessen sich gleich lesen. Die uebrigen
-                  Unterzeilen der Seite bleiben bei 13 -- die stehen an
+                  Unterzeilen der Seite bleiben bei 13 — die stehen an
                   Eingabefeldern und nicht an einem Handgriff. */}
               <p className="mb-3 text-[14px] leading-relaxed text-soft">{O.websiteSubtitle}</p>
               <div className="relative flex flex-wrap items-center gap-2">
@@ -1127,7 +1127,7 @@ export default function OffersEditor({ initial }: { initial: Offer[] }) {
               {/* ── Die Zwischenfrage ──────────────────────────────────────
                   Nur wenn auf der Seite mehr als eine Sache steht. Sie steht
                   zwischen Adresse und Hinweis, also genau dort, wo der
-                  Vorgang gerade haengt -- und dasselbe Bauteil stellt sie im
+                  Vorgang gerade haengt — und dasselbe Bauteil stellt sie im
                   Listen-Kasten darunter. */}
               {websiteProdukte && (
                 <ProduktWahl
@@ -1154,7 +1154,7 @@ export default function OffersEditor({ initial }: { initial: Offer[] }) {
               {/* text-faint statt text-mute: --c-mute liegt auf Weiss bei 2,4:1
                   und ist damit fuer Platzhalter gedacht, nicht fuer einen Satz,
                   der erklaert, was gleich mit den Feldern passiert. text-faint
-                  sind 4,5:1. Gilt hier und im Listen-Kasten -- die uebrigen
+                  sind 4,5:1. Gilt hier und im Listen-Kasten — die uebrigen
                   Hinweise der Seite stehen noch auf text-mute. */}
               <p className="mt-2 max-w-[54ch] text-[13px] leading-relaxed text-faint">{O.websiteHint}</p>
             </Karte>
@@ -1162,7 +1162,7 @@ export default function OffersEditor({ initial }: { initial: Offer[] }) {
             {/* ── Der zweite Kern ──────────────────────────────────────
                 Direkt neben dem Website-Kasten, weil beide dasselbe tun: sie
                 schlagen Felder vor, die man einzeln uebernimmt. Der
-                Unterschied steht im Material -- die Website sagt, was DU
+                Unterschied steht im Material — die Website sagt, was DU
                 verkaufst, die Lead-Liste, an WEN. Deshalb ein eigener Kern in
                 eigener Farbe (--fb-aim) und nicht ein zweiter Knopf im
                 Website-Kasten: zwei Knoepfe nebeneinander waeren zwei
@@ -1185,7 +1185,7 @@ export default function OffersEditor({ initial }: { initial: Offer[] }) {
                 >
                   {/* "working" nur waehrend des Aufrufs: der Kern rast dann
                       durch seine Bahnen und ist die Wartezeitanzeige. Sonst
-                      "listening" -- er wartet auf die Liste, nicht auf das
+                      "listening" — er wartet auf die Liste, nicht auf das
                       Angebot, und darf deshalb nie "ready" zeigen. */}
                   <Thaw
                     state={liestListe ? "working" : "listening"}
@@ -1337,7 +1337,7 @@ export default function OffersEditor({ initial }: { initial: Offer[] }) {
                 Zwoelf Textfelder untereinander waren eine Wand: man scrollt an
                 Feld vier vorbei und weiss nicht mehr, worauf das Ganze
                 hinauslaeuft. Die Stufen sind nicht erfunden, sie sind der
-                Aufbau der ersten Mail -- wer an wen, woran haengt der Leser,
+                Aufbau der ersten Mail — wer an wen, woran haengt der Leser,
                 was hat er davon, worum wird er gebeten.
 
                 Die Linie links verbindet sie zu einem Weg statt zu vier
@@ -1347,7 +1347,7 @@ export default function OffersEditor({ initial }: { initial: Offer[] }) {
               {/* Die Linie MUSS durch die Knotenmitte laufen, sonst laeuft sie
                   daneben und verbindet nichts. Die Mitte liegt bei 36 Pixeln:
                   16 Pixel Innenabstand des Kopfes (px-4) plus der halbe Knoten
-                  (40/2). Am Bild geprueft -- bei 19 lag sie links daneben. */}
+                  (40/2). Am Bild geprueft — bei 19 lag sie links daneben. */}
               <div
                 aria-hidden
                 className="pointer-events-none absolute bottom-8 left-[35px] top-8 w-px"
@@ -1444,7 +1444,7 @@ export default function OffersEditor({ initial }: { initial: Offer[] }) {
                         />
                         {/* Der Befund direkt unter seinem Feld. Bernstein und
                             nicht rot: es ist ein Hinweis auf schwächere
-                            Wirkung, kein Fehler -- speichern und erzeugen geht
+                            Wirkung, kein Fehler — speichern und erzeugen geht
                             trotzdem. */}
                         {(befunde.get(key) ?? []).map((f, n) => (
                           <p
@@ -1549,7 +1549,7 @@ export default function OffersEditor({ initial }: { initial: Offer[] }) {
 
           {/* ── Rechts: was daraus folgt ───────────────────────────────
               Nur in der schmalen Ansicht. Breit steht dasselbe in der Mitte
-              der Karte -- zweimal derselbe Messwert waere eine Frage zu viel
+              der Karte — zweimal derselbe Messwert waere eine Frage zu viel
               ("welcher gilt jetzt?"). */}
           {!breit && (
           <aside className="lg:sticky lg:top-4 lg:self-start">

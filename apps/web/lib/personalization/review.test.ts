@@ -60,7 +60,7 @@ describe("reviewIcebreaker", () => {
   /**
    * Der Kern der ganzen Datei: die Bindestrich-Korrektur vom 2026-08-02 hat
    * hunderte Markierungen entwertet. Ein Bindestrich im Wort ist kein
-   * Verstoss -- die Zeile ist damit nur noch veraltet markiert, nicht
+   * Verstoss — die Zeile ist damit nur noch veraltet markiert, nicht
    * fehlerhaft.
    */
   it("erkennt eine veraltete Markierung als stale", () => {
@@ -109,7 +109,7 @@ describe("reviewIcebreaker", () => {
 });
 
 describe("reviewIcebreakers", () => {
-  // Ohne Text gibt es nichts abzuwaegen -- das ist ein Fall fuer den Torwart
+  // Ohne Text gibt es nichts abzuwaegen — das ist ein Fall fuer den Torwart
   // ("Leads ohne Aufhaenger"), nicht fuer die Pruefliste.
   it("laesst Firmen ohne Icebreaker aus", () => {
     const verdicts = reviewIcebreakers(

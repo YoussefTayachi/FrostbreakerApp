@@ -10,11 +10,11 @@ import { formatRelative } from "@/lib/format-time";
  * Der Waechter, wie ihn der Nutzer sieht: Stand je Absender-Domain und der
  * Schalter fuers automatische Anhalten.
  *
- * Die Pruefung darueber auf derselben Seite ist die MANUELLE -- man tippt
+ * Die Pruefung darueber auf derselben Seite ist die MANUELLE — man tippt
  * eine Domain ein und bekommt sofort eine Antwort. Hier steht das, was von
  * allein laeuft: einmal taeglich je verbundenem Postfach, mit Meldung bei
  * jedem Uebergang. Beides gehoert nebeneinander, weil sonst niemand merkt,
- * dass ueberhaupt etwas laeuft -- ein stiller Waechter wird nicht als
+ * dass ueberhaupt etwas laeuft — ein stiller Waechter wird nicht als
  * Sicherheit wahrgenommen, sondern gar nicht.
  */
 type DomainRow = { domain: string; spf: boolean; dkim: boolean; dmarc: boolean; checked_at: string };
@@ -76,7 +76,7 @@ export default function WatchSettings() {
         <div className="space-y-1.5">
           {rows.map((r) => {
             // SPF und DKIM entscheiden ueber die Zustellung, DMARC ist eine
-            // Anforderung der Massenversand-Regeln -- dieselbe Trennung wie im
+            // Anforderung der Massenversand-Regeln — dieselbe Trennung wie im
             // Torwart und im Waechter selbst.
             const broken = !r.spf || !r.dkim;
             return (

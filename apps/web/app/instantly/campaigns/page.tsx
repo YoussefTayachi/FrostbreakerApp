@@ -115,7 +115,7 @@ export default function InstantlyCampaignsPage() {
                 <tr key={c.id} className="border-t border-edge/60">
                   {/* Name und Lead-Liste uebereinander statt in zwei Spalten:
                       die Liste ist Zusatzinformation zum Namen, keine eigene
-                      Groesse -- und spart die Breite fuer die Kennzahlen. */}
+                      Groesse — und spart die Breite fuer die Kennzahlen. */}
                   <td className="px-4 py-3">
                     <p className="font-medium text-ink">{c.name}</p>
                     <p className="mt-0.5 text-xs text-faint">

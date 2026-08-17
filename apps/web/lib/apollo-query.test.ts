@@ -7,7 +7,7 @@ import {
 } from "./apollo-query";
 
 // Diese Tests spiegeln test_apollo.py im Worker. Weicht der Body hier ab,
-// zaehlt die Vorschau etwas anderes, als die Suche spaeter holt -- und die
+// zaehlt die Vorschau etwas anderes, als die Suche spaeter holt — und die
 // angezeigte Zahl waere eine Zusage, die die Suche nicht einloest.
 
 describe("buildApolloSearchBody", () => {
@@ -36,7 +36,7 @@ describe("buildApolloSearchBody", () => {
 
   it("faellt bei ungueltiger Senioritaet auf die Entscheider-Auswahl zurueck", () => {
     // Eine Suche ohne Senioritaet wuerde quer durch alle Hierarchiestufen
-    // Credits verbrauchen -- deshalb nie leer lassen.
+    // Credits verbrauchen — deshalb nie leer lassen.
     expect(buildApolloSearchBody({ apollo_seniorities: ["gibt-es-nicht"] }).person_seniorities)
       .toEqual(APOLLO_DEFAULT_SENIORITIES);
     expect(buildApolloSearchBody({}).person_seniorities).toEqual(APOLLO_DEFAULT_SENIORITIES);
@@ -116,7 +116,7 @@ describe("hasAnyApolloFilter", () => {
 
   it("zaehlt eine reine Senioritaets-Auswahl NICHT als Filter", () => {
     // Senioritaet ist immer gesetzt (Vorauswahl). Wuerde sie zaehlen, waere
-    // die Anfrage "alle Entscheider weltweit" -- der Worker weist das ab.
+    // die Anfrage "alle Entscheider weltweit" — der Worker weist das ab.
     expect(hasAnyApolloFilter({ apollo_seniorities: ["owner"] })).toBe(false);
     expect(hasAnyApolloFilter({})).toBe(false);
     expect(hasAnyApolloFilter({ headcount: "11-50", keywords: "  " })).toBe(false);

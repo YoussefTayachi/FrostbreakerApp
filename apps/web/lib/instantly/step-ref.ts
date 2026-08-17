@@ -25,7 +25,7 @@
  *
  *   Dritte Stelle = Variante. Kampagne 60b4b3ac ist die einzige mit zwei
  *   Fassungen in Schritt 0. Genau dort und nur dort kamen "0_0_0" (150) und
- *   "0_0_1" (154) vor -- Instantlys haelftige Verteilung auf A und B.
+ *   "0_0_1" (154) vor — Instantlys haelftige Verteilung auf A und B.
  *
  *   Zweite Stelle = Schritt. Die Kampagnen mit bereits versendetem Follow-up
  *   zeigten "0_0_0" und "0_1_0". Kein einziger Wert hatte eine zweite Stelle
@@ -33,7 +33,7 @@
  *
  *   Erste Stelle = Sequenz, heute ueberall 0. Instantly erlaubt mehrere
  *   Sequenzen je Kampagne; das Feld wird mitgefuehrt, obwohl es aktuell nichts
- *   unterscheidet -- sonst wuerde eine zweite Sequenz spaeter still auf die
+ *   unterscheidet — sonst wuerde eine zweite Sequenz spaeter still auf die
  *   erste addiert, und die Auswertung waere falsch, ohne dass es auffaellt.
  *
  * ZAEHLUNG: 0-basiert, und das passt ohne Umrechnung
@@ -73,7 +73,7 @@ export function parseStepRef(raw: unknown): StepRef | null {
 
   const nums = parts.map((p) => {
     // Bewusst streng: nur reine Ziffernfolgen. Number("") ist 0 und
-    // Number(" 1 ") ist 1 -- beides wuerde hier eine Zuordnung erfinden, wo
+    // Number(" 1 ") ist 1 — beides wuerde hier eine Zuordnung erfinden, wo
     // das Format nicht stimmt.
     if (!/^\d+$/.test(p)) return null;
     return Number(p);

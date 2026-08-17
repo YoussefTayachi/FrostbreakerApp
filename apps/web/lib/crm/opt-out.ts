@@ -3,7 +3,7 @@
  *
  * Hintergrund: Die Signatur der Kampagnen-Mails endet mit "reply 'stop' and
  * I'll leave you alone" (siehe .claude/skills/cold-email-copy). Diese Zusage
- * wurde bisher nirgends eingeloest -- die Sperrliste hatte am 2026-08-03
+ * wurde bisher nirgends eingeloest — die Sperrliste hatte am 2026-08-03
  * exakt null Eintraege, obwohl mehrere Kampagnen liefen. Wer "stop" antwortet,
  * bekommt beim naechsten Lauf wieder Post. Das ist nicht nur unhoeflich,
  * sondern bei einer ausgesprochenen Zusage auch rechtlich heikel.
@@ -12,7 +12,7 @@
  * Eine Antwort enthaelt fast immer die zitierte Originalmail. In deren Fuss
  * steht bei Kampagnen-Mails ueblicherweise genau das Wort, nach dem hier
  * gesucht wird ("reply stop", ein Abmeldelink, "unsubscribe"). Eine naive
- * Textsuche wuerde deshalb JEDEN Antwortenden sperren -- auch den, der gerade
+ * Textsuche wuerde deshalb JEDEN Antwortenden sperren — auch den, der gerade
  * "klingt spannend, wann haben Sie Zeit?" geschrieben hat. Aus einem
  * Sicherheitsnetz wuerde ein Schredder fuer die besten Leads.
  *
@@ -44,7 +44,7 @@ const QUOTE_MARKERS: RegExp[] = [
 /**
  * Alles ab der ersten Zitatgrenze abschneiden.
  *
- * Exportiert, weil der Schnitt fuer sich testbar sein soll -- er ist der
+ * Exportiert, weil der Schnitt fuer sich testbar sein soll — er ist der
  * eigentlich heikle Teil, nicht die Wortliste.
  */
 export function stripQuotedReply(text: string): string {
@@ -73,7 +73,7 @@ export function stripQuotedReply(text: string): string {
  * dauerhaft verbrennen oder eine echte Abmeldung nicht ernst genug nehmen.
  *
  * \b an beiden Enden: ohne Wortgrenze traefe "stop" auch "workshop",
- * "stopped" und "nonstop" -- und "remove" jedes "removed from the list".
+ * "stopped" und "nonstop" — und "remove" jedes "removed from the list".
  */
 const OPT_OUT_PATTERNS: RegExp[] = [
   // Das Wort aus der eigenen Signatur. Alleinstehend oder als klare Bitte.

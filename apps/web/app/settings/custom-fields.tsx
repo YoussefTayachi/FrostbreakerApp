@@ -21,7 +21,7 @@ import { useWorkspace } from "../workspace-provider";
  * benutzerdefinierte Felder hinzu").
  *
  * Bewusst schlicht gehalten: Beschriftung, Typ, bei Auswahlfeldern die
- * Moeglichkeiten. Kein Drag & Drop zum Sortieren wie bei Pipedrive -- die
+ * Moeglichkeiten. Kein Drag & Drop zum Sortieren wie bei Pipedrive — die
  * Reihenfolge ergibt sich aus dem Anlegen und laesst sich spaeter ergaenzen,
  * ohne dass sich am Datenmodell etwas aendert.
  */

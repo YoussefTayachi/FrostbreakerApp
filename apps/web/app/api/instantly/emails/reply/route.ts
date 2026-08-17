@@ -9,7 +9,7 @@ type InstantlyEmail = { id: string; eaccount?: string; lead?: string };
  * statt nur die KI-Klassifizierung anzuzeigen (siehe leads-table.tsx Drawer).
  *
  * Instantly braucht fuer POST /api/v2/emails/reply das sendende Postfach
- * (eaccount) -- das steht nicht lokal in public.messages, deshalb erst ein
+ * (eaccount) — das steht nicht lokal in public.messages, deshalb erst ein
  * Live-GET auf die einzelne E-Mail, dann der eigentliche Reply-Call.
  */
 export async function POST(req: Request) {

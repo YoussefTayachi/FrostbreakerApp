@@ -12,7 +12,7 @@ describe("buildProspeoFilters", () => {
   /**
    * Die wichtigste Eigenschaft: ein nicht gesetzter Filter taucht GAR NICHT
    * auf. Ein leeres include-Array ist bei Prospeo keine fehlende Bedingung,
-   * sondern eine, die nichts erfuellt -- der Fehler erschiene als "keine
+   * sondern eine, die nichts erfuellt — der Fehler erschiene als "keine
    * Treffer" und waere von einem echten Nullergebnis nicht zu unterscheiden.
    */
   it("laesst leere Filter komplett weg", () => {
@@ -62,7 +62,7 @@ describe("buildProspeoFilters", () => {
 
   it("verwirft Groessenstufen, die Prospeo nicht kennt", () => {
     const built = buildProspeoFilters({ headcount: ["11-50", "51-100", "10001+"] });
-    // "11-50" gibt es nicht, "10001+" ist Apollos Schreibweise -- Prospeo
+    // "11-50" gibt es nicht, "10001+" ist Apollos Schreibweise — Prospeo
     // schreibt "10000+". Beide fliegen raus, 51-100 bleibt.
     expect(built).toEqual({ company_headcount_range: { include: ["51-100"] } });
   });

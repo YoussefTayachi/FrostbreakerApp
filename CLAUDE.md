@@ -120,15 +120,38 @@ hinzufügt, muss den Matcher mit ändern.
 
 ### Migrations
 
-`supabase/migrations/`, fortlaufend nummeriert (aktuell bis 0087), angewandt
+`supabase/migrations/`, fortlaufend nummeriert (aktuell bis 0096), angewandt
 über Supabase MCP/CLI. **Niemals eine bestehende Migration editieren** — nur
 neue anlegen. Sie sind Source of Truth fürs Schema; es gibt keine generierten
 Typen im Repo.
 
 ### i18n
 
-`lib/i18n/dict.ts` (ein großes de/en-Objekt, ~3700 Zeilen), Sprache aus dem
+`lib/i18n/dict.ts` (ein großes de/en-Objekt, ~4600 Zeilen), Sprache aus dem
 Cookie `lang` via `getLangServer()`. Neue UI-Texte in beide Sprachen.
+
+### Weitere Feature-Bereiche unter `apps/web/app`
+
+Über den Kern-Datenfluss hinaus (Suche → Leads → Instantly) existieren
+mehrere eigenständige Bereiche, die jeweils eigene Routen und Migrationen
+mitbringen:
+
+- **Angebote** (`app/offers`, `app/api/offers/*`) — Angebote aus Suche oder
+  Website ableiten, inkl. Produkterkennung. Migrationen 0090–0091, 0093.
+- **CRM/Pipeline** (`app/crm`, `app/pipeline`) — Lead-Status jenseits des
+  Versands, inkl. Archivierung. Migration 0095.
+- **LinkedIn-Outreach** (`app/linkedin`, `app/api/copy/linkedin`) — zweiter
+  Versandkanal neben Instantly, mit eigenen Vorlagen. Migrationen 0080, 0082.
+- **Team/Workspace-Mitglieder** (`app/settings/team`) — mehrere Nutzer pro
+  Workspace, nicht nur der Owner. Migration 0081.
+- **Billing** (`app/api/billing/{checkout,portal,status,lead-usage,webhook}`) —
+  Stripe-Checkout und -Portal, nicht nur der Webhook. Proration nach
+  Workspace-Alter seit Migration 0088.
+
+`Resend` (Transaktions-E-Mails, `lib/email.ts`) ist eine weitere Abhängigkeit
+mit einer bekannten Falle (Env-Var-Schreibweise `Resend_API_KEY` vs.
+`RESEND_API_KEY`) — Details stehen in `docs/BETRIEB.md`, nicht hier
+dupliziert.
 
 ### Kosten
 

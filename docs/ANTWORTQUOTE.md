@@ -6,7 +6,7 @@ Antworten und daraus Kunden werden.
 
 Dieses Dokument beschreibt den **gemessenen** Zustand, nicht den vermuteten.
 Alle Zahlen stammen aus der Produktionsdatenbank vom 2026-08-04. Wer daran
-weiterarbeitet, sollte sie nachmessen statt sie zu glauben -- die Abfragen
+weiterarbeitet, sollte sie nachmessen statt sie zu glauben — die Abfragen
 stehen jeweils dabei.
 
 ---
@@ -51,7 +51,7 @@ select personalization_needs_review, count(*),
 Stelle vor**. Drei Viertel aller Aufhaenger waren als mangelhaft bekannt und
 sind trotzdem rausgegangen.
 
-Der Median liegt bei 24 Woertern, die Vorgabe bei 22 -- das Modell schiesst
+Der Median liegt bei 24 Woertern, die Vorgabe bei 22 — das Modell schiesst
 systematisch leicht ueber, und niemand hat es je gesehen.
 
 ### Zustellbarkeit
@@ -88,21 +88,21 @@ nie gezeigt. Eine Pruefliste, die Faelle uebersieht, ist schlimmer als keine
 
 Daraus die drei Zustaende:
 
-- **failing** -- verstoesst gegen die heutigen Vorgaben, muss angefasst werden
-- **stale** -- traegt nur noch eine veraltete Markierung, per Sammelaktion abzuhaken
-- **clean** -- unauffaellig
+- **failing** — verstoesst gegen die heutigen Vorgaben, muss angefasst werden
+- **stale** — traegt nur noch eine veraltete Markierung, per Sammelaktion abzuhaken
+- **clean** — unauffaellig
 
 Aendert sich eine Vorgabe (Wortgrenze, Verbotswoerter im AI-Agent-Tab),
 aendert sich diese Liste automatisch mit.
 
 Bewusst **nicht** gebaut: automatisches Kuerzen. Ein Aufhaenger, den ein
-Programm auf 22 Woerter stutzt, endet mitten im Gedanken -- und geht dann
+Programm auf 22 Woerter stutzt, endet mitten im Gedanken — und geht dann
 genau so an einen Fremden raus.
 
 Migration 0070 (`requeue_personalization`): `public.jobs` hat bewusst nur
 eine Lese-Policy, Jobs entstehen sonst per Trigger oder ueber die
 Service-Role des Workers. Fuer das Neuerzeugen gibt es deshalb eine eng
-geschnittene security-definer-Funktion -- nur dieser Jobtyp, nur eigene
+geschnittene security-definer-Funktion — nur dieser Jobtyp, nur eigene
 Firmen, und mit Doppelungssperre, weil jeder Job ein bezahlter
 Modellaufruf ist.
 
@@ -153,7 +153,7 @@ Einzelheiten, die beim Weiterbauen leicht kaputtgehen:
 - Unter 50 versendeten Mails **schweigt** die Bounce-Pruefung. Bei 20 Mails
   ist ein einziger Bounce schon 5 %.
 - Die Laengenpruefung rechnet `{{personalization}}` mit der **erlaubten
-  Wortzahl** ein, nicht als ein Wort -- sonst waere jede Mail kuerzer
+  Wortzahl** ein, nicht als ein Wort — sonst waere jede Mail kuerzer
   gerechnet, als sie ankommt.
 - Der Link wird nur im **ersten** Schritt geprueft. Im kalten Erstkontakt ist
   er einer der staerksten Spam-Faktoren, ab der zweiten Mail unproblematisch.
@@ -162,7 +162,7 @@ Einzelheiten, die beim Weiterbauen leicht kaputtgehen:
   Fehlentscheidung.
 - Der **Trotzdem-Knopf** existiert, weil er sonst umgangen wuerde: ein
   Torwart, den man nicht passieren kann, fuehrt dazu, dass die Kampagne
-  direkt bei Instantly angelegt wird -- und dann sieht die App gar nichts
+  direkt bei Instantly angelegt wird — und dann sieht die App gar nichts
   mehr. Er faellt zurueck, sobald sich die Bewertung aendert.
 
 ---
@@ -176,13 +176,13 @@ dabei entschieden wurde, steht jeweils dabei.
 
 Kein eigener Punkt, sondern der Auslöser: `personalization_max_words` wurde
 ausschliesslich HINTERHER von `validate()` geprueft. Im Prompt kam keine Zahl
-vor -- das Modell erfuhr die Grenze erst im Korrekturversuch, und der lief
+vor — das Modell erfuhr die Grenze erst im Korrekturversuch, und der lief
 nur, wenn der erste Versuch schon danebenlag. Median 24 Woerter bei Vorgabe
 22, die auffaelligen bei 33.
 
 `constraint_block()` in `apps/worker/worker/pipelines/personalize.py` haengt
 die Vorgaben an JEDEN Prompt, auch an einen selbst geschriebenen. Dieser
-Workspace hat einen eigenen Prompt -- eine Aenderung nur an DEFAULT_PROMPT
+Workspace hat einen eigenen Prompt — eine Aenderung nur an DEFAULT_PROMPT
 haette hier nichts bewirkt.
 
 Zweiter Fund: praktisch alle Aufhaenger endeten mit derselben Wendung, dem
@@ -193,7 +193,7 @@ das Modell als Vorlage, wenn man es nicht ausdruecklich daran hindert.
 
 `SequenceStep` heisst jetzt `{variants[], delayDays}` statt
 `{subject, body, delayDays}`. Sauberer Schnitt statt "Variante A ist
-subject/body und die anderen stehen woanders" -- bei der asymmetrischen
+subject/body und die anderen stehen woanders" — bei der asymmetrischen
 Fassung waere jede Aktion auf A ein Sonderfall gewesen.
 
 **Die schwierige Stelle ist nicht das Rechnen, sondern das Schweigen.**
@@ -201,7 +201,7 @@ Fassung waere jede Aktion auf A ein Sonderfall gewesen.
 50 Sendungen je Fassung, gar keine Empfehlung), *fuehrt* (Abstand im
 Zufallsbereich), *gewinnt* (haelt einem Zweistichprobentest auf 95 Prozent
 stand). Der Gewinner muss gegen JEDE andere Fassung bestehen, nicht nur gegen
-die zweitbeste -- sonst schaltet man bei drei Varianten B ab, obwohl A nur
+die zweitbeste — sonst schaltet man bei drei Varianten B ab, obwohl A nur
 gegen C gewonnen hat.
 
 Gemessen an eindeutigen Antworten je Sendung, nicht an Oeffnungen: die haengen
@@ -225,7 +225,7 @@ loest sich der Alarm von allein auf.
 Ab 5 Prozent Bounce wird die Kampagne **angehalten**. Voreinstellung an
 (`workspaces.auto_pause_on_bounce`), weil ein Waechter, der nur zuschaut, die
 Sorte Warnung ist, die man im Nachhinein im Log findet. Umkehrbar, per Mail
-angekuendigt, abschaltbar. Je Kampagne, nicht je Workspace -- alles
+angekuendigt, abschaltbar. Je Kampagne, nicht je Workspace — alles
 anzuhalten waere eine Kollektivstrafe fuer ein Problem mit bekanntem
 Verursacher. Schlaegt das Anhalten bei Instantly fehl, wird lokal NICHT auf
 "pausiert" gesetzt.
@@ -234,14 +234,14 @@ Schwelle und Mindestmenge kommen aus denselben Konstanten wie der Torwart.
 
 ### 5. Oeffnungs-Tracking (Migration 0071)
 
-Instantlys Vorgabe ist "an", wir haben das Feld nie gesetzt -- und trotzdem
+Instantlys Vorgabe ist "an", wir haben das Feld nie gesetzt — und trotzdem
 stand ueberall `open_count = 0`. Ab jetzt wird `open_tracking`/`link_tracking`
 ausdruecklich mitgeschickt und gespiegelt, **Voreinstellung aus**: Zaehlpixel
 und umgeschriebene Links sind zwei der Merkmale, an denen Spamfilter kalte
 Massenmails erkennen. Wer messen will, entscheidet das bewusst.
 
 In der Variantentabelle steht bei abgeschaltetem Tracking ein Strich statt
-einer Null -- "0 Oeffnungen" waere dort keine Beobachtung, sondern eine
+einer Null — "0 Oeffnungen" waere dort keine Beobachtung, sondern eine
 fehlende Messung.
 
 ### 6. Antwort-Assistent (Migration 0073)
@@ -252,7 +252,7 @@ Nachschlag.
 
 **Der Terminlink ist der Grund fuer die Migration.** Ein Sprachmodell, dem
 einer fehlt, erfindet einen plausiblen. Der Fehler faellt erst dem Empfaenger
-auf, wenn er klickt -- und dann ist die Antwort verbrannt. Ist
+auf, wenn er klickt — und dann ist die Antwort verbrannt. Ist
 `workspaces.calendar_link` leer, verbietet der Prompt ausdruecklich, einen zu
 erfinden. Aus demselben Grund fliegen Entwuerfe mit uebrig gebliebenen
 Platzhaltern raus.
@@ -263,11 +263,11 @@ Platzhaltern raus.
 
 Zwei neue Regelarten im vorhandenen Tageslauf. Die Reihenfolge stimmt ohne
 eigenen Zustand: `automation_create_touch` legt nichts an, solange eine
-offene Aufgabe existiert -- der Anruf entsteht erst, wenn die
+offene Aufgabe existiert — der Anruf entsteht erst, wenn die
 LinkedIn-Anfrage abgehakt ist.
 
 Nur fuer `contacted`. Wer geantwortet hat, braucht keine LinkedIn-Anfrage,
-sondern eine Antwort -- das ist der Unterschied zwischen einer Kette und
+sondern eine Antwort — das ist der Unterschied zwischen einer Kette und
 einem Verfolgungsapparat.
 
 ### 8. Wirkungs-Ansicht (`/wirkung`)
@@ -276,7 +276,7 @@ Antwortquote nach Lead-Liste, Wochentag und Tageszeit. Konnte es vorher nicht
 geben: die App kannte 184 von 312 Mails.
 
 **Unter 30 angeschriebenen Kontakten je Zeile wird keine Quote ausgewiesen.**
-Bei 12 Mails und einer Antwort stuende da sonst "8,3 Prozent" -- praezise
+Bei 12 Mails und einer Antwort stuende da sonst "8,3 Prozent" — praezise
 aussehend und bedeutungslos. Auch der Balken bleibt leer, statt einen
 zufaelligen Ausschlag zu zeichnen.
 
@@ -288,7 +288,7 @@ geteilt.
 
 ## Was als Naechstes lohnt
 
-Nichts davon stand in der urspruenglichen Liste -- es sind die Fragen, die
+Nichts davon stand in der urspruenglichen Liste — es sind die Fragen, die
 sich aus dem Gebauten ergeben.
 
 1. **Die Varianten tatsaechlich benutzen.** Der Apparat steht, aber jede
@@ -301,7 +301,7 @@ sich aus dem Gebauten ergeben.
    grossteils "zu wenig" melden, und das ist richtig so.
 4. ~~**Termine als eigener Status.**~~ **Erledigt am 2026-08-05**, siehe
    unten. Der Status existierte laengst (Migration 0018), war aber aus dem
-   Posteingang nicht erreichbar -- dort, wo die Antwort ankommt.
+   Posteingang nicht erreichbar — dort, wo die Antwort ankommt.
 
 ---
 
@@ -314,7 +314,7 @@ Migration 0076 · `lib/instantly/step-ref.ts` · `lib/report/copy-outcomes.ts`
 0 von 753 Nachrichten trugen einen `step_order`, und `messages.campaign_id`
 war ebenfalls durchgaengig leer. Die App konnte zu keiner Antwort sagen,
 worauf sie eine Antwort ist. Die Wirkungs-Ansicht schluesselte nach
-Lead-Liste, Wochentag und Tageszeit auf -- also nach allem AUSSER dem, was
+Lead-Liste, Wochentag und Tageszeit auf — also nach allem AUSSER dem, was
 geschrieben wurde. Das ist PRODUKTPLAN Saeule 2.1, die Voraussetzung fuer den
 gesamten "geschlossenen Kreis".
 
@@ -336,7 +336,7 @@ Kampagne mit zwei Fassungen war die einzige mit `0_0_1`, und die Kampagnen mit
 versendetem Follow-up die einzigen mit `0_1_0`.
 
 **Der Glueckfall:** eine eingehende Antwort traegt denselben `step`-Wert wie
-die Mail, auf die sie antwortet. Instantly ordnet also bereits zu -- die
+die Mail, auf die sie antwortet. Instantly ordnet also bereits zu — die
 Zuordnung ist exakt, nicht ueber Betreffzeilen oder Zeitfenster
 rekonstruiert.
 
@@ -356,7 +356,7 @@ Zeile, wenn sie erneut vorbeikommt und noch keine Zuordnung hat.
 
 **Eine Antwortquote allein ist die falsche Zielgroesse.** Das stand sofort in
 den Daten: Variante A brachte 0 Antworten auf 144 Kontakte, Variante B zwei
-auf 149. Auf die Quote geschaut gewinnt B -- **beide Antworten waren
+auf 149. Auf die Quote geschaut gewinnt B — **beide Antworten waren
 Absagen**. Wer nur die Quote optimiert, sucht den Text, der am
 zuverlaessigsten ein Nein erzeugt.
 
@@ -368,7 +368,7 @@ Zwei Entscheidungen, die beim Weiterbauen leicht kaputtgehen:
 - **Ein Termin haengt an der Antwort, nicht am Kontakt.** Sonst erbt der
   vierte Bump den Erfolg des ersten Satzes, weil derselbe Kontakt alle vier
   Mails bekommen hat.
-- **Sortiert wird in Sequenzreihenfolge, nicht nach Erfolg** -- anders als in
+- **Sortiert wird in Sequenzreihenfolge, nicht nach Erfolg** — anders als in
   `effectiveness.ts`. Die Frage lautet "wo bricht es ab", und die beantwortet
   ein nach Quote umsortierter Ablauf nicht.
 
@@ -394,7 +394,7 @@ Ort zu sein, den man extra aufsucht.
 
 ## Zur "Garantie"
 
-"Garantiert Kunden" laesst sich nicht versprechen -- weder Angebot noch Markt
+"Garantiert Kunden" laesst sich nicht versprechen — weder Angebot noch Markt
 des Kunden sind in unserer Hand, und rechtlich ist es heikel. Einloesbar ist
 dagegen:
 

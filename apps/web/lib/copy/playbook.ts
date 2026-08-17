@@ -1,5 +1,5 @@
 /**
- * Das Playbook -- die Regeln, nach denen in dieser App geschrieben wird.
+ * Das Playbook — die Regeln, nach denen in dieser App geschrieben wird.
  *
  * ═══════════════════════════════════════════════════════════════════════
  * WOHER DAS KOMMT
@@ -7,7 +7,7 @@
  *
  * Aus dem Verkaufs-Wissen des Betreibers (zwei Kurse: Offer Blueprint und
  * Outreach Engine). Hier stehen die daraus destillierten REGELN in eigenen
- * Worten -- nicht das Kursmaterial selbst. Das ist kein Zufall: Regeln wie
+ * Worten — nicht das Kursmaterial selbst. Das ist kein Zufall: Regeln wie
  * "drei bis vier Woerter im Betreff" sind Handwerk und gehoeren ins Produkt,
  * die Formulierungen eines fremden Kurses gehoeren dem Kurs.
  *
@@ -17,8 +17,8 @@
  *
  * Ein Prompt sagt "bitte". Eine Pruefung sagt "nein".
  *
- * Alles, was sich mechanisch nachmessen laesst -- Wortzahlen, verbotene
- * Wendungen, ob ein Follow-up laenger wurde als sein Vorgaenger -- steht
+ * Alles, was sich mechanisch nachmessen laesst — Wortzahlen, verbotene
+ * Wendungen, ob ein Follow-up laenger wurde als sein Vorgaenger — steht
  * deshalb als Funktion hier und wird nach der Erzeugung angewandt. Der Prompt
  * bekommt dieselben Regeln als Text, aber er ist die zweite Verteidigungslinie,
  * nicht die erste. Genau dieses Muster traegt schon sequenceProblems() und es
@@ -34,18 +34,18 @@
  * 2. Jede Stufe ist KUERZER als die vorherige. Wer bei ausbleibender Antwort
  *    mehr schreibt, trainiert sich das Hinterherlaufen an.
  * 3. Nichts behaupten, was nicht belegt ist. Kein erfundener Wert, keine
- *    erfundene Referenz, keine erfundene Zahl -- das faellt nicht dem auf, der
+ *    erfundene Referenz, keine erfundene Zahl — das faellt nicht dem auf, der
  *    die Mail schreibt, sondern dem Empfaenger.
  */
 
 /**
- * Die Abstaende der Sequenz in Tagen -- Tag 0, 3, 5, 7.
+ * Die Abstaende der Sequenz in Tagen — Tag 0, 3, 5, 7.
  *
  * `delayDays` heisst "warte so lange VOR dieser Stufe"
  * (lib/instantly/campaigns.test.ts), also 0 + 3 + 2 + 2.
  *
  * Die Abstaende SCHRUMPFEN, und das ist der Punkt. Die erste Fassung dieser
- * App hatte [0, 2, 3, 5] -- wachsende Abstaende ueber zehn Tage. Das ist die
+ * App hatte [0, 2, 3, 5] — wachsende Abstaende ueber zehn Tage. Das ist die
  * Rhythmik einer Erinnerungskette ("melde mich nochmal"), nicht die einer
  * Entscheidung: wer nach zehn Tagen nachfasst, faengt beim Empfaenger bei null
  * an. Sieben Tage mit enger werdenden Abstaenden halten den Vorgang zusammen
@@ -57,10 +57,10 @@ export const PLAYBOOK_DELAYS = [0, 3, 2, 2];
  * Wortzahl je Stufe, als Obergrenze.
  *
  * Nur Stufe 1 hat eine harte Grenze, die woanders herkommt
- * (FIRST_MAIL_MAX_WORDS aus campaign-readiness.ts -- der Torwart, der den
+ * (FIRST_MAIL_MAX_WORDS aus campaign-readiness.ts — der Torwart, der den
  * Versand blockiert). Die Grenzen der Stufen 2 bis 4 sind die
  * Kompressionsarchitektur: jede Stufe hoechstens zwei Drittel der vorherigen.
- * Die Zahlen sind keine Messwerte, sondern eine gesetzte Staffelung -- was
+ * Die Zahlen sind keine Messwerte, sondern eine gesetzte Staffelung — was
  * zaehlt, ist das Gefaelle, nicht der einzelne Wert.
  */
 export const STEP_MAX_WORDS = [90, 70, 50, 35];
@@ -70,7 +70,7 @@ export const STEP_MAX_WORDS = [90, 70, 50, 35];
  *
  * Kein Koeder, sondern ein Entscheidungsschild: er sagt, worueber der
  * Empfaenger gleich Ja oder Nein sagen soll. Drei bis vier Woerter, und er
- * spiegelt den Micro-Yes -- steht im Betreff eine andere Entscheidung als im
+ * spiegelt den Micro-Yes — steht im Betreff eine andere Entscheidung als im
  * Text, ist die Mail in sich widerspruechlich.
  */
 export const SUBJECT_MAX_WORDS = 5;
@@ -84,7 +84,7 @@ export const SUBJECT_IDEAL_WORDS = 4;
  *
  *  - Hoeflichkeitsfloskeln ohne Aussage ("ich hoffe, es geht dir gut")
  *  - Nachfass-Floskeln, die zugeben, dass es nichts Neues gibt
- *    ("wollte nur nochmal nachhaken") -- der Kurs nennt das den Ton, an dem
+ *    ("wollte nur nochmal nachhaken") — der Kurs nennt das den Ton, an dem
  *    man Beduerftigkeit hoert
  *  - Werbesprache ("Game Changer", "revolutionaer")
  *
@@ -133,7 +133,7 @@ export const BANNED_PHRASES: readonly string[] = [
  *
  * Der Kaeufer kauft ein Ergebnis, kein Werkzeug. Sobald "KI", "Agent" oder ein
  * Produktname im Satz steht, redet man ueber die Bauweise statt ueber das, was
- * herauskommt -- und der Kaeufer muss die Uebersetzung selbst leisten.
+ * herauskommt — und der Kaeufer muss die Uebersetzung selbst leisten.
  *
  * Nur fuer das Feld `mechanism` gedacht, nicht fuer die Mail insgesamt: eine
  * Mail, die "KI" NIRGENDS sagen darf, waere fuer eine KI-Agentur unschreibbar.
@@ -225,7 +225,7 @@ function escapeRegex(s: string): string {
 }
 
 /**
- * Ist das ein Micro-Yes -- eine einzige binaere Frage?
+ * Ist das ein Micro-Yes — eine einzige binaere Frage?
  *
  * Gemessen wird, was messbar ist: eine Zeile, endet mit Fragezeichen, keine
  * Terminwoerter, kein Link, nicht zu lang. Was NICHT geprueft werden kann, ist
@@ -236,7 +236,7 @@ function escapeRegex(s: string): string {
 export type MicroYesProblem = "empty" | "multiline" | "noQuestion" | "meeting" | "link" | "tooLong";
 
 /** Ab hier ist es keine Frage mehr, sondern ein Absatz. Exportiert, weil der
- *  Coach dem Modell dieselbe Zahl nennen muss -- sonst schlaegt er einen
+ *  Coach dem Modell dieselbe Zahl nennen muss — sonst schlaegt er einen
  *  Micro-Yes vor, den die App im naechsten Atemzug bemaengelt (gemessen am
  *  Live-Stand 2026-08-13: 30 Woerter). */
 export const MICRO_YES_MAX_WORDS = 20;
@@ -244,7 +244,7 @@ export const MICRO_YES_MAX_WORDS = 20;
 /**
  * Sortiert nach SCHWERE, nicht nach Pruefreihenfolge.
  *
- * Unter dem Feld steht nur der erste Befund -- drei Saetze unter einem
+ * Unter dem Feld steht nur der erste Befund — drei Saetze unter einem
  * Eingabefeld liest niemand. Am Live-Stand aufgefallen (2026-08-13): bei
  * "Book a 30-minute call to review client setup and set up the first
  * workspace." meldete die Anzeige das fehlende Fragezeichen und verschwieg
@@ -287,7 +287,7 @@ function normalisiert(s: string): string {
  *
  * Die Felder sind Notizen des Absenders an sich selbst. Wandern sie
  * unveraendert in die Mail, liest der Empfaenger die Stichpunkte eines
- * Fremden -- am Live-Stand gemessen (2026-08-13) samt Grammatikfehler und
+ * Fremden — am Live-Stand gemessen (2026-08-13) samt Grammatikfehler und
  * einer Terminbitte, die als Micro-Yes gemeint war.
  *
  * Geprueft wird auf ganze Feldinhalte, nicht auf einzelne Woerter: dass die
@@ -306,7 +306,7 @@ export function copiedFrom(text: string, sources: string[]): string[] {
  * Spiegelt der Betreff den Micro-Yes?
  *
  * Die Regel aus dem Kurs lautet: der Betreff kuendigt genau die Entscheidung
- * an, die der Text verlangt. Vollstaendig pruefen laesst sich das nicht -- was
+ * an, die der Text verlangt. Vollstaendig pruefen laesst sich das nicht — was
  * sich pruefen laesst, ist ob ueberhaupt ein inhaltliches Wort geteilt wird.
  * Ein Betreff ohne ein einziges gemeinsames Wort mit der Frage kuendigt
  * sicher etwas anderes an.
@@ -318,13 +318,13 @@ export function copiedFrom(text: string, sources: string[]): string[] {
  * Ist der Betreff nur die abgeschriebene Frage?
  *
  * Gemeldet am 2026-08-13 mit Bild: in allen vier Stufen stand als Betreff
- * woertlich "Reply yes then i can send you sth over?" -- also der Micro-Yes,
+ * woertlich "Reply yes then i can send you sth over?" — also der Micro-Yes,
  * neun Woerter lang, mit Fragezeichen. Damit steht die Frage schon im
  * Posteingang, und die Mail dahinter hat nichts mehr zu sagen.
  *
  * Die Regel "der Betreff kuendigt die Entscheidung an" (mirrorsMicroYes)
  * laedt genau dazu ein: das Modell liest sie als "nimm die Frage". Deshalb
- * die Gegenprobe -- ankuendigen heisst benennen, nicht abschreiben.
+ * die Gegenprobe — ankuendigen heisst benennen, nicht abschreiben.
  *
  * Geprueft wird in beide Richtungen: der ganze Micro-Yes als Betreff faellt
  * ebenso auf wie sein Anfang ("Reply yes then i can").
@@ -342,7 +342,7 @@ export function subjectCopiesMicroYes(subject: string, cta: string): boolean {
   return b.includes(a) || a.includes(b);
 }
 
-/** Fragt der Betreff selbst? Ein Betreff ist ein Schild, keine Frage -- die
+/** Fragt der Betreff selbst? Ein Betreff ist ein Schild, keine Frage — die
  *  eine Frage steht in der letzten Zeile der Mail und nur dort. */
 export function subjectAsks(subject: string): boolean {
   return subject.trim().endsWith("?");

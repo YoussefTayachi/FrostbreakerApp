@@ -10,7 +10,7 @@ import type { Lang } from "@/lib/i18n/lang";
  * rendern kann, ohne dass jemand HTML in Uebersetzungsstrings schreibt.
  *
  * Der Zweck: bisher erklaerte die Onboarding-Checkliste WAS zu tun ist ("API-Key
- * hinterlegen"), aber nicht WARUM und WIE -- ein Laie weiss danach immer noch
+ * hinterlegen"), aber nicht WARUM und WIE — ein Laie weiss danach immer noch
  * nicht, was Warmup ist oder warum man nicht einfach von der Hauptdomain
  * verschickt. Genau diese Luecke fuellt dieser Text.
  */

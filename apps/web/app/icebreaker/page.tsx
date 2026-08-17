@@ -6,7 +6,7 @@ import IcebreakerReview from "./icebreaker-review";
  * Eigene Seite statt eines Reiters im AI-Agent-Tab: dort stehen die VORGABEN
  * (Prompt, Wortgrenze, Verbotswoerter), hier steht das ERGEBNIS. Beides auf
  * eine Seite zu legen haette bedeutet, dass man zum Nachbessern von 700
- * Zeilen jedes Mal an der Prompt-Einstellung vorbeiscrollt -- und zum
+ * Zeilen jedes Mal an der Prompt-Einstellung vorbeiscrollt — und zum
  * Aendern des Prompts an 700 Zeilen.
  *
  * Die Daten holt die Client-Komponente ueber api/personalization/review; sie

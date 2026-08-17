@@ -129,7 +129,7 @@ export async function POST(req: Request) {
   }
   if (rawRows.length > MAX_ROWS) {
     return NextResponse.json(
-      { error: `Maximal ${MAX_ROWS} Zeilen pro Upload -- Datei bitte aufteilen.` },
+      { error: `Maximal ${MAX_ROWS} Zeilen pro Upload — Datei bitte aufteilen.` },
       { status: 400 }
     );
   }

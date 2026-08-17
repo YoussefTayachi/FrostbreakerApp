@@ -20,11 +20,11 @@
  * Branche, Technologie, Intent und einige weitere Felder Werte aus seiner
  * eigenen Suggestions-API ("Location values must be obtained from the Search
  * Suggestions API"). Diese Werte stehen deshalb NIRGENDS in diesem Code als
- * Liste -- das Formular holt sie zur Laufzeit ueber /api/prospeo/suggestions.
+ * Liste — das Formular holt sie zur Laufzeit ueber /api/prospeo/suggestions.
  *
  * Das ist Absicht und der wichtigste Entwurfsentscheid dieser Datei: eine
  * hier hinterlegte Enum-Liste waere im Moment des Schreibens eine Vermutung
- * und im Moment des naechsten Prospeo-Updates falsch -- und der Fehler waere
+ * und im Moment des naechsten Prospeo-Updates falsch — und der Fehler waere
  * nicht laut, sondern ein leeres Suchergebnis.
  *
  * ═══════════════════════════════════════════════════════════════════════
@@ -32,7 +32,7 @@
  * ═══════════════════════════════════════════════════════════════════════
  *
  * Drei Filter setzen einen bezahlten Prospeo-Tarif voraus. Das ist eine
- * Sperre des Anbieters, kein Fehler bei uns -- die Oberflaeche kennzeichnet
+ * Sperre des Anbieters, kein Fehler bei uns — die Oberflaeche kennzeichnet
  * sie, und der Worker meldet einen 403 darauf verstaendlich statt als
  * "Suche fehlgeschlagen".
  */
@@ -82,7 +82,7 @@ export type ProspeoTrafficPeriod = (typeof PROSPEO_TRAFFIC_PERIODS)[number];
  *
  * Die Doku schreibt "contains (default) or exact". Die echte API lehnt beides
  * klein ab: "Invalid match_mode. Must be one of: CONTAINS, EXACT, SIMILAR,
- * STRICT." Am 2026-08-05 im Testlauf gegen die API gemessen -- ohne den waere
+ * STRICT." Am 2026-08-05 im Testlauf gegen die API gemessen — ohne den waere
  * jede Suche mit Positionsangabe an einem 400 gescheitert.
  */
 export const PROSPEO_MATCH_TYPES = ["CONTAINS", "EXACT", "SIMILAR", "STRICT"] as const;
@@ -116,7 +116,7 @@ export const PROSPEO_LIMITS = {
  * Bewusst flach und mit unseren eigenen Namen, nicht Prospeos verschachtelter
  * Struktur: so bleibt das gespeicherte Format lesbar und unabhaengig davon,
  * ob Prospeo seine Feldnamen einmal umbenennt. Die Uebersetzung passiert
- * genau an einer Stelle -- in buildProspeoFilters() unten.
+ * genau an einer Stelle — in buildProspeoFilters() unten.
  */
 export type ProspeoFilters = {
   /** Freitext, mehrere durch Komma. Wird zu person_job_title. */
@@ -169,7 +169,7 @@ function cleanList(raw: unknown, max?: number): string[] {
   return max ? list.slice(0, max) : list;
 }
 
-/** Zahl oder null -- niemals NaN, das waere bei Prospeo eine ungueltige Anfrage. */
+/** Zahl oder null — niemals NaN, das waere bei Prospeo eine ungueltige Anfrage. */
 function num(value: unknown): number | null {
   if (value === null || value === undefined || value === "") return null;
   const n = Number(value);
@@ -181,7 +181,7 @@ function num(value: unknown): number | null {
  *
  * Grundregel: ein Filter, der nicht gesetzt ist, taucht GAR NICHT auf. Ein
  * leeres include-Array ist bei Prospeo kein "egal", sondern eine Bedingung,
- * die nichts erfuellt -- das waere die Sorte Fehler, die als "keine Treffer"
+ * die nichts erfuellt — das waere die Sorte Fehler, die als "keine Treffer"
  * erscheint und stundenlang gesucht wird.
  */
 export function buildProspeoFilters(f: ProspeoFilters): ProspeoSearchFilters {
@@ -251,7 +251,7 @@ export function buildProspeoFilters(f: ProspeoFilters): ProspeoSearchFilters {
   //
   // Laut Doku muss mindestens eines der drei Kriterien gesetzt sein:
   // Besuchsspanne, Veraenderung oder Laender. Ein Traffic-Objekt, das nur
-  // aus einem Zeitraum besteht, waere eine ungueltige Anfrage -- deshalb
+  // aus einem Zeitraum besteht, waere eine ungueltige Anfrage — deshalb
   // wird hier geprueft und nicht blind zusammengebaut.
   const traffic: Record<string, unknown> = {};
   const minVisits = num(f.traffic_min_visits);

@@ -39,13 +39,13 @@ export default function AiAgentPage() {
   const { workspaceId: wsId } = useWorkspace();
   const [systemPrompt, setSystemPrompt] = useState("");
   /**
-   * Sprache der erzeugten Icebreaker -- NICHT die Sprache der Oberflaeche.
+   * Sprache der erzeugten Icebreaker — NICHT die Sprache der Oberflaeche.
    *
    * Bis zum 2026-08-09 gab es dieses Feld nicht, und der angezeigte
    * Standardprompt richtete sich nach `lang`, also danach, in welcher Sprache
    * jemand die App gerade bedient. Beim Speichern wurde ein unveraenderter
    * Standardprompt als null abgelegt, und der Worker setzte dafuer seinen
-   * eigenen ein -- fest auf Deutsch. Wer die Oberflaeche auf Englisch stellte,
+   * eigenen ein — fest auf Deutsch. Wer die Oberflaeche auf Englisch stellte,
    * sah also den englischen Prompt und bekam deutsche Texte.
    *
    * Beides gehoert getrennt: eine deutsche Oberflaeche und amerikanische
@@ -108,7 +108,7 @@ export default function AiAgentPage() {
   }, [wsId]);
 
   // Der angezeigte Standardprompt folgt der AUSGABESPRACHE, nicht der Sprache
-  // der Oberflaeche. Vorher haing er an `lang` -- daher stand dort Englisch,
+  // der Oberflaeche. Vorher haing er an `lang` — daher stand dort Englisch,
   // waehrend der Worker Deutsch erzeugte.
   useEffect(() => {
     if (selectedTemplateId === "default") {
@@ -198,7 +198,7 @@ export default function AiAgentPage() {
       .from("workspaces")
       .update({
         // null heisst "nimm den Standard". Welcher Standard das ist, sagt
-        // jetzt personalization_language -- vorher ging genau diese Auskunft
+        // jetzt personalization_language — vorher ging genau diese Auskunft
         // beim Speichern verloren und der Worker riet Deutsch.
         personalization_prompt:
           systemPrompt.trim() === getDefaultPrompt(outputLang).trim() ? null : systemPrompt.trim(),
@@ -272,7 +272,7 @@ export default function AiAgentPage() {
       </div>
 
       {/* Vor der Datenquelle, weil diese Auswahl den Prompt-Text weiter unten
-          umschaltet -- eine Einstellung, die sichtbar etwas anderes veraendert,
+          umschaltet — eine Einstellung, die sichtbar etwas anderes veraendert,
           gehoert davor und nicht dahinter. */}
       <div className="rounded-lg border border-edge/60 bg-panel p-6">
         <h2 className="mb-1 font-medium text-ink">{t.aiAgent.languageHeading}</h2>
@@ -476,7 +476,7 @@ export default function AiAgentPage() {
         </div>
 
         {/* Ohne diesen Hinweis wirken die beiden Felder wie eine reine
-            Nachpruefung -- genau das waren sie auch, und genau daran lag der
+            Nachpruefung — genau das waren sie auch, und genau daran lag der
             Fehler: die Wortgrenze stand nie im Prompt, das Modell erfuhr sie
             erst im Korrekturversuch und lag im Schnitt darueber. */}
         <p className="mt-2 text-xs text-mute">{t.aiAgent.limitsInPromptHint}</p>

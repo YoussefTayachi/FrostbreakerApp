@@ -27,7 +27,7 @@ export type StatsRow = Record<string, string | number | null | undefined> & {
  * Die massgebliche Zeile: die zuletzt aktualisierte.
  *
  * Alle Zeilen einer Kampagne treffen dieselbe Aussage, werden aber zu
- * unterschiedlichen Zeitpunkten abgeholt -- jede Suche hat ihren eigenen
+ * unterschiedlichen Zeitpunkten abgeholt — jede Suche hat ihren eigenen
  * Poll-Termin, und der Cron arbeitet nur ein paar je Durchlauf ab. Die
  * juengste ist damit der frischeste Stand derselben Wahrheit.
  */

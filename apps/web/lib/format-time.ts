@@ -4,7 +4,7 @@ import type { Lang } from "@/lib/i18n/lang";
  * Zeitformatierung fuer Client-Komponenten.
  *
  * Bewusst NICHT in lib/i18n/lang.ts: die Datei importiert next/headers und ist
- * damit server-only -- ein "use client"-Modul kann daraus nur Typen importieren.
+ * damit server-only — ein "use client"-Modul kann daraus nur Typen importieren.
  * Lag vorher lokal in inbox/page.tsx, wird jetzt zusaetzlich von der Timeline,
  * dem Pipeline-Board und den Aktivitaeten-Widgets genutzt.
  */
@@ -18,12 +18,12 @@ export function localeOf(lang: Lang): string {
  * Datum und Uhrzeit mit frei waehlbarem Format.
  *
  * Lag bis zum 2026-08-09 in lib/i18n/lang.ts und wird von dort weiterhin
- * re-exportiert -- die zwanzig Server-Komponenten, die es benutzen, mussten
+ * re-exportiert — die zwanzig Server-Komponenten, die es benutzen, mussten
  * dafuer nicht angefasst werden. Umgezogen ist es, weil auch eine
  * "use client"-Komponente es braucht (app/local-time.tsx), und lang.ts
  * importiert next/headers: ein Client-Modul, das daraus einen WERT holt,
  * laesst den Produktions-Build scheitern. Typen sind unkritisch, die
- * verschwinden beim Uebersetzen -- deshalb steht der Import oben so da.
+ * verschwinden beim Uebersetzen — deshalb steht der Import oben so da.
  */
 export function formatDate(
   iso: string,
@@ -40,7 +40,7 @@ export function formatRelative(iso: string | null, lang: Lang): string {
   const locale = LOCALE[lang];
   const diffMin = Math.round((Date.now() - date.getTime()) / 60_000);
   const rtf = new Intl.RelativeTimeFormat(locale, { numeric: "auto" });
-  // Zukunft (faellige Aufgaben) genauso behandeln wie Vergangenheit -- das
+  // Zukunft (faellige Aufgaben) genauso behandeln wie Vergangenheit — das
   // Vorzeichen von diffMin traegt die Richtung, RelativeTimeFormat den Text.
   const abs = Math.abs(diffMin);
   if (abs < 1) return rtf.format(0, "minute");
@@ -62,7 +62,7 @@ export function formatDateTime(iso: string | null, lang: Lang): string {
   });
 }
 
-/** Nur der Tag -- fuer Faelligkeiten und erwartete Abschlussdaten. */
+/** Nur der Tag — fuer Faelligkeiten und erwartete Abschlussdaten. */
 export function formatDay(iso: string | null, lang: Lang): string {
   if (!iso) return "";
   return new Date(iso).toLocaleDateString(LOCALE[lang], {

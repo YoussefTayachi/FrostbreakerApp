@@ -5,13 +5,13 @@ import { useT } from "../language-provider";
  * Woher die Kontakte einer Liste stammen. Nicht Deko: die Quelle sagt voraus,
  * was man vorfindet, und das aendert die Ansprache.
  *
- *   apollo    -- Firmendatenbank, praktisch immer mit E-Mail-Adresse, oft mit
+ *   apollo    — Firmendatenbank, praktisch immer mit E-Mail-Adresse, oft mit
  *                Firmenbeschreibung (daher der hohe Icebreaker-Anteil)
- *   maps      -- Google Maps, lokale Betriebe, haeufig ohne persoenliche Adresse
- *   corporate -- Hunter-Domainsuche, gemischt
+ *   maps      — Google Maps, lokale Betriebe, haeufig ohne persoenliche Adresse
+ *   corporate — Hunter-Domainsuche, gemischt
  *
  * Die Werte entsprechen searches.source (Migration 0051). Unbekannte Werte
- * werden woertlich angezeigt statt verschluckt -- eine neue Quelle soll
+ * werden woertlich angezeigt statt verschluckt — eine neue Quelle soll
  * auffallen, nicht stillschweigend als "sonstiges" durchlaufen.
  */
 const TONE: Record<string, string> = {

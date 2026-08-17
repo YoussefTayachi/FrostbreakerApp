@@ -91,12 +91,12 @@ export async function POST(req: Request) {
   if (!message) return NextResponse.json({ error: "Keine brauchbare Vorlage entstanden." }, { status: 502 });
 
   // Die Signatur zaehlt in der Zeichengrenze mit, obwohl sie erst ganz unten
-  // angehaengt wird -- sonst gilt eine Nachricht als kurz genug, die LinkedIn
+  // angehaengt wird — sonst gilt eine Nachricht als kurz genug, die LinkedIn
   // danach abschneidet.
   let problems = messageProblems(message, personalizationWords, signature);
   if (problems.length > 0) {
     // Eine Korrekturrunde, wie beim Sequenzgenerator. Was danach uebrig
-    // bleibt, wird trotzdem geliefert -- eine Vorlage mit zwanzig Zeichen zu
+    // bleibt, wird trotzdem geliefert — eine Vorlage mit zwanzig Zeichen zu
     // viel ist mehr wert als eine Fehlermeldung.
     const zweiter = await callOpenAi(openaiKey, [
       { role: "user", content: prompt },
@@ -113,7 +113,7 @@ export async function POST(req: Request) {
   }
 
   // Zuletzt und genau einmal: die Signatur daruntersetzen. Mechanisch, wie das
-  // Freistellen des Aufhaengers -- was eine reine Formsache ist, wird repariert
+  // Freistellen des Aufhaengers — was eine reine Formsache ist, wird repariert
   // und nicht erbeten. Hat das Modell trotz Verbot selbst unterschrieben,
   // bleibt es bei seiner Fassung statt bei zwei Signaturen.
   message = appendSignature(message, signature);

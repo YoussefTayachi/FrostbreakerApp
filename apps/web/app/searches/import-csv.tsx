@@ -22,7 +22,7 @@ import { useWorkspace } from "../workspace-provider";
  *
  * Die Bruecke fuer den Umstieg: wer drei Jahre Historie in Pipedrive hat,
  * wechselt nicht ohne sie. Ohne Import ist jede andere Verbesserung fuer
- * einen Umsteiger belanglos -- er kaeme mit einem leeren System an.
+ * einen Umsteiger belanglos — er kaeme mit einem leeren System an.
  *
  * Dreischrittig, weil ein Import sich nicht rueckgaengig machen laesst:
  *
@@ -34,7 +34,7 @@ import { useWorkspace } from "../workspace-provider";
  * sind, bricht ab und schaut nach, statt seinen Bestand zu verdoppeln.
  *
  * Die Zerlegung, Zuordnung und Vorschau liegen mit 30 Tests in
- * lib/crm/csv-import.ts -- hier steht nur die Bedienung und das Schreiben.
+ * lib/crm/csv-import.ts — hier steht nur die Bedienung und das Schreiben.
  */
 
 /** Import in Bloecken, damit ein grosser Bestand nicht an einer Anfrage haengt. */
@@ -59,7 +59,7 @@ export default function ImportCsv() {
    * Die importierten Firmen bekommen eine eigene Lead-Liste.
    *
    * Vorher stand hier search_id = null: die Kontakte tauchten unter "Alle
-   * Leads" auf, aber in keiner Liste -- also nirgends dort, wo man Leads
+   * Leads" auf, aber in keiner Liste — also nirgends dort, wo man Leads
    * auswaehlt. Wer 300 Kontakte aus Pipedrive mitbrachte, konnte sie
    * anschliessend nicht anschreiben, ohne sie von Hand zusammenzusuchen.
    */
@@ -113,7 +113,7 @@ export default function ImportCsv() {
   /**
    * Uebernehmen.
    *
-   * Firmen werden je Name einmal angelegt und wiederverwendet -- eine
+   * Firmen werden je Name einmal angelegt und wiederverwendet — eine
    * CSV-Datei mit fuenf Ansprechpartnern derselben Firma soll nicht fuenf
    * Firmen erzeugen. Der Abgleich laeuft ueber den Namen, weil Pipedrive-
    * Exporte keine stabile Firmen-Kennung mitliefern.
@@ -126,7 +126,7 @@ export default function ImportCsv() {
     /**
      * Zuerst die Liste, dann die Firmen.
      *
-     * source 'csv' haelt Migration 0075 vom Suchlauf ab -- fuer eine
+     * source 'csv' haelt Migration 0075 vom Suchlauf ab — fuer eine
      * importierte Liste gibt es nichts zu holen, und ein get_businesses-Job
      * wuerde Guthaben verbrennen und die Liste anschliessend als
      * fehlgeschlagen markieren. Der Status steht deshalb direkt auf
@@ -227,7 +227,7 @@ export default function ImportCsv() {
      * Pruefschleife (Migration 0070): nur eigene Firmen, und kein zweiter
      * Auftrag, solange einer offen ist.
      *
-     * Fehler hier brechen den Import NICHT ab -- die Kontakte sind da, und
+     * Fehler hier brechen den Import NICHT ab — die Kontakte sind da, und
      * das ist der Zweck. Der Aufhaenger laesst sich jederzeit nachtraeglich
      * anstossen.
      */

@@ -7,12 +7,12 @@ zwei OpenAI-Aufrufen zaehlte wie einer.
 
 Deshalb schreibt jeder zahlungsrelevante Aufruf hier eine Zeile mit der
 tatsaechlich verbrauchten MENGE. Der Euro-Betrag ist daraus abgeleitet und
-kann veralten, wenn ein Anbieter seine Tarife aendert -- die Menge bleibt
+kann veralten, wenn ein Anbieter seine Tarife aendert — die Menge bleibt
 richtig. Ist ein Preis unbekannt, wird cost_usd bewusst leer gelassen: eine
 ehrliche Luecke ist besser als eine erfundene Zahl.
 
 Das Festhalten darf nie den eigentlichen Arbeitsschritt kippen. Schlaegt der
-Schreibvorgang fehl, wird das protokolliert und der Lauf geht weiter -- eine
+Schreibvorgang fehl, wird das protokolliert und der Lauf geht weiter — eine
 fehlende Kostenzeile ist aergerlich, ein abgebrochener Lead-Import teuer.
 """
 import logging
@@ -27,7 +27,7 @@ log = logging.getLogger(__name__)
 # und nicht eine Suche quer durch die Pipelines.
 #
 # Wer sie anpasst: die bereits geschriebenen Zeilen behalten ihren damaligen
-# Betrag. Das ist Absicht -- rueckwirkend neu zu rechnen wuerde die Historie
+# Betrag. Das ist Absicht — rueckwirkend neu zu rechnen wuerde die Historie
 # verfaelschen.
 OPENAI_USD_PER_1M_INPUT = 0.40
 OPENAI_USD_PER_1M_OUTPUT = 1.60
@@ -68,7 +68,7 @@ def record(
                 "search_id": search_id,
             }
         ).execute()
-    except Exception as exc:  # noqa: BLE001 -- siehe Modul-Docstring
+    except Exception as exc:  # noqa: BLE001 — siehe Modul-Docstring
         log.warning("Verbrauch (%s/%s) konnte nicht festgehalten werden: %s", provider, operation, exc)
 
 
@@ -81,7 +81,7 @@ def record_openai(
     """Tokenverbrauch aus einer OpenAI-Antwort uebernehmen.
 
     Gezaehlt wird, was die Antwort selbst meldet, nicht was wir geschaetzt
-    haetten -- ein Korrektur-Versuch schlaegt damit korrekt doppelt zu Buche.
+    haetten — ein Korrektur-Versuch schlaegt damit korrekt doppelt zu Buche.
     Fehlt das usage-Feld, wird nichts geschrieben statt geraten.
     """
     usage = getattr(response, "usage", None)

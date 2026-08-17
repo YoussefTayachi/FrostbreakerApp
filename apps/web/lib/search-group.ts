@@ -6,7 +6,7 @@
  * ═══════════════════════════════════════════════════════════════════════
  *
  * Eine Maps-Suche mit mehreren Nischen und/oder Orten legt pro Kombination
- * eine eigene searches-Zeile an -- das ist Absicht, jede laeuft als eigener
+ * eine eigene searches-Zeile an — das ist Absicht, jede laeuft als eigener
  * get_businesses-Job mit eigenem Retry und eigener Stornierung (siehe
  * Migration 0096, Abschnitt "WARUM GRUPPIERUNG"). Sichtbar sein soll davon
  * aber genau EIN Eintrag: die Gruppen-Huelle mit parent_search_id = null und
@@ -15,7 +15,7 @@
  * Die Suchen-Seite bekommt diese Zusammenfassung fertig aus search_overview.
  * Ueberall sonst, wo Listen angeboten oder bearbeitet werden, muss die
  * Uebersetzung zwischen "eine Gruppe" und "ihre Teilsuchen" von Hand
- * passieren -- die Firmen haengen an den Kindern, nie an der Huelle. Diese
+ * passieren — die Firmen haengen an den Kindern, nie an der Huelle. Diese
  * Datei ist diese Uebersetzung, an einer Stelle und testbar.
  */
 
@@ -24,7 +24,7 @@ export type SearchGroupLink = {
   id: string;
   parent_search_id: string | null;
   /** Nur dort noetig, wo eine Huelle von einer gewoehnlichen Suche zu
-   *  unterscheiden ist -- siehe groupPickerOptions. */
+   *  unterscheiden ist — siehe groupPickerOptions. */
   is_search_group?: boolean | null;
 };
 
@@ -37,7 +37,7 @@ export type SearchGroupLink = {
  * .or("id.in.(…),parent_search_id.in.(…)") in einer einzigen Abfrage.
  *
  * Reihenfolge: erst die uebergebenen IDs, dann die Kinder. Doppelte fallen
- * weg -- eine ID darf gefahrlos zweimal hereingereicht werden.
+ * weg — eine ID darf gefahrlos zweimal hereingereicht werden.
  */
 export function withChildIds(ids: string[], links: SearchGroupLink[]): string[] {
   const gesucht = new Set(ids);
@@ -53,13 +53,13 @@ export function withChildIds(ids: string[], links: SearchGroupLink[]): string[] 
  * Fuer Sammelaktionen auf searches selbst (archivieren, in den Papierkorb,
  * Ordner wechseln): eine einzige Abfrage, ohne die Kinder vorher zu laden.
  * Ohne diesen Zusatz liefen die Teilsuchen unsichtbar weiter, nachdem die
- * Gruppenzeile im Papierkorb liegt -- inklusive ihrer Abos und der Credits,
+ * Gruppenzeile im Papierkorb liegt — inklusive ihrer Abos und der Credits,
  * die die kosten.
  *
  * Immer zusammen mit .eq("workspace_id", …) verwenden: die or-Gruppe steht
  * neben den uebrigen Bedingungen, nicht statt ihrer.
  *
- * Erwartet mindestens eine ID -- eine leere Liste ergaebe "id.in.()", was
+ * Erwartet mindestens eine ID — eine leere Liste ergaebe "id.in.()", was
  * PostgREST als Syntaxfehler zurueckweist. Alle Aufrufer brechen vorher ab.
  */
 export function groupScopeFilter(ids: string[]): string {

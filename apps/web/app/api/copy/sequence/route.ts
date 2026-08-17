@@ -19,7 +19,7 @@ import {
  * Eine vollstaendige Mail-Sequenz aus dem hinterlegten Angebot.
  *
  * Der Weg zur Kampagne fuehrte bisher durch acht leere Textfelder. Hier
- * entstehen sie in einem Aufruf -- als Entwurf, den der Nutzer im
+ * entstehen sie in einem Aufruf — als Entwurf, den der Nutzer im
  * Kampagnenformular weiter bearbeitet. Nichts davon geht ungesehen raus: der
  * Torwart (campaign-readiness) bleibt davor stehen wie bisher.
  *
@@ -29,7 +29,7 @@ import {
  *
  * Die Korrekturrunde ist dieselbe Bauart wie in personalize.py: erzeugen,
  * deterministisch pruefen, bei Verstoss EIN zweiter Versuch mit dem Befund im
- * Auftrag. Danach wird das Ergebnis trotzdem geliefert -- mit den
+ * Auftrag. Danach wird das Ergebnis trotzdem geliefert — mit den
  * verbliebenen Befunden im Feld `problems`, damit die Oberflaeche sie
  * anzeigen kann. Ein Text, an dem noch zwei Woerter zu viel haengen, ist mehr
  * wert als eine Fehlermeldung.
@@ -52,7 +52,7 @@ export async function POST(req: Request) {
   if (!offerId) return NextResponse.json({ error: "offerId fehlt" }, { status: 400 });
 
   // Workspace-Filter zusaetzlich zur RLS: RLS regelt, auf welche Accounts
-  // jemand zugreifen darf -- nicht, welcher der eigenen Workspaces gemeint
+  // jemand zugreifen darf — nicht, welcher der eigenen Workspaces gemeint
   // ist (siehe CLAUDE.md).
   const { data: offer } = await supabase
     .from("offers")
@@ -94,7 +94,7 @@ export async function POST(req: Request) {
   if (steps.length === 0) {
     // Ehrlich melden statt eine leere Sequenz zurueckzugeben: acht leere
     // Felder sehen aus wie ein Bedienfehler, und der Nutzer klickt dann
-    // dreimal nach -- jedes Mal kostenpflichtig.
+    // dreimal nach — jedes Mal kostenpflichtig.
     return NextResponse.json(
       { error: "Kein brauchbarer Entwurf entstanden. Bitte erneut versuchen." },
       { status: 502 }

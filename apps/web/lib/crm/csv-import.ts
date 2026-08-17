@@ -3,7 +3,7 @@
  *
  * Der Grund fuer diese Datei: Wer drei Jahre Historie in Pipedrive hat,
  * wechselt nicht ohne sie. Ohne Import ist jede andere Verbesserung fuer einen
- * Umsteiger belanglos -- er kaeme mit einem leeren System an.
+ * Umsteiger belanglos — er kaeme mit einem leeren System an.
  *
  * Bewusst ohne Fremdbibliothek. Ein CSV-Parser ist ueberschaubar, solange man
  * die drei Faelle kennt, an denen naive Zerlegung scheitert:
@@ -13,7 +13,7 @@
  *   3. Zeilenumbrueche innerhalb eines Feldes (Adressen, Notizen)
  *
  * Alle drei kommen in echten Pipedrive-Exporten vor, und alle drei zerlegen
- * eine Zeile falsch, ohne dass es beim Import auffaellt -- man merkt es erst,
+ * eine Zeile falsch, ohne dass es beim Import auffaellt — man merkt es erst,
  * wenn die Firma "Meyer" heisst und die Adresse " Anna GmbH" lautet.
  */
 
@@ -25,7 +25,7 @@ export function parseCsv(text: string, delimiter = ","): string[][] {
   let inQuotes = false;
 
   // Byte Order Mark: Excel schreibt ihn beim Export als UTF-8, und ungefiltert
-  // heisst die erste Spalte dann "﻿Name" statt "Name" -- die Zuordnung
+  // heisst die erste Spalte dann "﻿Name" statt "Name" — die Zuordnung
   // findet sie nie.
   const src = text.replace(/^﻿/, "");
 
@@ -78,7 +78,7 @@ export function parseCsv(text: string, delimiter = ","): string[][] {
  *
  * Pipedrive exportiert mit Komma, deutsche Excel-Versionen mit Semikolon.
  * Geraten wird an der KOPFZEILE, weil dort keine Fliesstexte mit Kommas
- * stehen -- an einer Datenzeile waere die Zaehlung unzuverlaessig.
+ * stehen — an einer Datenzeile waere die Zaehlung unzuverlaessig.
  */
 export type Delimiter = "," | ";" | "\t";
 
@@ -117,7 +117,7 @@ export type ImportTarget = (typeof IMPORT_TARGETS)[number];
  *
  * Die Muster decken Pipedrives eigene Exportnamen ab (deutsch und englisch,
  * beides kommt vor) und die ueblichen Varianten aus Excel-Listen. Was nicht
- * erkannt wird, bleibt 'ignore' -- der Nutzer stellt es dann von Hand ein.
+ * erkannt wird, bleibt 'ignore' — der Nutzer stellt es dann von Hand ein.
  * Falsch raten waere schlimmer als nicht raten: eine E-Mail-Spalte, die
  * versehentlich als Telefonnummer landet, faellt erst beim naechsten Versand
  * auf.
@@ -185,7 +185,7 @@ const EMPTY: ImportRow = {
  *
  * Ergaenzt dabei, was sich sicher ableiten laesst: fehlt der volle Name, wird
  * er aus Vor- und Nachnamen gebildet, und umgekehrt wird ein voller Name am
- * ERSTEN Leerzeichen geteilt. Nicht am letzten -- "Anna Maria Berg" ist
+ * ERSTEN Leerzeichen geteilt. Nicht am letzten — "Anna Maria Berg" ist
  * haeufiger als ein doppelter Nachname, und bei der Anrede zaehlt der
  * Vorname.
  */
@@ -222,7 +222,7 @@ export function isImportable(row: ImportRow): boolean {
 export type ImportPlan = {
   /** Zeilen, die angelegt werden koennen. */
   usable: ImportRow[];
-  /** Zeilen ohne Firma -- ohne sie liesse sich kein Datensatz anlegen. */
+  /** Zeilen ohne Firma — ohne sie liesse sich kein Datensatz anlegen. */
   withoutCompany: number;
   /** Adressen, die es im Bestand schon gibt. */
   duplicates: number;
@@ -239,7 +239,7 @@ export type ImportPlan = {
  * seinen Bestand zu verdoppeln.
  *
  * Dubletten werden ueber die E-Mail-Adresse erkannt. Zeilen ohne Adresse
- * gelten nie als Dublette -- zwei Personen ohne Adresse bei derselben Firma
+ * gelten nie als Dublette — zwei Personen ohne Adresse bei derselben Firma
  * koennen zwei verschiedene sein, und ein faelschlich verworfener Kontakt
  * waere schlimmer als ein doppelter.
  */

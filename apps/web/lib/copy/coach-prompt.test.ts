@@ -62,7 +62,7 @@ describe("buildCoachPrompt", () => {
   });
 
   it("schweigt weiter, wenn kein Pflichtfeld leer ist", () => {
-    // mechanism, friction_reason und tone sind im Angebot leer -- optional,
+    // mechanism, friction_reason und tone sind im Angebot leer — optional,
     // und dazu bleibt Schweigen richtig.
     expect(buildCoachPrompt(angebot)).not.toContain("THEY ARE EMPTY AND REQUIRED");
   });
@@ -128,7 +128,7 @@ describe("parseCoachFindings", () => {
 
   it("wirft einen Micro-Yes weg, den die App selbst bemaengeln wuerde", () => {
     // Am Live-Stand aufgefallen (2026-08-13): der erste Vorschlag fuer das
-    // leere cta war fachlich richtig hergeleitet und 30 Woerter lang -- die
+    // leere cta war fachlich richtig hergeleitet und 30 Woerter lang — die
     // Anzeige unter dem Feld haette ihn sofort als "zu lang" gemeldet. Ein
     // Coach, dessen Vorschlag durch seine eigene Pruefung faellt, schickt den
     // Nutzer im Kreis.

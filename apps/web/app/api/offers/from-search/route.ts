@@ -22,13 +22,13 @@ import { cleanProduct } from "@/lib/copy/offer-products";
  * ZWEI TEILE, NUR EINER KOSTET
  *
  * Was der Absender verkauft, worauf er sich beruft und wie er klingt, steht
- * bereits im Angebot und wird hier NICHT neu erzeugt -- kein Website-Abruf,
+ * bereits im Angebot und wird hier NICHT neu erzeugt — kein Website-Abruf,
  * kein zweiter Ton, kein neuer Beleg. Der Modellaufruf betrifft nur die
  * Felder, die von der Nische abhaengen (siehe lib/copy/offer-from-search.ts).
  *
  * DAS ANGEBOT KOMMT ALS ID MIT
  *
- * Und zwar das, das im Formular gerade offen steht -- nicht das
+ * Und zwar das, das im Formular gerade offen steht — nicht das
  * Standardangebot. Grund: outcome und mechanism werden fuer diese Zielgruppe
  * UMFORMULIERT, und eine Umformulierung des falschen Angebots waere keine
  * Umformulierung, sondern ein fremder Satz.
@@ -61,7 +61,7 @@ export async function POST(req: Request) {
   if (!searchId) return NextResponse.json({ error: "searchId fehlt" }, { status: 400 });
   if (!offerId) return NextResponse.json({ error: "offerId fehlt" }, { status: 400 });
   /**
-   * Auf welche der verkauften Sachen diese Liste zielt -- optional.
+   * Auf welche der verkauften Sachen diese Liste zielt — optional.
    *
    * Gesetzt nur, wenn api/offers/detect-products mehrere gefunden HAT und der
    * Nutzer danach eine gewaehlt hat (auch von Hand eingetippt). Fehlt der
@@ -72,7 +72,7 @@ export async function POST(req: Request) {
   const product = cleanProduct(body?.product);
 
   // Workspace-Filter zusaetzlich zur RLS: RLS regelt, auf welche Accounts
-  // jemand zugreifen darf -- nicht, welcher der eigenen Workspaces gemeint ist
+  // jemand zugreifen darf — nicht, welcher der eigenen Workspaces gemeint ist
   // (siehe CLAUDE.md).
   const { data: search } = await supabase
     .from("searches")
@@ -108,7 +108,7 @@ export async function POST(req: Request) {
     );
   }
 
-  // count zaehlt ALLE Treffer, limit holt nur die Stichprobe -- so steht im
+  // count zaehlt ALLE Treffer, limit holt nur die Stichprobe — so steht im
   // Prompt, wie gross die Liste wirklich ist, ohne sie ganz zu laden.
   const {
     data: businesses,

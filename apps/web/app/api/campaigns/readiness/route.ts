@@ -10,7 +10,7 @@ import { reviewIcebreaker, reviewSettingsFromWorkspace } from "@/lib/personaliza
 /**
  * Die Fakten fuer den Torwart einsammeln.
  *
- * Die Bewertung selbst steht in lib/campaign-readiness.ts (mit Tests) -- hier
+ * Die Bewertung selbst steht in lib/campaign-readiness.ts (mit Tests) — hier
  * geht es nur darum, WOHER die Zahlen kommen. Die Trennung ist bewusst: die
  * Schwellen sind eine Produktentscheidung, die man nachlesen und aendern will,
  * das Zusammensuchen aus fuenf Tabellen und dem DNS ist Mechanik.
@@ -28,7 +28,7 @@ type Body = {
   steps?: { subject?: string; body?: string }[];
 };
 
-/** Die Domain hinter einer Absenderadresse -- SPF/DKIM/DMARC haengen an ihr, nicht am Postfach. */
+/** Die Domain hinter einer Absenderadresse — SPF/DKIM/DMARC haengen an ihr, nicht am Postfach. */
 function domainOf(email: string): string | null {
   const at = email.lastIndexOf("@");
   return at > 0 ? email.slice(at + 1).toLowerCase() : null;
@@ -104,14 +104,14 @@ export async function POST(req: Request) {
   };
 
   const rows = (contactRows ?? []) as unknown as Row[];
-  // Dieselbe Regel wie beim tatsaechlichen Anlegen (lib/contacts.ts) -- eine
+  // Dieselbe Regel wie beim tatsaechlichen Anlegen (lib/contacts.ts) — eine
   // Vorschau, die mehr zaehlt als spaeter rausgeht, ist keine Vorschau.
   const { contactable: notDeclined } = splitByEngagement(rows);
   const { sendable } = splitBySendability(filterSuppressed(notDeclined, suppression ?? []));
   const finalLeads = pickPrimaryContactPerBusiness(sendable) as unknown as Row[];
 
   // "Unverifiziert" meint ausdruecklich: nie geprueft. Als ungueltig erkannte
-  // Adressen sind oben schon rausgefallen -- die zaehlen hier nicht nochmal.
+  // Adressen sind oben schon rausgefallen — die zaehlen hier nicht nochmal.
   const unverifiedLeads = finalLeads.filter((c) => !c.email_verification_status).length;
 
   let leadsWithoutIcebreaker = 0;
@@ -140,7 +140,7 @@ export async function POST(req: Request) {
   /**
    * DNS je Domain, nicht je Postfach.
    *
-   * 19 Postfaecher liegen in der Praxis auf zwei, drei Domains -- ohne diese
+   * 19 Postfaecher liegen in der Praxis auf zwei, drei Domains — ohne diese
    * Zusammenfassung waeren es 19 mal dieselbe Abfrage. Faellt eine Abfrage aus
    * (Zeitueberschreitung, kein Netz), gilt der Eintrag als vorhanden statt als
    * fehlend: einen Blocker aufgrund eines eigenen Fehlers zu setzen waere die

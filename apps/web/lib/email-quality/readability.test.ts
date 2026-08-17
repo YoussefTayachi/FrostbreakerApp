@@ -27,7 +27,7 @@ describe("checkReadability", () => {
 
   describe("die Note kommt aus der Satzlaenge, nicht aus dem Flesch-Wert", () => {
     // Der gemeldete Fall vom 2026-08-12: eine erzeugte Kampagnenmail, kurze
-    // Saetze, keine Befunde -- und trotzdem ein rotes "Schwer", allein wegen
+    // Saetze, keine Befunde — und trotzdem ein rotes "Schwer", allein wegen
     // Fachwoertern wie "verification". Ein rotes Abzeichen ueber "Nichts zu
     // beanstanden" ist ein Widerspruch.
     const gemeldetEN =
@@ -53,7 +53,7 @@ describe("checkReadability", () => {
       const r = checkReadability(gemeldetEN, "en");
       expect(["very-easy", "easy"]).toContain(r.band);
       // Der Flesch-Wert bleibt als ANGABE stehen, er ist nur nicht mehr das
-      // Urteil -- er liegt hier weiterhin niedrig.
+      // Urteil — er liegt hier weiterhin niedrig.
       expect(r.readingEaseScore).toBeLessThan(60);
     });
 
@@ -116,13 +116,13 @@ describe("checkReadability", () => {
 
     it("haelt aktive und Futur-Saetze frei", () => {
       expect(categories("Wir liefern die Ware morgen.", "de")).not.toContain("passive");
-      // "wird verkaufen" ist Futur, kein Passiv -- klassischer Fehlalarm.
+      // "wird verkaufen" ist Futur, kein Passiv — klassischer Fehlalarm.
       expect(categories("Ihr Team wird mehr verkaufen.", "de")).not.toContain("passive");
     });
 
     it("haelt Adjektive frei, die wie ein Partizip aussehen", () => {
       // "erwähnenswert"/"verfügbar" enden auf "t"/"r" nach Vorsilbe, sind aber
-      // Adjektive -- ohne Ausnahme meldet jedes "ist ..." hier ein Passiv.
+      // Adjektive — ohne Ausnahme meldet jedes "ist ..." hier ein Passiv.
       expect(categories("Das ist erwähnenswert.", "de")).not.toContain("passive");
       expect(categories("Die Ware ist sofort verfügbar.", "de")).not.toContain("passive");
       expect(categories("Der Preis ist bekannt.", "de")).not.toContain("passive");

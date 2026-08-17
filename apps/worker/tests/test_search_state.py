@@ -17,7 +17,7 @@ def test_active_search_is_not_deleted():
 
 
 def test_missing_relation_is_treated_as_active():
-    """Im Zweifel anreichern statt still zu ueberspringen -- ein fehlendes
+    """Im Zweifel anreichern statt still zu ueberspringen — ein fehlendes
     Feld darf nicht dazu fuehren, dass echte Leads unbearbeitet bleiben."""
     assert search_is_deleted({}) is False
     assert search_is_deleted({"searches": None}) is False

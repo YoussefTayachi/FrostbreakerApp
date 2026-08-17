@@ -18,7 +18,7 @@ import { validateIcebreaker } from "@/lib/personalization-defaults";
  *
  * Warum es diese Route gibt: businesses.personalization_needs_review wird vom
  * Worker gesetzt, wenn ein erzeugter Aufhaenger die Vorgaben zweimal
- * verfehlt. Am 2026-08-04 trugen 766 von 1032 Zeilen diese Markierung -- und
+ * verfehlt. Am 2026-08-04 trugen 766 von 1032 Zeilen diese Markierung — und
  * sie kam in der gesamten Web-App an keiner Stelle vor. Drei Viertel aller
  * Aufhaenger waren als mangelhaft bekannt und sind trotzdem rausgegangen.
  *
@@ -30,7 +30,7 @@ import { validateIcebreaker } from "@/lib/personalization-defaults";
 /**
  * Obergrenze einer Abfrage.
  *
- * Die Bewertung laeuft ueber alle geladenen Zeilen -- das ist reines Rechnen
+ * Die Bewertung laeuft ueber alle geladenen Zeilen — das ist reines Rechnen
  * ohne Netzaufrufe und bei tausend Zeilen nicht messbar. Die Grenze schuetzt
  * vor einer Antwort, die zu gross zum Anzeigen wird, nicht vor Rechenlast.
  */
@@ -50,7 +50,7 @@ async function context(supabase: SupabaseClient) {
 }
 
 /**
- * Die Vorgaben, gegen die geprueft wird -- dieselben, die auch der Worker beim
+ * Die Vorgaben, gegen die geprueft wird — dieselben, die auch der Worker beim
  * Erzeugen anlegt (workspaces.personalization_*).
  */
 async function loadSettings(
@@ -74,14 +74,14 @@ async function loadSettings(
  * ═══════════════════════════════════════════════════════════════════════
  *
  * Die LinkedIn-Liste und die Lead-Ansichten lesen businesses.personalization
- * bei jedem Aufruf frisch -- dort ist ein neuer Text sofort da. Instantly
+ * bei jedem Aufruf frisch — dort ist ein neuer Text sofort da. Instantly
  * dagegen bekommt beim Export eine KOPIE als lead-Variable. Wird der Text
  * danach neu erzeugt, aendert sich unsere Zeile, die Kopie bei Instantly
  * nicht: die Mail geht mit dem alten Aufhaenger raus.
  *
  * Das laesst sich hier nicht heilen (Instantlys API kennt kein Aktualisieren
  * einer bereits uebergebenen Lead-Variable, und ein Loeschen samt neu Anlegen
- * wuerde den Sendestatus verlieren). Also wird es wenigstens gesagt -- eine
+ * wuerde den Sendestatus verlieren). Also wird es wenigstens gesagt — eine
  * stille Abweichung zwischen dem, was in der App steht, und dem, was beim
  * Empfaenger ankommt, ist der schlimmere Zustand.
  */
@@ -113,11 +113,11 @@ export async function GET(req: Request) {
    *
    * Ein Filter auf personalization_needs_review wuerde genau die Zeilen
    * verstecken, die nie markiert wurden und heute trotzdem gegen die Vorgaben
-   * verstossen -- an echten Daten 31 Stueck. Siehe die ausfuehrliche
+   * verstossen — an echten Daten 31 Stueck. Siehe die ausfuehrliche
    * Begruendung in lib/personalization/review.ts.
    *
    * Suchen im Papierkorb bleiben draussen: an deren Texten will niemand mehr
-   * arbeiten. Der !inner-Join ist dafuer notwendig -- ein loser Join wuerde
+   * arbeiten. Der !inner-Join ist dafuer notwendig — ein loser Join wuerde
    * die Firmenzeile behalten und nur die eingebettete Suche auf null setzen.
    */
   const { data, error } = await supabase
@@ -204,7 +204,7 @@ export async function POST(req: Request) {
      *
      * Welche Zeilen das sind, wird HIER neu berechnet und nicht vom Aufrufer
      * uebernommen: eine Liste von IDs aus dem Browser koennte veraltet sein
-     * oder Zeilen enthalten, die inzwischen doch auffallen -- und die duerfen
+     * oder Zeilen enthalten, die inzwischen doch auffallen — und die duerfen
      * nicht durch eine Sammelaktion durchrutschen.
      */
     const settings = await loadSettings(supabase, ctx.workspaceId, lang);
@@ -235,13 +235,13 @@ export async function POST(req: Request) {
     /**
      * Neu erzeugen lassen: ein personalize-Job je Firma.
      *
-     * Ueber die Funktion aus Migration 0070 statt per Insert -- public.jobs
+     * Ueber die Funktion aus Migration 0070 statt per Insert — public.jobs
      * hat bewusst nur eine Lese-Policy. Dort sitzen auch die beiden
      * Pruefungen, die hier nicht verlassen werden duerfen: nur eigene Firmen,
      * und kein zweiter Job, solange noch einer offen ist (jeder ist ein
      * bezahlter Modellaufruf).
      *
-     * Derselbe Jobtyp, den auch die Suche einreiht -- der Worker holt sich
+     * Derselbe Jobtyp, den auch die Suche einreiht — der Worker holt sich
      * die aktuellen Vorgaben des Workspaces selbst. Eine geaenderte
      * Wortgrenze wirkt damit sofort, ohne dass hier etwas mitgegeben werden
      * muesste.
@@ -255,7 +255,7 @@ export async function POST(req: Request) {
       ok: true,
       queued: queued ?? 0,
       // Die Oberflaeche braucht die IDs, um die Zeilen als "wird neu erzeugt"
-      // zu markieren und auf das Ergebnis zu warten -- der Worker ist ein
+      // zu markieren und auf das Ergebnis zu warten — der Worker ist ein
       // paar Sekunden unterwegs, und ohne diese Rueckmeldung sieht ein
       // erfolgreicher Klick aus wie ein wirkungsloser.
       ids,
@@ -265,14 +265,14 @@ export async function POST(req: Request) {
 
   if (action === "regenerateAll") {
     /**
-     * Alles neu erzeugen -- der Fall "die Vorgaben haben sich grundlegend
+     * Alles neu erzeugen — der Fall "die Vorgaben haben sich grundlegend
      * geaendert", etwa nach dem Umstellen der Sprache.
      *
      * Ohne diesen Weg muesste man 55 Kaestchen anhaken, und bei einem
      * groesseren Bestand waere es gar nicht mehr zu machen.
      *
      * Welche Zeilen betroffen sind, wird HIER berechnet und nicht vom
-     * Aufrufer uebernommen -- dieselbe Begruendung wie bei acceptStale: eine
+     * Aufrufer uebernommen — dieselbe Begruendung wie bei acceptStale: eine
      * Liste aus dem Browser kann veraltet sein. Der optionale Zustandsfilter
      * spiegelt genau die Chips der Ansicht, damit "alle" bedeutet, was dort
      * gerade zu sehen ist.

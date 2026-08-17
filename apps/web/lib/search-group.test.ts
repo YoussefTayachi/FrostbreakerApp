@@ -50,7 +50,7 @@ describe("groupPickerOptions", () => {
   it("blendet Teilsuchen aus und laesst die Gruppe fuer sie stehen", () => {
     const optionen = groupPickerOptions(alle);
     expect(optionen.map((o) => o.row.id)).toEqual(["g1", "e1"]);
-    // Der Kern: die Gruppe waehlt ihre Kinder aus, nicht sich selbst -- an der
+    // Der Kern: die Gruppe waehlt ihre Kinder aus, nicht sich selbst — an der
     // Huelle haengt keine einzige Firma.
     expect(optionen[0].searchIds).toEqual(["k1", "k2"]);
     expect(optionen[1].searchIds).toEqual(["e1"]);

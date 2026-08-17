@@ -5,7 +5,7 @@ import { APOLLO_DEFAULT_SENIORITIES } from "./apollo-query";
 /**
  * Die Rueckwaerts-Abbildung ist der Teil, der still falsch sein kann: eine
  * Vorlage, die neunzig Prozent der Filter mitbringt, sieht beim Laden richtig
- * aus. Was fehlt, merkt der Nutzer erst an der Trefferzahl -- oder gar nicht,
+ * aus. Was fehlt, merkt der Nutzer erst an der Trefferzahl — oder gar nicht,
  * weil er ja nicht mehr weiss, was er ausgewaehlt hatte. Genau deshalb gibt es
  * die Funktion (und diese Tests).
  */
@@ -36,7 +36,7 @@ describe("searchRowToPresetConfig -- Apollo", () => {
     expect(c.keywords).toBe("supplements, nutrition, cosmetics");
     expect(c.headcount).toBe("11-20");
     expect(c.marketSegments).toEqual(["ecommerce"]);
-    // query/location sind bei Apollo nur Anzeigetext -- landen sie in der
+    // query/location sind bei Apollo nur Anzeigetext — landen sie in der
     // Vorlage, taucht "supplements, nutrition, cosmetics · Founder" beim
     // naechsten Mal als Google-Maps-Suchbegriff auf.
     expect(c.query).toBe("");
@@ -155,7 +155,7 @@ describe("searchRowToPresetConfig -- Corporate", () => {
 });
 
 describe("searchRowToPresetConfig -- Prospeo", () => {
-  // Prospeos Filterobjekt wandert unveraendert in searches.filters -- und muss
+  // Prospeos Filterobjekt wandert unveraendert in searches.filters — und muss
   // genauso unveraendert wieder herauskommen. Bis zum 2026-08-10 speicherte
   // die Vorlage davon NICHTS.
   const filters = {
@@ -191,7 +191,7 @@ describe("searchRowToPresetConfig -- Grenzfaelle", () => {
 
   it("faellt bei unbekannter Quelle auf den Maps-Modus zurueck", () => {
     // Kann eine Suche aus einer spaeteren Version sein. Ein unbekannter Modus
-    // waere im Formular ein Zustand ohne Oberflaeche -- lieber der Weg, den es
+    // waere im Formular ein Zustand ohne Oberflaeche — lieber der Weg, den es
     // seit der ersten Fassung gibt.
     const c = searchRowToPresetConfig({ source: "irgendwas_neues", query: "x", location: "y" });
     expect(c.mode).toBe("maps");

@@ -79,7 +79,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
                   Navigation ist mit jeder neuen Ansicht gewachsen, bis sie bei
                   100 % Zoom hoeher war als das Fenster. Weil das aside fixiert
                   ist und nichts ueberlief, wurde der Fuss schlicht abgeschnitten
-                  -- Konto, Sprache, Nachtmodus und Abmelden waren erst ab 90 %
+                  — Konto, Sprache, Nachtmodus und Abmelden waren erst ab 90 %
                   Zoom zu sehen, also ausgerechnet nicht in der Standardansicht.
                   Kopf und Fuss stehen deshalb fest (shrink-0), dazwischen darf
                   gescrollt werden. min-h-0 ist dabei der Punkt, an dem es sonst

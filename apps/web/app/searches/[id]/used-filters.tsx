@@ -12,7 +12,7 @@ import type { Lang } from "@/lib/i18n/lang";
  *
  * Die Beschriftungen stehen als eigene Karte im Woerterbuch
  * (searchDetail.filterLabels) und nicht als Verweise auf die Texte des
- * Formulars. Naheliegend waere das andere gewesen -- gescheitert ist es an den
+ * Formulars. Naheliegend waere das andere gewesen — gescheitert ist es an den
  * Namen: derselbe Filter heisst im Formular apolloSegments und hier
  * marketSegments, und drei Prospeo-Felder (Herkunftsorte der Person,
  * Finanzierung, Kaufabsicht) haben dort ueberhaupt keine Beschriftung, weil

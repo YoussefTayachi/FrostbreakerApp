@@ -38,7 +38,7 @@ def test_raise_for_status_safe_redacts_key_in_exception_message():
 
 
 def test_raise_for_status_safe_includes_response_body():
-    """Ohne den Body steht in searches.error nur '400 Bad Request' -- und man
+    """Ohne den Body steht in searches.error nur '400 Bad Request' — und man
     raet, welcher Filter schuld war."""
     request = httpx.Request("POST", "https://api.hunter.io/v2/discover?api_key=SECRET123")
     response = httpx.Response(

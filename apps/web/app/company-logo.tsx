@@ -12,7 +12,7 @@ export function faviconUrl(website: string | null): string | null {
   }
 }
 
-/** Firmen-Favicon mit Initialen-Fallback -- lag vorher lokal in leads-table.tsx,
+/** Firmen-Favicon mit Initialen-Fallback — lag vorher lokal in leads-table.tsx,
  *  wird inzwischen auch von der Inbox genutzt. */
 export default function CompanyLogo({
   name,

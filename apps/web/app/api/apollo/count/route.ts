@@ -9,7 +9,7 @@ import {
 } from "@/lib/apollo-query";
 
 /**
- * Wie viele Leads gibt es fuer diese Filter -- BEVOR die Suche startet?
+ * Wie viele Leads gibt es fuer diese Filter — BEVOR die Suche startet?
  *
  * Der Aufruf kostet nichts: mixed_people/api_search wird mit per_page=1
  * angefragt, Apollo berechnet die Suche selbst nicht (nur das Anreichern per
@@ -17,14 +17,14 @@ import {
  * deshalb bei jeder Filteraenderung laufen.
  *
  * Warum das ueberhaupt gebraucht wird: enge Kombinationen aus Keywords und
- * Technologie brechen den Pool unerwartet ein -- eine Suche auf 300 Leads kann
+ * Technologie brechen den Pool unerwartet ein — eine Suche auf 300 Leads kann
  * auf 40 verfuegbare treffen, und das merkte man bisher erst hinterher. Am
  * 2026-08-02 lief eine 300-Lead-Suche komplett leer, weil ein
  * Technologie-Slug bei Apollo gar nicht existierte; Apollo meldet so etwas
  * nicht als Fehler, sondern liefert stillschweigend null.
  *
  * Die Zahl kommt aus total_entries. Achtung, das steht auf OBERSTER Ebene der
- * Antwort -- pagination ist bei diesem Endpunkt durchgaengig null, anders als
+ * Antwort — pagination ist bei diesem Endpunkt durchgaengig null, anders als
  * bei Apollos uebrigen Such-Endpunkten.
  */
 export async function POST(request: Request) {

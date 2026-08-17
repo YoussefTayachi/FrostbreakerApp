@@ -43,13 +43,13 @@ type InstantlyEmail = {
   lead?: string | null;
   subject?: string | null;
   /** html ist bei aus einer Kampagne versendeten Mails das einzig gefuellte
-   *  Feld -- siehe lib/instantly/email-body.ts. */
+   *  Feld — siehe lib/instantly/email-body.ts. */
   body?: { text?: string | null; html?: string | null } | null;
   timestamp_email?: string | null;
   /**
    * Die drei Felder fuer die Zuordnung "welcher Text hat das ausgeloest".
    *
-   * Instantly liefert sie seit jeher mit -- dieser Typ deklarierte nur fuenf
+   * Instantly liefert sie seit jeher mit — dieser Typ deklarierte nur fuenf
    * der neunzehn Felder, und deshalb stand in 753 Nachrichten kein einziger
    * step_order. Am 2026-08-05 an echten Mails nachgesehen, siehe Migration
    * 0076 und lib/instantly/step-ref.ts.
@@ -82,7 +82,7 @@ function attributionOf(
   return {
     // Nur die Kampagnen, die die App auch kennt. Zwei der sechs Kampagnen im
     // Konto wurden direkt bei Instantly angelegt und haben lokal keine Zeile
-    // -- fuer die bleibt campaign_id leer und instantly_campaign_id traegt
+    // — fuer die bleibt campaign_id leer und instantly_campaign_id traegt
     // den Beleg (siehe Migration 0076).
     campaign_id: (instantlyCampaignId && campaignIds?.get(instantlyCampaignId)) || null,
     instantly_campaign_id: instantlyCampaignId,
@@ -96,7 +96,7 @@ function attributionOf(
  * Was beim Nachholen anders laeuft als im laufenden Betrieb.
  *
  * notify: beim Nachholen aus. Die Antworten, die dabei hochkommen, sind
- * Wochen alt -- eine Mail "X hat gerade geantwortet" waere schlicht falsch,
+ * Wochen alt — eine Mail "X hat gerade geantwortet" waere schlicht falsch,
  * und bei ueber hundert nachgeholten Nachrichten waere sie hundertmal falsch.
  * Im Posteingang tauchen sie trotzdem auf, dort gehoeren sie hin.
  */
@@ -119,7 +119,7 @@ function isAuthorized(req: Request): boolean {
   const provided = (req.headers.get("authorization") ?? "").replace(/^Bearer\s+/i, "");
   const a = Buffer.from(provided);
   const b = Buffer.from(secret);
-  // Laengen muessen zuerst geprueft werden -- timingSafeEqual wirft bei
+  // Laengen muessen zuerst geprueft werden — timingSafeEqual wirft bei
   // unterschiedlicher Laenge, statt konstant lange False zu liefern.
   return a.length === b.length && crypto.timingSafeEqual(a, b);
 }
@@ -129,7 +129,7 @@ function isAuthorized(req: Request): boolean {
  *
  * supabase und workspaceId stehen hier NUR fuer die Kostenzeile. Diese Route
  * ruft pg_cron jede Minute auf, jede eingestufte Antwort ist ein bezahlter
- * OpenAI-Aufruf -- und bis zum 2026-08-12 tauchte davon nichts unter
+ * OpenAI-Aufruf — und bis zum 2026-08-12 tauchte davon nichts unter
  * "API-Kosten" auf. Das war kein Nebenposten, sondern eine Dauerlast, die
  * niemand sehen konnte.
  */
@@ -172,11 +172,11 @@ async function classifyReply(
 }
 
 /** Sucht einen Kontakt zur Absenderadresse und upserted die Mail immer in
- *  messages -- mit oder ohne Treffer. KI-Klassifizierung und das Hochstufen
+ *  messages — mit oder ohne Treffer. KI-Klassifizierung und das Hochstufen
  *  des outreach_status bleiben echten CRM-Kontakten vorbehalten (kein
  *  OpenAI-Aufruf fuer Mails ohne Lead-Bezug). Ersetzt sowohl das fruehere
  *  Python-_process_reply (das Mails ohne Treffer verwarf) als auch
- *  _process_email -- es gibt jetzt nur noch dieses eine Verhalten. */
+ *  _process_email — es gibt jetzt nur noch dieses eine Verhalten. */
 /** Gibt eine Fehlermeldung zurueck statt null, wenn der Upsert fehlschlaegt --
  *  Supabase-js wirft bei einem DB-Fehler NICHT, sondern liefert {error} zurueck,
  *  das ungeprueft zu ignorieren wuerde genau die Art von Bug verstecken, die
@@ -193,7 +193,7 @@ async function processEmail(
   const leadEmail = (email.lead ?? "").trim().toLowerCase();
 
   // Ohne Instantlys eigenes "lead"-Feld gehoert die Mail zu keinem Thread mit
-  // einem Empfaenger -- z.B. Instantlys "Mailbox eingerichtet"-Bestaetigungen,
+  // einem Empfaenger — z.B. Instantlys "Mailbox eingerichtet"-Bestaetigungen,
   // Stripe- oder Passkey-Mails an die verbundene Adresse selbst. Als "received"
   // gespeichert wuerden sie Antwortquoten verfaelschen, ohne je eine Antwort zu sein.
   if (direction === "inbound" && !leadEmail) return null;
@@ -210,7 +210,7 @@ async function processEmail(
    * Notwendig geworden durch die Ueberlappung beim Wasserstand (siehe
    * syncInbox): der Sync sieht seither absichtlich einen Teil der Mails
    * mehrfach. Ohne diese Pruefung wuerde jede davon erneut durch die
-   * KI-Einstufung laufen -- also ein bezahlter Modellaufruf pro Mail pro
+   * KI-Einstufung laufen — also ein bezahlter Modellaufruf pro Mail pro
    * Durchlauf, fuer ein Ergebnis, das schon in der Datenbank steht.
    *
    * Steht bewusst VOR allem anderen ausser dem Text: der teure Teil ist
@@ -228,12 +228,12 @@ async function processEmail(
      *
      * Dieselbe Ueberlegung wie beim fehlenden Text darunter: die Zeilen, die
      * vor Migration 0076 entstanden sind, sehen den regulaeren Weg nie wieder
-     * -- der Sync erkennt sie als bekannt und steigt aus. Diese Stelle ist die
+     * — der Sync erkennt sie als bekannt und steigt aus. Diese Stelle ist die
      * einzige, an der eine erneut gesehene Mail eine alte Zeile reparieren
      * kann.
      *
      * Nur wenn step_order leer ist. Eine vorhandene Zuordnung zu
-     * ueberschreiben waere kein Nachtragen mehr -- und bei einer Mail, deren
+     * ueberschreiben waere kein Nachtragen mehr — und bei einer Mail, deren
      * Kampagne inzwischen anders verdrahtet ist, waere es eine Verfaelschung.
      */
     if (known[0].step_order === null) {
@@ -247,7 +247,7 @@ async function processEmail(
      * Eine Ausnahme: der fehlende Text wird nachgetragen.
      *
      * Die 184 bereits gespeicherten Zeilen wuerden sonst fuer immer leer
-     * bleiben -- der Nachlauf laeuft an ihnen vorbei, weil er sie kennt, und
+     * bleiben — der Nachlauf laeuft an ihnen vorbei, weil er sie kennt, und
      * der laufende Sync sieht sie nie wieder. Genau umgekehrt gedacht: der
      * Nachlauf geht ohnehin an jeder dieser Mails vorbei, das ist die einzige
      * Gelegenheit, sie zu reparieren.
@@ -279,7 +279,7 @@ async function processEmail(
    * Zwei Gruende, und der zweite wiegt schwerer als der erste:
    *   1. Es spart den Modellaufruf ganz, statt sein Ergebnis zu korrigieren.
    *   2. Es ist verlaesslicher. Die KI hatte beide vorhandenen Auto-Antworten
-   *      als "kein Interesse" eingestuft -- inhaltlich falsch und teuer, weil
+   *      als "kein Interesse" eingestuft — inhaltlich falsch und teuer, weil
    *      dieser Status den Kontakt dauerhaft aus kuenftigen Kampagnen wirft.
    *
    * Die Muster stehen mit Tests in lib/crm/auto-reply.ts.
@@ -287,7 +287,7 @@ async function processEmail(
   /**
    * Und ausschliesslich fuer EINGEHENDE Mails.
    *
-   * Die Einstufung beantwortet "wie hat der Empfaenger reagiert" -- auf den
+   * Die Einstufung beantwortet "wie hat der Empfaenger reagiert" — auf den
    * eigenen Kampagnentext angewandt ist sie sinnlos. Bisher fehlte diese
    * Bedingung; dass trotzdem keine einzige ausgehende Zeile ein ai_interest
    * trug, lag allein am leeren Body, der den Aufruf zufaellig verhinderte.
@@ -326,7 +326,7 @@ async function processEmail(
   //
   // Fehlte bisher komplett: der Status wurde ausschliesslich bei einer
   // EINGEHENDEN Antwort angehoben. Wer angeschrieben wurde und (noch) nicht
-  // geantwortet hat -- also die grosse Mehrheit -- blieb dauerhaft auf 'new'.
+  // geantwortet hat — also die grosse Mehrheit — blieb dauerhaft auf 'new'.
   // Nachgemessen am 2026-08-03: 21 Kontakte mit nachweislich versendeter Mail
   // standen weiterhin auf 'new', im Pipeline-Board also in der Spalte "Neu".
   // Damit war die Pipeline blind fuer genau das, wofuer es sie gibt.
@@ -361,14 +361,14 @@ async function processEmail(
     }
   }
 
-  // Absage merken -- unabhaengig davon, ob der Statuswechsel oben gerade
+  // Absage merken — unabhaengig davon, ob der Statuswechsel oben gerade
   // stattgefunden hat. Ein Kontakt kann erst freundlich antworten (Status
   // 'replied') und im zweiten Zug absagen; ohne diesen eigenen Zweig ginge
   // die Absage verloren, weil der Block oben beim zweiten Mal nicht mehr
   // greift.
   //
   // Bewusst NICHT in die Sperrliste: "kein Interesse" heisst "diesmal nicht",
-  // nicht "nie wieder". Der Kontaktstatus reicht -- api/instantly/campaigns
+  // nicht "nie wieder". Der Kontaktstatus reicht — api/instantly/campaigns
   // schliesst 'not_interested' beim Anlegen jeder neuen Kampagne aus. Genau
   // dieser Ausschluss lief bisher ins Leere, weil den Status niemand je
   // automatisch gesetzt hat.
@@ -380,7 +380,7 @@ async function processEmail(
     if (error) return `contact not_interested ${contact.id}: ${error.message}`;
   }
 
-  // Abmeldebitte -- das ist die harte Variante und gilt dauerhaft ueber alle
+  // Abmeldebitte — das ist die harte Variante und gilt dauerhaft ueber alle
   // Kampagnen hinweg. Greift auch ohne CRM-Kontakt: wer sich abmeldet, hat
   // Anspruch darauf, egal ob wir ihn zuordnen koennen.
   if (direction === "inbound" && leadEmail) {
@@ -404,7 +404,7 @@ async function processEmail(
  * mit 18 Faellen abgesichert.
  *
  * onConflict: eine zweite "stop"-Mail derselben Adresse ist kein Fehler,
- * sondern der Normalfall -- der Eintrag bleibt einfach bestehen.
+ * sondern der Normalfall — der Eintrag bleibt einfach bestehen.
  */
 async function suppressOnOptOut(
   supabase: SupabaseClient,
@@ -430,7 +430,7 @@ async function suppressOnOptOut(
 /**
  * Mail an den Betreiber, sobald ein Lead antwortet.
  *
- * Bisher landete eine Antwort still im Posteingang der App -- wer nicht selbst
+ * Bisher landete eine Antwort still im Posteingang der App — wer nicht selbst
  * nachsah, merkte tagelang nichts. Bei Kaltakquise ist das genau das
  * Zeitfenster, in dem eine Antwort noch warm ist.
  *
@@ -480,13 +480,13 @@ async function notifyReply(
  * Meldet aufgebrauchtes Anbieter-Guthaben per Mail (Migration 0059).
  *
  * Warum hier und nicht im Worker: der Worker hat keinen Resend-Schluessel und
- * soll auch keinen bekommen -- er laeuft bei einem anderen Hoster und braucht
+ * soll auch keinen bekommen — er laeuft bei einem anderen Hoster und braucht
  * fuer seine Aufgabe kein Mailkonto. Er schreibt den Alarm nur in die
  * Datenbank; verschickt wird er von hier, wo Resend ohnehin schon eingerichtet
  * ist und ohnehin jede Minute etwas laeuft.
  *
  * notified_at wird VOR dem Versand gesetzt: schlaegt der Mailversand fehl,
- * ist eine ausgebliebene Meldung aergerlich -- eine Endlosschleife, die im
+ * ist eine ausgebliebene Meldung aergerlich — eine Endlosschleife, die im
  * Minutentakt dieselbe Mail schickt, sobald Resend kurz klemmt, waere
  * schlimmer.
  */
@@ -494,7 +494,7 @@ async function notifyReply(
  * Der Text der Alarm-Mail, je nach Art.
  *
  * Alle drei Arten teilen sich die Strecke in provider_alerts (Entdoppelung,
- * Versand, Dashboard) -- aber nicht den Text. "Guthaben aufgebraucht" ueber
+ * Versand, Dashboard) — aber nicht den Text. "Guthaben aufgebraucht" ueber
  * einer angehaltenen Kampagne zu schreiben waere schlimmer als gar keine
  * Meldung: der Empfaenger sucht dann am falschen Ort.
  *
@@ -511,7 +511,7 @@ function alertMail(kind: string, provider: string, message: string): { subject: 
         "",
         "Was das heisst: Empfaenger koennen nicht mehr pruefen, ob die Mail",
         "wirklich von dieser Domain kommt. Google und Microsoft stufen sie",
-        "deshalb herab -- ein grosser Teil landet im Spam-Ordner, ohne dass",
+        "deshalb herab — ein grosser Teil landet im Spam-Ordner, ohne dass",
         "es irgendwo als Fehler auftaucht.",
         "",
         "Was zu tun ist: den fehlenden Eintrag beim DNS-Anbieter der Domain",
@@ -550,7 +550,7 @@ function alertMail(kind: string, provider: string, message: string): { subject: 
       `Der Anbieter ${provider} meldet, dass dein Guthaben aufgebraucht ist.`,
       "",
       "Die Lead-Suche laeuft deshalb gerade nicht weiter. Die betroffenen",
-      "Jobs sind nicht verloren -- sie werden zurueckgestellt und laufen",
+      "Jobs sind nicht verloren — sie werden zurueckgestellt und laufen",
       "von allein weiter, sobald du aufgeladen hast.",
       "",
       `Originalmeldung: ${message.slice(0, 400)}`,
@@ -583,7 +583,7 @@ async function notifyProviderAlerts(supabase: SupabaseClient): Promise<number> {
       .eq("id", alert.workspace_id)
       .single();
     const to = (ws?.reply_notify_email ?? "").trim();
-    if (!to) continue; // nicht eingerichtet -- der Alarm bleibt im Dashboard sichtbar
+    if (!to) continue; // nicht eingerichtet — der Alarm bleibt im Dashboard sichtbar
 
     const mail = alertMail(alert.kind as string, alert.provider as string, alert.message ?? "");
     const result = await sendEmail(to, mail.subject, mail.body);
@@ -601,7 +601,7 @@ const EMAIL_PAGE_SIZE = 100;
  *
  * next ist null, wenn Instantly keine weitere Seite kennt. Wer den Cursor
  * ignoriert, bekommt bei einem vollen Ergebnis stillschweigend nur die
- * neuesten 100 -- genau darauf beruht der Nachlauf unten.
+ * neuesten 100 — genau darauf beruht der Nachlauf unten.
  */
 async function fetchEmails(
   apiKey: string,
@@ -624,7 +624,7 @@ async function listAccounts(apiKey: string): Promise<string[]> {
   return (data.items ?? []).map((a) => a.email).filter((e): e is string => Boolean(e));
 }
 
-// Jede Suche kostet 1 Request gegen /api/v2/emails (die 20/min-Grenze) -- bei
+// Jede Suche kostet 1 Request gegen /api/v2/emails (die 20/min-Grenze) — bei
 // vielen aktiven Kampagnen gleichzeitig faellig sonst dasselbe Problem wie bei
 // syncInbox. Kein Rotations-Aufwand noetig: instantly_last_polled_at haengt
 // bereits an der einzelnen Suche, nicht am Workspace, wer diesen Tick nicht
@@ -634,12 +634,12 @@ const CAMPAIGN_REQUEST_BUDGET = 4;
 
 /** Kampagnen-Teil: Analytics-Rollup + kampagnen-scoped Antworten, wie zuvor
  *  poll_instantly.run() im Python-Worker. Weiterhin fuer die CRM-Pipeline-
- *  Stats (ForecastCards etc.) zustaendig -- unabhaengig vom Mailbox-Teil unten. */
+ *  Stats (ForecastCards etc.) zustaendig — unabhaengig vom Mailbox-Teil unten. */
 /**
  * Instantlys Kampagnen-UUID -> lokale campaigns.id.
  *
  * Einmal je Workspace und Lauf. Ohne diese Zuordnung traegt eine Nachricht
- * zwar Schritt und Variante, aber keine Kampagne -- und "Schritt 1, Variante
+ * zwar Schritt und Variante, aber keine Kampagne — und "Schritt 1, Variante
  * B" ist ohne die Kampagne dazu keine Aussage, weil jede Kampagne ihren
  * eigenen Schritt 1 hat.
  */
@@ -735,13 +735,13 @@ async function syncCampaigns(
 
 // Instantly erlaubt max. 20 Requests/Minute auf /api/v2/emails. Ein Workspace
 // mit vielen verbundenen Mailboxen (eaccount x {received, sent}) kann das in
-// einem einzelnen Tick locker sprengen -- deshalb wird pro Aufruf nur eine
+// einem einzelnen Tick locker sprengen — deshalb wird pro Aufruf nur eine
 // "Seite" der faelligen Paare bearbeitet, der Rest kommt in einem der naechsten
 // 5-Minuten-Ticks dran. BUDGET absichtlich unter 20, damit noch Luft fuer den
 // Kampagnen-Teil (syncCampaigns) bleibt, der parallel dazu laeuft.
 const INBOX_REQUEST_BUDGET = 15;
 
-/** Beide Richtungen eines Postfachs -- die Einheit, in der beide Sync-Teile
+/** Beide Richtungen eines Postfachs — die Einheit, in der beide Sync-Teile
  *  und der Nachlauf ihre Arbeit zaehlen. */
 const DIRECTIONS: { emailType: "received" | "sent"; direction: "inbound" | "outbound" }[] = [
   { emailType: "received", direction: "inbound" },
@@ -749,12 +749,12 @@ const DIRECTIONS: { emailType: "received" | "sent"; direction: "inbound" | "outb
 ];
 
 /** Mailbox-Teil: postfach-weiter Sync ueber alle verbundenen eaccounts, beide
- *  Richtungen, ohne campaign_id-Filter -- wie zuvor poll_instantly.run_inbox().
+ *  Richtungen, ohne campaign_id-Filter — wie zuvor poll_instantly.run_inbox().
  *  Verarbeitet pro Aufruf nur bis zu INBOX_REQUEST_BUDGET (eaccount, Richtung)-
- *  Paare (siehe oben) -- bei vielen Mailboxen dauert ein voller Durchlauf
+ *  Paare (siehe oben) — bei vielen Mailboxen dauert ein voller Durchlauf
  *  entsprechend mehrere Ticks, das ist bei einem "alle 5 Minuten"-Sync voellig
  *  ausreichend. instantly_inbox_synced_at wandert erst weiter, wenn ALLE Paare
- *  einmal mit demselben since-Wert drangekommen sind -- sonst wuerden Mailboxen,
+ *  einmal mit demselben since-Wert drangekommen sind — sonst wuerden Mailboxen,
  *  die diesen Tick nicht an der Reihe waren, Mails aus der Zwischenzeit verpassen. */
 async function syncInbox(
   supabase: SupabaseClient,
@@ -780,7 +780,7 @@ async function syncInbox(
 
   const pageCount = Math.max(1, Math.ceil(allPairs.length / INBOX_REQUEST_BUDGET));
   // Tick-Laenge muss zum tatsaechlichen Cron-Intervall passen (Migration 0043:
-  // jede Minute statt alle 5 Minuten) -- sonst wuerde dieselbe Seite mehrfach
+  // jede Minute statt alle 5 Minuten) — sonst wuerde dieselbe Seite mehrfach
   // hintereinander drankommen, statt bei jedem Aufruf weiterzurotieren.
   const tickIndex = Math.floor(Date.now() / (60 * 1000));
   const page = tickIndex % pageCount;
@@ -808,13 +808,13 @@ async function syncInbox(
        *
        * Der laufende Sync holt bewusst genau eine Seite je Paar, damit ein
        * Tick nicht die 20 Anfragen je Minute sprengt. Bei einem Wasserstand
-       * von wenigen Minuten reicht das mit weitem Abstand -- 100 Mails an
+       * von wenigen Minuten reicht das mit weitem Abstand — 100 Mails an
        * EIN Postfach in EINER Richtung in diesem Fenster kommt bei 19
        * Postfaechern und rund 300 Mails insgesamt nicht vor.
        *
        * Falls es doch einmal so weit ist, soll es nicht still passieren:
        * dann fehlen Mails, und zwar dauerhaft, weil der Wasserstand
-       * weiterwandert. Deshalb hier eine Meldung statt einer Schleife -- die
+       * weiterwandert. Deshalb hier eine Meldung statt einer Schleife — die
        * richtige Antwort waere ein Nachlauf fuer dieses Paar, und dessen
        * Auswirkung auf das Anfragebudget will man bewusst entscheiden und
        * nicht als Nebenwirkung bekommen.
@@ -832,24 +832,24 @@ async function syncInbox(
   }
 
   /**
-   * Wasserstand vorziehen -- aber MIT UEBERLAPPUNG.
+   * Wasserstand vorziehen — aber MIT UEBERLAPPUNG.
    *
    * Der Fehler, den das behebt: bisher wurde hier now() eingetragen, sobald
    * die letzte Seite eines Zyklus durch war. Die frueheren Seiten liefen aber
    * Minuten vorher. Eine Mail, die nach dem Lauf ihrer Seite und vor diesem
-   * Update eintraf, wurde damit nie geholt -- beim naechsten Durchlauf galt
+   * Update eintraf, wurde damit nie geholt — beim naechsten Durchlauf galt
    * schon der neuere Wasserstand, und ihr Zeitfenster lag davor.
    *
    * Nachgewiesen am 2026-08-03 bei 19 Postfaechern (38 Paare, 3 Seiten):
    * zwei eingehende Antworten mit gueltigem lead-Feld fehlten dauerhaft in
-   * der App, obwohl Instantly sie lieferte -- hudson@plantpeople.co und
+   * der App, obwohl Instantly sie lieferte — hudson@plantpeople.co und
    * adam@partnercommerce.com.
    *
    * Statt now() wird deshalb der Beginn des Zyklus eingetragen, grosszuegig
    * gerechnet: eine Minute je Seite plus zwei Minuten Sicherheit. Der Sync
    * sieht dadurch absichtlich einen Teil der Mails mehrfach. Das kostet
    * nichts, weil processEmail bereits bekannte Mails sofort verwirft (siehe
-   * dort) -- und ein doppelt gesehener Datensatz ist unendlich viel besser
+   * dort) — und ein doppelt gesehener Datensatz ist unendlich viel besser
    * als ein verlorener.
    */
   if (page === pageCount - 1) {
@@ -875,7 +875,7 @@ async function syncInbox(
  * Zusammen mit CAMPAIGN_REQUEST_BUDGET (4) bleiben 14 von 20 erlaubten
  * Anfragen je Minute. Bewusst unter INBOX_REQUEST_BUDGET: der Nachlauf holt
  * bis zu 100 Mails je Seite, und die muessen alle einzeln durch processEmail
- * -- bei 15 Seiten gleichzeitig waere Vercels Minute das engere Limit als
+ * — bei 15 Seiten gleichzeitig waere Vercels Minute das engere Limit als
  * Instantlys Zaehler.
  */
 const BACKFILL_REQUEST_BUDGET = 10;
@@ -914,13 +914,13 @@ type BackfillResult = {
  * Siehe Migration 0068 fuer den Befund. Kurz: der Wasserstand wurde beim
  * ersten Lauf auf "jetzt" gesetzt, alles davor liegt fuer immer ausserhalb
  * jedes Zeitfensters, das der laufende Sync je abfragt. Am 2026-08-04 fehlten
- * dadurch rund 130 versendete Mails -- und mit ihnen rund 110 Kontakte, die
+ * dadurch rund 130 versendete Mails — und mit ihnen rund 110 Kontakte, die
  * im Pipeline-Board weiterhin unter "Neu" standen, obwohl sie angeschrieben
  * waren.
  *
  * Laeuft von allein leer: eine Zeile je Postfach und Richtung, jede haelt
  * ihren Cursor, jeder Tick holt bis zu BACKFILL_REQUEST_BUDGET Seiten. Bei 19
- * Postfaechern sind das 38 Zeilen, meist eine Seite pro Zeile -- nach wenigen
+ * Postfaechern sind das 38 Zeilen, meist eine Seite pro Zeile — nach wenigen
  * Minuten ist Ruhe, und danach kostet die Sache eine Indexabfrage pro Minute.
  *
  * WAEHRENDDESSEN PAUSIERT DER NORMALE INBOX-SYNC (Entscheidung des
@@ -939,7 +939,7 @@ async function runBackfill(
   const errors: string[] = [];
 
   // Einmalig anlegen. Dass ueberhaupt Zeilen existieren, IST die Notiz "hier
-  // wurde schon nachgeholt" -- ein zusaetzliches Datum am Workspace waere eine
+  // wurde schon nachgeholt" — ein zusaetzliches Datum am Workspace waere eine
   // zweite Wahrheit, die von der ersten abweichen kann.
   const { count: total } = await supabase
     .from("instantly_backfill")
@@ -976,7 +976,7 @@ async function runBackfill(
         email_type: row.email_type,
         mode: "emode_all",
         // Von der aeltesten zur neuesten. Bricht der Nachlauf mittendrin ab,
-        // ist damit die aeltere Haelfte schon drin -- und genau die ist die,
+        // ist damit die aeltere Haelfte schon drin — und genau die ist die,
         // die der laufende Sync nie mehr holen wuerde.
         sort_order: "asc",
       };
@@ -1046,7 +1046,7 @@ async function runBackfill(
  * Der Zustellbarkeits-Waechter, taeglicher Teil: die DNS-Eintraege.
  *
  * Der Torwart prueft einmal, beim Anlegen. Danach kann ein Eintrag jederzeit
- * verschwinden -- ein Domain-Umzug, ein aufgeraeumtes Zonefile, ein
+ * verschwinden — ein Domain-Umzug, ein aufgeraeumtes Zonefile, ein
  * abgelaufener Vertrag. Ab dem Moment landet jede Mail im Spam, und man merkt
  * es an ausbleibenden Antworten, also gar nicht.
  *
@@ -1096,7 +1096,7 @@ async function watchDomains(
         };
       } catch {
         // Eine fehlgeschlagene Abfrage ist keine kaputte Domain. Der Stand
-        // bleibt stehen, beim naechsten Lauf wird es erneut versucht -- einen
+        // bleibt stehen, beim naechsten Lauf wird es erneut versucht — einen
         // Alarm auf einen eigenen Netzfehler zu setzen waere genau die Sorte
         // Fehlalarm, die Alarme entwertet.
         return;
@@ -1149,7 +1149,7 @@ async function watchDomains(
  *
  * Ab 5 Prozent greifen die Schutzmechanismen der Empfaenger-Provider, und der
  * Ruf der Absender-Domain traegt es dauerhaft mit. Weiterzusenden ist dann
- * nicht "etwas riskant", sondern der teuerste Fehler in der Kaltakquise -- er
+ * nicht "etwas riskant", sondern der teuerste Fehler in der Kaltakquise — er
  * kostet die Domain, nicht die Kampagne. Gemessen am 2026-08-04 lag eine
  * Kampagne bei 20 Prozent, ohne dass es irgendwo aufgefallen waere.
  *
@@ -1174,7 +1174,7 @@ async function watchBounces(
   // Die Zahlen haengen an der Suche (instantly_campaign_stats.search_id), die
   // Kampagne an ihrer Instantly-ID. Zusammengefuehrt ueber campaign_searches,
   // weil eine Kampagne seit Migration 0050 aus mehreren Suchen gespeist werden
-  // kann -- nur search_id anzuschauen wuerde bei genau diesen Kampagnen einen
+  // kann — nur search_id anzuschauen wuerde bei genau diesen Kampagnen einen
   // Teil der Bounces uebersehen.
   const [{ data: campaigns }, { data: stats }, { data: links }] = await Promise.all([
     supabase
@@ -1255,7 +1255,7 @@ export async function POST(req: Request) {
   }
 
   // Ein von aussen (pg_cron) getriggerter Endpoint darf nie mit einem nackten,
-  // body-losen 500 antworten -- ohne diesen Rahmen verschluckt Vercel jeden
+  // body-losen 500 antworten — ohne diesen Rahmen verschluckt Vercel jeden
   // Fehler vor dem ersten await (z.B. fehlende Env-Var in createServiceClient)
   // spurlos, und weder pg_net-Logs noch curl zeigen mehr als "500".
   try {
@@ -1273,7 +1273,7 @@ export async function POST(req: Request) {
           const apiKey = await getApiKey(supabase, workspaceId, "instantly");
           if (!apiKey) return { workspaceId, status: "skipped: no key" };
 
-          // KI-Klassifizierung ist optional -- fehlt der OpenAI-Key, laeuft der
+          // KI-Klassifizierung ist optional — fehlt der OpenAI-Key, laeuft der
           // Sync trotzdem, nur ohne ai_interest auf neuen Nachrichten.
           const openaiKey = await getApiKey(supabase, workspaceId, "openai").catch(() => null);
 
@@ -1291,7 +1291,7 @@ export async function POST(req: Request) {
             runBackfill(supabase, workspaceId, apiKey, openaiKey, eaccounts, campaignIds),
           ]);
 
-          // Solange nachgeholt wird, bleibt der laufende Sync aus -- siehe
+          // Solange nachgeholt wird, bleibt der laufende Sync aus — siehe
           // runBackfill. Er wuerde dieselben Postfaecher abfragen und sich
           // nur das Anfragebudget mit dem Nachlauf teilen.
           const inbox = backfill.active
@@ -1316,7 +1316,7 @@ export async function POST(req: Request) {
     // Ausserhalb der Workspace-Schleife: die Alarme haengen nicht an einem
     // Instantly-Schluessel, sondern am Worker. Ein Workspace ohne Instantly
     // taucht in der Schleife oben gar nicht auf, hat aber genauso ein leeres
-    // OpenAI-Konto -- und soll es genauso erfahren.
+    // OpenAI-Konto — und soll es genauso erfahren.
     const alertsSent = await notifyProviderAlerts(supabase).catch((e) => {
       console.warn("Guthaben-Warnungen fehlgeschlagen:", (e as Error).message);
       return 0;
@@ -1327,7 +1327,7 @@ export async function POST(req: Request) {
      *
      * Haengt hier mit dran, weil dieser Cron ohnehin jede Minute laeuft und
      * ein zweiter Zeitplan ein zweiter Mechanismus waere, der ausfallen kann.
-     * Die Bremse sitzt in der Funktion selbst -- last_run_at sorgt dafuer,
+     * Die Bremse sitzt in der Funktion selbst — last_run_at sorgt dafuer,
      * dass daraus ein Tageslauf wird und kein Minutenlauf. Diese Route muss
      * davon nichts wissen und darf deshalb auch nichts daran einstellen.
      *
@@ -1335,7 +1335,7 @@ export async function POST(req: Request) {
      * der Mail-Sync darueber ist es nicht.
      */
     // try/catch statt .catch(): supabase-js gibt hier ein PromiseLike zurueck,
-    // kein vollstaendiges Promise -- eine angehaengte .catch-Kette existiert
+    // kein vollstaendiges Promise — eine angehaengte .catch-Kette existiert
     // darauf gar nicht.
     let automations: unknown = null;
     try {

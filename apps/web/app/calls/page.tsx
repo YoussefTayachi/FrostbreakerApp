@@ -9,11 +9,11 @@ import HelpLink from "../help-link";
  * Die Anrufliste: alle offenen, terminierten Anrufe ueber ALLE Leads hinweg.
  *
  * Vorher gab es die Daten schon (activities mit type='call' und due_at,
- * Migration 0033 -- inklusive des partiellen Index activities_open_due_idx, der
+ * Migration 0033 — inklusive des partiellen Index activities_open_due_idx, der
  * genau fuer diese Abfrage angelegt wurde), aber keine Ansicht dafuer: einen
  * geplanten Rueckruf sah man nur, wenn man zufaellig genau diesen Kontakt im
  * Lead-Drawer aufschlug. Fuer den taeglichen Ablauf braucht es die Gegenrichtung
- * -- "wen rufe ich heute an" statt "was war mit dieser Firma".
+ * — "wen rufe ich heute an" statt "was war mit dieser Firma".
  *
  * Telefoniert wird bewusst NICHT in der App: der Nutzer waehlt mit seinem
  * Firmentelefon. Diese Seite liefert nur die Vorbereitung (Nummer,
@@ -27,13 +27,13 @@ export default async function CallsPage() {
   if (!ws) return <p className="text-faint">Kein Workspace gefunden.</p>;
   const workspaceId = ws.workspace.id;
 
-  // Alle offenen, terminierten Aktivitaeten -- genau der Zuschnitt des
+  // Alle offenen, terminierten Aktivitaeten — genau der Zuschnitt des
   // partiellen Index activities_open_due_idx.
   //
   // Bewusst NICHT auf type='call' eingeschraenkt, obwohl der Anruf der
   // Hauptfall ist: die Dashboard-Kachel "Aufgaben faellig" zaehlt alle Typen,
   // und eine Liste, die einen faelligen Termin stillschweigend verschweigt,
-  // waere eine Falle -- der Nutzer plant ihn und findet ihn nirgends wieder.
+  // waere eine Falle — der Nutzer plant ihn und findet ihn nirgends wieder.
   // Der Typ wird pro Zeile ausgewiesen.
   //
   // Der Kontakt bringt die Firma mit (fuer Nummer und Zusammenfassung); ist die

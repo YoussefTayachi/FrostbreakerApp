@@ -7,21 +7,21 @@ import type { PipelineRow } from "@/lib/crm/pipeline";
 import type { DealBoardRow } from "@/lib/crm/deal-board";
 
 /**
- * Pipeline ueber contacts.outreach_status -- bewusst ohne eigene Tabelle: die
+ * Pipeline ueber contacts.outreach_status — bewusst ohne eigene Tabelle: die
  * Pipeline existiert seit Migration 0018, ihr fehlte nur die Ansicht.
  * Deal-Werte und Forecast leben getrennt davon in public.deals (Migration
  * 0034), weil ein Deal etwas anderes ist als der Kontaktstatus.
  *
  * Die Daten kommen aus der RPC pipeline_rows (Migration 0061) statt aus einem
  * direkten Select. Grund: die Ansicht braucht je Kontakt auch "wann und
- * worueber zuletzt Kontakt bestand" und "was steht als naechstes an" -- beides
+ * worueber zuletzt Kontakt bestand" und "was steht als naechstes an" — beides
  * Aggregate ueber activities und messages. Einzeln abgefragt waeren das bei
  * tausend Kontakten zweitausend Rundreisen.
  *
  * Die Sperrliste wird hier NICHT mehr angewendet (vorher lief filterSuppressed
  * darueber). In einer Pipeline ist das falsch: seit der Inbox-Sync eine
  * Abmeldung automatisch eintraegt, waere ein Kontakt in dem Moment aus dem
- * Trichter verschwunden, in dem er "stop" schreibt -- statt als "kein
+ * Trichter verschwunden, in dem er "stop" schreibt — statt als "kein
  * Interesse" sichtbar zu bleiben. Und eine gesperrte Domain haette einen
  * bereits gewonnenen Kunden mitgenommen. Die Sperrliste gehoert vor den
  * Versand (api/instantly/campaigns filtert dort weiterhin), nicht vor die
@@ -45,7 +45,7 @@ export default async function PipelinePage() {
     supabase.rpc("deal_board_rows", { p_workspace_id: ws.workspace.id }),
   ]);
 
-  // Fehler melden statt als leere Pipeline auszugeben -- eine kaputte Abfrage
+  // Fehler melden statt als leere Pipeline auszugeben — eine kaputte Abfrage
   // und "noch keine Kontakte" sehen sonst identisch aus. Genau dieser
   // Unterschied liess in Session 3 eine leere Kampagnenliste wie den
   // Normalzustand aussehen.

@@ -19,12 +19,12 @@
  *
  * Dreimal derselbe Termin in drei Feldern, die drei verschiedene Fragen
  * stellen. Und der Beleg steht im Ergebnisfeld, waehrend im Belegfeld ein
- * Wahlspruch steht -- die beiden sind VERTAUSCHT.
+ * Wahlspruch steht — die beiden sind VERTAUSCHT.
  *
  * Die messenden Pruefungen fanden davon drei von sieben. Die anderen vier
  * brauchen Bedeutung: dass "Meeting for a Phone Call" kein Anhang ist, dass
  * eine Kundenzahl ein Beleg und kein Ergebnis ist. Genau dafuer ist dieser
- * Aufruf da -- und fuer nichts sonst.
+ * Aufruf da — und fuer nichts sonst.
  *
  * ═══════════════════════════════════════════════════════════════════════
  * DIE GEFAEHRLICHSTE FEHLFUNKTION
@@ -44,10 +44,10 @@
  * ═══════════════════════════════════════════════════════════════════════
  *
  * "Egal wie oft ich Angebot pruefen klicke und alles so eingebe, wie er es
- * vorschlaegt -- es ist nie fertig."
+ * vorschlaegt — es ist nie fertig."
  *
  * In der Datenbank nachgesehen: von zwoelf Feldern war genau EINES leer, und
- * zwar `cta` -- ein Pflichtfeld. Prompt und Parser schwiegen zu leeren Feldern
+ * zwar `cta` — ein Pflichtfeld. Prompt und Parser schwiegen zu leeren Feldern
  * ausnahmslos ("Empty is a decision the user has not made yet"). Damit konnte
  * der Coach zu dem einen Feld, das das Angebot blockierte, strukturell nie
  * etwas sagen. Wer jedem Vorschlag folgte, kam trotzdem nie an.
@@ -68,7 +68,7 @@ import { OFFER_TEXT_FIELDS, missingForGeneration } from "@/lib/offers";
 import { MICRO_YES_MAX_WORDS, microYesProblems } from "./playbook";
 
 /** Wie ernst ein Befund ist. Entscheidet ueber die Farbe am Knoten, nicht
- *  ueber die Reihenfolge -- die macht die Karte selbst. */
+ *  ueber die Reihenfolge — die macht die Karte selbst. */
 export type CoachSeverity = "blocker" | "weak";
 
 export type CoachFinding = {
@@ -89,7 +89,7 @@ export type CoachFinding = {
 
 const LANGUAGE_NAMES: Record<string, string> = { de: "German", en: "English" };
 
-/** Was jedes Feld sein SOLL -- knapp, damit das Modell nicht raten muss. */
+/** Was jedes Feld sein SOLL — knapp, damit das Modell nicht raten muss. */
 const FIELD_PURPOSE: Record<OfferTextField, string> = {
   offering: "what they sell, in one sentence a stranger understands",
   icp: "the single kind of buyer, narrow enough to be recognisable",
@@ -111,7 +111,7 @@ const FIELD_PURPOSE: Record<OfferTextField, string> = {
 
 export function buildCoachPrompt(offer: Offer): string {
   const sprache = LANGUAGE_NAMES[offer.language] ?? "German";
-  // Die leeren PFLICHTfelder -- dieselbe Liste, an der auch der Knopf "Sequenz
+  // Die leeren PFLICHTfelder — dieselbe Liste, an der auch der Knopf "Sequenz
   // erzeugen" haengt (lib/offers.ts). Nur zu diesen darf der Coach etwas
   // schreiben, das noch gar nicht dasteht.
   const fehlend = missingForGeneration(offer);
@@ -164,7 +164,7 @@ export function buildCoachPrompt(offer: Offer): string {
       // Vorschlag war ein einziger Satz aus 30 Woertern ("Would you like to
       // receive a customized outreach sequence preview or a sample list of
       // verified decision-maker contacts personalized for your client's agency
-      // to review in about 5 minutes?"). Fachlich richtig hergeleitet -- und
+      // to review in about 5 minutes?"). Fachlich richtig hergeleitet — und
       // die App haette ihn beim Einsetzen sofort als "zu lang" bemaengelt.
       // Ein Coach, dessen eigener Vorschlag durch seine eigene Pruefung
       // faellt, ist genau die Schleife, die gemeldet wurde.
@@ -188,7 +188,7 @@ export function buildCoachPrompt(offer: Offer): string {
     "  proposal a short question to themselves. Do not fabricate an answer.",
     // Ohne diese Einschraenkung stehen zwei Anweisungen gegeneinander: die
     // Rueckfrage an sich selbst waere fuer ein leeres Pflichtfeld genau das,
-    // was der Nutzer gemeldet hat -- ein Vorschlag, der das Feld nicht fuellt.
+    // was der Nutzer gemeldet hat — ein Vorschlag, der das Feld nicht fuellt.
     "  That last rule is for fields that ALREADY contain something. For an empty required field you",
     "  either write the field or you say nothing about it.",
     '- severity: "blocker" if an email built on this field would be wrong. "weak" if it would just be weaker.',
@@ -200,7 +200,7 @@ export function buildCoachPrompt(offer: Offer): string {
   return lines.join("\n");
 }
 
-/** Das erste JSON-Array im Text -- auch mit Vorrede oder Codeblock drumherum.
+/** Das erste JSON-Array im Text — auch mit Vorrede oder Codeblock drumherum.
  *  Gleiche Begruendung wie in sequence-prompt.ts. */
 function extractJsonArray(raw: string): string | null {
   const start = raw.indexOf("[");
@@ -227,12 +227,12 @@ const MAX_FINDINGS = 5;
  *
  * Nur fuer Vorschlaege zu LEEREN Feldern gedacht. Dort schreibt das Modell
  * einen Satz aus dem Nichts, und genau dabei entsteht die "over 200 happy
- * clients" -- dieselbe Gefahr, gegen die in sequence-prompt.ts der leere
+ * clients" — dieselbe Gefahr, gegen die in sequence-prompt.ts der leere
  * proof-Fall steht.
  *
  * Verglichen werden ganze Ziffernfolgen, nicht Teilstrings: sonst rutschte
  * eine "1" durch, nur weil im Angebot irgendwo "17" steht. Ausgeschriebene
- * Zahlen ("zwei Minuten") faengt das nicht -- eine bekannte Luecke, aber die
+ * Zahlen ("zwei Minuten") faengt das nicht — eine bekannte Luecke, aber die
  * teuren Erfindungen sind Prozente und Kundenzahlen, und die stehen als
  * Ziffern da.
  */
@@ -242,7 +242,7 @@ function hasInventedNumber(proposal: string, offer: Pick<Offer, OfferTextField>)
 }
 
 /**
- * Die Antwort in Befunde verwandeln -- streng.
+ * Die Antwort in Befunde verwandeln — streng.
  *
  * Weggeworfen wird alles, was nicht handlungsfaehig ist: unbekannte Felder,
  * fehlendes Urteil, und vor allem ein fehlender Gegenvorschlag. "Das ist zu
@@ -271,7 +271,7 @@ export function parseCoachFindings(raw: string, offer: Pick<Offer, OfferTextFiel
     const field = asField(o?.field);
     if (!field || gesehen.has(field)) continue;
     const leer = !offer[field].trim();
-    // Ein leeres OPTIONALES Feld ist eine Entscheidung, kein Fehler -- dazu
+    // Ein leeres OPTIONALES Feld ist eine Entscheidung, kein Fehler — dazu
     // schweigt der Coach weiter. Ein leeres PFLICHTfeld dagegen ist der Grund,
     // warum das Angebot nicht fertig wird; dort ist ein fertiger Satz das
     // Nuetzlichste, was er liefern kann (gemeldet 2026-08-13).
@@ -285,7 +285,7 @@ export function parseCoachFindings(raw: string, offer: Pick<Offer, OfferTextFiel
     if (leer && hasInventedNumber(proposal, offer)) continue;
     // Der Micro-Yes wird an derselben Regel gemessen wie jeder andere: was die
     // App unter dem Feld bemaengeln wuerde, schlaegt sie darueber nicht vor.
-    // Sonst entsteht die Schleife, die gemeldet wurde -- Vorschlag einsetzen,
+    // Sonst entsteht die Schleife, die gemeldet wurde — Vorschlag einsetzen,
     // sofort einen Befund dazu bekommen, wieder pruefen. Am 2026-08-13 live
     // passiert: 30 Woerter, MICRO_YES_MAX_WORDS sind 20. Der Prompt nennt die
     // Zahl inzwischen; das hier ist die Zusicherung, nicht die Bitte.
@@ -304,7 +304,7 @@ export function parseCoachFindings(raw: string, offer: Pick<Offer, OfferTextFiel
     });
   }
   // Erst sortieren, dann kappen. Andersherum verschwaende ein fehlendes
-  // Pflichtfeld hinter fuenf Stilhinweisen -- und genau das eine Feld, das das
+  // Pflichtfeld hinter fuenf Stilhinweisen — und genau das eine Feld, das das
   // Angebot blockiert, waere unsichtbar. Array.sort ist stabil, die Reihenfolge
   // des Modells bleibt innerhalb der beiden Gruppen erhalten.
   out.sort((a, b) => Number(!fehlendePflicht.has(a.field)) - Number(!fehlendePflicht.has(b.field)));

@@ -36,7 +36,7 @@ export async function instantlyRequest<T = unknown>(
     ...init,
     headers: {
       Authorization: `Bearer ${apiKey}`,
-      // Nur setzen, wenn tatsaechlich ein Body mitgeschickt wird -- z.B.
+      // Nur setzen, wenn tatsaechlich ein Body mitgeschickt wird — z.B.
       // DELETE /api/v2/campaigns/{id} hat keinen Body, lehnt mit
       // "Content-Type: application/json" ohne Inhalt aber trotzdem mit
       // "body must be null" ab (anders als POST-Aufrufe ohne Body wie
@@ -61,7 +61,7 @@ export async function instantlyRequest<T = unknown>(
  * prueft Login, ermittelt den aktuellen Workspace und laedt dessen
  * entschluesselten Instantly-Key. Vorher war dieser Block in jeder Route
  * (accounts, accounts/bulk, accounts/[email], accounts/warmup, campaigns/*)
- * separat kopiert -- an einer Stelle halten, damit z.B. eine Aenderung an der
+ * separat kopiert — an einer Stelle halten, damit z.B. eine Aenderung an der
  * Fehlermeldung oder der Workspace-Ermittlung nicht in sechs Dateien
  * synchron gehalten werden muss.
  */

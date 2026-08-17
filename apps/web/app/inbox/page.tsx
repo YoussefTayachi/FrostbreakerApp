@@ -59,7 +59,7 @@ type Conversation = {
   unread: number;
   aiInterest: string | null;
   replyTarget: Msg | null;
-  /** Steht auf der Blockliste -- meist, weil jemand "stop" geantwortet hat. */
+  /** Steht auf der Blockliste — meist, weil jemand "stop" geantwortet hat. */
   suppressed: boolean;
 };
 
@@ -75,7 +75,7 @@ function toConversations(messages: Msg[]): Conversation[] {
   const byKey = new Map<string, Conversation>();
   for (const m of messages) {
     // Ohne Kontakt gruppiert die rohe Absenderadresse (from_email) statt einer
-    // contact_id -- so landen mehrere Mails derselben unbekannten Adresse in
+    // contact_id — so landen mehrere Mails derselben unbekannten Adresse in
     // einer Konversation, statt jede einzeln zu zeigen.
     const key = m.contact_id ?? "raw:" + (m.from_email ?? m.id);
     let c = byKey.get(key);
@@ -135,7 +135,7 @@ export default function InboxPage() {
    *
    * Auf Klick geholt, nicht beim Oeffnen: jeder Aufruf kostet Geld, und die
    * meisten Antworten schreibt man in zehn Sekunden selbst. Der Assistent ist
-   * fuer die, bei denen man ins Gruebeln kommt -- und genau die bleiben sonst
+   * fuer die, bei denen man ins Gruebeln kommt — und genau die bleiben sonst
    * liegen.
    */
   const [suggestions, setSuggestions] = useState<{ label: string; text: string }[] | null>(null);
@@ -161,7 +161,7 @@ export default function InboxPage() {
        * Das Badge in der Seitenleiste zaehlt serverseitig ueber ALLE
        * Nachrichten, die Liste hier laedt nur die neuesten 1000. Am
        * Produktivstand nachgemessen (2026-08-12): eine ungelesene Antwort
-       * stand auf Platz 2141 von 2782 -- das Badge zeigte sie an, oeffnen
+       * stand auf Platz 2141 von 2782 — das Badge zeigte sie an, oeffnen
        * liess sie sich nicht. Diese zweite Abfrage holt genau die Zeilen, um
        * die es dabei geht; es sind naturgemaess wenige.
        */
@@ -190,7 +190,7 @@ export default function InboxPage() {
     load();
   }, [load]);
 
-  // Der Worker holt neue Antworten alle 5 Minuten von Instantly -- ein leiser
+  // Der Worker holt neue Antworten alle 5 Minuten von Instantly — ein leiser
   // Refetch haelt die offene Inbox aktuell, ohne dass der User neu laden muss.
   useEffect(() => {
     const timer = setInterval(load, REFRESH_INTERVAL_MS);
@@ -202,7 +202,7 @@ export default function InboxPage() {
    *
    * Vorher lief hier filterSuppressed(): wer "stop" geantwortet hatte,
    * verschwand aus dem Posteingang. Damit war die Antwort, die zur Sperre
-   * gefuehrt hat, nirgends mehr nachlesbar -- und genau die will man sehen
+   * gefuehrt hat, nirgends mehr nachlesbar — und genau die will man sehen
    * koennen, wenn jemand fragt, warum er keine Post mehr bekommt.
    *
    * In Kampagnen und Leads wird weiter gefiltert. Der Unterschied ist
@@ -256,7 +256,7 @@ export default function InboxPage() {
    *
    * Optimistisch, wie markRead darueber: die Auswahl soll sofort stehen. Der
    * Status-Trigger aus Migration 0032 schreibt die Bewegung ohnehin in den
-   * Verlauf, der rechts danebensteht -- ein Neuladen waere also nur eine
+   * Verlauf, der rechts danebensteht — ein Neuladen waere also nur eine
    * Verzoegerung ohne zusaetzliche Aussage.
    */
   async function setStatus(conversation: Conversation, next: string) {
@@ -520,7 +520,7 @@ export default function InboxPage() {
                        *
                        * Hier stand eine Anzeige-Plakette. Wer auf eine Antwort
                        * einen Termin ausmachte, musste ihn anschliessend in
-                       * /leads oder auf dem Board eintragen -- also die Seite
+                       * /leads oder auf dem Board eintragen — also die Seite
                        * verlassen, auf der er gerade gearbeitet hat. Am
                        * 2026-08-05 standen bei 741 versendeten Mails 0 Termine,
                        * und die Wirkungs-Ansicht konnte deshalb zu keinem Text
@@ -546,7 +546,7 @@ export default function InboxPage() {
                 </div>
 
                 {/* Voller Verlauf (Notizen, Aktivitaeten, Deals) nur bei echtem CRM-
-                    Kontakt -- ohne contact_id gibt es dafuer keine Basis, dann reicht
+                    Kontakt — ohne contact_id gibt es dafuer keine Basis, dann reicht
                     eine einfache Liste der synchronisierten E-Mails. */}
                 <div className="flex-1 overflow-y-auto px-5 py-4 md:max-h-[calc(100vh-27rem)]">
                   {selected.contactId ? (
@@ -562,7 +562,7 @@ export default function InboxPage() {
 
                 {/* Abgemeldet: der Verlauf bleibt lesbar, das Antwortfeld nicht.
                     Eine Antwort geht ueber dieselbe Instantly-Adresse hinaus,
-                    von der sich der Empfaenger gerade abgemeldet hat -- das
+                    von der sich der Empfaenger gerade abgemeldet hat — das
                     waere genau der Griff daneben, gegen den die Sperrliste
                     ueberall sonst schuetzt. Wer es trotzdem will, nimmt die
                     Adresse in den Einstellungen aus der Blockliste. */}
@@ -671,7 +671,7 @@ function PlainMessageList({
  *
  *  Bernstein und nicht rot: es ist kein Fehler, sondern ein Zustand, den der
  *  Empfaenger selbst gewaehlt hat. Rot stuende hier fuer "etwas ist schief
- *  gegangen" -- schiefgegangen ist nichts. */
+ *  gegangen" — schiefgegangen ist nichts. */
 function UnsubscribedBadge({ label }: { label: string }) {
   return (
     <span className="shrink-0 rounded-full bg-amber-500/10 px-2 py-0.5 text-[10px] font-medium text-amber-700 dark:text-amber-300">

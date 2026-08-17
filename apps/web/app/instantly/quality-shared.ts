@@ -84,7 +84,7 @@ export function toIssueLines(issues: QualityIssue[], template: Record<string, (v
 export type CategoryCount = { category: IssueCategory; count: number; severity: Severity };
 
 /**
- * Pro Kategorie nur die Anzahl, nicht jeder einzelne Fund -- fuer die
+ * Pro Kategorie nur die Anzahl, nicht jeder einzelne Fund — fuer die
  * Hemingway-artige Sidebar-Zeile ("3 lange Saetze") statt einer Aufzaehlung.
  */
 export function groupByCategory(issues: QualityIssue[]): CategoryCount[] {

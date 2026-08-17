@@ -11,7 +11,7 @@ export { checkAiSounding } from "./ai-sounding";
 
 /**
  * Alle drei Pruefungen in einem Durchlauf. Reine Funktion ohne Netzwerk oder
- * Secrets -- laeuft deshalb direkt im Browser waehrend des Tippens, statt wie
+ * Secrets — laeuft deshalb direkt im Browser waehrend des Tippens, statt wie
  * der Deliverability-Check (lib/deliverability.ts) einen Serverweg zu
  * brauchen.
  */

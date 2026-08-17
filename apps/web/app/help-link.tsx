@@ -4,7 +4,7 @@ import Link from "next/link";
  * Kleiner Verweis von einer Arbeitsseite in den passenden Abschnitt der
  * Anleitung. Absichtlich unauffaellig: wer weiss was er tut, soll es nicht
  * wegklicken muessen; wer nicht weiterkommt, findet die Erklaerung genau dort,
- * wo die Frage entsteht -- statt sie im Hilfebereich zusammensuchen zu muessen.
+ * wo die Frage entsteht — statt sie im Hilfebereich zusammensuchen zu muessen.
  *
  * Der Anker oeffnet den gemeinten Abschnitt direkt (siehe guide-view.tsx).
  */

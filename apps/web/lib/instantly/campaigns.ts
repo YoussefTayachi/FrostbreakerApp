@@ -9,14 +9,14 @@
  * Eine Fassung eines Sequenzschritts.
  *
  * Instantly verschickt die Varianten eines Schrittes abwechselnd und zaehlt
- * getrennt mit -- das ist der einzige eingebaute Weg, herauszufinden, welcher
+ * getrennt mit — das ist der einzige eingebaute Weg, herauszufinden, welcher
  * Text tatsaechlich Antworten bringt. Bis 2026-08-04 hat die App immer genau
  * eine Variante angelegt; damit gab es keinerlei Vergleich, egal wie viele
  * Mails rausgingen.
  *
  * disabled entspricht Instantlys v_disabled: die Variante bleibt stehen (man
  * sieht weiter, was sie geleistet hat), wird aber nicht mehr versendet. Genau
- * das braucht man, wenn ein Gewinner feststeht -- eine geloeschte Verliererin
+ * das braucht man, wenn ein Gewinner feststeht — eine geloeschte Verliererin
  * nimmt ihre Zahlen mit ins Grab, und die naechste Kampagne wiederholt den
  * Fehler.
  */
@@ -24,7 +24,7 @@ export type StepVariant = { subject: string; body: string; disabled?: boolean };
 
 export type SequenceStep = { variants: StepVariant[]; delayDays?: number };
 
-/** Variante A eines Schrittes -- der Text, der auf jeden Fall existiert. */
+/** Variante A eines Schrittes — der Text, der auf jeden Fall existiert. */
 export function primaryVariant(step: SequenceStep): StepVariant {
   return step.variants[0] ?? { subject: "", body: "" };
 }
@@ -46,7 +46,7 @@ export type CampaignScheduleInput = {
  * Enum validierte Liste an IANA-Zone-Strings (Fehler bei Verstoss: "must be
  * equal to one of the allowed values"). Ein paar gaengige Namen fehlen darin,
  * weil sie in der aktuellen IANA-tzdata nur noch als Backward-Link auf
- * denselben Regelsatz gefuehrt werden -- z.B. Europe/Vienna, das seit 1980
+ * denselben Regelsatz gefuehrt werden — z.B. Europe/Vienna, das seit 1980
  * exakt dieselben Uhrzeiten/DST-Regeln wie Europe/Berlin hat und deshalb nur
  * noch als veralteter Alias existiert. Deshalb: kuratierte Auswahl statt
  * freier Texteingabe im Formular, plus eine Normalisierung hier als
@@ -55,15 +55,15 @@ export type CampaignScheduleInput = {
 /**
  * Instantly validiert campaign_schedule.timezone serverseitig gegen eine
  * FESTE, ungewoehnlich kleine Enum-Liste (102 Werte, per api.instantly.ai/
- * openapi/api_v2.json abgerufen und geprueft am 2026-07-21) -- keine freie
+ * openapi/api_v2.json abgerufen und geprueft am 2026-07-21) — keine freie
  * IANA-Zeitzone. Die Liste enthaelt pro UTC-Offset+DST-Regelwerk jeweils nur
  * EINEN Vertreter, nicht zwingend die bekannteste Stadt: Mitteleuropa (Berlin,
  * Wien, Zuerich, Paris, Rom, Madrid, Amsterdam, Prag, Warschau, Budapest,
- * Stockholm, Kopenhagen, Oslo -- alle identische MEZ/MESZ-Regeln) wird
+ * Stockholm, Kopenhagen, Oslo — alle identische MEZ/MESZ-Regeln) wird
  * ausschliesslich durch "Europe/Belgrade" repraesentiert, GB/Irland/Portugal
  * durch "Europe/Isle_of_Man", US-Ostkueste durch "America/Detroit". Weder
  * "Europe/Berlin" noch "Europe/Vienna" noch "America/New_York" sind gueltige
- * Werte, obwohl das intuitiv naheliegen wuerde -- deshalb bewusst ein
+ * Werte, obwohl das intuitiv naheliegen wuerde — deshalb bewusst ein
  * Dropdown mit verstaendlichen Labels statt Freitext, und eine Alias-Map als
  * Sicherheitsnetz fuer irgendwo frei eingetippte/importierte Werte.
  */
@@ -179,7 +179,7 @@ export function buildCampaignSchedule({ days, from, to, timezone }: CampaignSche
  *   "<p>A &amp; B</p>" -> gespeichert
  *
  * Ein einziges kaufmaennisches Und im Text hat also den kompletten Body
- * verschluckt -- die API meldet dabei brav HTTP 200, der Text ist aber weg.
+ * verschluckt — die API meldet dabei brav HTTP 200, der Text ist aber weg.
  * Genauso verhaelt sich Text zwischen blossen <br>: der Inhalt faellt raus,
  * nur die Tags bleiben. Der Inhalt muss in Blockelementen stehen.
  *
@@ -215,7 +215,7 @@ export function plainTextToInstantlyHtml(text: string): string {
  * sonst stuenden im Textfeld ploetzlich <p>- und <br />-Tags.
  *
  * Kampagnen, die vor dieser Umstellung angelegt wurden, enthalten reinen Text
- * -- der bleibt unangetastet.
+ * — der bleibt unangetastet.
  *
  * ACHTUNG: Instantly gibt NICHT zurueck, was wir geschickt haben. Wir senden
  * <p>-Absaetze, ihr Editor speichert sie beim ersten Oeffnen als <div> um
@@ -239,7 +239,7 @@ export function instantlyHtmlToPlainText(body: string): string {
       .replace(/<br\s*\/?>/gi, "\n")
       .replace(/<\/p>\s*<p[^>]*>/gi, "\n\n")
       // Jede <div>-Grenze ist ein Zeilenumbruch. Zusammen mit dem <br /> aus
-      // einem leeren Absatz-<div> ergibt das drei Umbrueche -- die weiter
+      // einem leeren Absatz-<div> ergibt das drei Umbrueche — die weiter
       // unten wieder auf eine Leerzeile zusammengefasst werden.
       .replace(/<\/div>\s*<div[^>]*>/gi, "\n")
       .replace(/<\/?(p|div)[^>]*>/gi, "")
@@ -269,7 +269,7 @@ export function instantlyHtmlToPlainText(body: string): string {
 //
 // Ungefiltert durchgereicht landet die Wartezeit also einen Schritt zu spaet:
 // Schritt 1 bekaeme 0 und das Follow-up ginge sofort nach der ersten Mail
-// raus -- die Verzoegerung, die der Nutzer eingestellt hat, verpufft
+// raus — die Verzoegerung, die der Nutzer eingestellt hat, verpufft
 // stillschweigend. Deshalb wird beim Senden um eine Position verschoben.
 export function buildCampaignSequence(steps: SequenceStep[]) {
   return [
@@ -278,7 +278,7 @@ export function buildCampaignSequence(steps: SequenceStep[]) {
         type: "email",
         delay: steps[i + 1]?.delayDays ?? 0,
         // Alle Fassungen mitgeben. Instantly verteilt den Versand darauf und
-        // zaehlt getrennt mit -- ohne mehrere Varianten gibt es keinen
+        // zaehlt getrennt mit — ohne mehrere Varianten gibt es keinen
         // Vergleich, egal wie viele Mails rausgehen.
         variants: s.variants.map((v) => ({
           subject: v.subject,
@@ -321,7 +321,7 @@ export function toLocalStatus(instantlyStatus: number | null | undefined): Local
     default:
       // Alle negativen Fehlerstatus (Account Suspended/Unhealthy, Bounce
       // Protect) landen bewusst in "error", statt still als "paused" zu
-      // erscheinen -- das sind Faelle, die der Kunde aktiv sehen soll.
+      // erscheinen — das sind Faelle, die der Kunde aktiv sehen soll.
       return instantlyStatus != null && instantlyStatus < 0 ? "error" : "draft";
   }
 }
@@ -343,7 +343,7 @@ export type LocalCampaign = {
   timezone: string;
   daily_limit: number | null;
   /** Migration 0071. Null = vor der Migration angelegt, echter Zustand nur bei
-   *  Instantly bekannt -- deshalb bewusst nicht als false gefuehrt. */
+   *  Instantly bekannt — deshalb bewusst nicht als false gefuehrt. */
   open_tracking: boolean | null;
   link_tracking: boolean | null;
   activated_at: string | null;
@@ -389,7 +389,7 @@ export type InstantlyCampaign = {
 export function sequenceFromInstantly(campaign: InstantlyCampaign): SequenceStep[] {
   const steps = campaign.sequences?.[0]?.steps ?? [];
   return steps.map((s, i) => ({
-    // Mindestens eine Fassung, auch wenn Instantly gar keine liefert -- sonst
+    // Mindestens eine Fassung, auch wenn Instantly gar keine liefert — sonst
     // stuende im Formular ein Schritt ohne jedes Textfeld.
     variants: (s.variants?.length ? s.variants : [{}]).map((v) => ({
       subject: v.subject ?? "",

@@ -14,7 +14,7 @@ import { getApiKey } from "@/lib/api-keys";
  * Beantwortet ausdruecklich NICHT, ob der Plan die Personensuche freigibt: der
  * Free-Plan sperrt mixed_people/api_search und people/bulk_match, laesst
  * /auth/health aber zu. Ein gueltiger Key kann hier also "ok" melden und die
- * Leadsuche trotzdem mit einem Plan-Fehler abbrechen -- deshalb sagt die
+ * Leadsuche trotzdem mit einem Plan-Fehler abbrechen — deshalb sagt die
  * Antwort nur "Key gueltig", nicht "alles bereit".
  */
 export async function POST() {

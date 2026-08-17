@@ -48,7 +48,7 @@ export default function SettingsPage() {
       <BillingSection />
 
       {/* Dieselben Bereiche wie in der Seitenleiste, hier mit einem Satz
-          dazu -- wer auf Einstellungen klickt, sucht meist etwas Bestimmtes
+          dazu — wer auf Einstellungen klickt, sucht meist etwas Bestimmtes
           und weiss nicht, unter welchem der fuenf Namen es wohnt. */}
       <div className="grid gap-2 sm:grid-cols-2">
         {SECTIONS.map(({ href, icon: Icon }) => (

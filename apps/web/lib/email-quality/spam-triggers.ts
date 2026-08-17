@@ -21,7 +21,7 @@ const CATEGORY_WEIGHTS: Record<SpamCategory, number> = {
   "trust-manipulation": 10,
 };
 
-/** Treffer in der Betreffzeile wiegen schwerer -- Filter schauen dort genauer hin. */
+/** Treffer in der Betreffzeile wiegen schwerer — Filter schauen dort genauer hin. */
 const SUBJECT_MULTIPLIER = 1.5;
 
 const CAPS_RATIO_LIMIT = 0.1;

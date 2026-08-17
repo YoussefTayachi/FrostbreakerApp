@@ -6,7 +6,7 @@ import { OFFER_COLUMNS, type Offer } from "@/lib/offers";
 import OffersEditor from "./offers-editor";
 
 /**
- * Das Angebot -- was dieser Workspace verkauft.
+ * Das Angebot — was dieser Workspace verkauft.
  *
  * Die Seite, ohne die der Sequenzgenerator nichts zu sagen haette. Sie holt
  * nur die Daten; alles Weitere passiert im Formular, weil dort getippt,
@@ -14,7 +14,7 @@ import OffersEditor from "./offers-editor";
  *
  * ZUR BREITE: die Seite hat KEINE eigene Hoechstbreite mehr und traegt
  * stattdessen `fb-weit`. Diese Klasse hebt in globals.css den Deckel von
- * `main` -- dort steht auch, welche Messwerte dahinterstehen.
+ * `main` — dort steht auch, welche Messwerte dahinterstehen.
  *
  * Bis zum 2026-08-13 stand hier max-w-5xl. Das stammt aus der Zeit, als rechts
  * eine 340 Pixel breite Statusspalte stand; seit THAW in der Mitte der Karte

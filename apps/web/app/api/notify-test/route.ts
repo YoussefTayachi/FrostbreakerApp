@@ -7,7 +7,7 @@ import { sendEmail } from "@/lib/email";
  * "Testmail senden" fuer die Antwort-Benachrichtigung.
  *
  * Ob der Versand wirklich funktioniert, zeigt sich sonst erst, wenn zum ersten
- * Mal ein Lead antwortet -- also genau in dem Moment, in dem die Meldung
+ * Mal ein Lead antwortet — also genau in dem Moment, in dem die Meldung
  * gebraucht wird und ein Fehler am teuersten ist. Zwei Dinge gehen dabei
  * typischerweise schief und lassen sich von aussen nicht unterscheiden: ein
  * fehlender oder falscher API-Schluessel und eine nicht verifizierte

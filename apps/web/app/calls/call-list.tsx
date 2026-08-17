@@ -50,7 +50,7 @@ export type CallTask = {
 };
 
 /** Firma und Nummer koennen an der Aktivitaet selbst (business_id) oder am
- *  Kontakt haengen -- fuer die Anzeige ist das derselbe Fall. Die persoenliche
+ *  Kontakt haengen — fuer die Anzeige ist das derselbe Fall. Die persoenliche
  *  Durchwahl des Kontakts gewinnt vor der Firmennummer. */
 function resolve(task: CallTask) {
   const company = task.contacts?.businesses ?? task.businesses;
@@ -63,7 +63,7 @@ function resolve(task: CallTask) {
   };
 }
 
-/** Ende des heutigen Tages -- Faelligkeiten werden auf 23:59:59 gesetzt
+/** Ende des heutigen Tages — Faelligkeiten werden auf 23:59:59 gesetzt
  *  (siehe ActivityComposer), deshalb ist "heute" alles bis zu dieser Grenze. */
 function endOfToday(): number {
   const d = new Date();
@@ -77,7 +77,7 @@ function startOfToday(): number {
   return d.getTime();
 }
 
-/** Ende des morgigen Tages bzw. der laufenden Woche -- fuer die feinere
+/** Ende des morgigen Tages bzw. der laufenden Woche — fuer die feinere
  *  Aufteilung nach Pipedrives Vorbild (Heute / Morgen / Diese Woche / Spaeter).
  *  Vorher fiel alles ab uebermorgen in einen einzigen Topf "Spaeter", was bei
  *  geplanten Rueckrufen die haeufigste Frage unbeantwortet liess: was kommt
@@ -110,7 +110,7 @@ const chipBtn =
  * Funktions-Identitaet; React sieht dann einen anderen Komponententyp und baut
  * den Teilbaum neu auf statt ihn zu aktualisieren. Genau das ist vorher
  * passiert und hat das Notizfeld nach jedem getippten Zeichen den Fokus
- * verlieren lassen -- die Gespraechsnotiz war praktisch nicht benutzbar.
+ * verlieren lassen — die Gespraechsnotiz war praktisch nicht benutzbar.
  */
 function CallRow({
   task,
@@ -157,7 +157,7 @@ function CallRow({
         }
       >
         {/* Abhaken direkt in der Zeile, ohne Aufklappen. Bei Pipedrive sitzt
-            der Haken ganz links -- wer nur abarbeiten will, braucht weder
+            der Haken ganz links — wer nur abarbeiten will, braucht weder
             Notiz noch Ergebnis. Wer beides eintragen will, klappt auf. */}
         <td className="py-2 pl-4 pr-1">
           <button
@@ -322,7 +322,7 @@ function CallRow({
                   )}
                   {/* Verwerfen statt "erledigt": ein falsch eingetragener oder
                       hinfaelliger Termin soll nicht als absolvierter Anruf im
-                      Verlauf des Kontakts stehen -- das wuerde die Statistik
+                      Verlauf des Kontakts stehen — das wuerde die Statistik
                       verfaelschen und spaeter niemand mehr auseinanderhalten. */}
                   <button
                     onClick={onDelete}
@@ -354,17 +354,17 @@ export default function CallList({ tasks }: { tasks: CallTask[] }) {
   const [outcomes, setOutcomes] = useState<Record<string, ActivityOutcome | "">>({});
   const [notes, setNotes] = useState<Record<string, string>>({});
   // Lokal abgehakte/verworfene Aufgaben sofort ausblenden, statt auf den Reload
-  // zu warten -- sonst steht ein erledigter Anruf noch sichtbar in der Liste.
+  // zu warten — sonst steht ein erledigter Anruf noch sichtbar in der Liste.
   const [removed, setRemoved] = useState<Set<string>>(new Set());
   /** Pipedrive stellt seinen Aktivitaeten eine Typleiste voran (Anruf, Meeting,
    *  Aufgabe, Frist, E-Mail). Gleiche Idee, mit unseren vier Typen. */
   const [typeFilter, setTypeFilter] = useState<ActivityType | "">("");
   /**
-   * Das Zeitfenster -- und der Grund fuer diese ganze Ansicht.
+   * Das Zeitfenster — und der Grund fuer diese ganze Ansicht.
    *
    * Ein Pipedrive-Nutzer hat es so beschrieben: man wacht auf und will ohne
    * Nachdenken sehen, wen man heute anrufen muss. Genau dafuer steht dort
-   * "To-Do" vorne und ist beim Oeffnen aktiv -- ueberfaellig plus heute,
+   * "To-Do" vorne und ist beim Oeffnen aktiv — ueberfaellig plus heute,
    * sonst nichts. Alles Spaetere ist morgens Rauschen.
    *
    * Vorher zeigte diese Seite immer alles, aufgeteilt in fuenf Abschnitte.
@@ -401,7 +401,7 @@ export default function CallList({ tasks }: { tasks: CallTask[] }) {
   const visible = buckets[range];
   const dayStartMs = startOfToday();
 
-  /** Wie viele Aufgaben es je Typ ueberhaupt gibt -- ein Filter, der auf eine
+  /** Wie viele Aufgaben es je Typ ueberhaupt gibt — ein Filter, der auf eine
    *  leere Liste fuehrt, ist eine Sackgasse. */
   const typeCounts = useMemo(() => {
     const counts: Record<string, number> = {};
@@ -521,7 +521,7 @@ export default function CallList({ tasks }: { tasks: CallTask[] }) {
 
   return (
     <div className="space-y-4">
-      {/* Links die Typen, rechts der Zeitraum -- genau die Aufteilung aus
+      {/* Links die Typen, rechts der Zeitraum — genau die Aufteilung aus
           Pipedrives Aktivitaetenansicht. Die Leiste bleibt auch bei leerem
           Ergebnis stehen: sonst haette man nach einem Filter, der nichts
           trifft, keine Moeglichkeit mehr, ihn wieder zu loesen. */}
@@ -585,7 +585,7 @@ export default function CallList({ tasks }: { tasks: CallTask[] }) {
       {visible.length === 0 ? (
         <div className="rounded-xl border border-edge/60 bg-panel p-10 text-center">
           {/* Ein leeres To-Do ist eine gute Nachricht und kein Mangel an Daten
-              -- es soll auch so klingen. */}
+              — es soll auch so klingen. */}
           <p className="text-faint">{range === "todo" ? C.todoClear : C.emptyForRange}</p>
           <p className="mt-1 text-xs text-mute">{C.emptyHint}</p>
         </div>

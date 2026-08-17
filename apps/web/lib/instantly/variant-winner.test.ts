@@ -21,7 +21,7 @@ describe("proportionsDiffer", () => {
   });
 
   it("kommt ohne einen einzigen Erfolg klar", () => {
-    // Streuung null -- es gibt nichts zu unterscheiden, und die Division
+    // Streuung null — es gibt nichts zu unterscheiden, und die Division
     // waere nicht definiert.
     expect(proportionsDiffer(0, 100, 0, 100)).toBe(false);
   });
@@ -89,7 +89,7 @@ describe("assessStep — den Gewinner benennen", () => {
 
   /**
    * Der Gewinner muss gegen JEDE andere bestehen. Sonst waere der Fall
-   * moeglich, dass A gegen C gewinnt, gegen B aber nicht -- und man schaltet
+   * moeglich, dass A gegen C gewinnt, gegen B aber nicht — und man schaltet
    * B ab, obwohl sie die bessere sein koennte.
    */
   it("kuert niemanden, solange eine dritte Variante mithaelt", () => {

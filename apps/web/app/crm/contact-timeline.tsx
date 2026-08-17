@@ -19,7 +19,7 @@ import NoteComposer from "./note-composer";
  * Notizen, Status-Wechsel, Aktivitaeten und Deals chronologisch gemischt.
  *
  * Laedt genau eine RPC (crm_timeline, Migration 0035) statt fuenf Tabellen
- * einzeln -- neue Ereignisquellen kommen kuenftig in der SQL-Funktion dazu und
+ * einzeln — neue Ereignisquellen kommen kuenftig in der SQL-Funktion dazu und
  * erscheinen hier automatisch, sobald sie im Rendering-Switch bedacht sind.
  *
  * Wird von der Inbox (Kontakt-Scope) und vom Lead-Drawer (Firmen-Scope) genutzt.
@@ -104,7 +104,7 @@ export default function ContactTimeline({
   }
 
   /**
-   * Ein Anrufergebnis mit klarer Aussage zieht den Kontaktstatus mit -- sonst
+   * Ein Anrufergebnis mit klarer Aussage zieht den Kontaktstatus mit — sonst
    * muesste der Vertriebler nach jedem Telefonat zusaetzlich das Dropdown
    * anfassen, und die Pipeline waere binnen Tagen unbrauchbar. Der Status-Trigger
    * aus 0032 schreibt die Bewegung dann automatisch in denselben Verlauf.

@@ -5,21 +5,21 @@
  * WARUM DIE FARBE NICHT REICHT
  * ═══════════════════════════════════════════════════════════════════════════
  *
- * Vorschlaege kommen aus zwei Quellen -- der eigenen Website (Frost) und einer
+ * Vorschlaege kommen aus zwei Quellen — der eigenen Website (Frost) und einer
  * Lead-Liste (--fb-aim, Violett). Bis hierher war das nur am Rahmen zu sehen.
  * Drei Gruende, warum das zu wenig ist:
  *
  *  1. Eine Farbbedeutung muss man sich merken. Wer die Seite am naechsten Tag
  *     wieder aufmacht, hat sechs Kaesten vor sich und keine Legende dazu.
  *  2. "Aus einer Liste" waere ohnehin die halbe Antwort. Die Frage lautet: aus
- *     WELCHER -- das Angebot fuer Shopify-Shops soll nicht mit dem fuer
+ *     WELCHER — das Angebot fuer Shopify-Shops soll nicht mit dem fuer
  *     Zahnarztpraxen durcheinandergeraten.
  *  3. Farbe allein ist fuer Screenreader nicht vorhanden und bei
  *     Rot-Gruen-Schwaeche unzuverlaessig (WCAG 1.4.1).
  *
  * Deshalb: der Punkt traegt die Farbe (und wiederholt damit nur, was der
  * Rahmen sagt), der Text traegt die Aussage. Der Text steht bewusst in
- * text-soft und NICHT in der Herkunftsfarbe -- --fb-frost auf Weiss sind
+ * text-soft und NICHT in der Herkunftsfarbe — --fb-frost auf Weiss sind
  * gerechnet 4,1:1 und damit unter der Grenze fuer Fliesstext.
  *
  * Gleiche Groesse in beiden Ansichten (Abschnittsliste und Karte), obwohl die

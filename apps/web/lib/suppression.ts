@@ -16,7 +16,7 @@ function domainOf(s: string | null | undefined): string | null {
  * Eine einzige Stelle, weil die Antwort an zwei Orten verschieden gebraucht
  * wird: Kampagnen und Leads WERFEN Gesperrte raus, der Posteingang ZEIGT sie
  * mit dem Vermerk "abgemeldet". Zwei Kopien der Regel wuerden frueher oder
- * spaeter auseinanderlaufen -- und dann steht jemand in der Inbox ohne
+ * spaeter auseinanderlaufen — und dann steht jemand in der Inbox ohne
  * Vermerk, den die Kampagne stillschweigend uebergeht.
  */
 export function isSuppressed(kontakt: Sperrbar, suppression: SuppressionRow[]): boolean {

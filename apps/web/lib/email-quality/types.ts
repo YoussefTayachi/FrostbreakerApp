@@ -3,7 +3,7 @@ import type { Lang } from "@/lib/i18n/lang";
 // Gemeinsame Typen fuer die drei Textpruefungen (Lesbarkeit, Spam-Trigger,
 // KI-Klang). Bewusst frei von React/i18n: die Pruefungen sind reine Funktionen
 // und dadurch ohne DOM oder Dictionary testbar. Deshalb enthaelt ein Issue auch
-// keinen fertigen Anzeigetext, sondern nur `category` + `meta` -- die
+// keinen fertigen Anzeigetext, sondern nur `category` + `meta` — die
 // Uebersetzung passiert erst in der UI (siehe email-quality-panel.tsx), damit
 // alle Texte wie ueberall sonst in dict.ts liegen.
 
@@ -43,7 +43,7 @@ export type QualityIssue = {
    * Zeichen-Offset im jeweiligen Feld. `null` bei Aggregat-Befunden, die sich
    * nicht auf eine Stelle beziehen (z. B. Gross-Schreib-Quote ueber den
    * gesamten Text). Wird in v1 noch nicht gerendert, ist aber die Grundlage
-   * fuer spaeteres Inline-Highlighting im Textfeld -- deshalb schon jetzt
+   * fuer spaeteres Inline-Highlighting im Textfeld — deshalb schon jetzt
    * mitgefuehrt, damit die Scoring-Logik dafuer nicht angefasst werden muss.
    */
   offset: { start: number; end: number } | null;

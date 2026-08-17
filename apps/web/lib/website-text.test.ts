@@ -71,7 +71,7 @@ describe("extractWebsiteContent", () => {
 
 describe("hasEnoughContent", () => {
   it("laesst eine leere JS-Seite nicht als gelesen durchgehen", () => {
-    // Sonst gilt "Website ausgewertet" fuer eine Seite ohne Inhalt -- und das
+    // Sonst gilt "Website ausgewertet" fuer eine Seite ohne Inhalt — und das
     // Modell denkt sich die sieben Felder aus.
     expect(hasEnoughContent({ title: "Shop", description: null, text: "Bitte JavaScript aktivieren." })).toBe(false);
   });

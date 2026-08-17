@@ -27,7 +27,7 @@ import { useWorkspace } from "../workspace-provider";
  *
  * Typ und Kanal sind getrennt (Migration 0057): der Typ ist die Form der
  * Interaktion, der Kanal das Medium. Welche Ergebnisse zur Auswahl stehen,
- * haengt am Typ -- "Mailbox" ergibt bei einer LinkedIn-DM keinen Sinn, siehe
+ * haengt am Typ — "Mailbox" ergibt bei einer LinkedIn-DM keinen Sinn, siehe
  * outcomesFor() in lib/crm/activities.ts.
  */
 export default function ActivityComposer({
@@ -58,7 +58,7 @@ export default function ActivityComposer({
   /**
    * Typwechsel zieht Kanal und Ergebnis mit: ein beim Anruf gewaehltes
    * "Mailbox" bliebe sonst stehen, wenn danach auf "Nachricht" umgestellt
-   * wird -- und waere dort ein Wert, den das Dropdown gar nicht mehr anbietet.
+   * wird — und waere dort ein Wert, den das Dropdown gar nicht mehr anbietet.
    */
   function changeType(next: ActivityType) {
     setType(next);

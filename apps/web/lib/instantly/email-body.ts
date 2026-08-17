@@ -2,7 +2,7 @@
  * Den lesbaren Text einer Instantly-Mail bestimmen.
  *
  * DER ANLASS: von 184 gespeicherten ausgehenden Nachrichten hatten am
- * 2026-08-04 alle 184 einen leeren Body -- der Posteingang zeigte im
+ * 2026-08-04 alle 184 einen leeren Body — der Posteingang zeigte im
  * Gespraechsverlauf zu jeder verschickten Mail eine leere Zeile. Der Sync
  * las ausschliesslich body.text, und bei aus einer Kampagne versendeten
  * Mails liefert Instantly dort nichts; der Inhalt steht in body.html.
@@ -49,12 +49,12 @@ const ENTITIES: Record<string, string> = {
 /**
  * Die Akzent-Entitaeten nach Regel statt nach Tabelle.
  *
- * &ouml; ist "o" plus Trema, &eacute; ist "e" plus Akut -- die ganze
+ * &ouml; ist "o" plus Trema, &eacute; ist "e" plus Akut — die ganze
  * Latin-1-Familie folgt diesem Muster. Aus Buchstabe und kombinierendem
  * Zeichen zusammengesetzt und mit normalize("NFC") verschmolzen deckt das
  * rund 60 Entitaeten mit acht Zeilen ab, in beiden Schreibweisen (&Ouml;
  * ebenso wie &ouml;). Die Alternative waere eine Tabelle, in der genau der
- * eine Buchstabe fehlt, den der naechste Kunde braucht -- so ist es hier
+ * eine Buchstabe fehlt, den der naechste Kunde braucht — so ist es hier
  * begonnen und mit fehlenden Umlauten aufgefallen.
  */
 const ACCENTS: Record<string, string> = {
@@ -73,7 +73,7 @@ function decodeNamed(name: string): string | null {
   const accent = /^([a-zA-Z])(grave|acute|circ|tilde|uml|ring|cedil)$/.exec(name);
   if (!accent) return null;
   const composed = (accent[1] + ACCENTS[accent[2]]).normalize("NFC");
-  // Nur wenn die Verschmelzung wirklich ein Zeichen ergeben hat -- sonst
+  // Nur wenn die Verschmelzung wirklich ein Zeichen ergeben hat — sonst
   // bliebe ein nacktes kombinierendes Zeichen im Text stehen.
   return composed.length === 1 ? composed : null;
 }
@@ -84,7 +84,7 @@ function decodeEntities(s: string): string {
       const num = code[1] === "x" || code[1] === "X"
         ? parseInt(code.slice(2), 16)
         : parseInt(code.slice(1), 10);
-      // Unbrauchbare Codepunkte unveraendert stehen lassen -- ein sichtbares
+      // Unbrauchbare Codepunkte unveraendert stehen lassen — ein sichtbares
       // "&#0;" ist ehrlicher als ein stiller Steuerzeichen-Einschub.
       return Number.isFinite(num) && num > 0 && num <= 0x10ffff ? String.fromCodePoint(num) : whole;
     }
@@ -97,13 +97,13 @@ function decodeEntities(s: string): string {
  *
  * Kein Parser, und das ist Absicht: hier kommt der eigene, von uns selbst
  * verschickte Kampagnentext zurueck, kein fremdes Dokument. Gebraucht wird
- * genau eine Sache -- dass die Zeilenumbrueche dort bleiben, wo der Autor
+ * genau eine Sache — dass die Zeilenumbrueche dort bleiben, wo der Autor
  * sie gesetzt hat.
  */
 export function htmlToText(html: string): string {
   return decodeEntities(
     html
-      // Inhalt, der nie sichtbar war, vollstaendig entfernen -- sonst landet
+      // Inhalt, der nie sichtbar war, vollstaendig entfernen — sonst landet
       // CSS als Absatz im Gespraechsverlauf.
       .replace(/<(script|style|head)\b[^>]*>[\s\S]*?<\/\1>/gi, "")
       .replace(/<!--[\s\S]*?-->/g, "")
@@ -126,7 +126,7 @@ export function htmlToText(html: string): string {
  * Der Text, der gespeichert wird.
  *
  * Reihenfolge: text vor html. Wo Instantly beides liefert, ist text bereits
- * die Fassung, die der Empfaenger im Nur-Text-Teil bekommen hat -- die
+ * die Fassung, die der Empfaenger im Nur-Text-Teil bekommen hat — die
  * Umwandlung unten kann sie hoechstens verschlechtern.
  *
  * Ein Body, der nur aus Leerraum besteht, gilt als leer: sonst gewinnt ein

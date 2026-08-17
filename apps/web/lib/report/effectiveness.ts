@@ -5,13 +5,13 @@
  *
  * Eine Quote aus wenigen Sendungen ist keine Erkenntnis, sondern eine
  * Einladung zum Irrtum. Bei 12 Mails an einem Dienstag und einer Antwort
- * steht da "8,3 Prozent" -- eine Zahl, die praezise aussieht und nichts
+ * steht da "8,3 Prozent" — eine Zahl, die praezise aussieht und nichts
  * bedeutet. Wer daraufhin nur noch dienstags sendet, hat eine Muenze geworfen
  * und es Strategie genannt.
  *
  * Deshalb traegt JEDE Kennzahl hier ihre Grundlage mit sich, und alles unter
  * MIN_SAMPLE wird ausdruecklich als "zu wenig" markiert statt als Prozentwert
- * ausgegeben. Die Oberflaeche darf so eine Zeile grau darstellen -- was sie
+ * ausgegeben. Die Oberflaeche darf so eine Zeile grau darstellen — was sie
  * nicht darf, ist sie wie ein Ergebnis aussehen zu lassen.
  *
  * Gemessen wird an KONTAKTEN, nicht an Mails: eine Sequenz schickt drei bis
@@ -37,7 +37,7 @@ export type Bucket = {
   /** Angeschriebene Kontakte, nicht versendete Mails. */
   contacts: number;
   replies: number;
-  /** Null, solange die Grundlage zu duenn ist -- siehe MIN_SAMPLE. */
+  /** Null, solange die Grundlage zu duenn ist — siehe MIN_SAMPLE. */
   rate: number | null;
 };
 
@@ -45,8 +45,8 @@ export type Bucket = {
  * Unter dieser Zahl angeschriebener Kontakte wird keine Quote ausgewiesen.
  *
  * 30 ist die uebliche Faustregel fuer "die Zahl beginnt, etwas zu bedeuten".
- * Sie ist keine Signifikanz -- dafuer braeuchte es je nach Effektgroesse ein
- * Vielfaches -- sondern die Schwelle, unterhalb derer die Anzeige einer Quote
+ * Sie ist keine Signifikanz — dafuer braeuchte es je nach Effektgroesse ein
+ * Vielfaches — sondern die Schwelle, unterhalb derer die Anzeige einer Quote
  * schlicht irrefuehrend waere.
  */
 export const MIN_SAMPLE = 30;
@@ -70,7 +70,7 @@ function makeBucket(key: string, label: string, contacts: Set<string>, replies: 
 /**
  * Kontakte je Gruppe einsammeln.
  *
- * Ein Set je Gruppe, weil derselbe Kontakt mehrere Mails bekommt -- ihn
+ * Ein Set je Gruppe, weil derselbe Kontakt mehrere Mails bekommt — ihn
  * mehrfach zu zaehlen wuerde die Quote genau um den Faktor der Sequenzlaenge
  * druecken.
  */
@@ -91,7 +91,7 @@ function groupContacts(rows: OutboundRow[], keyOf: (r: OutboundRow) => string | 
  * Nach Lead-Liste.
  *
  * Die wichtigste der drei Aufschluesselungen: sie beantwortet "welche Nische
- * antwortet mir ueberhaupt". Alles andere -- Text, Zeitpunkt, Kanal -- wirkt
+ * antwortet mir ueberhaupt". Alles andere — Text, Zeitpunkt, Kanal — wirkt
  * erst, wenn die Zielgruppe stimmt.
  */
 export function bySearch(rows: OutboundRow[], replies: ReplySet): Bucket[] {
@@ -122,7 +122,7 @@ export function byWeekday(rows: OutboundRow[], replies: ReplySet, lang: "de" | "
 export function byHourBlock(rows: OutboundRow[], replies: ReplySet): Bucket[] {
   const groups = groupContacts(rows, (r) => {
     const hour = hourOf(r.sentAt);
-    // Einzelstunden waeren 24 Zeilen mit je einem Dutzend Kontakten -- also
+    // Einzelstunden waeren 24 Zeilen mit je einem Dutzend Kontakten — also
     // 24 Zahlen, von denen keine etwas bedeutet. Dreierbloecke halten die
     // Gruppen gross genug, um ueberhaupt die Mindestmenge erreichen zu koennen.
     return hour === null ? null : String(Math.floor(hour / 3) * 3);

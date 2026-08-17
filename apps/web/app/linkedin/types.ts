@@ -2,7 +2,7 @@
  * Gemeinsame Typen der LinkedIn-Ansicht.
  *
  * Eigene Datei, weil sie von der Server-Seite (page.tsx) und beiden
- * Client-Komponenten gebraucht werden -- ein Import aus einer "use client"-
+ * Client-Komponenten gebraucht werden — ein Import aus einer "use client"-
  * Datei in eine Server-Komponente waere zwar erlaubt, aber irrefuehrend.
  *
  * Der Lead ist hier bereits flachgeklopft: die verschachtelten Felder aus
@@ -23,7 +23,7 @@ export type LinkedInLead = {
   outreach_status: string;
   business_id: string | null;
   company_name: string | null;
-  /** Icebreaker aus businesses.personalization -- vom Worker erzeugt, hier nur eingesetzt. */
+  /** Icebreaker aus businesses.personalization — vom Worker erzeugt, hier nur eingesetzt. */
   personalization: string | null;
   /** ID der Suche, aus der dieser Kontakt stammt. */
   listId: string;
@@ -51,13 +51,13 @@ export type LeadListSummary = {
   /** Der vom Nutzer vergebene Name, sonst die Suchanfrage selbst. */
   name: string;
   location: string | null;
-  /** 'apollo' | 'maps' | 'corporate' -- woher die Kontakte stammen. */
+  /** 'apollo' | 'maps' | 'corporate' — woher die Kontakte stammen. */
   source: string | null;
   note: string | null;
   total: number;
   withoutEmail: number;
   withIcebreaker: number;
   contacted: number;
-  /** Faellige Nachfass-Aufgaben in dieser Liste -- die eigentliche Arbeit von heute. */
+  /** Faellige Nachfass-Aufgaben in dieser Liste — die eigentliche Arbeit von heute. */
   followUpsDue: number;
 };

@@ -10,7 +10,7 @@
 // diesen Staedten KEINE Messung. Sie sind nach Einwohnerzahl und
 // wirtschaftlicher Bedeutung von Hand ausgewaehlt (Stand 2026-08-16). Niemand
 // hat geprueft, wie viele Firmen einer bestimmten Nische Google Maps pro Stadt
-// tatsaechlich kennt -- eine kleine Stadt weiter unten in der Liste kann fuer
+// tatsaechlich kennt — eine kleine Stadt weiter unten in der Liste kann fuer
 // eine schmale Nische leer ausgehen. Genau deshalb rechnet planCountryCoverage
 // unten konservativ und verspricht keine Zahl, sondern schaetzt sie.
 //
@@ -27,7 +27,7 @@
 // Einwilligung noetig, auch gegenueber Unternehmen) als in den vier Laendern
 // hier. Ein groesserer, ungefilterter Laenderkatalog wuerde Nutzer in genau
 // die Faelle fuehren, die man ihnen nicht anbieten sollte. Einordnung fuer
-// Entwickler, die das pflegen -- keine Rechtsberatung, im Zweifel fragt der
+// Entwickler, die das pflegen — keine Rechtsberatung, im Zweifel fragt der
 // Kunde seinen Anwalt.
 //
 // Wer ein Land ergaenzen will, klaert vorher diese Einordnung, nicht nur die
@@ -42,7 +42,7 @@ export type MapsRegion = {
   /**
    * Wird beim Bauen der Suchzeile an jeden Stadtnamen gehaengt. Der Worker
    * geokodiert searches.location als freien Text (siehe geocode() in
-   * worker/pipelines/get_businesses.py) -- "Birmingham" allein waere zwischen
+   * worker/pipelines/get_businesses.py) — "Birmingham" allein waere zwischen
    * England und Alabama nicht entscheidbar, "Charleroi" zwischen Belgien und
    * Pennsylvania. Der Zusatz macht die Anfrage eindeutig.
    */
@@ -67,7 +67,7 @@ export const MAPS_REGIONS: MapsRegion[] = [
     ],
   },
   {
-    // Recht: wie NL -- Firmenadressen unter "legitimate interest", die
+    // Recht: wie NL — Firmenadressen unter "legitimate interest", die
     // belgische Opt-out-Regel gilt fuer natuerliche Personen.
     code: "BE",
     geocodeSuffix: "Belgium",
@@ -88,13 +88,13 @@ export const MAPS_REGIONS: MapsRegion[] = [
     ],
   },
   {
-    // Recht: CAN-SPAM ist Opt-out-basiert -- Kaltakquise ist zulaessig, solange
+    // Recht: CAN-SPAM ist Opt-out-basiert — Kaltakquise ist zulaessig, solange
     // Absender und Postanschrift stimmen und ein Abmeldeweg existiert (den
     // deckt api/unsubscribe ab). Deshalb unproblematisch.
     //
     // Staedteauswahl: Top-Einwohnerzahlen, ergaenzt um Wirtschaftszentren, die
     // rein nach Einwohnern durchgefallen waeren (San Francisco, Seattle,
-    // Boston, Atlanta) -- fuer B2B-Nischen zaehlt die Firmendichte mehr als
+    // Boston, Atlanta) — fuer B2B-Nischen zaehlt die Firmendichte mehr als
     // die Einwohnerzahl.
     code: "US",
     geocodeSuffix: "USA",
@@ -113,13 +113,13 @@ export const MAPS_REGIONS: MapsRegion[] = [
  * durchsuchte Firmen bei ~20% Trefferquote fuer E-Mail-Funde). Die Planung
  * rechnet bewusst darunter, aus demselben Grund wie estimateRawResults im
  * Formular: lieber eine Stadt zu viel ansetzen als dem Nutzer eine Zielzahl
- * versprechen, die die Suche nicht einloest. Nicht gemessen -- eine Nische
+ * versprechen, die die Suche nicht einloest. Nicht gemessen — eine Nische
  * kann in einer kleineren Stadt auch nur drei Treffer hergeben.
  */
 export const LEADS_PER_COMBINATION = 15;
 
 /** Ziel-Leads pro Teilsuche im Abdeckungs-Modus. Entspricht dem Maximum des
- *  Feldes "Ziel: Leads mit E-Mail" im manuellen Modus -- jede Teilsuche laeuft
+ *  Feldes "Ziel: Leads mit E-Mail" im manuellen Modus — jede Teilsuche laeuft
  *  hier voll aus, die Steuerung passiert ueber die Anzahl der Staedte. */
 export const MAPS_MAX_TARGET_EMAILS = 20;
 
@@ -131,7 +131,7 @@ export const MAX_RAW_RESULTS = 100;
 /**
  * Sicherheitsgrenze fuer den Abdeckungs-Modus: Kombinationen pro Absenden.
  *
- * Deutlich hoeher als MAX_FANOUT (20) bei manueller Eingabe -- der Sinn des
+ * Deutlich hoeher als MAX_FANOUT (20) bei manueller Eingabe — der Sinn des
  * Modus ist ja gerade, grosse Mengen ohne Abtippen abzudecken. Trotzdem
  * begrenzt: eine Produktentscheidung, keine technische Schranke. Der Nutzer
  * soll nach einer Tranche sehen koennen, was seine Nische tatsaechlich
@@ -153,14 +153,14 @@ export function regionFor(code: string): MapsRegion | undefined {
  *   no_country    kein/unbekanntes Land gewaehlt
  *   no_niche      keine Nische eingetippt
  *   city_limit    die Staedteliste des Landes ist ausgeschoepft
- *   fanout_limit  MAX_COUNTRY_FANOUT bremst -- in Tranchen weitermachen
+ *   fanout_limit  MAX_COUNTRY_FANOUT bremst — in Tranchen weitermachen
  */
 export type CoverageLimit = "ok" | "no_country" | "no_niche" | "city_limit" | "fanout_limit";
 
 export type CoveragePlan = {
   /** Stadtnamen wie in der Liste, fuer die Anzeige. */
   cities: string[];
-  /** Dieselben Staedte mit Landeszusatz -- das, was in searches.location geht. */
+  /** Dieselben Staedte mit Landeszusatz — das, was in searches.location geht. */
   locations: string[];
   nicheCount: number;
   /** Staedte, die rechnerisch noetig waeren (ungedeckelt). */
@@ -193,7 +193,7 @@ const EMPTY_PLAN: Omit<CoveragePlan, "limit" | "nicheCount" | "citiesAvailable">
  * Rein rechnend, ohne Netz: das Ergebnis ist die Vorschau UND die Grundlage
  * der eingefuegten Zeilen. Wuerde die Vorschau anders rechnen als das
  * Absenden, waere die angezeigte Zahl eine Zusage, die die Suche nicht
- * einloest -- derselbe Grund, aus dem der Apollo-Zaehler dasselbe Filterobjekt
+ * einloest — derselbe Grund, aus dem der Apollo-Zaehler dasselbe Filterobjekt
  * schickt wie der Worker.
  *
  * Erfindet nie Staedte: reicht die Liste nicht, sagt limit/shortfall das, und
@@ -238,7 +238,7 @@ export function planCountryCoverage(input: {
 
   let limit: CoverageLimit = "ok";
   if (cityCount < citiesNeeded) {
-    // Welche der beiden Schranken zuerst gegriffen hat -- danach richtet sich,
+    // Welche der beiden Schranken zuerst gegriffen hat — danach richtet sich,
     // was dem Nutzer zu tun bleibt (anderes Land vs. zweite Tranche).
     limit = citiesByFanout < citiesAvailable ? "fanout_limit" : "city_limit";
   }

@@ -1,5 +1,5 @@
 /**
- * Eine einzelne Fassung nachschaerfen -- "kuerzer", "direkter", "mach daraus
+ * Eine einzelne Fassung nachschaerfen — "kuerzer", "direkter", "mach daraus
  * eine Abschiedsmail".
  *
  * WARUM AM TEXT UND NICHT IM CHATFENSTER
@@ -8,7 +8,7 @@
  * mit blinkendem Cursor. Wer nicht weiss, was eine gute Mail ausmacht, tippt
  * dort "mach mir gute Mails". Am Text angedockt hat die Anweisung einen
  * Gegenstand: das Modell bekommt die aktuelle Fassung, das Angebot und genau
- * einen Auftrag -- und der Nutzer sieht danach eine Fassung und nicht einen
+ * einen Auftrag — und der Nutzer sieht danach eine Fassung und nicht einen
  * Gespraechsverlauf, den er auch noch lesen muss.
  *
  * Das Modell darf hier NICHT frei umschreiben: es aendert das Angeforderte
@@ -20,7 +20,7 @@ import type { Offer } from "@/lib/offers";
 import { EMAIL_MERGE_TAGS, ownWordBudget, type DraftVariant } from "./sequence-prompt";
 
 /** Deckel fuer die freie Anweisung. Alles darueber ist keine Anweisung mehr,
- *  sondern ein zweiter Prompt -- und der gehoert nicht in dieses Feld. */
+ *  sondern ein zweiter Prompt — und der gehoert nicht in dieses Feld. */
 export const MAX_INSTRUCTION_CHARS = 300;
 
 export type RefineOptions = {
@@ -60,7 +60,7 @@ export function buildRefinePrompt(
   if (offer.proof.trim()) lines.push(`Proof they may cite: ${offer.proof.trim()}`);
   // Gleiche Regel wie im Sequenzgenerator und in Migration 0073: was nicht da
   // ist, wird nicht erfunden. Beim Nachschaerfen ist die Gefahr sogar
-  // groesser -- "mach es ueberzeugender" liest ein Modell als Einladung,
+  // groesser — "mach es ueberzeugender" liest ein Modell als Einladung,
   // Zahlen zu ergaenzen.
   else lines.push("They have NO proof. Never add clients, numbers, results or years of experience.");
 

@@ -17,13 +17,13 @@ import {
 
 // Lesbarkeit, Spam-Trigger und KI-Klang je Sequenzschritt, direkt unter dem
 // Textfeld. Die Pruefungen sind reine Funktionen ohne Netzwerk (siehe
-// lib/email-quality), laufen also waehrend des Tippens im Browser -- anders
+// lib/email-quality), laufen also waehrend des Tippens im Browser — anders
 // als der Deliverability-Check, der fuer DNS zwingend einen Serverweg braucht.
 //
 // Bewusst kompakt und eingeklappt-per-default: die Sequenz-Karte
 // (campaign-form.tsx) ist ohnehin schon dicht (Variablen-Buttons, Betreff,
 // Text, Verzoegerung). Fuer die grosse, immer offene Ansicht siehe
-// email-check/quality-sidebar.tsx -- die teilt sich Farben und Gruppierung
+// email-check/quality-sidebar.tsx — die teilt sich Farben und Gruppierung
 // mit diesem Panel ueber quality-shared.ts, zeigt sie aber viel geraeumiger.
 
 /** Nur gegen Flackern der Badges beim Tippen, nicht aus Performancegruenden. */
@@ -41,7 +41,7 @@ export default function EmailQualityPanel({
   body: string;
   /**
    * Meldet die Fundstellen im Body nach oben, damit das Textfeld sie farbig
-   * markieren kann. Nur im aufgeklappten Zustand -- eingeklappt bleibt das
+   * markieren kann. Nur im aufgeklappten Zustand — eingeklappt bleibt das
    * Formular ruhig, und die Markierung ist damit eine bewusste Entscheidung
    * des Nutzers statt Dauerzustand.
    */
@@ -163,7 +163,7 @@ export default function EmailQualityPanel({
             section(
               Q.readability.heading,
               READABILITY_TONE[readability.band],
-              // Neben der Note steht die Zahl, aus der sie entsteht -- die
+              // Neben der Note steht die Zahl, aus der sie entsteht — die
               // durchschnittliche Satzlaenge. Vorher stand dort die
               // Schulstufe, die seit dem 2026-08-12 nicht mehr die Note
               // bestimmt; "Schwer · Schulstufe 9,9" liess sich deshalb nicht
@@ -191,7 +191,7 @@ export default function EmailQualityPanel({
             )}
             {/* Bewusst immer sichtbar und nicht wegklickbar: eine Zahl ohne
                 diesen Hinweis wuerde als Beweis gelesen, den sie nicht liefert.
-                Deshalb auch text-soft statt text-mute -- der Hinweis muss im
+                Deshalb auch text-soft statt text-mute — der Hinweis muss im
                 Dark Mode lesbar bleiben, nicht nur formal dastehen. */}
             <p className="mt-1.5 text-[11px] leading-relaxed text-soft">{Q.aiSounding.disclaimer}</p>
           </div>

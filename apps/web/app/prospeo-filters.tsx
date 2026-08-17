@@ -17,7 +17,7 @@ import { useT } from "./language-provider";
  *
  * Eigene Datei, weil new-search-form.tsx schon bei 1299 Zeilen liegt und
  * Prospeo mehr Filter hat als die anderen drei Wege zusammen. Die Zustaende
- * liegen beim Formular (kontrollierte Komponente) -- so landet beim Absenden
+ * liegen beim Formular (kontrollierte Komponente) — so landet beim Absenden
  * genau das Objekt in searches.filters, das der Trefferzaehler gezaehlt hat.
  *
  * ═══════════════════════════════════════════════════════════════════════
@@ -31,13 +31,13 @@ import { useT } from "./language-provider";
  * Prospeo-Update falsch, und der Fehler waere nicht laut, sondern ein leeres
  * Suchergebnis. Genau das ist bei Apollo passiert: am 2026-08-02 lief eine
  * 300-Lead-Suche leer, weil drei Technologie-Slugs dort gar nicht
- * existierten. Deshalb SuggestPicker statt Auswahlliste -- die Vorschlaege
+ * existierten. Deshalb SuggestPicker statt Auswahlliste — die Vorschlaege
  * sind kostenlos (siehe api/prospeo/suggestions).
  *
  * 2. DER TREFFERZAEHLER LAEUFT NUR AUF KNOPFDRUCK
  *
  * Bei Apollo laeuft er bei jeder Filteraenderung, weil Apollos Suche gratis
- * ist. Prospeos Suche kostet 1 Credit je Seite -- auch fuer die blosse
+ * ist. Prospeos Suche kostet 1 Credit je Seite — auch fuer die blosse
  * Gesamtzahl. Ein Zaehler bei jedem Tastendruck haette auf dem Starter-Tarif
  * (1000 Credits) nach Minuten das Monatskontingent aufgebraucht. Der Knopf
  * schreibt den Preis daneben.
@@ -84,7 +84,7 @@ export default function ProspeoFilterForm({ value, onChange }: Props) {
             className={INPUT}
           >
             {/* GROSS, weil Prospeo klein geschriebene Werte mit einem 400
-                ablehnt -- am 2026-08-05 im Testlauf gemessen. */}
+                ablehnt — am 2026-08-05 im Testlauf gemessen. */}
             <option value="CONTAINS">{P.matchContains}</option>
             <option value="EXACT">{P.matchExact}</option>
             <option value="SIMILAR">{P.matchSimilar}</option>
@@ -216,7 +216,7 @@ export default function ProspeoFilterForm({ value, onChange }: Props) {
       </Group>
 
       {/* Welcher Tarif fuer die aktuelle Auswahl noetig ist. Steht hier statt
-          erst im 403 der Suche -- derselbe Gedanke wie beim Torwart: lieber
+          erst im 403 der Suche — derselbe Gedanke wie beim Torwart: lieber
           vorher erklaeren als hinterher scheitern. */}
       {plan !== "free" && (
         <p className="rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-xs text-amber-700 dark:text-amber-500">
@@ -298,7 +298,7 @@ function NumberInput({
       inputMode="numeric"
       min={min}
       max={max}
-      // Leeres Feld heisst "nicht gesetzt", nicht 0 -- 0 ist bei
+      // Leeres Feld heisst "nicht gesetzt", nicht 0 — 0 ist bei
       // job_posting_min eine echte Bedingung ("keine offenen Stellen").
       value={value ?? ""}
       onChange={(e) => onChange(e.target.value === "" ? null : Number(e.target.value))}
@@ -469,7 +469,7 @@ function SuggestPicker({
 }
 
 /**
- * Der Trefferzaehler -- ausdruecklich, nicht automatisch.
+ * Der Trefferzaehler — ausdruecklich, nicht automatisch.
  *
  * Siehe Kopfkommentar: jeder Klick kostet einen Credit. Der Preis steht
  * deshalb am Knopf, nicht im Kleingedruckten.
@@ -501,7 +501,7 @@ function CountButton({ filters }: { filters: ProspeoFilters }) {
          *
          * filter_error nennt den Filternamen und die noetige Stufe
          * ("company_technology (STARTER+)"). Das ist praeziser als jede
-         * Umschreibung von uns -- und im Testlauf am 2026-08-05 war genau
+         * Umschreibung von uns — und im Testlauf am 2026-08-05 war genau
          * diese Auskunft der Unterschied zwischen "nicht erreichbar" und
          * "dein Tarif kann das nicht".
          */

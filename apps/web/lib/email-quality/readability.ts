@@ -57,11 +57,11 @@ function isParticipleDe(word: string): boolean {
   if (PARTICIPLE_LOOKALIKES_DE.has(w) || PARTICIPLE_LOOKALIKE_SUFFIX_DE.test(w)) return false;
   // "geliefert", "gesendet", "gesehen"
   if (/^ge\p{L}{2,}(t|en)$/u.test(w)) return true;
-  // "optimiert", "kalkuliert" -- Fremdverben bilden das Partizip ohne "ge-".
+  // "optimiert", "kalkuliert" — Fremdverben bilden das Partizip ohne "ge-".
   if (/\p{L}{3,}iert$/u.test(w)) return true;
   // "bestellt", "versendet", "entwickelt". Nur die Endung "t": Partizipien auf
   // "-en" ohne "ge-" ("beschrieben") sind formgleich mit dem Infinitiv
-  // ("verkaufen"), und "wird verkaufen" ist Futur, kein Passiv -- lieber ein
+  // ("verkaufen"), und "wird verkaufen" ist Futur, kein Passiv — lieber ein
   // paar Treffer verpassen als aktive Saetze faelschlich anmeckern.
   if (/^(be|ver|ent|er|zer|emp|miss)\p{L}{2,}t$/u.test(w)) return true;
   return false;
@@ -105,7 +105,7 @@ const BANDS: ReadabilityBand[] = ["very-easy", "easy", "medium", "difficult", "v
  * ═══════════════════════════════════════════════════════════════════════
  *
  * Gemessen an einer erzeugten Kampagnenmail: 42 Woerter, 4 Saetze, im
- * Schnitt 10,5 Woerter je Satz, NULL gefundene Befunde -- und trotzdem ein
+ * Schnitt 10,5 Woerter je Satz, NULL gefundene Befunde — und trotzdem ein
  * rotes "Schwer". Der Flesch-Wert lag bei 43, und zwar allein wegen 1,81
  * Silben je Wort: "verification", "automation", "discovery". Die inhaltlich
  * gleiche deutsche Fassung kam auf 7,8 Woerter je Satz und ebenfalls Rot.
@@ -119,7 +119,7 @@ const BANDS: ReadabilityBand[] = ["very-easy", "easy", "medium", "difficult", "v
  * Die Silbenzahl ist fuer eine Geschaeftsmail die falsche Zielgroesse. Sie
  * ist nicht handlungsleitend: "Adressprüfung" laesst sich nicht in weniger
  * Silben sagen, es ist schlicht das richtige Wort. Die Satzlaenge dagegen ist
- * genau das, was man aendern kann und soll -- und sie ist auch das, was der
+ * genau das, was man aendern kann und soll — und sie ist auch das, was der
  * Kopf des Panels ohnehin anzeigt.
  *
  * Der Kommentar am Dateianfang beruft sich auf Hemingway. Hemingway benotet
@@ -127,7 +127,7 @@ const BANDS: ReadabilityBand[] = ["very-easy", "easy", "medium", "difficult", "v
  * gilt dort als gut. Die Umstellung bringt die Datei mit ihrem eigenen
  * Vorbild in Uebereinstimmung.
  *
- * Flesch-Wert und Schulstufe bleiben im Ergebnis stehen -- als Angabe, nicht
+ * Flesch-Wert und Schulstufe bleiben im Ergebnis stehen — als Angabe, nicht
  * als Urteil. Sie sind zwischen den Sprachen ohnehin nicht vergleichbar: die
  * Amstad-Fassung und die Wiener Sachtextformel sind anders geeicht als die
  * englischen Originale, dieselbe Aussage bekam je nach Sprache eine andere
@@ -174,7 +174,7 @@ const EMPTY: Omit<ReadabilityResult, "lang"> = {
 };
 
 /**
- * Bewertet den Mailtext. Laeuft nur auf dem Body -- eine Betreffzeile ist zu
+ * Bewertet den Mailtext. Laeuft nur auf dem Body — eine Betreffzeile ist zu
  * kurz, als dass satzbasierte Formeln daraus etwas Sinnvolles ableiten
  * koennten.
  */

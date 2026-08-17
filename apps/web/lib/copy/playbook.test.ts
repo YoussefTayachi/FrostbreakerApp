@@ -39,7 +39,7 @@ describe("bannedPhrasesIn", () => {
   });
 
   it("achtet auf Wortgrenzen", () => {
-    // "10x" darf nicht in "110x" anschlagen -- sonst meldet die Pruefung
+    // "10x" darf nicht in "110x" anschlagen — sonst meldet die Pruefung
     // Fehler, die niemand nachvollziehen kann.
     expect(bannedPhrasesIn("Die Anlage liefert 110x mehr")).toEqual([]);
     expect(bannedPhrasesIn("Das ist 10x schneller")).toContain("10x");
@@ -85,7 +85,7 @@ describe("microYesProblems", () => {
   });
 
   it("meldet ein leeres Feld genau einmal", () => {
-    // Leer ist ein eigener Zustand, kein Buendel aus vier Verstoessen -- sonst
+    // Leer ist ein eigener Zustand, kein Buendel aus vier Verstoessen — sonst
     // steht am leeren Feld eine Mauer aus Befunden.
     expect(microYesProblems("   ")).toEqual(["empty"]);
   });
@@ -123,7 +123,7 @@ describe("copiedFrom", () => {
   });
 
   it("schlaegt bei kurzen Feldern nicht an", () => {
-    // "90 Sekunden" steht im Angebot UND soll in der Mail stehen -- das ist
+    // "90 Sekunden" steht im Angebot UND soll in der Mail stehen — das ist
     // keine Abschrift, das ist der Zweck.
     expect(copiedFrom("Dauert 90 Sekunden.", ["90 Sekunden"])).toEqual([]);
   });

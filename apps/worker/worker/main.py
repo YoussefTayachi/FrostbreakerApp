@@ -1,10 +1,10 @@
 """Worker-Entrypoint: pollt public.jobs und dispatcht an Pipelines.
 
 Instantly-Polling (Kampagnen-Analytics + mailbox-weiter Inbox-Sync) laeuft NICHT
-mehr hier -- das war frueher poll_instantly.py, ist aber seit der Migration auf
+mehr hier — das war frueher poll_instantly.py, ist aber seit der Migration auf
 apps/web/app/api/cron/instantly-sync/route.ts umgezogen (von Supabase pg_cron
 alle 5 Minuten aufgerufen, siehe Migration 0041). Grund: dieser Worker laeuft nur,
-wenn ihn jemand lokal startet -- fuer einen "alle 5 Minuten nachschauen"-Trigger
+wenn ihn jemand lokal startet — fuer einen "alle 5 Minuten nachschauen"-Trigger
 ist das der falsche Mechanismus. Die verbleibenden Pipelines hier (Leadsuche)
 brauchen weiterhin einen laufenden Worker, das ist unveraendert.
 """
@@ -25,7 +25,7 @@ HANDLERS = {
     "find_decisionmaker": find_decisionmaker.run,
     "hunt_persons": hunt_persons.run,
     "personalize": personalize.run,
-    # Phase 3 (interne Sende-Engine): send_batch, poll_inbox -- bewusst nicht gebaut,
+    # Phase 3 (interne Sende-Engine): send_batch, poll_inbox — bewusst nicht gebaut,
     # siehe Differenzierungs-Plan Punkt 0: Instantly bleibt Sende-Infrastruktur.
 }
 
@@ -65,12 +65,12 @@ def process_due_schedules() -> None:
 # Wie oft der Worker von sich hoeren laesst. Deutlich seltener als der
 # Poll-Takt (5s), weil jeder Herzschlag ein Netzaufruf ist und der Zustand
 # sich zwischen zwei Sekunden nicht sinnvoll aendert. Muss zur Schwelle in
-# worker_health() passen (2 Minuten) -- mit 30s bleibt Luft fuer ein paar
+# worker_health() passen (2 Minuten) — mit 30s bleibt Luft fuer ein paar
 # verschluckte Aufrufe, bevor faelschlich Alarm gemeldet wird.
 HEARTBEAT_INTERVAL_S = 30
 
 # Welcher Anbieter gilt als "antwortet wieder", wenn dieser Job-Typ glueckt?
-# Nur die eindeutigen Faelle -- get_businesses fehlt bewusst, weil dort je nach
+# Nur die eindeutigen Faelle — get_businesses fehlt bewusst, weil dort je nach
 # Quelle der Suche Google Maps, Hunter oder Apollo zustaendig ist und ein
 # falsch aufgeloester Alarm schlimmer waere als ein stehengebliebener.
 # Spiegelt _JOB_TYPE_PROVIDERS in worker/provider_errors.py.
@@ -111,7 +111,7 @@ def main() -> None:
         # Das Abholen selbst war bisher ungeschuetzt: ein einzelner
         # Netz-Schluckauf (DNS-Aussetzer, Supabase kurz nicht erreichbar,
         # Verbindungsabbruch) hat den ganzen Prozess beendet. Real passiert:
-        # "httpx.ConnectError: getaddrinfo failed" -- Worker tot. Genau daher
+        # "httpx.ConnectError: getaddrinfo failed" — Worker tot. Genau daher
         # ruehren die staendig wechselnden Worker-IDs und die Jobs, die auf
         # 'running' haengen blieben: nicht der Hoster hat die Container
         # ausgetauscht, der Worker ist schlicht abgestuerzt.
@@ -121,7 +121,7 @@ def main() -> None:
         except Exception:
             consecutive_poll_errors += 1
             # Backoff bis 60s, damit ein laengerer Ausfall nicht im
-            # 5-Sekunden-Takt das Log flutet -- aufgeben ist keine Option,
+            # 5-Sekunden-Takt das Log flutet — aufgeben ist keine Option,
             # der Worker soll sich von allein wieder fangen.
             delay = min(POLL_INTERVAL_S * 2 ** min(consecutive_poll_errors - 1, 4), 60)
             log.warning(
@@ -155,7 +155,7 @@ def main() -> None:
                     log.warning("Anbieter-Alarm konnte nicht aufgeloest werden", exc_info=True)
         except SearchCancelled:
             # Vom Nutzer gewollt, kein Fehler. Muss VOR dem allgemeinen
-            # except stehen, sonst landet der Abbruch in fail_job -- und der
+            # except stehen, sonst landet der Abbruch in fail_job — und der
             # reiht mit Backoff erneut ein, laesst die Suche also von selbst
             # wieder anlaufen und weiter Credits verbrauchen.
             log.info("Job %s vom Nutzer abgebrochen", job["id"])
@@ -166,7 +166,7 @@ def main() -> None:
         except Exception as exc:
             log.exception("Job %s fehlgeschlagen", job["id"])
             # Auch das Wegschreiben des Fehlers geht ueber das Netz. Scheitert
-            # es, darf das den Worker nicht mitreissen -- der Job faellt dann
+            # es, darf das den Worker nicht mitreissen — der Job faellt dann
             # in die Zeitueberschreitung von claim_job() (Migration 0047) und
             # wird spaeter automatisch neu eingereiht.
             try:

@@ -149,7 +149,7 @@ describe("byCopy", () => {
    * Kampagnen, die es bei Instantly nicht mehr gibt.
    *
    * Ihre Mails standen bis 2026-08-05 als eigene Gruppe "(nur bei Instantly)"
-   * GANZ OBEN in der Auswertung -- an der prominentesten Stelle also das, was
+   * GANZ OBEN in der Auswertung — an der prominentesten Stelle also das, was
    * am wenigsten aussagt. Youssef hat genau das als Erstes bemaengelt.
    */
   it("laesst Kampagnen ohne lokale Zeile ganz weg", () => {
@@ -177,7 +177,7 @@ describe("byCopy", () => {
       ...sends(MIN_SAMPLE, { step: 1 }, "a"),
       ...sends(MIN_SAMPLE, { step: 0 }, "b"),
     ];
-    // Schritt 1 hat Antworten, Schritt 0 nicht -- die Reihenfolge bleibt trotzdem 0, 1.
+    // Schritt 1 hat Antworten, Schritt 0 nicht — die Reihenfolge bleibt trotzdem 0, 1.
     const buckets = byCopy(out, [reply("a0", "interested", { step: 1 })], new Set());
     expect(buckets.map((b) => b.step)).toEqual([0, 1]);
   });
@@ -218,7 +218,7 @@ describe("bestBucket", () => {
 
   /**
    * Der Fehler, der am 2026-08-05 auf dem Bildschirm stand: markiert war
-   * "Schritt 1 B -- 2 Absagen, 0 interessiert" als BESTER SCHRITT, direkt
+   * "Schritt 1 B — 2 Absagen, 0 interessiert" als BESTER SCHRITT, direkt
    * unter der Warnung, dass die Antwortquote allein die falsche Zielgroesse
    * ist. Ein Sieger ohne Sieg ist schlimmer als kein Sieger.
    */

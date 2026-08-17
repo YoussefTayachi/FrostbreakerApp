@@ -1,6 +1,6 @@
 """Verhindert, dass ein API-Key aus einem Query-Parameter im Klartext in einer
 Fehlermeldung landet. httpx.Response.raise_for_status() haengt die komplette
-Request-URL unveraendert an die Exception-Message -- bei Hunter (api_key=...)
+Request-URL unveraendert an die Exception-Message — bei Hunter (api_key=...)
 und Google Maps (key=...) wird der Key dabei mitgeloggt. Diese Nachrichten
 landen unveraendert in searches.error/jobs.last_error (Datenbank!) und werden
 im Frontend teils sogar als Tooltip angezeigt (searches.error, siehe
@@ -14,7 +14,7 @@ _SECRET_PARAM_PATTERN = re.compile(r"(?i)([?&](?:api_key|key)=)[^&]+")
 
 # Der Antwort-Body ist bei einem 4xx die einzige Stelle, die den GRUND nennt
 # (Hunter liefert dort z.B. {"errors":[{"details":"..."}]}). Ohne ihn steht in
-# searches.error nur "400 Bad Request" -- und man raet, welcher Filter schuld
+# searches.error nur "400 Bad Request" — und man raet, welcher Filter schuld
 # ist. Begrenzt, damit eine HTML-Fehlerseite die Spalte nicht flutet.
 _MAX_BODY_CHARS = 400
 
@@ -27,7 +27,7 @@ def _safe_body_excerpt(response: httpx.Response) -> str:
     """Kurzer, redigierter Auszug des Antwort-Bodys fuer die Fehlermeldung."""
     try:
         body = response.text
-    except Exception:  # noqa: BLE001 -- Body nicht lesbar/dekodierbar: dann eben ohne
+    except Exception:  # noqa: BLE001 — Body nicht lesbar/dekodierbar: dann eben ohne
         return ""
     body = " ".join(body.split())  # Zeilenumbrueche raus, bleibt einzeilig loggbar
     if not body:

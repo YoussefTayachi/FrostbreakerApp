@@ -30,7 +30,7 @@ import {
  * und jede Auswertung darauf haette zuverlaessig in die Irre gefuehrt.
  *
  * Serverseitig gerechnet, weil alles in einer Abfrage liegt und niemand
- * darauf klickt -- die Seite ist ein Bericht, keine Anwendung.
+ * darauf klickt — die Seite ist ein Bericht, keine Anwendung.
  *
  * Die Auswertung selbst steht in lib/report/effectiveness.ts (mit Tests). Der
  * wichtigste Teil davon ist, was NICHT angezeigt wird: unter 30
@@ -67,7 +67,7 @@ export default async function WirkungPage() {
     /**
      * Abwesenheitsnotizen zaehlen NICHT als Antwort.
      *
-     * Beim ersten Blick auf die fertige Seite stand hier 7 -- Instantly
+     * Beim ersten Blick auf die fertige Seite stand hier 7 — Instantly
      * meldete 1. Der Unterschied waren die 5 automatischen Antworten und
      * damit eine Quote von 2,4 statt 0,3 Prozent. Ein Autoresponder ist kein
      * Mensch, der reagiert hat; ihn mitzuzaehlen macht ausgerechnet die
@@ -83,7 +83,7 @@ export default async function WirkungPage() {
      * Aufschluesselungen darunter.
      *
      * Die Text-Auswertung weist Abwesenheitsnotizen als eigene Spalte aus,
-     * statt sie zu verwerfen -- ein Autoresponder ist keine Antwort, aber die
+     * statt sie zu verwerfen — ein Autoresponder ist keine Antwort, aber die
      * Zahl gehoert sichtbar dorthin, wo sonst der Eindruck entstuende, es sei
      * gar nichts zurueckgekommen. Das Aussortieren passiert in byCopy.
      */
@@ -198,7 +198,7 @@ export default async function WirkungPage() {
    Gestaltung
    ══════════════════════════════════════════════════════════════════════
 
-   Die Zahlen dieser Seite sind klein und die Quoten winzig -- ein bis zwei
+   Die Zahlen dieser Seite sind klein und die Quoten winzig — ein bis zwei
    Antworten auf zweihundert Kontakte. Das ist die eigentliche gestalterische
    Aufgabe hier: ein Balken, der 1 % massstabsgetreu zeichnet, ist ein
    unsichtbarer Strich, und eine Tabelle voller Striche liest niemand.
@@ -206,7 +206,7 @@ export default async function WirkungPage() {
    Deshalb zwei Kunstgriffe, beide bewusst:
 
      1. Balken sind fuenffach ueberhoeht (RATE_SCALE). Sie taugen damit zum
-        VERGLEICHEN zweier Zeilen, nicht zum Ablesen -- die Zahl steht
+        VERGLEICHEN zweier Zeilen, nicht zum Ablesen — die Zahl steht
         daneben. Dieselbe Ueberhoehung wie in der Lead-Listen-Ansicht, damit
         die Balken der Seite untereinander vergleichbar bleiben.
 
@@ -217,7 +217,7 @@ export default async function WirkungPage() {
 
    Farben tragen Bedeutung, nicht Dekoration: gruen = etwas Gutes ist
    passiert, rot = ausdrueckliches Nein, grau = Maschine. Sie stehen nie
-   allein -- daneben steht immer die Zahl und das Wort.
+   allein — daneben steht immer die Zahl und das Wort.
    ══════════════════════════════════════════════════════════════════════ */
 
 /** Ueberhoehung der Balken. Siehe Kommentar oben. */
@@ -231,7 +231,7 @@ function barWidth(rate: number): string {
  * Der Trichter: angeschrieben, geantwortet, Termin.
  *
  * Drei Zahlen, die zusammengehoeren und einzeln nichts sagen. Als Kacheln
- * nebeneinander wirkten sie wie drei unabhaengige Messwerte -- mit Pfeilen
+ * nebeneinander wirkten sie wie drei unabhaengige Messwerte — mit Pfeilen
  * dazwischen sieht man, dass es dieselben Menschen sind, die schmaler werden.
  */
 function Funnel({
@@ -280,7 +280,7 @@ function Funnel({
   );
 }
 
-/** Eine farbige Zahl mit Wort. Null wird zu einem Strich in Grau -- eine
+/** Eine farbige Zahl mit Wort. Null wird zu einem Strich in Grau — eine
  *  grosse bunte 0 zieht Aufmerksamkeit auf ein Nichtereignis. */
 function Count({ n, label, tone }: { n: number; label: string; tone: string }) {
   if (n === 0) {
@@ -298,7 +298,7 @@ function Count({ n, label, tone }: { n: number; label: string; tone: string }) {
 }
 
 /**
- * Was welcher Text gebracht hat -- je Kampagne eine Karte.
+ * Was welcher Text gebracht hat — je Kampagne eine Karte.
  *
  * Vorher stand hier EINE Tabelle ueber alle Kampagnen, mit
  * Zwischenueberschriften als Zeilen. Das las sich wie eine Kontoauszugsliste:
@@ -373,7 +373,7 @@ function CopySection({
                     {list.map((b) => {
                       const hasVariants = list.some((o) => o.step === b.step && o.variant !== b.variant);
                       // bestBucket liefert nur noch etwas, wenn es einen echten Erfolg gab
-                      // (Termin oder interessierte Antwort) -- die zusaetzliche
+                      // (Termin oder interessierte Antwort) — die zusaetzliche
                       // Pruefung hier waere doppelt und stand vorher genau dem
                       // im Weg: sie liess auch reine Absagen gewinnen.
                       const isBest = best?.key === b.key;
@@ -400,7 +400,7 @@ function CopySection({
                             </span>
 
                             {/* Der Balken: fuenffach ueberhoeht, taugt zum
-                                Vergleichen zweier Zeilen -- die Zahl steht
+                                Vergleichen zweier Zeilen — die Zahl steht
                                 daneben. */}
                             <span className="h-2 min-w-16 flex-1 overflow-hidden rounded-full bg-chip">
                               {b.replyRate !== null && b.replyRate > 0 && (

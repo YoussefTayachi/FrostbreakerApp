@@ -1,7 +1,7 @@
 import type { SearchRowForPreset } from "./search-presets";
 
 /**
- * Was in einer gelaufenen Suche tatsaechlich eingestellt war -- lesbar.
+ * Was in einer gelaufenen Suche tatsaechlich eingestellt war — lesbar.
  *
  * ═══════════════════════════════════════════════════════════════════════
  * DER ANLASS
@@ -10,8 +10,8 @@ import type { SearchRowForPreset } from "./search-presets";
  * Derselbe Kunde, derselbe Satz wie bei den Vorlagen: "dann muesste ich nicht
  * nochmal ueberlegen, was hatte ich nochmal ausgewaehlt." Die Suchdetailseite
  * zeigte bis zum 2026-08-10 nur Suchbegriff, Ort und Datum. Senioritaeten,
- * Firmengroesse, Technologien, Marktsegmente -- alles, was die Suche
- * ausmacht -- lag in searches.filters und wurde nie angezeigt.
+ * Firmengroesse, Technologien, Marktsegmente — alles, was die Suche
+ * ausmacht — lag in searches.filters und wurde nie angezeigt.
  *
  * ═══════════════════════════════════════════════════════════════════════
  * WARUM SCHLUESSEL STATT FERTIGER TEXTE
@@ -60,7 +60,7 @@ function num(value: unknown): number | null {
   return typeof value === "number" && Number.isFinite(value) ? value : null;
 }
 
-/** "ab 2", "bis 5", "2 bis 5" -- je nachdem, welche Grenze gesetzt ist. */
+/** "ab 2", "bis 5", "2 bis 5" — je nachdem, welche Grenze gesetzt ist. */
 function range(min: unknown, max: unknown): string | null {
   const von = num(min);
   const bis = num(max);
@@ -117,7 +117,7 @@ export function searchFilterLines(row: SearchRowForPreset): FilterLine[] {
     return zeilen;
   }
 
-  // Maps. Der Umkreis steht als Spalte, nicht in filters -- er ist deshalb der
+  // Maps. Der Umkreis steht als Spalte, nicht in filters — er ist deshalb der
   // einzige Wert, der auch ohne jeden gesetzten Filter eine Zeile ergibt.
   if (row.radius_m) add("radius", [`${Math.round(row.radius_m / 1000)} km`]);
   if (f.pain_point_no_website === true) add("noWebsite", ["ja"]);

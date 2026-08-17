@@ -4,7 +4,7 @@
  * Grund fuer diese Datei: Bis dahin liess die App Suchen starten, die nie
  * funktionieren konnten. In den Jobs standen am 2026-08-03 dreiundzwanzig
  * Fehlschlaege der Form "Kein API-Key fuer Provider 'google_maps' hinterlegt"
- * bzw. "'hunter'" -- verteilt ueber acht Tage, also immer wieder. Der Nutzer
+ * bzw. "'hunter'" — verteilt ueber acht Tage, also immer wieder. Der Nutzer
  * startete eine Suche, sah "laeuft", und bekam nie ein Ergebnis oder eine
  * Erklaerung.
  *
@@ -24,7 +24,7 @@
  * (personalize.py:330).
  *
  * Wer die Verzweigung in get_businesses aendert (use_hunter, welcher Job je
- * Quelle eingereiht wird), muss diese Tabelle mitziehen -- sonst blockiert die
+ * Quelle eingereiht wird), muss diese Tabelle mitziehen — sonst blockiert die
  * Vorpruefung entweder zu viel oder zu wenig.
  */
 
@@ -48,7 +48,7 @@ export function requiredProviders(mode: SearchMode): Provider[] {
  * Welche der noetigen Keys fehlen?
  *
  * Reihenfolge bleibt die aus REQUIREMENTS, damit die Meldung immer gleich
- * aufgebaut ist -- der wichtigere Schluessel (die Firmensuche) steht vorn.
+ * aufgebaut ist — der wichtigere Schluessel (die Firmensuche) steht vorn.
  */
 export function missingProviders(mode: SearchMode, present: readonly string[]): Provider[] {
   const have = new Set(present);

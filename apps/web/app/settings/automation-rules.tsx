@@ -44,7 +44,7 @@ const STALE_DAY_OPTIONS = [14, 30, 60, 90] as const;
  * Wartezeiten der Kettenregeln.
  *
  * Kurz gehalten und getrennt je Regel: 2 bis 3 Tage sind bei LinkedIn
- * ueblich, beim Anruf ist mehr Abstand angebracht -- wer am dritten Tag nach
+ * ueblich, beim Anruf ist mehr Abstand angebracht — wer am dritten Tag nach
  * einer kalten Mail anruft, wirkt wie ein Verfolger. Die Voreinstellungen (3
  * und 7) stehen in der Datenbankfunktion und gelten, solange hier nichts
  * gewaehlt wurde.
@@ -88,7 +88,7 @@ export default function AutomationRules() {
    *
    * upsert statt insert-oder-update im Code: die Zeile existiert erst, wenn
    * die Regel zum ersten Mal eingeschaltet wird. Ein Workspace startet ohne
-   * jede Regel -- Automatisierungen, die ungefragt laufen, sind das Gegenteil
+   * jede Regel — Automatisierungen, die ungefragt laufen, sind das Gegenteil
    * von Vertrauen.
    */
   async function toggle(kind: RuleKind, enabled: boolean, config?: { days?: number }) {
@@ -146,7 +146,7 @@ export default function AutomationRules() {
                     absolut positioniertes Element seine Fliessposition, und
                     translate-x rechnet von DORT weiter. Gemessen am
                     2026-08-04: im eingeschalteten Zustand stand der Knopf bei
-                    1104..1120, die Pille endete bei 1106 -- also 14 px
+                    1104..1120, die Pille endete bei 1106 — also 14 px
                     ausserhalb, sichtbar als weisser Fleck neben dem blauen
                     Schalter. Mit festem left sitzt er in beiden Zustaenden
                     2 px innerhalb: aus bei 0, an um 16 px verschoben, bei
@@ -180,7 +180,7 @@ export default function AutomationRules() {
             )}
 
             {/* Die Kettenregeln warten ab dem Versand, nicht ab dem letzten
-                Kontakt -- deshalb eine eigene Beschriftung. */}
+                Kontakt — deshalb eine eigene Beschriftung. */}
             {CHAIN_DAY_OPTIONS[kind] && on && (
               <label className="mt-2.5 flex items-center gap-2 text-xs text-faint">
                 {A.chainAfter}

@@ -1,5 +1,5 @@
 // Parsing fuer die Blockliste (app/blocklist/page.tsx). Eigene Datei statt
-// inline in der Seite, damit die Logik ohne React/DOM testbar ist -- genau
+// inline in der Seite, damit die Logik ohne React/DOM testbar ist — genau
 // hier sass zuvor der Bug, der ganze Fliesstext-Absaetze als "Domain"
 // gespeichert hat.
 

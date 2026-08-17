@@ -10,7 +10,7 @@
  * Verschickt wird NICHT automatisch. LinkedIn bietet keine API fuer Nachrichten
  * oder Kontaktanfragen an; jede Automatisierung laeuft ueber Browser-Steuerung,
  * verstoesst gegen die Nutzervereinbarung und riskiert die Sperrung des
- * LinkedIn-Kontos -- bei einem verkauften Produkt also die Konten der Kunden.
+ * LinkedIn-Kontos — bei einem verkauften Produkt also die Konten der Kunden.
  * Die App bereitet vor, der Mensch fuegt ein und sendet.
  */
 
@@ -34,7 +34,7 @@ export const LINKEDIN_VARIABLE_TOKENS: Record<LinkedInPlaceholder, string> = {
  * Vorschau stark ab, und eine Kontaktanfrage mit Notiz ist ohnehin auf 300
  * Zeichen begrenzt. Der Icebreaker steht als eigener Absatz, damit bei den
  * Kontakten ohne Personalisierung nur eine Zeile fehlt statt mitten im Satz
- * eine Luecke zu klaffen -- dieselbe Ueberlegung wie bei den Mail-Vorlagen in
+ * eine Luecke zu klaffen — dieselbe Ueberlegung wie bei den Mail-Vorlagen in
  * docs/KALTAKQUISE-VORLAGEN.md.
  */
 export const DEFAULT_LINKEDIN_TEMPLATE_DE = `Hi {{firstName}},
@@ -72,7 +72,7 @@ export type LinkedInMessageValues = {
  *
  *   1. Kein Vorname (Apollo liefert bei manchen Treffern nur den Nachnamen).
  *      "Hi ," waere die schlechtestmoegliche erste Zeile, deshalb faellt die
- *      Anrede auf ein neutrales "Hallo" zurueck -- nicht auf einen leeren
+ *      Anrede auf ein neutrales "Hallo" zurueck — nicht auf einen leeren
  *      String, sonst begaenne die Nachricht mit einem Komma.
  *   2. Keine Personalisierung (16 der 230 reinen LinkedIn-Kontakte). Der
  *      Absatz verschwindet dann komplett, inklusive der Leerzeile darunter --
@@ -91,7 +91,7 @@ export function renderLinkedInMessage(template: string, values: LinkedInMessageV
     .replace(/\{\{\s*companyName\s*\}\}/g, companyName || "euch")
     .replace(/\{\{\s*personalization\s*\}\}/g, personalization);
 
-  // Fall 1: "Hi ," / "Hallo ," -- entstanden durch den leeren Vornamen.
+  // Fall 1: "Hi ," / "Hallo ," — entstanden durch den leeren Vornamen.
   if (!firstName) {
     out = out.replace(/^(\s*)(Hi|Hallo|Hey|Guten Tag)\s*,/im, "$1Hallo,");
   }
@@ -113,7 +113,7 @@ export function renderLinkedInMessage(template: string, values: LinkedInMessageV
  * Welche Platzhalter stehen in dieser Vorlage, die es gar nicht gibt?
  *
  * Ein Tippfehler wie {{firstname}} (klein geschrieben) bliebe sonst woertlich
- * in der Nachricht stehen und ginge so an den Empfaenger -- genau der Fehler,
+ * in der Nachricht stehen und ginge so an den Empfaenger — genau der Fehler,
  * der in Session 3 schon einmal in einer Mail-Vorlage steckte
  * ({{personalization - e.g., ...}}, siehe docs/KALTAKQUISE-VORLAGEN.md).
  */
@@ -132,8 +132,8 @@ export function unknownPlaceholders(template: string): string[] {
  * Nutzt denselben Mechanismus wie die Qualitaetspruefung im Kampagnen-Editor
  * (HighlightedTextarea + buildHighlightSegments), nur mit anderer Bedeutung:
  *
- *   info (blau) -- gueltige Variable, wird pro Empfaenger ersetzt
- *   danger (rot) -- Schreibfehler, landet woertlich beim Empfaenger
+ *   info (blau) — gueltige Variable, wird pro Empfaenger ersetzt
+ *   danger (rot) — Schreibfehler, landet woertlich beim Empfaenger
  *
  * Ohne diese Markierung sieht {{firstName}} im Textfeld genauso aus wie
  * {{firstname}}, und der Unterschied faellt erst dem Empfaenger auf.

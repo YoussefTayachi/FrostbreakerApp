@@ -1,11 +1,11 @@
 import { resolveTxt } from "node:dns/promises";
 
 // SPF/DKIM/DMARC-Check per Live-DNS-Abfrage (TXT-Records). Bewusst zustandslos
-// -- nichts wird in Supabase gespeichert, jeder Aufruf fragt live bei den
+// — nichts wird in Supabase gespeichert, jeder Aufruf fragt live bei den
 // DNS-Servern des Users nach. Kein Instantly-API-Aufruf noetig: die
 // Sende-Infrastruktur (IONOS, Google Workspace, M365, ...) ist bei "Custom
 // IMAP/SMTP"-Mailboxen (siehe mailboxes-panel.tsx) die des Users selbst, nicht
-// die von Instantly -- SPF/DKIM muessen also beim jeweiligen Provider des
+// die von Instantly — SPF/DKIM muessen also beim jeweiligen Provider des
 // Users stimmen, nicht bei Instantly.
 
 // Haeufigste DKIM-Selektoren der gaengigen Provider (Google, M365, IONOS,
@@ -13,7 +13,7 @@ import { resolveTxt } from "node:dns/promises";
 // User eingegebenen Selektor ergaenzt, falls bekannt.
 //
 // "s1-ionos"/"s2-ionos" sind IONOS' tatsaechliche Selektor-Namen (bestaetigt
-// gegen eine echte IONOS-Domain) -- nicht einfach "s1"/"ionos" einzeln, wie
+// gegen eine echte IONOS-Domain) — nicht einfach "s1"/"ionos" einzeln, wie
 // man beim Kombinieren gaengiger Kurz-Selektoren vermuten wuerde. Ohne diesen
 // Eintrag meldet der Check bei jedem IONOS-Kunden faelschlich "DKIM fehlt",
 // obwohl es korrekt eingerichtet ist.
@@ -30,7 +30,7 @@ async function safeResolveTxt(hostname: string): Promise<string[][] | null> {
   try {
     return await resolveTxt(hostname);
   } catch {
-    return null; // NXDOMAIN / kein Record -- kein Fehler im User-Sinn, einfach "nicht gefunden"
+    return null; // NXDOMAIN / kein Record — kein Fehler im User-Sinn, einfach "nicht gefunden"
   }
 }
 

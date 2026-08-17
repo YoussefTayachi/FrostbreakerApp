@@ -26,7 +26,7 @@ function lead(patch: Partial<CampaignLead> = {}): CampaignLead {
 
 describe("isContacted", () => {
   // Der Kern der Ansicht: der Zeitstempel entscheidet, nicht Instantlys
-  // Zahlencode -- der steht auch waehrend einer laufenden Sequenz auf 1.
+  // Zahlencode — der steht auch waehrend einer laufenden Sequenz auf 1.
   it("gilt als kontaktiert, sobald ein Zeitpunkt da ist", () => {
     expect(isContacted(lead({ contacted_at: "2026-08-03T12:00:00Z" }))).toBe(true);
   });
@@ -63,7 +63,7 @@ describe("matchesFilter", () => {
     expect(matchesFilter(kontaktiert, "pending")).toBe(false);
   });
 
-  // Bei einem Bounce wird nichts mehr passieren -- ihn als "ausstehend" zu
+  // Bei einem Bounce wird nichts mehr passieren — ihn als "ausstehend" zu
   // fuehren waere die Aufforderung, auf etwas zu warten, das nie kommt.
   it("fuehrt einen Bounce nicht als ausstehend", () => {
     expect(matchesFilter(gebounct, "pending")).toBe(false);

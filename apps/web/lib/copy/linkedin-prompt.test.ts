@@ -49,7 +49,7 @@ function eigenBudget(prompt: string): number {
 describe("buildLinkedInPrompt", () => {
   it("nennt nur den eigenen Spielraum, nicht die vollen 300", () => {
     // Live gemessen (2026-08-13): mit "300 INCLUDING the placeholders" kam eine
-    // Nachricht heraus, die eingesetzt auf 341 Zeichen kam -- die eigenen
+    // Nachricht heraus, die eingesetzt auf 341 Zeichen kam — die eigenen
     // Saetze waren kurz genug, die Platzhalter nahmen 148 vorweg, und die
     // rechnete das Modell nicht mit. Es kann nicht zaehlen, was es nicht sieht.
     const p = buildLinkedInPrompt(angebot, "", WOERTER);
@@ -70,7 +70,7 @@ describe("buildLinkedInPrompt", () => {
     const p = buildLinkedInPrompt(angebot, "", WOERTER);
     expect(p).toContain("{{firstName}}");
     expect(p).toContain("{{personalization}}");
-    // {{email}} gibt es auf LinkedIn nicht -- er wuerde ungefuellt rausgehen.
+    // {{email}} gibt es auf LinkedIn nicht — er wuerde ungefuellt rausgehen.
     expect(p).not.toContain("{{email}}");
   });
 
@@ -87,7 +87,7 @@ describe("buildLinkedInPrompt", () => {
 
   it("zieht die hinterlegte Signatur vom Zeichenbudget ab", () => {
     // Gemeldet 2026-08-13: die Signatur fehlte in der erzeugten Vorlage, weil
-    // der Prompt sie ausdruecklich verbot. Jetzt wird sie angehaengt -- und das
+    // der Prompt sie ausdruecklich verbot. Jetzt wird sie angehaengt — und das
     // Modell muss wissen, wie wenig Platz ihm dann bleibt.
     const ohne = buildLinkedInPrompt(angebot, "", WOERTER);
     const p = buildLinkedInPrompt(angebot, SIGNATUR, WOERTER);

@@ -4,7 +4,7 @@ import { requireInstantlyContext, instantlyRequest, InstantlyApiError } from "@/
 import { loadOwnedCampaign } from "@/lib/instantly/campaigns";
 
 /**
- * Startet eine Draft-Kampagne oder setzt eine pausierte fort -- Instantly
+ * Startet eine Draft-Kampagne oder setzt eine pausierte fort — Instantly
  * nutzt denselben Endpoint fuer beides (POST .../activate). Instantly-Kampagnen
  * werden nach dem Anlegen NIE automatisch aktiv (Status bleibt "Draft", es
  * wird nichts versendet), deshalb ist das hier bewusst ein eigener, expliziter

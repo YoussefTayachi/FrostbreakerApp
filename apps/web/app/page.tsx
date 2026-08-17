@@ -34,7 +34,7 @@ type Stats = {
   /** Gemessener Verbrauch im gewaehlten Zeitraum (api_usage, Migration 0054). */
   api_cost_usd?: number;
   /** Seit wann ueberhaupt gemessen wird. Aelter als dieses Datum gibt es keine
-   *  Kosten -- nicht weil keine anfielen, sondern weil niemand mitschrieb. */
+   *  Kosten — nicht weil keine anfielen, sondern weil niemand mitschrieb. */
   api_cost_since?: string | null;
   /** Monatliche Tarifkosten, vom Nutzer eingetragen (Migration 0077). */
   subscription_monthly_usd?: number;
@@ -71,7 +71,7 @@ function estimateCosts(s: Stats) {
  *
  * GEZAEHLT WERDEN NUR KONTAKTE MIT E-MAIL.
  *
- * Vorher zaehlte die Rechnung contacts_total -- am 2026-08-05 also 3115
+ * Vorher zaehlte die Rechnung contacts_total — am 2026-08-05 also 3115
  * Kontakte, von denen 1705 gar keine Adresse haben. Recherche fuer einen
  * Ansprechpartner, den man nicht anschreiben kann, ist keine gesparte Arbeit,
  * sondern ein unfertiges Ergebnis. Die Zahl war damit um rund das Doppelte
@@ -99,7 +99,7 @@ function estimateRoi(s: Stats) {
 /**
  * 0 heisst "Gesamtbestand".
  *
- * Bis 2026-08-05 filterten diese Knoepfe die Kacheln ueberhaupt nicht -- sie
+ * Bis 2026-08-05 filterten diese Knoepfe die Kacheln ueberhaupt nicht — sie
  * steuerten nur den Chart, und alles darueber blieb Gesamtbestand (siehe
  * Migration 0077). Jetzt filtern sie, und weil der Gesamtbestand damit sonst
  * unerreichbar waere, steht er als eigene Auswahl daneben statt als stille
@@ -132,7 +132,7 @@ export default async function Dashboard({
   const rangeDays = parseRangeDays(params.range);
   const fromDate = parseDate(params.from);
   const toDate = parseDate(params.to);
-  // Nur wenn BEIDE Enden gesetzt sind, gilt die Kalenderauswahl -- ein halb
+  // Nur wenn BEIDE Enden gesetzt sind, gilt die Kalenderauswahl — ein halb
   // ausgefuelltes Feld soll die Anzeige nicht schon umstellen.
   const useDateRange = Boolean(fromDate && toDate);
   // p_to ist exklusiv, deshalb einen Tag weiter: sonst fehlte der gewaehlte
@@ -194,13 +194,13 @@ export default async function Dashboard({
 
   // Punkt 4 aus dem PMF-Bericht: gefuehrte Onboarding-Checkliste. Bewusst nur
   // lokale, ohnehin schon guenstige Queries (keine Live-Instantly-API-Calls
-  // bei jedem Dashboard-Aufruf) -- Mailbox-Anzahl wird daher indirekt ueber
+  // bei jedem Dashboard-Aufruf) — Mailbox-Anzahl wird daher indirekt ueber
   // "mindestens eine Kampagne mit Mailboxen angelegt" approximiert statt live
   // bei Instantly nachzufragen.
   const apiKeyProviders = (apiKeysRes.data ?? []).map((k) => k.provider as string);
   // Titel, Text, Ziel und Erledigt-Kriterium stehen bewusst zusammen in EINER
   // Liste: vorher lagen die Texte im JSX und wurden per Array-Index
-  // (onboardingSteps[2]) mit dem Kriterium verheiratet -- beim Einfuegen eines
+  // (onboardingSteps[2]) mit dem Kriterium verheiratet — beim Einfuegen eines
   // Schritts verschieben sich dann stillschweigend alle Zuordnungen.
   const onboardingSteps = [
     {
@@ -239,14 +239,14 @@ export default async function Dashboard({
   const onboardingDone = onboardingSteps.every((s) => s.done);
   // Gemessene Kosten aus api_usage (Migration 0054) statt der Hochrechnung
   // aus Job-Zaehlern. estimateCosts bleibt als Rueckfall fuer Workspaces, in
-  // denen noch nichts erfasst wurde -- sonst stuende dort ploetzlich $0.00,
+  // denen noch nichts erfasst wurde — sonst stuende dort ploetzlich $0.00,
   // obwohl vorher Geld geflossen ist.
   const gemessen = Number(stats.api_cost_usd ?? 0);
   /**
    * Die Hochrechnung greift nur noch beim Gesamtbestand.
    *
    * estimateCosts rechnet aus den Job-Zaehlern, und die sind in
-   * dashboard_stats bewusst NICHT zeitraumgefiltert -- es sind Betriebszahlen.
+   * dashboard_stats bewusst NICHT zeitraumgefiltert — es sind Betriebszahlen.
    * Sie in ein 7-Tage-Fenster zu setzen wuerde genau den Fehler wiederholen,
    * um den es hier geht: eine Zahl aus sechs Wochen in einem Fenster von einer
    * Woche. Im Fenster gilt deshalb der gemessene Wert, auch wenn er 0 ist --
@@ -264,7 +264,7 @@ export default async function Dashboard({
    * Verbrauch PLUS Tarife.
    *
    * Bis 2026-08-05 zeigte das Dashboard 0,33 $ und nannte das "API-Kosten".
-   * Das war der gemessene Verbrauch -- und er ist der kleinere Teil der
+   * Das war der gemessene Verbrauch — und er ist der kleinere Teil der
    * Wahrheit. Instantly taucht in api_usage gar nicht auf (ein Abo hat keinen
    * zaehlbaren Aufruf), und bei Apollo und Hunter steht dort bewusst kein
    * Betrag, weil der Wert eines Credits am gebuchten Paket haengt.
@@ -284,7 +284,7 @@ export default async function Dashboard({
    * api_usage schreibt erst seit dem 2026-08-02, die Firmen gibt es seit dem
    * 2026-07-13. Ein 90-Tage-Fenster stellt also einen Nutzen aus sechs Wochen
    * neben Kosten aus wenigen Tagen. Das gehoert dazugesagt, statt die Luecke
-   * als Ergebnis auszugeben -- sie schliesst sich mit der Zeit von selbst.
+   * als Ergebnis auszugeben — sie schliesst sich mit der Zeit von selbst.
    */
   const messungSeit = stats.api_cost_since ? new Date(stats.api_cost_since) : null;
   const fensterTage = Number(stats.window_days ?? 0);
@@ -308,7 +308,7 @@ export default async function Dashboard({
        *
        * Am 2026-08-09 stand hier "$32,77 gemessen", wovon 32,67 $ ein
        * eingetipptes Monatsabo waren und 11 Cent die Messung. Sobald Tarife
-       * mitzaehlen, wird der gemessene Teil deshalb beziffert -- eine Kachel,
+       * mitzaehlen, wird der gemessene Teil deshalb beziffert — eine Kachel,
        * die ihre eigene Herkunft falsch angibt, ist schlimmer als gar keine.
        */
       sub:
@@ -443,7 +443,7 @@ export default async function Dashboard({
               {k.sub && <p className="text-[11px] text-mute">{k.sub}</p>}
             </>
           );
-          // Die Kostenkachel fuehrt zur Aufschluesselung -- die Frage "wie
+          // Die Kostenkachel fuehrt zur Aufschluesselung — die Frage "wie
           // kommt die Zahl zustande" stellt sich genau dort.
           return k.href ? (
             <Link key={k.label} href={k.href} className="block px-4 py-3.5 transition-colors hover:bg-edge/30">
@@ -455,7 +455,7 @@ export default async function Dashboard({
         })}
       </div>
 
-      {/* Forecast + faellige Aufgaben (CRM Phase 4/5) -- blendet sich selbst aus,
+      {/* Forecast + faellige Aufgaben (CRM Phase 4/5) — blendet sich selbst aus,
           solange es weder Deals noch offene Aufgaben gibt. */}
       <ForecastCards stats={pipelineStats} />
 
@@ -492,7 +492,7 @@ export default async function Dashboard({
             {abosImFenster > 0 && " · " + t.dashboard.roiSubscriptions(abosMonatlich, fensterTage)}
           </p>
 
-          {/* Zwei Vorbehalte, die die Zahl relativieren -- und die genau
+          {/* Zwei Vorbehalte, die die Zahl relativieren — und die genau
               deshalb danebenstehen und nicht weggelassen werden. */}
           {abosImFenster === 0 && (
             <p className="mt-1 pl-7 text-[11px] text-amber-600 dark:text-amber-500">
@@ -573,7 +573,7 @@ export default async function Dashboard({
                     className={
                       "px-2.5 py-1 text-xs font-medium transition-colors " +
                       // Bei aktiver Kalenderauswahl ist keiner der festen
-                      // Bereiche gemeint -- sonst saehe es aus, als gaelten beide.
+                      // Bereiche gemeint — sonst saehe es aus, als gaelten beide.
                       (!useDateRange && days === rangeDays
                         ? "bg-sky-600 text-white"
                         : "text-soft hover:bg-chip hover:text-ink")
@@ -619,7 +619,7 @@ export default async function Dashboard({
       </div>
 
       {/* Neue Suche. Die id ist das Ziel von "Suche wiederholen" auf der
-          Suchdetailseite -- ohne sie fuellt sich das Formular ausserhalb des
+          Suchdetailseite — ohne sie fuellt sich das Formular ausserhalb des
           Sichtbereichs, und der Klick sieht folgenlos aus. */}
       <section id="neue-suche" className="scroll-mt-4 rounded-lg border border-edge/60 bg-panel p-5 shadow-sm">
         <h2 className="mb-1 text-sm font-medium text-ink">{t.dashboard.newSearch}</h2>

@@ -61,7 +61,7 @@ function trifftText(row: SearchListRow, q: string): boolean {
 
 /**
  * "running" fasst zusammen, was fuer den Nutzer dasselbe ist: die Suche ist
- * noch nicht fertig. In der Datenbank sind das pending und running -- eine
+ * noch nicht fertig. In der Datenbank sind das pending und running — eine
  * Unterscheidung, die nur den Worker interessiert.
  */
 function trifftStatus(row: SearchListRow, status: string): boolean {

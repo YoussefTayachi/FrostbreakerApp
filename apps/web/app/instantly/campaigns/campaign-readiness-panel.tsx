@@ -6,7 +6,7 @@ import type { CheckId, Readiness, ReadinessCheck, Severity } from "@/lib/campaig
 import type { Step } from "./campaign-form";
 
 /**
- * Was gegen den Start dieser Kampagne spricht -- bevor sie laeuft.
+ * Was gegen den Start dieser Kampagne spricht — bevor sie laeuft.
  *
  * Die Bewertung kommt fertig von api/campaigns/readiness (Schwellen und
  * Begruendungen in lib/campaign-readiness.ts). Diese Komponente entscheidet
@@ -16,7 +16,7 @@ import type { Step } from "./campaign-form";
  * WARUM DER TROTZDEM-KNOPF EXISTIERT
  *
  * Weil er sonst umgangen wuerde. Ein Torwart, den man nicht passieren kann,
- * fuehrt dazu, dass die Kampagne direkt bei Instantly angelegt wird -- und
+ * fuehrt dazu, dass die Kampagne direkt bei Instantly angelegt wird — und
  * dann sieht die App gar nichts mehr. Der Knopf kostet einen bewussten
  * zweiten Klick und zeigt vorher, was man in Kauf nimmt. Das ist der
  * Unterschied zwischen einer Entscheidung und einem Versehen.
@@ -56,7 +56,7 @@ export default function CampaignReadinessPanel({
    * Erst pruefen, wenn ueberhaupt etwas zu pruefen ist.
    *
    * Ohne Suche und ohne Postfach waere jede Antwort "keine Leads, kein SPF"
-   * -- also eine rote Wand, bevor der Nutzer das erste Feld ausgefuellt hat.
+   * — also eine rote Wand, bevor der Nutzer das erste Feld ausgefuellt hat.
    * Der Torwart soll am Ende des Formulars stehen, nicht am Anfang.
    *
    * Die Verzoegerung fasst das Tippen in der Sequenz zusammen: die Route
@@ -182,7 +182,7 @@ function CheckRow({ check }: { check: ReadinessCheck }) {
  * Die Fallunterscheidung steht hier und nicht in lib/campaign-readiness.ts:
  * dort wird gerechnet, und eine reine Rechenfunktion soll keine Saetze in
  * zwei Sprachen kennen. Die Zahlen kommen als values mit, damit hier nichts
- * nachgerechnet werden muss -- eine zweite Rechnung waere eine zweite
+ * nachgerechnet werden muss — eine zweite Rechnung waere eine zweite
  * Wahrheit.
  */
 type Labels = ReturnType<typeof useT>["t"]["campaignReadiness"]["checks"];

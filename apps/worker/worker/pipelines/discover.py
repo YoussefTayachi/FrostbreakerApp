@@ -32,7 +32,7 @@ class HunterPlanError(Exception):
 
 def _is_retryable(exc: BaseException) -> bool:
     """Kein Sinn, einen deterministischen 4xx-Fehler (falsche Anfrage, falscher
-    Key, Plan-Limit) dreimal mit Backoff zu wiederholen -- das kann beim naechsten
+    Key, Plan-Limit) dreimal mit Backoff zu wiederholen — das kann beim naechsten
     Versuch nicht anders ausgehen. 429 (Rate Limit) ist die Ausnahme: das IST
     transient und verdient einen Retry."""
     if isinstance(exc, httpx.HTTPStatusError):
@@ -72,7 +72,7 @@ def build_discover_body(filters: dict) -> dict:
     loc: dict = {}
     if filters.get("country"):
         loc["country"] = filters["country"]
-    # state kennt Hunters Schema ausdruecklich nur fuer die USA -- und eine
+    # state kennt Hunters Schema ausdruecklich nur fuer die USA — und eine
     # US-Stadt OHNE Bundesstaat lehnt Hunter mit 400 ab (in Hunters eigener
     # Oberflaeche ist jede US-Stadt voll qualifiziert: "New York, New York,
     # United States"). Bei jedem anderen Land wird das Feld ignoriert bzw.
@@ -91,7 +91,7 @@ def build_discover_body(filters: dict) -> dict:
         kw = [k.strip() for k in str(filters["keywords"]).split(",") if k.strip()]
         if kw:
             body["keywords"] = {"include": kw, "match": "any"}
-    # Eingesetzte Technik der Firma -- so lassen sich z.B. gezielt Shopify-Shops
+    # Eingesetzte Technik der Firma — so lassen sich z.B. gezielt Shopify-Shops
     # finden, statt sie ueber Branche/Keywords zu erraten. Die Slugs kommen
     # bereits in Hunters Schreibweise an (aufgeloest in
     # apps/web/lib/technologies.ts, weil eine Suche fest zu einer Quelle
@@ -113,7 +113,7 @@ def _raise_for_plan(exc: BaseException, filters: dict) -> None:
     deshalb wird hier nicht geraten: die Meldung sagt, dass der
     Technologie-Filter der wahrscheinliche Grund ist, ohne die anderen
     auszuschliessen. Ohne Technologie-Filter bleibt der urspruengliche Fehler
-    unveraendert -- eine falsche Erklaerung waere schlechter als keine.
+    unveraendert — eine falsche Erklaerung waere schlechter als keine.
     """
     if not _is_client_error(exc) or not _clean_slugs(filters.get("technologies")):
         return
@@ -161,7 +161,7 @@ def discover_companies(filters: dict, api_key: str, offset: int = 0) -> list[dic
     Hunter erlaubt offset laut Doku nur ab einem bestimmten Plan; ein Key ohne
     dieses Recht bekommt dort einen 4xx. Ohne diesen Fallback wuerde eine
     Wiederholung derselben Suche komplett fehlschlagen (Status "failed", null
-    Firmen) -- schlechter als vor der Pagination, wo sie zumindest lief und die
+    Firmen) — schlechter als vor der Pagination, wo sie zumindest lief und die
     Dedupe-Pruefung die schon bekannten Firmen aussortierte. Deshalb: bei einem
     Client-Fehler MIT offset einmal ohne offset nachfassen. Ergebnis ist dann
     wieder Seite 1 (meist nichts Neues nach Dedupe), aber die Suche laeuft
@@ -170,7 +170,7 @@ def discover_companies(filters: dict, api_key: str, offset: int = 0) -> list[dic
     Bewusst an JEDEM 4xx festgemacht statt an einer Textsuche nach
     "pagination": Hunters genaue Fehlerform fuer diesen Fall ist nicht
     dokumentiert, und ein Fallback-Versuch ohne offset ist auch bei einem
-    anders gelagerten 4xx die richtige Reaktion -- schlaegt der zweite Versuch
+    anders gelagerten 4xx die richtige Reaktion — schlaegt der zweite Versuch
     aus demselben Grund fehl, kommt der Fehler ohnehin unveraendert hoch.
     """
     try:

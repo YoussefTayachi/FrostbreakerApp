@@ -47,14 +47,14 @@ const LANGUAGE_NAMES: Record<string, string> = { de: "German", en: "English" };
  * ═══════════════════════════════════════════════════════════════════════
  *
  * Der Live-Test im AI-Agent-Tab schickte bis zum 2026-08-09 nur den reinen
- * Systemprompt an das Modell -- ohne diesen Block. Er pruefte damit etwas
+ * Systemprompt an das Modell — ohne diesen Block. Er pruefte damit etwas
  * anderes, als spaeter tatsaechlich lief, und zwar an der empfindlichsten
  * Stelle: die Wortgrenze stand im Test gar nicht im Prompt, sondern wurde nur
  * hinterher bemaengelt.
  *
  * Beim gemeldeten Sprachfehler war das der Grund, warum die Sache so
  * verwirrend aussah: der Live-Test bekam den im Formular ANGEZEIGTEN
- * (englischen) Prompt direkt geschickt und lieferte Englisch -- der Worker las
+ * (englischen) Prompt direkt geschickt und lieferte Englisch — der Worker las
  * die Datenbank, fand dort null und nahm Deutsch. Zwei Wege, zwei Sprachen,
  * dieselbe Schaltflaeche.
  *
@@ -94,7 +94,7 @@ export const DEFAULT_PROMPT = DEFAULT_PROMPT_DE;
  * Am 2026-08-13 von 22 auf 35 gehoben, und zwar an gemessenen Zahlen: von 737
  * erzeugten Aufhaengern fielen 439 durch, fast alle mit "33 statt max. 22
  * Woerter". Das Modell hat die Grenze also nicht knapp verfehlt, sondern
- * durchgaengig -- und der Grund steht im Standardprompt selbst: er verlangt
+ * durchgaengig — und der Grund steht im Standardprompt selbst: er verlangt
  * einen konkreten Fakt UND den Anschluss "deswegen melde ich mich". Beides
  * zusammen ist in 22 Woertern nicht zu sagen.
  *
@@ -106,7 +106,7 @@ export const DEFAULT_PROMPT = DEFAULT_PROMPT_DE;
  * ACHTUNG bei Aenderungen: dieselbe Zahl begrenzt ueber {{personalization}}
  * auch die LinkedIn-Vorlage, und die hat nur 300 Zeichen (siehe
  * lib/copy/linkedin-prompt.ts). 35 Woerter sind dort mit rund 210 Zeichen
- * veranschlagt -- fuer den eigenen Satz bleibt entsprechend wenig.
+ * veranschlagt — fuer den eigenen Satz bleibt entsprechend wenig.
  */
 export const DEFAULT_MAX_WORDS = 35;
 
@@ -116,7 +116,7 @@ export const DEFAULT_MAX_WORDS = 35;
 // zeichen fuer einen KI-geschriebenen Text und faellt Empfaengern sofort auf.
 // Die Lob-Woerter fing der Prompt ohnehin schon ueber "Vermeide vages Lob" ab.
 //
-// Uebernommen aus dem Template, mit dem in der Praxis gearbeitet wird -- damit
+// Uebernommen aus dem Template, mit dem in der Praxis gearbeitet wird — damit
 // die Voreinstellung das ist, was tatsaechlich funktioniert, statt etwas, das
 // jeder Nutzer erst haendisch ersetzen muss.
 export const DEFAULT_BANNED_WORDS = ["—", "–", "--", "-"];
@@ -133,7 +133,7 @@ export function wordCount(text: string): number {
  * Fuer normale Woerter ein simpler Teilstring-Treffer. Fuer Satzzeichen gilt
  * dieselbe Unterscheidung wie im Worker: ein Bindestrich INNERHALB eines
  * Wortes ("third-party", "NSF-certified") verbindet ein zusammengesetztes Wort
- * und ist kein Verstoss -- gemeint sind nur Striche, die Satzteile abtrennen.
+ * und ist kein Verstoss — gemeint sind nur Striche, die Satzteile abtrennen.
  *
  * Ohne diese Unterscheidung meldete der Live-Test jede Zeile mit einem
  * zusammengesetzten Wort als fehlerhaft, sobald "-" auf der Verbotsliste
@@ -186,13 +186,13 @@ function isPunctuationOnly(word: string): boolean {
 }
 
 // Muss inhaltlich mit sanitize_banned_punctuation() in
-// apps/worker/worker/pipelines/personalize.py uebereinstimmen -- GPT haelt
+// apps/worker/worker/pipelines/personalize.py uebereinstimmen — GPT haelt
 // sich an ein verbotenes Satzzeichen (v.a. Gedankenstriche) auch nach einem
 // expliziten Korrektur-Hinweis zuverlaessig NICHT, das ist eine bekannte
 // Modell-Eigenart, kein Prompting-Problem. Fuer banned_words-Eintraege, die
 // ausschliesslich aus Satzzeichen bestehen, wird deshalb hart nachbearbeitet
 // statt sich weiter aufs Modell zu verlassen. Normale verbotene Woerter
-// bleiben aussen vor -- die ersatzlos zu streichen wuerde den Satz oft kaputt
+// bleiben aussen vor — die ersatzlos zu streichen wuerde den Satz oft kaputt
 // machen, das kann nur eine echte Umformulierung (Retry) leisten.
 // Striche, die auch WORTINTERN vorkommen duerfen: der normale Bindestrich
 // verbindet zusammengesetzte Woerter ("two-decade", "values-driven"). Wird er

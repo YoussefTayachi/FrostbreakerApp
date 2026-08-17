@@ -21,11 +21,11 @@ export function TrashButton({ searchId }: { searchId: string }) {
          * Nachfragen, und zwar mit den Folgen im Text.
          *
          * Ein Kunde hat am 2026-08-10 zum Loeschen gegriffen, weil er
-         * aufraeumen wollte -- und erst danach gemerkt, dass die Liste damit
+         * aufraeumen wollte — und erst danach gemerkt, dass die Liste damit
          * auch aus LinkedIn und Instantly verschwindet. Was er ueberhaupt
          * nicht sehen konnte: die Firmen der Liste zaehlen danach im
          * Dublettenschutz nicht mehr mit (worker/dedupe.py), jede
-         * unkontaktierte ist also wieder einkaufbar -- bei Apollo rund zwei
+         * unkontaktierte ist also wieder einkaufbar — bei Apollo rund zwei
          * Credits pro Lead. Der Knopf hiess "Loeschen" und kostete Geld.
          *
          * Der Dialog nennt beides und weist auf das Archiv hin, das seit
@@ -39,7 +39,7 @@ export function TrashButton({ searchId }: { searchId: string }) {
         // groupScopeFilter statt .eq("id", …): bei einer gebuendelten
         // Mehrfach-Suche haengen n Teilsuchen an dieser Zeile (Migration 0096).
         // Ohne sie liefen die unsichtbar weiter, waehrend die Gruppe im
-        // Papierkorb liegt -- inklusive ihrer Abos.
+        // Papierkorb liegt — inklusive ihrer Abos.
         await createClient()
           .from("searches")
           .update({ deleted_at: new Date().toISOString(), schedule: "none" })
@@ -72,7 +72,7 @@ export function TrashButton({ searchId }: { searchId: string }) {
  * Getrennt vom Loeschen, obwohl beides "weg damit" heisst: der Papierkorb
  * ruehrt den laufenden Job nicht an. Er wuerde weiterlaufen, weiter Credits
  * verbrauchen und am Ende Leads in eine Suche schreiben, die niemand mehr
- * sieht. Genau dieser Fall war der Anlass -- 100 statt 10 Leads angeklickt.
+ * sieht. Genau dieser Fall war der Anlass — 100 statt 10 Leads angeklickt.
  *
  * Der Knopf erscheint nur, solange etwas laeuft; danach gibt es nichts mehr
  * abzubrechen und die Zeile zeigt wieder nur "Löschen".
@@ -97,7 +97,7 @@ export function CancelButton({ searchId }: { searchId: string }) {
         }
         // false heisst: die Suche war schon fertig, als geklickt wurde. Das
         // ist kein Fehler, aber es waere irrefuehrend, "abgebrochen" zu
-        // melden -- gleich sieht der Nutzer die fertigen Leads.
+        // melden — gleich sieht der Nutzer die fertigen Leads.
         router.refresh();
         push(data ? t.searchActions.cancelled : t.searchActions.cancelTooLate, data ? "success" : "error");
       }}
@@ -142,7 +142,7 @@ export function HardDeleteButton({ searchId }: { searchId: string }) {
         if (!confirm(t.searchActions.hardDeleteConfirm)) return;
         const supabase = createClient();
         // Die Firmen haengen an den Teilsuchen, nicht an der Gruppe (Migration
-        // 0096) -- deren IDs muessen also wirklich vorliegen. Fuer die
+        // 0096) — deren IDs muessen also wirklich vorliegen. Fuer die
         // searches-Zeilen selbst genuegt der Fremdschluessel: parent_search_id
         // loescht mit "on delete cascade".
         const { data: kinder } = await supabase
@@ -190,7 +190,7 @@ export function EmptyTrashButton({ searchIds }: { searchIds: string[] }) {
         const supabase = createClient();
         // Die Teilsuchen gebuendelter Mehrfach-Suchen stehen nicht in der
         // Papierkorb-Liste (die zeigt nur Gruppen), ihre Firmen muessen aber
-        // mit weg -- sonst bleiben sie als Waisen ohne Liste stehen.
+        // mit weg — sonst bleiben sie als Waisen ohne Liste stehen.
         const { data: kinder } = await supabase
           .from("searches")
           .select("id, parent_search_id")

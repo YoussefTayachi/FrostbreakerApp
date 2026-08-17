@@ -44,7 +44,7 @@ export function IconBuilding({ className = "h-4 w-4" }: { className?: string }) 
     </svg>
   );
 }
-/** Preisschild -- das Angebot: was verkauft wird, an wen, mit welchem Nutzen. */
+/** Preisschild — das Angebot: was verkauft wird, an wen, mit welchem Nutzen. */
 export function IconOffer({ className = "h-4 w-4" }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
@@ -69,7 +69,7 @@ export function IconCost({ className = "h-4 w-4" }: { className?: string }) {
 }
 
 /** Wirkung: eine steigende Linie ueber Balken. Bewusst NICHT dasselbe Symbol
- *  wie die Pipeline -- die zeigt, was gerade laeuft, das hier, was es
+ *  wie die Pipeline — die zeigt, was gerade laeuft, das hier, was es
  *  gebracht hat. */
 export function IconChart({ className = "h-4 w-4" }: { className?: string }) {
   return (
@@ -81,7 +81,7 @@ export function IconChart({ className = "h-4 w-4" }: { className?: string }) {
 }
 
 /** Branding: Farbpalette. Bewusst nicht dasselbe Zahnrad wie die
- *  Einstellungen -- hier geht es um das Aussehen nach aussen, nicht um
+ *  Einstellungen — hier geht es um das Aussehen nach aussen, nicht um
  *  Konfiguration. */
 export function IconPalette({ className = "h-4 w-4" }: { className?: string }) {
   return (

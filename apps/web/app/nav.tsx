@@ -117,7 +117,7 @@ export default function Nav() {
       //
       // Das Angebot steht als erster Untereintrag und nicht hinter dem
       // Aufhaenger: es ist die Grundlage fuer alles, was in dieser Gruppe
-      // geschrieben wird -- Mail-Sequenz, LinkedIn-Vorlage, Nachschaerfen.
+      // geschrieben wird — Mail-Sequenz, LinkedIn-Vorlage, Nachschaerfen.
       // Der Aufhaenger ist ein Satz, das Angebot ist die Sache.
       parent: { href: "/ai-agent", label: t.nav.aiAgent, icon: IconAgent },
       children: [

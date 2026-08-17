@@ -3,7 +3,7 @@ import { FILTER_KEYS, searchFilterLines } from "./search-filter-lines";
 import { dict } from "./i18n/dict";
 
 describe("Beschriftungen", () => {
-  // Die Anzeige greift per Cast auf die Karte zu -- ein fehlender Schluessel
+  // Die Anzeige greift per Cast auf die Karte zu — ein fehlender Schluessel
   // faellt dort nicht auf, sondern erst im Browser als "undefined:".
   it.each(["de", "en"] as const)("hat in %s fuer jeden Filter eine Beschriftung", (lang) => {
     const labels = dict[lang].searchDetail.filterLabels as Record<string, string>;

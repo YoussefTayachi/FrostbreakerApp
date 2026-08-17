@@ -43,7 +43,7 @@ export default function LocalTime({
 }: {
   iso: string;
   lang: Lang;
-  /** Wie der Server denselben Zeitpunkt formatiert hat -- der Anfangswert. */
+  /** Wie der Server denselben Zeitpunkt formatiert hat — der Anfangswert. */
   serverFormatted: string;
   opts?: Intl.DateTimeFormatOptions;
 }) {
@@ -51,7 +51,7 @@ export default function LocalTime({
 
   useEffect(() => {
     setText(formatDate(iso, lang, opts));
-    // opts ist ein Objektliteral und waere bei jedem Rendern neu -- es hier
+    // opts ist ein Objektliteral und waere bei jedem Rendern neu — es hier
     // nicht mitzuueberwachen ist Absicht, sonst laeuft der Effekt endlos.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [iso, lang]);

@@ -21,7 +21,7 @@ import { useWorkspace } from "../workspace-provider";
  *
  * Gespeichert wird pro Feld beim Verlassen (onBlur), nicht ueber einen
  * Speichern-Knopf. Bei einer Handvoll Zusatzangaben ist ein Knopf mehr
- * Zeremonie als Nutzen -- und wer ihn vergisst, verliert seine Eingabe.
+ * Zeremonie als Nutzen — und wer ihn vergisst, verliert seine Eingabe.
  *
  * Die Typpruefung liegt in lib/crm/custom-fields.ts und nicht hier: die Werte
  * stehen als jsonb am Objekt, die Datenbank prueft sie also NICHT. Eine Zahl,
@@ -84,7 +84,7 @@ export default function CustomFieldValues({
    * Gelesen und geschrieben wird das ganze jsonb-Objekt, nicht nur der eine
    * Schluessel. Das ist bei einer Handvoll Feldern unkritisch und vermeidet
    * die Fallstricke von jsonb_set (fehlende Pfade, Typkonflikte). Wer zwei
-   * Felder gleichzeitig in zwei Browsern aendert, ueberschreibt sich -- ein
+   * Felder gleichzeitig in zwei Browsern aendert, ueberschreibt sich — ein
    * Fall, der bei persoenlichen Zusatzangaben nicht vorkommt.
    */
   async function save(def: CustomFieldDef, raw: string) {

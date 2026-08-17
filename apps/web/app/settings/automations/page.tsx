@@ -64,7 +64,7 @@ export default function AutomationsPage() {
   }
 
   /** Schickt eine echte Mail an die gespeicherte Adresse. Der Fehlertext von
-   *  Resend wird woertlich angezeigt -- "Domain nicht verifiziert" und
+   *  Resend wird woertlich angezeigt — "Domain nicht verifiziert" und
    *  "Schluessel fehlt" sehen sonst identisch aus. */
   async function testReplyNotify() {
     setReplyTest("sending");
@@ -145,7 +145,7 @@ export default function AutomationsPage() {
       </div>
 
       {/* Direkt unter der Benachrichtigung: beides betrifft den Moment, in dem
-          jemand geantwortet hat -- das eine holt dich dazu, das andere
+          jemand geantwortet hat — das eine holt dich dazu, das andere
           schreibt den Entwurf. */}
       <div className={cardCls}>
         <h2 className="font-medium text-ink">{t.replyAssistant.title}</h2>

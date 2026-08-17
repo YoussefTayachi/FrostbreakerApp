@@ -5,11 +5,11 @@ import type { DealStage, DealStatus } from "./deals";
 /**
  * Typen zur RPC public.crm_timeline (Migration 0035). Die Funktion mischt
  * E-Mails, Notizen, Status-Wechsel, Aktivitaeten und Deals in eine nach Zeit
- * sortierte Liste -- eine Query statt fuenf, und neue Quellen kommen kuenftig
+ * sortierte Liste — eine Query statt fuenf, und neue Quellen kommen kuenftig
  * nur in der SQL-Funktion dazu, nicht im Frontend.
  *
  * meta ist in der DB jsonb. Die Umwandlung in die typisierten Varianten unten
- * passiert genau einmal in fetchTimeline() -- ab da ist der Rest der App
+ * passiert genau einmal in fetchTimeline() — ab da ist der Rest der App
  * vollstaendig typsicher und der switch ueber `kind` erschoepfend pruefbar.
  */
 export type TimelineKind = "email_in" | "email_out" | "note" | "status" | "activity" | "deal";

@@ -12,7 +12,7 @@ import type { LeadListSummary, LinkedInLead } from "./types";
 
 /**
  * Die drei Ergebnisse einer LinkedIn-Antwort und ihre Entsprechung in
- * contacts.outreach_status. Beide Wertelisten sind vorgegeben -- links
+ * contacts.outreach_status. Beide Wertelisten sind vorgegeben — links
  * activities.outcome (Migration 0033), rechts contacts.outreach_status
  * (Migration 0018); diese Tabelle ist die Uebersetzung, nicht die Erfindung.
  *
@@ -54,7 +54,7 @@ const REPLY_BADGE: Record<ReplyOutcome, string> = {
  *
  * Bewusst nicht als automation_rule wie die Kette: die Kette laeuft
  * zeitgesteuert ueber alle Kontakte, diese Aufgabe entsteht dagegen genau in
- * dem Moment, in dem die Information entsteht -- beim Protokollieren. Das
+ * dem Moment, in dem die Information entsteht — beim Protokollieren. Das
  * braucht keinen Tageslauf und geht nicht verloren, wenn er abgeschaltet ist.
  */
 const FOLLOW_UP_DAYS = 3;
@@ -65,7 +65,7 @@ const FOLLOW_UP_DAYS = 3;
  * Grund ist die Hydration: Server und Browser haben unterschiedliche
  * Standardsprachen und Zeitzonen, und ein Datum, das sich zwischen beiden
  * Durchlaeufen unterscheidet, erzeugt eine Warnung und ein kurzes Umspringen
- * im Text. Der Preis ist, dass hier UTC steht -- bei einer Erinnerung, die
+ * im Text. Der Preis ist, dass hier UTC steht — bei einer Erinnerung, die
  * auf den Tag genau gemeint ist, faellt das nicht ins Gewicht.
  */
 function formatDay(iso: string): string {
@@ -128,7 +128,7 @@ export default function LinkedInList({
   // nicht unter dem Cursor wegspringt, waehrend man die Liste abarbeitet.
   const [justLogged, setJustLogged] = useState<Set<string>>(new Set());
   // Antworten getrennt von justLogged: eine Antwort ist kein "abgehakt",
-  // sondern ein anderer Zustand -- und die Zeile soll zeigen, welcher.
+  // sondern ein anderer Zustand — und die Zeile soll zeigen, welcher.
   const [justReplied, setJustReplied] = useState<Map<string, ReplyOutcome>>(new Map());
   // Ueberschreibt den Serverstand von lead.followUpDueAt: null heisst
   // "geschlossen", ein Datum heisst "neu gesetzt". Wie justLogged bewusst
@@ -166,13 +166,13 @@ export default function LinkedInList({
   }, []);
 
   // Arbeitsreihenfolge: offen vor erledigt, fertiger Icebreaker vor keinem,
-  // und ohne E-Mail-Adresse zuerst -- fuer die ist LinkedIn der einzige Weg.
+  // und ohne E-Mail-Adresse zuerst — fuer die ist LinkedIn der einzige Weg.
   const ordered = useMemo(
     () =>
       [...leads].sort((a, b) => {
         // Faellige Nachfassungen ganz nach oben: das ist die Arbeit, die heute
         // ansteht, und sie steckt sonst irgendwo im erledigten Teil der Liste
-        // -- also genau dort, wo niemand mehr hinschaut.
+        // — also genau dort, wo niemand mehr hinschaut.
         const aDue = isDue(a) ? 0 : 1;
         const bDue = isDue(b) ? 0 : 1;
         if (aDue !== bDue) return aDue - bDue;
@@ -220,7 +220,7 @@ export default function LinkedInList({
 
   /**
    * Kontaktaufnahme festhalten: eine erledigte Aktivitaet mit Kanal 'linkedin'
-   * (Migration 0057) und der tatsaechlich verschickte Text als Notiz -- damit
+   * (Migration 0057) und der tatsaechlich verschickte Text als Notiz — damit
    * spaeter nachvollziehbar ist, was dieser Kontakt gelesen hat, nicht nur
    * dass irgendetwas gesendet wurde.
    */
@@ -249,7 +249,7 @@ export default function LinkedInList({
     }
 
     // Status nachziehen wie beim Mailversand: ein angeschriebener Kontakt ist
-    // nicht mehr "neu". Nur anheben, nie zurueckstufen -- wer bereits
+    // nicht mehr "neu". Nur anheben, nie zurueckstufen — wer bereits
     // geantwortet hat, faellt sonst durch eine spaetere LinkedIn-Nachricht
     // wieder auf "kontaktiert" zurueck.
     if (lead.outreach_status === "new") {
@@ -262,12 +262,12 @@ export default function LinkedInList({
 
     // Erinnerung setzen: in FOLLOW_UP_DAYS Tagen nachschauen, ob geantwortet
     // wurde. Ohne sie muesste der Nutzer selbst im Kopf behalten, wen er wann
-    // angeschrieben hat, und auf gut Glueck in LinkedIn nachsehen -- die App
+    // angeschrieben hat, und auf gut Glueck in LinkedIn nachsehen — die App
     // bekommt von dort nichts mit.
     //
     // Die Aufgabe taucht dadurch auch in /calls auf (die Ansicht laedt alle
     // offenen Aktivitaeten mit due_at, nicht nur Anrufe) und blockiert
-    // Schritt 3 der Kette, bis sie erledigt ist -- erst nachschauen, dann
+    // Schritt 3 der Kette, bis sie erledigt ist — erst nachschauen, dann
     // anrufen. Beides faellt ohne eine Zeile Zusatzarbeit an.
     const dueAt = new Date(Date.now() + FOLLOW_UP_DAYS * 86_400_000).toISOString();
     const existing = followUpOf(lead);
@@ -295,7 +295,7 @@ export default function LinkedInList({
           })
         ).error;
 
-    // Die Nachricht IST protokolliert -- nur die Erinnerung fehlt. Das ist
+    // Die Nachricht IST protokolliert — nur die Erinnerung fehlt. Das ist
     // eine Meldung wert, aber kein Grund, den Erfolg zurueckzunehmen.
     if (followUpError) push(t.common.error + followUpError.message, "error");
     else setFollowUpOverride((prev) => new Map(prev).set(lead.id, dueAt));
@@ -313,7 +313,7 @@ export default function LinkedInList({
    * ═══════════════════════════════════════════════════════════════════════
    *
    * Diese Funktion ist die einzige Stelle, an der ein Mensch der App sagen
-   * kann, dass jemand ausserhalb der App geantwortet hat -- bei E-Mail
+   * kann, dass jemand ausserhalb der App geantwortet hat — bei E-Mail
    * uebernimmt das der Inbox-Sync, bei LinkedIn gibt es keine Schnittstelle.
    *
    * Der Status, den sie setzt, wirkt an drei Stellen weiter, ohne dass dort
@@ -361,7 +361,7 @@ export default function LinkedInList({
 
     // Anders als bei logSent wird hier auch heruntergestuft: wer bisher als
     // 'replied' galt und jetzt absagt, ist 'not_interested'. Eine Antwort ist
-    // immer die neuere Information -- sie kommt von einem Menschen, der die
+    // immer die neuere Information — sie kommt von einem Menschen, der die
     // Nachricht gerade gelesen hat.
     const { error: statusError } = await supabase
       .from("contacts")
@@ -369,7 +369,7 @@ export default function LinkedInList({
       .eq("id", lead.id);
     if (statusError) push(t.common.error + statusError.message, "error");
 
-    // Die Frage "hat er geantwortet?" ist beantwortet -- die Erinnerung dazu
+    // Die Frage "hat er geantwortet?" ist beantwortet — die Erinnerung dazu
     // hat sich erledigt.
     await closeFollowUp(lead.id);
 
@@ -379,7 +379,7 @@ export default function LinkedInList({
   }
 
   /**
-   * "Keine Antwort" -- die Erinnerung abhaken, ohne den Status anzufassen.
+   * "Keine Antwort" — die Erinnerung abhaken, ohne den Status anzufassen.
    *
    * Der Kontakt bleibt damit 'contacted' und faellt genau dorthin, wo er
    * hingehoert: in Schritt 3 der Kette (Anruf nach sieben Tagen) und, sobald
@@ -416,7 +416,7 @@ export default function LinkedInList({
 
         <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-edge2/60 pt-3 text-xs">
           <span className="text-soft">{L.progress(doneCount, leads.length)}</span>
-          {/* Der Filter erscheint nur, wenn es etwas zu filtern gibt -- eine
+          {/* Der Filter erscheint nur, wenn es etwas zu filtern gibt — eine
               Auswahl, die immer null Treffer hat, ist eine Sackgasse. */}
           {dueCount > 0 && (
             <label className="flex items-center gap-1.5 font-medium text-amber-600 dark:text-amber-400">
@@ -544,7 +544,7 @@ function LeadRow({
     [template, lead]
   );
 
-  // Der Text ist pro Zeile aenderbar, ohne die Vorlage anzufassen -- fuer den
+  // Der Text ist pro Zeile aenderbar, ohne die Vorlage anzufassen — fuer den
   // einen Kontakt, bei dem der Icebreaker nicht ganz passt. Wird die Vorlage
   // geaendert, gewinnt wieder die Vorlage.
   const [edited, setEdited] = useState<string | null>(null);
@@ -662,7 +662,7 @@ function LeadRow({
           disabled={busy}
           className="rounded-lg border border-edge2 px-3 py-1.5 text-xs text-soft transition-colors hover:border-sky-500/60 hover:text-sky-600 disabled:opacity-40 dark:hover:text-sky-400"
         >
-          {/* Das Zeichen sagt, dass hier etwas aufgeht -- ohne es sah der
+          {/* Das Zeichen sagt, dass hier etwas aufgeht — ohne es sah der
               Knopf aus, als wuerde er direkt etwas eintragen, und die drei
               Ergebnisse dahinter fand man nicht. */}
           {replied ? L.replyChange : L.replyButton} <span aria-hidden>{replyOpen ? "▴" : "▾"}</span>

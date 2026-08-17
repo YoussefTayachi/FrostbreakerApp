@@ -7,7 +7,7 @@ import GuideView from "./guide-view";
  * Hilfe-Bereich.
  *
  * Die Onboarding-Checkliste auf dem Dashboard sagt, WAS zu tun ist ("API-Key
- * hinterlegen", "Kampagne anlegen"). Sie erklaert aber nicht, WARUM -- und
+ * hinterlegen", "Kampagne anlegen"). Sie erklaert aber nicht, WARUM — und
  * genau daran scheitert ein Laie: dass man Kaltakquise nicht ueber die
  * Hauptdomain verschickt und dass Warmup Wochen dauert, steht nirgends, ist
  * aber der Unterschied zwischen funktionierendem Outreach und einer verbrannten

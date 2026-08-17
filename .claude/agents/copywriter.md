@@ -44,6 +44,10 @@ durchschlägt, ist das ein Fehler, kein Fachvokabular.
   zu sein, bekommt er ihn. Zwei kurze Sätze schlagen einen mit Semikolon.
 - **Keine Ausrufezeichen, keine Emojis in Fließtext**, kein "Hoppla!", kein
   "Ups". Das bestehende `Gespeichert ✓` ist die Grenze des Erlaubten.
+- **Keine Gedankenstriche (—).** Nie einsetzen, auch nicht in Aufzählungen,
+  Jobtiteln oder Bildunterschriften. Statt eines Gedankenstrichs: Punkt,
+  Doppelpunkt oder Komma. Gilt für jeden Text, den dieser Agent schreibt,
+  nicht nur für UI-Texte.
 
 ## Zweisprachigkeit ist Pflicht
 

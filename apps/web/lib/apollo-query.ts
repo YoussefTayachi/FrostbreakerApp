@@ -5,7 +5,7 @@
 // Grund ist der Trefferzaehler: er zaehlt nur dann die Wahrheit, wenn er exakt
 // dieselbe Anfrage stellt wie der Worker spaeter beim echten Lauf. Weicht auch
 // nur ein Feld ab, verspricht die Oberflaeche eine Zahl, die die Suche nicht
-// einloest -- schlimmer als gar keine Zahl.
+// einloest — schlimmer als gar keine Zahl.
 //
 // Warum die Konstanten hier und nicht im Formular stehen: sie werden an zwei
 // Stellen gebraucht (Formular und Zaehler-Route). Eine dritte Kopie waere genau
@@ -13,7 +13,7 @@
 
 /**
  * Apollos organization_locations erwartet ausgeschriebene englische Namen,
- * nicht ISO-Codes -- deshalb eine eigene Zuordnung statt der lokalisierten
+ * nicht ISO-Codes — deshalb eine eigene Zuordnung statt der lokalisierten
  * Labels aus dem Woerterbuch (die je nach UI-Sprache "Deutschland" oder
  * "Germany" waeren und Apollo im ersten Fall nichts liefern).
  *
@@ -51,7 +51,7 @@ export const APOLLO_SENIORITIES = [
 ] as const;
 
 /** Vorauswahl: die Stufen, die ueblicherweise entscheiden. Greift auch als
- *  Rueckfall, wenn nach dem Filtern nichts Gueltiges uebrig bleibt -- eine
+ *  Rueckfall, wenn nach dem Filtern nichts Gueltiges uebrig bleibt — eine
  *  Suche ganz ohne Senioritaet wuerde quer durch alle Hierarchiestufen
  *  Credits verbrauchen. Spiegelt DECISIONMAKER_SENIORITIES im Worker. */
 export const APOLLO_DEFAULT_SENIORITIES = [
@@ -141,7 +141,7 @@ export function employeeRange(headcount: string | null | undefined): string | nu
 }
 
 /** True, wenn ueberhaupt ein Filter gesetzt ist. Ohne einen einzigen Filter
- *  waere die Anfrage "alle Menschen mit verifizierter Adresse" -- der Worker
+ *  waere die Anfrage "alle Menschen mit verifizierter Adresse" — der Worker
  *  weist das ab, und der Zaehler soll gar nicht erst danach fragen. */
 export function hasAnyApolloFilter(filters: ApolloFilters): boolean {
   return (
@@ -155,7 +155,7 @@ export function hasAnyApolloFilter(filters: ApolloFilters): boolean {
 }
 
 /** Nur Apollos eigene elf Werte durchlassen. Ein unbekannter Wert wuerde von
- *  Apollo stillschweigend ignoriert -- dann zaehlte die Oberflaeche mit einem
+ *  Apollo stillschweigend ignoriert — dann zaehlte die Oberflaeche mit einem
  *  Filter, den die Suche gar nicht anwendet. */
 function validMarketSegments(raw: string[] | null | undefined): string[] {
   if (!Array.isArray(raw)) return [];
@@ -202,7 +202,7 @@ export function buildApolloSearchBody(
     body.currently_using_any_of_technology_uids = [...new Set(technologies.map((t) => t.trim()))];
   }
   // Mehrere Segmente sind bei Apollo ein ODER (nachgemessen, siehe
-  // APOLLO_MARKET_SEGMENTS) -- genau richtig fuer "B2B oder SaaS".
+  // APOLLO_MARKET_SEGMENTS) — genau richtig fuer "B2B oder SaaS".
   const segments = validMarketSegments(filters.market_segments);
   if (segments.length > 0) body.market_segments = segments;
   return body;

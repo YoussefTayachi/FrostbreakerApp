@@ -9,7 +9,7 @@ import { useRouter } from "next/navigation";
  * und wenn keine mehr laufen, verschwindet die Komponente von selbst. Die
  * Suchdetail-Seite braucht die Grenze, weil ihre Bedingung "eine Firma ohne
  * Aufhaenger" auch dann wahr bleibt, wenn der Job endgueltig gescheitert ist
- * -- ohne Grenze wuerde der Tab bis zum naechsten Neustart alle fuenf
+ * — ohne Grenze wuerde der Tab bis zum naechsten Neustart alle fuenf
  * Sekunden die Seite neu holen.
  */
 export default function AutoRefresh({

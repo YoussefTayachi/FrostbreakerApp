@@ -1,7 +1,7 @@
 """Unit-Tests fuer worker.email_classify (kein Netz, keine DB).
 
 Hintergrund: sayhello@magnetik.com wurde als personenbezogen eingestuft und
-landete so in einer Lead-Liste -- obwohl die App ausdruecklich verspricht, nur
+landete so in einer Lead-Liste — obwohl die App ausdruecklich verspricht, nur
 persoenliche Adressen zu liefern und keine info@/office@-Sammelpostfaecher.
 """
 from worker.email_classify import classify_email

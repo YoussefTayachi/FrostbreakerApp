@@ -74,7 +74,7 @@ describe("warmupInfo", () => {
 
 describe("readyDate", () => {
   it("richtet sich nach dem zuletzt gestarteten Postfach", () => {
-    // Die Frage lautet "ab wann kann ich senden?" -- und das entscheidet das
+    // Die Frage lautet "ab wann kann ich senden?" — und das entscheidet das
     // juengste Postfach, nicht das aelteste.
     const date = readyDate(
       [

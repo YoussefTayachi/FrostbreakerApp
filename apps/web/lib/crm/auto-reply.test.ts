@@ -52,7 +52,7 @@ describe("detectAutoReply", () => {
   });
 
   // Wendungen aus einer zitierten Originalmail weit unten duerfen nicht
-  // greifen -- geprueft wird nur der Anfang des Textes.
+  // greifen — geprueft wird nur der Anfang des Textes.
   it("greift nicht auf eine Wendung tief im Zitat", () => {
     const body = "Klingt gut!\n\n" + "x".repeat(600) + "\nI am currently out of the office";
     expect(detectAutoReply("Re: Termin", body).autoReply).toBe(false);

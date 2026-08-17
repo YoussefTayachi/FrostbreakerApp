@@ -6,7 +6,7 @@
  * Weil dieses Feld festhaelt, was zum ZEITPUNKT DER ERZEUGUNG galt, und die
  * Regeln sich seither geaendert haben. Am 2026-08-02 wurde korrigiert, dass
  * ein Bindestrich INNERHALB eines Wortes ("third-party", "NSF-certified")
- * faelschlich als verbotenes Satzzeichen zaehlte -- an zwei Suchen betraf das
+ * faelschlich als verbotenes Satzzeichen zaehlte — an zwei Suchen betraf das
  * 66 von 69 Zeilen. Jede davon traegt bis heute die Markierung, obwohl sie
  * nach den geltenden Regeln in Ordnung ist.
  *
@@ -18,7 +18,7 @@
  *
  * Die letzte Zeile ist der Grund, warum hier neu gerechnet und nicht nur
  * gefiltert wird: es gibt Zeilen, die nie markiert wurden und trotzdem gegen
- * die aktuellen Vorgaben verstossen -- ein reiner Filter auf das Flag wuerde
+ * die aktuellen Vorgaben verstossen — ein reiner Filter auf das Flag wuerde
  * sie nie zeigen. Eine Pruefliste, die Faelle uebersieht, ist schlimmer als
  * keine, weil sie das Gefuehl vermittelt, man haette alles gesehen.
  *
@@ -47,9 +47,9 @@ export type IcebreakerRow = {
 };
 
 /**
- * failing -- verstoesst gegen die geltenden Vorgaben, muss angefasst werden.
- * stale   -- traegt die Markierung, ist nach heutigen Regeln aber sauber.
- * clean   -- unauffaellig.
+ * failing — verstoesst gegen die geltenden Vorgaben, muss angefasst werden.
+ * stale   — traegt die Markierung, ist nach heutigen Regeln aber sauber.
+ * clean   — unauffaellig.
  */
 export type IcebreakerState = "failing" | "stale" | "clean";
 
@@ -61,7 +61,7 @@ export type IcebreakerVerdict = {
   /** Menschenlesbar und in der Sprache der Oberflaeche, siehe validateIcebreaker. */
   problems: string[];
   state: IcebreakerState;
-  /** Was in der Datenbank steht -- fuer die Erklaerung "warum steht das hier". */
+  /** Was in der Datenbank steht — fuer die Erklaerung "warum steht das hier". */
   wasFlagged: boolean;
 };
 
@@ -74,13 +74,13 @@ export type ReviewSettings = {
 /**
  * Die Verbotswoerter des Workspaces aus dem gespeicherten Textfeld lesen.
  *
- * Gespeichert wird eine Zeile wie "—, -, --," -- also mit Leerzeichen und,
+ * Gespeichert wird eine Zeile wie "—, -, --," — also mit Leerzeichen und,
  * wie das echte Feld dieses Workspaces zeigt, gern mit einem Komma am Ende.
  * Leere Stuecke muessen dabei rausfallen: ein leerer Eintrag wuerde in der
  * Pruefung als "kommt in jedem Text vor" durchschlagen und JEDE Zeile als
  * fehlerhaft melden.
  *
- * Ohne eigene Vorgabe gilt die Voreinstellung -- dieselbe, mit der der Worker
+ * Ohne eigene Vorgabe gilt die Voreinstellung — dieselbe, mit der der Worker
  * erzeugt hat.
  */
 export function parseBannedWords(raw: string | null | undefined): string[] {
@@ -148,7 +148,7 @@ export function summarizeReview(verdicts: IcebreakerVerdict[]): ReviewSummary {
 /**
  * Arbeitsreihenfolge: die schlimmsten Ausreisser zuerst.
  *
- * Innerhalb der fehlerhaften nach Wortzahl absteigend -- wer 45 Woerter bei
+ * Innerhalb der fehlerhaften nach Wortzahl absteigend — wer 45 Woerter bei
  * erlaubten 22 hat, ist ein anderer Fall als wer 23 hat, und der erste ist
  * die Zeile, bei der sich das Nachbessern lohnt.
  */

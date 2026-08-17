@@ -2,7 +2,7 @@
 // auch Hunters Domain-Search (bis zu 5 Personen, nur Maps-Modus) finden
 // bewusst mehrere moegliche Ansprechpartner pro Firma, um die Chance auf einen
 // echten Entscheider zu maximieren. Beim Kampagnen-Versand darf davon aber nur
-// EINE Person tatsaechlich angeschrieben werden -- alle Mitarbeitenden
+// EINE Person tatsaechlich angeschrieben werden — alle Mitarbeitenden
 // anzuschreiben waere Spam und schadet der Zustellbarkeit. Diese Rangliste
 // waehlt pro Firma die ranghoechste Person nach Jobtitel.
 // Reihenfolge ist hier Pruef-Reihenfolge, nicht Rang-Reihenfolge: "Vice
@@ -26,7 +26,7 @@ const TITLE_RANK: { pattern: RegExp; rank: number }[] = [
 
 /**
  * Verifizierungs-Status, bei denen ein Versand der Absender-Reputation aktiv
- * schadet -- unabhaengig davon, ob Hunter oder NeverBounce ihn gesetzt hat:
+ * schadet — unabhaengig davon, ob Hunter oder NeverBounce ihn gesetzt hat:
  *
  *   invalid    Postfach existiert nachweislich nicht -> garantierter Bounce
  *   disposable Wegwerf-Adresse -> haeufig Spamtrap, nie ein echter Empfaenger
@@ -34,13 +34,13 @@ const TITLE_RANK: { pattern: RegExp; rank: number }[] = [
  * Bewusst NICHT gefiltert:
  *   catchall/accept_all  Domain nimmt alles an, zaehlt nicht als Bounce
  *   unknown              Server hat nicht eindeutig geantwortet (oft nur ein
- *                        Timeout) -- ein Ausschluss waere hier eine Wette
+ *                        Timeout) — ein Ausschluss waere hier eine Wette
  *                        gegen den Lead, keine belegte Aussage
  *   null                 noch nicht geprueft; wer nie verifiziert, soll nicht
  *                        stillschweigend eine leere Kampagne bekommen
  *
  * Bis hierhin filterte die Kampagnen-Erstellung nur Sperrliste und "kein
- * Interesse" -- das Verifizierungsergebnis blieb ungenutzt, obwohl es genau
+ * Interesse" — das Verifizierungsergebnis blieb ungenutzt, obwohl es genau
  * dafuer erhoben wird.
  */
 const UNSENDABLE_STATUS = new Set(["invalid", "disposable"]);
@@ -63,7 +63,7 @@ export function splitBySendability<T extends { email_verification_status: string
 }
 
 /**
- * Zustaende, in denen eine Kalt-Mail nicht mehr rausgehen darf -- KANALUNABHAENGIG.
+ * Zustaende, in denen eine Kalt-Mail nicht mehr rausgehen darf — KANALUNABHAENGIG.
  *
  *   replied         hat geantwortet, egal ueber welchen Weg
  *   meeting_booked  Termin steht; eine Kaltakquise-Mail waere jetzt peinlich
@@ -71,14 +71,14 @@ export function splitBySendability<T extends { email_verification_status: string
  *   not_interested  hat abgesagt
  *
  * Der eigentliche Grund fuer diese Liste ist der Mehrkanal-Fall: wer auf
- * LinkedIn geantwortet hat, steht danach auf 'replied' -- und faellt damit
+ * LinkedIn geantwortet hat, steht danach auf 'replied' — und faellt damit
  * automatisch aus jeder E-Mail-Kampagne, ohne dass irgendwo das Wort
  * "LinkedIn" vorkommt. Genau deshalb haengt die Regel am Status und nicht an
  * einem Kanal-Merkmal: der naechste Kanal (Telefon) braucht dann keine zweite
  * Regel, und keine Auswertung muss zwei Wahrheiten kennen.
  *
  * 'contacted' fehlt hier bewusst: angeschrieben heisst nicht reagiert. Wer per
- * LinkedIn kontaktiert wurde und schweigt, SOLL die Mail bekommen -- das ist
+ * LinkedIn kontaktiert wurde und schweigt, SOLL die Mail bekommen — das ist
  * der ganze Sinn der Kette.
  *
  * Bis hierhin filterte nur die Kampagnen-Erstellung, und die nur
@@ -115,7 +115,7 @@ export function rankContactTitle(title: string | null | undefined): number {
 /**
  * Reduziert eine Kontaktliste auf maximal eine Person pro Firma. Ist bei einer
  * Firma ein Kontakt manuell als is_primary markiert (Nutzer hat ihn im
- * Leads-Drawer explizit ausgewaehlt), gewinnt dieser immer -- unabhaengig vom
+ * Leads-Drawer explizit ausgewaehlt), gewinnt dieser immer — unabhaengig vom
  * Titel. Sonst entscheidet weiterhin rankContactTitle, bei Gleichstand
  * gewinnt die zuerst uebergebene Person (stabil). Kontakte ohne business_id
  * bleiben unveraendert erhalten (kann bei Aufrufern vorkommen, die das Feld

@@ -6,12 +6,12 @@ import type { Lang } from "@/lib/i18n/lang";
  * Warnung, wenn der Worker nicht mehr lebt (Migration 0058).
  *
  * Der Worker laeuft auf Railway und ist von aussen unsichtbar. Faellt er aus,
- * werden Jobs weiter eingereiht und nur nicht mehr abgeholt -- eine gestartete
+ * werden Jobs weiter eingereiht und nur nicht mehr abgeholt — eine gestartete
  * Suche sieht in der App dann exakt so aus wie eine laufende, dauerhaft.
  * Genau das ist am 2026-08-13 zu erwarten, wenn das Railway-Guthaben ausläuft.
  *
  * ABSICHTLICH STUMM IM NORMALFALL. Ein Dashboard, das bei jedem Aufruf "alles
- * in Ordnung" meldet, erzieht dazu, Banner zu ueberlesen -- und dann wird auch
+ * in Ordnung" meldet, erzieht dazu, Banner zu ueberlesen — und dann wird auch
  * der eine ernste ueberlesen. Angezeigt wird nur:
  *
  *   - der Worker hat sich schon einmal gemeldet, meldet sich aber nicht mehr
@@ -32,7 +32,7 @@ export type WorkerHealth = {
 };
 
 // Ab wann ist ein Rueckstau ein Rueckstau? Ein paar wartende Jobs sind der
-// Normalfall, waehrend der Worker sie abarbeitet -- bei einer frisch
+// Normalfall, waehrend der Worker sie abarbeitet — bei einer frisch
 // gestarteten Suche stehen sofort dutzende in der Reihe. Erst eine dreistellige
 // Zahl bei lebendem Worker deutet auf ein echtes Problem hin.
 const BACKLOG_THRESHOLD = 100;
@@ -96,7 +96,7 @@ export default function WorkerStatus({
   const down = health.ever_seen && !health.any_alive;
   const backlog = health.any_alive && health.pending_overdue >= BACKLOG_THRESHOLD;
   // Einzelne tote Instanz bei mehreren: die Arbeit laeuft weiter, aber
-  // langsamer -- eine Notiz wert, kein Alarm.
+  // langsamer — eine Notiz wert, kein Alarm.
   const partial = health.any_alive && health.workers.some((w) => !w.alive);
 
   if (!down && !backlog && !partial) return null;

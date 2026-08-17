@@ -75,7 +75,7 @@ export type Activity = {
  * Frueher gab es dafuer nur supportsOutcome() mit der Regel "nur beim Anruf".
  * Mit 'message' als Typ reicht das nicht mehr: eine Direktnachricht hat sehr
  * wohl ein Ergebnis, aber nicht dasselbe wie ein Anruf. "Mailbox" ergibt bei
- * einer LinkedIn-DM keinen Sinn, und "erreicht" auch nicht -- verschickt ist
+ * einer LinkedIn-DM keinen Sinn, und "erreicht" auch nicht — verschickt ist
  * nicht gelesen. Uebrig bleibt, was man an einer Antwort ablesen kann, plus
  * "keine Antwort" fuer den haeufigsten Ausgang.
  *
@@ -133,5 +133,5 @@ export function isOverdue(activity: Pick<Activity, "due_at" | "completed_at">, n
 // Bewusst KEINE Funktion "welche Kanaele hat dieser Kontakt hinterlegt":
 // Der Composer protokolliert, was tatsaechlich passiert ist. Wer jemanden auf
 // einer Messe getroffen oder unter einer anderswo gefundenen Nummer angerufen
-// hat, muss das eintragen koennen -- eine Einschraenkung auf gespeicherte
+// hat, muss das eintragen koennen — eine Einschraenkung auf gespeicherte
 // Felder wuerde genau diese Faelle blockieren. Die Auswahl bleibt vollstaendig.

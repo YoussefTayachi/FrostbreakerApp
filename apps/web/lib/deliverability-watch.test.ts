@@ -54,7 +54,7 @@ describe("domainChange — nur der Uebergang wird gemeldet", () => {
   /**
    * Eine seit Wochen kaputte Domain jeden Tag erneut zu melden ist die
    * zuverlaessigste Art, dafuer zu sorgen, dass die Meldung weggeklickt wird
-   * -- und mit ihr die vom Tag, an dem etwas Neues passiert.
+   * — und mit ihr die vom Tag, an dem etwas Neues passiert.
    */
   it("meldet einen anhaltenden Bruch nicht erneut", () => {
     expect(domainChange(dom({ spf: false }), dom({ spf: false }))).toBe("still_broken");

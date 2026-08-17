@@ -11,6 +11,6 @@ export async function sendSlackNotification(text: string): Promise<void> {
       body: JSON.stringify({ text }),
     });
   } catch {
-    // still schlucken -- siehe Kommentar oben
+    // still schlucken — siehe Kommentar oben
   }
 }

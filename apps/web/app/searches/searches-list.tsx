@@ -21,14 +21,14 @@ import { CancelButton, TrashButton } from "./search-actions";
  * WARUM ES DAS GIBT
  * ═══════════════════════════════════════════════════════════════════════
  *
- * Ein Kunde am 2026-08-10 wollte aufraeumen und griff zum Loeschen -- und
+ * Ein Kunde am 2026-08-10 wollte aufraeumen und griff zum Loeschen — und
  * merkte dann, dass die Listen danach fuer LinkedIn und Instantly weg sind.
  * Was er nicht sehen konnte: eine geloeschte Suche nimmt auch ihre Firmen aus
  * dem Dublettenschutz, jede unkontaktierte davon ist danach wieder einkaufbar
  * (siehe Migration 0089). Aufraeumen kostete Geld.
  *
  * Deshalb drei Dinge, die es vorher nicht gab: archivieren statt loeschen,
- * Ordner fuer viele Listen, und eine Filterleiste -- bei dreissig Listen ist
+ * Ordner fuer viele Listen, und eine Filterleiste — bei dreissig Listen ist
  * die Textsuche mehr wert als jede Struktur.
  *
  * Client-Komponente, weil Filtern und Umsortieren ohne Serverrunde laufen
@@ -89,7 +89,7 @@ export default function SearchesList({
   }
 
   /**
-   * Eine Aenderung auf die ausgewaehlten Listen -- und auf ihre Teilsuchen.
+   * Eine Aenderung auf die ausgewaehlten Listen — und auf ihre Teilsuchen.
    *
    * groupScopeFilter statt .in("id", ids): eine gebuendelte Mehrfach-Suche ist
    * eine Zeile in der Anzeige, aber n+1 Zeilen in der Datenbank (Migration
@@ -136,7 +136,7 @@ export default function SearchesList({
    * Mehrere Listen in einem Zug in den Papierkorb.
    *
    * Auswaehlen konnte man hier schon immer, loeschen nur einzeln ueber den
-   * Knopf in der Zeile -- bei zwoelf Listen also zwoelf Klicks und zwoelf
+   * Knopf in der Zeile — bei zwoelf Listen also zwoelf Klicks und zwoelf
    * Rueckfragen. Gemeldet am 2026-08-14.
    *
    * Dieselbe Wirkung wie TrashButton (search-actions.tsx), inklusive
@@ -323,7 +323,7 @@ export default function SearchesList({
         </button>
       </div>
 
-      {/* Sammelaktionen. Erscheinen erst mit der Auswahl -- eine Leiste, die
+      {/* Sammelaktionen. Erscheinen erst mit der Auswahl — eine Leiste, die
           immer da ist und meistens nichts tut, kostet nur Platz. */}
       {gewaehlt.size > 0 && (
         <div className="flex flex-wrap items-center gap-2 rounded-lg border border-sky-500/40 bg-sky-500/5 px-3 py-2">
@@ -461,11 +461,11 @@ function SearchRow({
   const bounceRate =
     stat && stat.emails_sent_count > 0 ? (stat.bounced_count / stat.emails_sent_count) * 100 : null;
   const folder = folders.find((f) => f.id === s.folder_id);
-  /** Gruppe, bei der einzelne Teilsuchen ausgefallen sind -- der Rest der
+  /** Gruppe, bei der einzelne Teilsuchen ausgefallen sind — der Rest der
    *  Liste ist vollstaendig und soll nicht wie ein Totalausfall aussehen. */
   const teilausfall = s.is_search_group && s.children_failed > 0 && s.status !== "failed";
 
-  // Die ganze Zeile bleibt ein Link auf die Liste -- das ist der Weg, den
+  // Die ganze Zeile bleibt ein Link auf die Liste — das ist der Weg, den
   // jemand neunmal von zehn geht. Alles, was daneben klickbar ist, muss den
   // Klick deshalb ausdruecklich anhalten.
   const stop = (e: React.MouseEvent) => {
@@ -575,7 +575,7 @@ function SearchRow({
           ) : s.status !== "completed" ? (
             // Bei einer Gruppe sagt "Firmen werden gesucht" allein nichts: das
             // steht bei sechzig Teilsuchen unter Umstaenden eine Stunde lang
-            // da. Der Balken zaehlt die fertigen Teilsuchen -- die einzige
+            // da. Der Balken zaehlt die fertigen Teilsuchen — die einzige
             // Zahl, die sich hier sichtbar bewegt.
             s.is_search_group && s.child_count > 0 ? (
               <div title={S.groupProgress(s.children_done, s.child_count)}>
@@ -652,7 +652,7 @@ function SearchRow({
           Grund der einen gilt fuer die anderen neunundfuenfzig nicht
           (Migration 0096). Deshalb steht die Gruppe auch nur dann auf
           "fehlgeschlagen", wenn ALLE Teilsuchen gescheitert sind. Der Grund
-          aus jobs.last_error haengt hinten dran -- er stammt von einer der
+          aus jobs.last_error haengt hinten dran — er stammt von einer der
           ausgefallenen Teilsuchen und erklaert in der Regel alle. */}
       {teilausfall ? (
         <p className="mt-3 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs leading-relaxed text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">

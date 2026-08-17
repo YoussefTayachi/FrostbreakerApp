@@ -13,13 +13,13 @@ import { getApiKey } from "@/lib/api-keys";
  * ohne Kontingent zu verbrennen.
  *
  * Bei Apollo uebernimmt diese Rolle /auth/health. Prospeo hat keinen eigenen
- * Health-Endpunkt, deshalb der Umweg -- der Effekt ist derselbe.
+ * Health-Endpunkt, deshalb der Umweg — der Effekt ist derselbe.
  *
  * Beantwortet ausdruecklich NICHT, ob der Tarif die benutzten Filter
  * freigibt. Der Technologie-Filter braucht Starter, der Website-Traffic Pro;
  * ein gueltiger Key kann hier also "ok" melden und die Suche trotzdem mit
  * einem Tarif-Fehler abbrechen. Die Antwort sagt "Key gueltig", nicht
- * "alles bereit" -- genau wie bei Apollo.
+ * "alles bereit" — genau wie bei Apollo.
  *
  * Die Kontingent-Zaehler nimmt die Antwort gleich mit: Prospeo schickt bei
  * jeder Anfrage mit, wie viel heute und in dieser Minute noch frei ist. Das
@@ -46,7 +46,7 @@ export async function POST() {
         "Content-Type": "application/json",
         Accept: "application/json",
       },
-      // Irgendein billiger Suchbegriff -- es geht nur darum, ob der Schluessel
+      // Irgendein billiger Suchbegriff — es geht nur darum, ob der Schluessel
       // angenommen wird.
       body: JSON.stringify({ technology_search: "sh" }),
       signal: AbortSignal.timeout(15000),
@@ -57,7 +57,7 @@ export async function POST() {
     }
     if (res.status === 429) {
       // Der Schluessel ist gueltig, nur gerade gedrosselt. Das als "abgelehnt"
-      // zu melden waere die falsche Auskunft -- der Nutzer wuerde einen
+      // zu melden waere die falsche Auskunft — der Nutzer wuerde einen
       // funktionierenden Key austauschen.
       return NextResponse.json({ ok: true, reason: "rate_limited" });
     }

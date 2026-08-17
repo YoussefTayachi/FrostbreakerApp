@@ -12,25 +12,25 @@
  *
  * Der Worker macht dasselbe mit `trafilatura` (personalize.py,
  * _safe_website_text). In TypeScript gibt es dafuer kein Gegenstueck, das
- * ohne DOM auskommt -- und ein DOM-Parser waere hier ein
+ * ohne DOM auskommt — und ein DOM-Parser waere hier ein
  * Abhaengigkeits-Zuwachs fuer eine Aufgabe, die kein Parsen im engeren Sinn
  * ist: es wird nichts navigiert, nichts selektiert, es wird weggeworfen.
  *
  * Regulaere Ausdruecke sind fuer *korrektes* HTML-Parsen die falsche Wahl.
  * Fuer "alles zwischen spitzen Klammern faellt raus" sind sie genau richtig,
  * und der schlimmste denkbare Fehler ist ein Textschnipsel zu viel oder zu
- * wenig im Prompt -- nicht eine falsch gerenderte Seite.
+ * wenig im Prompt — nicht eine falsch gerenderte Seite.
  *
  * WAS BEWUSST DRIN BLEIBT
  *
  * `<header>` wird NICHT entfernt, obwohl das nach Navigation klingt. Bei den
  * meisten Firmenseiten steht genau dort die Kernaussage ("Wir bauen X fuer
- * Y") -- also das wertvollste Stueck der ganzen Seite. Entfernt werden nur
+ * Y") — also das wertvollste Stueck der ganzen Seite. Entfernt werden nur
  * `<nav>` und `<footer>`, die zuverlaessig aus Linklisten bestehen.
  */
 
 /** Deckel fuer den Text, der ins Modell geht. Der Worker nimmt 6000 fuer einen
- *  einzelnen Satz; hier sollen sieben Felder entstehen, deshalb mehr -- aber
+ *  einzelnen Satz; hier sollen sieben Felder entstehen, deshalb mehr — aber
  *  weit unterhalb dessen, wo Kosten und Aufmerksamkeit des Modells kippen. */
 export const MAX_SITE_CHARS = 12_000;
 
@@ -50,7 +50,7 @@ export type WebsiteContent = {
 
 const BLOCK_ELEMENTS = /<\/?(p|div|br|li|tr|h[1-6]|section|article|header|main|td)\b[^>]*>/gi;
 
-/** Elemente, deren INHALT komplett weg soll -- nicht nur die Tags. */
+/** Elemente, deren INHALT komplett weg soll — nicht nur die Tags. */
 const DROPPED_WITH_CONTENT =
   /<(script|style|noscript|svg|iframe|template|nav|footer|form|select)\b[^>]*>[\s\S]*?<\/\1>/gi;
 
@@ -86,7 +86,7 @@ function decodeEntities(s: string): string {
   for (const [entity, replacement] of Object.entries(ENTITIES)) {
     out = out.split(entity).join(replacement);
   }
-  // Numerische Entities (&#8217; und &#x27;) -- die streuen echte Seiten
+  // Numerische Entities (&#8217; und &#x27;) — die streuen echte Seiten
   // reichlich, vor allem Apostrophe aus Textverarbeitungen.
   out = out.replace(/&#(\d{1,6});/g, (_, code) => String.fromCodePoint(Number(code)));
   out = out.replace(/&#x([0-9a-fA-F]{1,6});/g, (_, code) => String.fromCodePoint(parseInt(code, 16)));
@@ -112,7 +112,7 @@ export function htmlToText(html: string, maxChars: number = MAX_SITE_CHARS): str
   // Jede Folge von Umbruechen wird EIN Umbruch. Verschachtelte Blockelemente
   // erzeugen sonst Kaskaden von Leerzeilen (<div><p>Text</p></div> waeren
   // schon drei), und eine Leerzeile sagt dem Modell nichts, was der einfache
-  // Umbruch nicht auch sagt -- sie kostet nur Zeichen im Deckel.
+  // Umbruch nicht auch sagt — sie kostet nur Zeichen im Deckel.
   s = s.replace(/[ \t]*\n\s*/g, "\n");
   return s.trim().slice(0, maxChars);
 }
@@ -173,7 +173,7 @@ export function normalizeWebsiteUrl(input: string): string | null {
 }
 
 /** Wie lange auf die fremde Seite gewartet wird. Grosszuegiger als noetig,
- *  aber weit unter dem maxDuration der aufrufenden Routen -- der Modellaufruf
+ *  aber weit unter dem maxDuration der aufrufenden Routen — der Modellaufruf
  *  braucht danach auch noch Zeit. */
 export const SEITEN_TIMEOUT_MS = 12_000;
 
@@ -191,7 +191,7 @@ export type WebsiteFetchResult =
  * Kennzeichner, zwei Zeitlimits und zwei Fassungen der Frage, ab wann eine
  * Seite zu duenn ist.
  *
- * Die Fehlertexte sind Deutsch und gehen unveraendert an den Nutzer -- sie
+ * Die Fehlertexte sind Deutsch und gehen unveraendert an den Nutzer — sie
  * sagen ihm, was zu tun ist.
  */
 export async function fetchWebsiteContent(url: string): Promise<WebsiteFetchResult> {

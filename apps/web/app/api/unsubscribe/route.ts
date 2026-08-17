@@ -3,7 +3,7 @@ import { createServiceClient } from "@/lib/supabase/service";
 
 // Oeffentlicher Opt-out-Endpunkt, per Link direkt in der Kampagnen-Mail
 // aufgerufen (siehe "Abmelde-Link" in campaign-step-card.tsx). Der Empfaenger
-// hat keine Session -- deshalb Service-Role-Client statt der RLS-gebundenen
+// hat keine Session — deshalb Service-Role-Client statt der RLS-gebundenen
 // Clients, und die Route ist in middleware.ts von der Login-Pflicht
 // ausgenommen (wie api/billing/webhook und api/cron/*).
 //
@@ -31,14 +31,14 @@ export async function GET(req: Request) {
     const supabase = createServiceClient();
     // ignoreDuplicates: bereits blockierte Adressen (z.B. schon manuell
     // geblockt) sollen keinen Fehler auf einen erneuten Klick auf denselben
-    // Link ausloesen -- das Ziel (nie wieder kontaktiert werden) ist so oder
+    // Link ausloesen — das Ziel (nie wieder kontaktiert werden) ist so oder
     // so schon erreicht.
     const { error } = await supabase
       .from("suppression_list")
       .upsert({ workspace_id: ws, email, reason: "unsubscribed" }, { onConflict: "workspace_id,email", ignoreDuplicates: true });
     redirectTo.searchParams.set("status", error ? "error" : "ok");
   } catch {
-    // z.B. fehlende SUPABASE_SERVICE_ROLE_KEY -- der Empfaenger soll eine
+    // z.B. fehlende SUPABASE_SERVICE_ROLE_KEY — der Empfaenger soll eine
     // ordentliche Meldung sehen statt einer rohen 500-Seite.
     redirectTo.searchParams.set("status", "error");
   }

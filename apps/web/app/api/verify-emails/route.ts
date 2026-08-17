@@ -49,7 +49,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Kein NeverBounce-Key in den Einstellungen hinterlegt." }, { status: 400 });
   }
 
-  // Nur eigene, noch unverifizierte Kontakte mit E-Mail -- verhindert doppelte
+  // Nur eigene, noch unverifizierte Kontakte mit E-Mail — verhindert doppelte
   // Kosten fuer bereits von Hunter verifizierte Kontakte.
   const { data: contacts } = await supabase
     .from("contacts")
@@ -78,7 +78,7 @@ export async function POST(req: Request) {
     }
   }
 
-  // Gezaehlt wird, was NeverBounce tatsaechlich geprueft hat -- fehlgeschlagene
+  // Gezaehlt wird, was NeverBounce tatsaechlich geprueft hat — fehlgeschlagene
   // Aufrufe berechnet der Anbieter nicht. Vorher tauchte NeverBounce in der
   // Kostenrechnung ueberhaupt nicht auf.
   if (summary.checked > 0) {

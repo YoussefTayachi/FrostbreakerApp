@@ -9,7 +9,7 @@ import {
 describe("plainTextToInstantlyHtml", () => {
   it("maskiert das kaufmaennische Und", () => {
     // Der eigentliche Fehler: ein einziges "&" liess Instantly den kompletten
-    // Body als leeren String speichern -- bei HTTP 200, also unbemerkt.
+    // Body als leeren String speichern — bei HTTP 200, also unbemerkt.
     const html = plainTextToInstantlyHtml("paying a tool & a fee");
     expect(html).toContain("&amp;");
     expect(html).not.toMatch(/&(?!amp;|lt;|gt;)/);
@@ -35,7 +35,7 @@ describe("plainTextToInstantlyHtml", () => {
 
   it("packt Inhalt immer in Blockelemente", () => {
     // Text zwischen blossen <br> wird von Instantly verschluckt, nur die Tags
-    // bleiben stehen -- deshalb steht jede Zeile in einem <div>, auch die
+    // bleiben stehen — deshalb steht jede Zeile in einem <div>, auch die
     // leeren (dort als <div><br /></div>).
     expect(plainTextToInstantlyHtml("nur eine Zeile")).toBe("<div>nur eine Zeile</div>");
     expect(plainTextToInstantlyHtml("A\n\n\n\nB")).not.toMatch(/(^|>)\s*<br \/>\s*(<|$)(?!\/div)/);
@@ -103,7 +103,7 @@ describe("Hin- und Rueckweg", () => {
   });
 });
 
-/** Ein Schritt mit genau einer Fassung -- der Normalfall in diesen Tests. */
+/** Ein Schritt mit genau einer Fassung — der Normalfall in diesen Tests. */
 function step(subject: string, body: string, delayDays: number) {
   return { variants: [{ subject, body }], delayDays };
 }
@@ -112,7 +112,7 @@ describe("buildCampaignSequence", () => {
   it("schickt den Body als HTML an Instantly", () => {
     const seq = buildCampaignSequence([step("Betreff", "A & B", 0)]);
     expect(seq[0].steps[0].variants[0].body).toBe("<div>A &amp; B</div>");
-    // Der Betreff bleibt Klartext -- den speichert Instantly problemlos.
+    // Der Betreff bleibt Klartext — den speichert Instantly problemlos.
     expect(seq[0].steps[0].variants[0].subject).toBe("Betreff");
   });
 });
@@ -181,7 +181,7 @@ describe("sequenceFromInstantly", () => {
       sequences: [{ steps: [{ delay: 2, variants: [{ subject: "S", body: "<p>A &amp; B</p>" }] }] }],
     });
     expect(steps[0].variants[0].body).toBe("A & B");
-    // Der erste Schritt hat per Definition keine Vorlaufzeit -- die 2 oben ist
+    // Der erste Schritt hat per Definition keine Vorlaufzeit — die 2 oben ist
     // in Instantlys Modell die Wartezeit BIS zum naechsten Schritt.
     expect(steps[0].delayDays).toBe(0);
   });
@@ -199,7 +199,7 @@ describe("instantlyHtmlToPlainText mit Instantlys <div>-HTML", () => {
 
   it("klebt aufeinanderfolgende <div> nicht ohne Leerzeichen zusammen", () => {
     // Der eigentliche Schaden: ohne Regel fuer die <div>-Grenze wurde daraus
-    // "Hi Max,Last one from me." -- und genau so waere es rausgegangen.
+    // "Hi Max,Last one from me." — und genau so waere es rausgegangen.
     expect(instantlyHtmlToPlainText("<div>Hi Max,</div><div>Last one from me.</div>")).toBe(
       "Hi Max,\nLast one from me."
     );
@@ -231,7 +231,7 @@ describe("instantlyHtmlToPlainText mit Instantlys <div>-HTML", () => {
 describe("Varianten je Schritt", () => {
   /**
    * Bis 2026-08-04 schickte buildCampaignSequence immer genau EINE Variante.
-   * Instantly verteilt den Versand auf alle und zaehlt getrennt mit -- ohne
+   * Instantly verteilt den Versand auf alle und zaehlt getrennt mit — ohne
    * mehrere gibt es keinen Vergleich, egal wie viele Mails rausgehen.
    */
   it("gibt alle Fassungen an Instantly weiter", () => {

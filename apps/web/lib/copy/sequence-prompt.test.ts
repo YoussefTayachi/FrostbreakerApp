@@ -48,7 +48,7 @@ function stufe(bodies: string[], subjects = ["betreff a", "betreff b"]): DraftSt
 }
 
 /**
- * Eine gueltige Sequenz als Ausgangspunkt -- die Tests kaputtmachen sie gezielt.
+ * Eine gueltige Sequenz als Ausgangspunkt — die Tests kaputtmachen sie gezielt.
  *
  * Sie erfuellt das ganze Playbook und nicht nur die Formvorgaben: dieselbe
  * Friction in allen vier Stufen, derselbe Micro-Yes woertlich wiederholt,
@@ -164,7 +164,7 @@ describe("buildSequencePrompt", () => {
 
   it("zieht die Aufhaengerlaenge vom Wortbudget der ersten Mail ab", () => {
     // Sonst schreibt das Modell 90 Woerter und die Mail kommt mit ueber 110
-    // an. Der zweite Abzug deckt Anrede, Gruss und Unterschrift ab -- die
+    // an. Der zweite Abzug deckt Anrede, Gruss und Unterschrift ab — die
     // zaehlen in der Wortzahl des Torwarts mit.
     expect(ownWordBudget(22)).toBe(FIRST_MAIL_MAX_WORDS - 22 - 8);
     // Nicht mit einer festen Zahl vergleichen: die Aufhaengerlaenge steht am
@@ -309,7 +309,7 @@ describe("sequenceProblems", () => {
 
   it("meldet einen Betreff, der die Frage selbst ist", () => {
     // Gemeldet am 2026-08-13 mit Bild: in allen vier Stufen stand woertlich
-    // "Reply yes then i can send you sth over?" als Betreff -- also der
+    // "Reply yes then i can send you sth over?" als Betreff — also der
     // Micro-Yes. Die Regel "der Betreff kuendigt die Entscheidung an" las das
     // Modell als "nimm die Frage".
     const frage = "Reply yes then i can send you sth over?";
@@ -353,7 +353,7 @@ describe("sequenceProblems", () => {
   });
 
   it("misst die erste Mail mit eingesetztem Aufhaenger, nicht ohne", () => {
-    // 80 eigene Woerter sind unter der Grenze -- mit den 22 des Aufhaengers
+    // 80 eigene Woerter sind unter der Grenze — mit den 22 des Aufhaengers
     // nicht mehr. Genau diese Rechnung macht auch der Torwart.
     const s = guelteSequenz();
     s[0].variants[0].body = "{{personalization}}\n" + "wort ".repeat(80);
@@ -403,7 +403,7 @@ describe("sequenceProblems", () => {
     const befunde = sequenceProblems(guelteSequenz(), opts, mitSignatur);
     expect(befunde).toContainEqual({ kind: "missingSignature", step: 3 });
     expect(befunde).toContainEqual({ kind: "missingSignature", step: 4 });
-    // Stufe 1 und 2 tragen sie -- die duerfen nicht mitgemeldet werden.
+    // Stufe 1 und 2 tragen sie — die duerfen nicht mitgemeldet werden.
     expect(befunde.filter((p) => p.kind === "missingSignature")).toHaveLength(2);
   });
 
@@ -416,7 +416,7 @@ describe("sequenceProblems", () => {
 
   it("prueft die Unterschrift gar nicht, wenn keine hinterlegt ist", () => {
     // Ohne Signatur am Angebot UND ohne Absendernamen soll die Mail ohne
-    // Unterschrift enden -- eine erfundene waere schlimmer als keine.
+    // Unterschrift enden — eine erfundene waere schlimmer als keine.
     const s = guelteSequenz();
     s[0].variants[0].body = "Hi {{firstName}},\n\n{{personalization}}\n\nSoll ich dir die Aufnahme schicken?";
     expect(sequenceProblems(s, opts, angebot).some((p) => p.kind === "missingSignature")).toBe(false);
@@ -424,7 +424,7 @@ describe("sequenceProblems", () => {
   });
 
   it("nimmt den Workspace-Namen als Unterschrift, wenn das Angebot keine hat", () => {
-    // signatureFor faellt auf reply_sender_name zurueck -- die Pruefung muss
+    // signatureFor faellt auf reply_sender_name zurueck — die Pruefung muss
     // denselben Weg gehen wie der Prompt, sonst verlangt sie etwas anderes.
     const s = guelteSequenz();
     s[0].variants[0].body = "Hi {{firstName}},\n\n{{personalization}}\n\nSoll ich dir die Aufnahme schicken?";

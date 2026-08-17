@@ -8,7 +8,7 @@ import { useToast } from "../../toast-provider";
 import { useWorkspace } from "../../workspace-provider";
 
 /**
- * "Als Vorlage speichern" und "Suche wiederholen" -- direkt an der Suche.
+ * "Als Vorlage speichern" und "Suche wiederholen" — direkt an der Suche.
  *
  * ═══════════════════════════════════════════════════════════════════════
  * WARUM HIER UND NICHT NUR IM FORMULAR
@@ -16,16 +16,16 @@ import { useWorkspace } from "../../workspace-provider";
  *
  * Ein Kunde am 2026-08-10: "Ich habe einen Test gemacht, der gut gelaufen ist.
  * Top waere, wenn man die Vorlage gleich von diesem Interface aus speichern
- * koennte -- dann muesste ich nicht nochmal ueberlegen, was hatte ich nochmal
+ * koennte — dann muesste ich nicht nochmal ueberlegen, was hatte ich nochmal
  * ausgewaehlt."
  *
  * Das trifft den Zeitpunkt, an dem man ueberhaupt WEISS, ob eine Filterkombi
  * etwas taugt: nicht beim Ausfuellen, sondern wenn die Leads dastehen. Vorher
- * ging es nur andersherum -- speichern musste man, bevor man das Ergebnis
+ * ging es nur andersherum — speichern musste man, bevor man das Ergebnis
  * kannte.
  *
  * Ein Eingabefeld statt prompt(): Der Systemdialog des Browsers ist auf einer
- * Seite, die Kunden taeglich sehen, ein Fremdkoerper -- und in manchen
+ * Seite, die Kunden taeglich sehen, ein Fremdkoerper — und in manchen
  * Browsern unterdrueckt.
  */
 export default function SaveAsPreset({
@@ -57,7 +57,7 @@ export default function SaveAsPreset({
     // hier und nicht per ilike in der Abfrage: ein Name wie "50% mehr"
     // enthaelt Platzhalterzeichen und wuerde dort die falsche Zeile treffen.
     // Ausserdem liegt in der Datenbank ein eindeutiger Index auf
-    // (workspace_id, lower(trim(name))) -- ein blindes insert liefe hier in
+    // (workspace_id, lower(trim(name))) — ein blindes insert liefe hier in
     // einen Fehler, den der Nutzer nicht deuten koennte.
     const { data: vorhandene } = await supabase
       .from("search_presets")

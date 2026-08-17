@@ -1,5 +1,5 @@
 /**
- * Das Angebot -- was der Workspace verkauft.
+ * Das Angebot — was der Workspace verkauft.
  *
  * Der Datentyp zu Migration 0090. Reine Typen und reine Funktionen, damit
  * Server-Route, Client-Formular und Prompt-Bau dieselbe Vorstellung von einem
@@ -17,7 +17,7 @@ export type AddressForm = "du" | "sie";
 export type OfferLanguage = "de" | "en";
 
 /**
- * Die inhaltlichen Felder -- die, die in den Prompt wandern.
+ * Die inhaltlichen Felder — die, die in den Prompt wandern.
  *
  * Die Reihenfolge ist nicht beliebig: sie folgt dem Aufbau der ersten Mail
  * und damit der Reihenfolge, in der ein Mensch die Fragen beantworten kann.
@@ -53,7 +53,7 @@ export type Offer = {
   problem: string;
   /** Der eine Stolperstein der Nische, kurz vor dem Geld. */
   friction: string;
-  /** Warum dieser Stolperstein Kaeufer zoegern laesst -- beobachtetes
+  /** Warum dieser Stolperstein Kaeufer zoegern laesst — beobachtetes
    *  Verhalten, keine Theorie. */
   friction_reason: string;
   outcome: string;
@@ -111,13 +111,13 @@ export function emptyOffer(name: string, language: OfferLanguage = "de"): Omit<O
  * Bewusst NICHT als Datenbank-Zwang (dort haben alle Felder Default ''):
  * ein halb ausgefuelltes Angebot muss speicherbar sein, sonst geht die
  * angefangene Arbeit beim Wegklicken verloren. Der Zwang greift erst dort,
- * wo er hingehoert -- am Knopf "Sequenz erzeugen".
+ * wo er hingehoert — am Knopf "Sequenz erzeugen".
  *
  * `friction` und `cta` sind mit dem Playbook dazugekommen, und beide zu Recht:
  * die Friction traegt die Beobachtung, mit der die Mail anfaengt, und der
  * Micro-Yes ist die Entscheidung, um die es geht. Ohne sie erzeugt der
  * Generator genau die allgemeine Mail, gegen die das ganze Playbook
- * geschrieben ist -- er koennte es gar nicht anders.
+ * geschrieben ist — er koennte es gar nicht anders.
  *
  * `proof` steht ausdruecklich NICHT in dieser Liste, und `preview_asset` /
  * `review_time` auch nicht. Wer nichts vorzuweisen hat, soll trotzdem
@@ -147,7 +147,7 @@ export const REQUIRED_FOR_GENERATION: OfferTextField[] = [
  * Die Gruppen sind nicht erfunden, sie sind der Aufbau der ersten Mail: wer
  * schreibt an wen, woran bleibt der Leser haengen, was hat er davon, worum
  * wird er gebeten. Damit beantwortet der Abschnittsname schon die Frage,
- * warum die Felder darin ueberhaupt zusammengehoeren -- und man kann drei
+ * warum die Felder darin ueberhaupt zusammengehoeren — und man kann drei
  * davon zuklappen, ohne den Faden zu verlieren.
  */
 export const OFFER_STAGES = [
@@ -162,7 +162,7 @@ export const OFFER_STAGES = [
 
 export type OfferStageId = (typeof OFFER_STAGES)[number]["id"];
 
-/** Die Nummer eines Feldes im Formular -- ueber alle Abschnitte durchgezaehlt,
+/** Die Nummer eines Feldes im Formular — ueber alle Abschnitte durchgezaehlt,
  *  damit die Zaehlung beim Zuklappen nicht springt. */
 export function fieldNumber(field: OfferTextField): number {
   return OFFER_TEXT_FIELDS.indexOf(field) + 1;
@@ -177,7 +177,7 @@ export function canGenerate(offer: Pick<Offer, OfferTextField>): boolean {
 }
 
 /**
- * Wie vollstaendig das Angebot ist, in Prozent -- ueber ALLE sieben Felder.
+ * Wie vollstaendig das Angebot ist, in Prozent — ueber ALLE sieben Felder.
  *
  * Nur fuer die Anzeige. Eine Zahl daneben beantwortet die Frage "reicht das
  * jetzt?" besser als sieben Haken, und sie macht sichtbar, dass die drei

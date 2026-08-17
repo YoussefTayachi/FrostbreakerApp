@@ -30,7 +30,7 @@ describe("buildHighlightSegments", () => {
 
   it("laesst den engeren Bereich gewinnen", () => {
     // Ein Fuellwort in einem zu langen Satz darf nicht in der Satzflaeche
-    // untergehen -- sonst sieht der Nutzer nur "Satz zu lang" und nicht, wo.
+    // untergehen — sonst sieht der Nutzer nur "Satz zu lang" und nicht, wo.
     const text = "aaaa bbbb cccc";
     const segs = buildHighlightSegments(text, [
       { start: 0, end: 14, severity: "warning" },

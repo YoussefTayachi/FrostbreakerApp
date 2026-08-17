@@ -129,7 +129,7 @@ describe("variableHighlightRanges", () => {
     expect(variableHighlightRanges("Nur Text")).toEqual([]);
   });
 
-  // Die Markierung und die Fehlerliste teilen sich dieselbe Regex -- sonst
+  // Die Markierung und die Fehlerliste teilen sich dieselbe Regex — sonst
   // koennte etwas rot markiert sein, das unten nicht genannt wird, oder
   // umgekehrt.
   it("stimmt mit unknownPlaceholders ueberein", () => {

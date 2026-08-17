@@ -5,19 +5,19 @@
  *
  * Sieben leere Felder sind fuer den Nutzer dasselbe leere Blatt, das der
  * Sequenzgenerator gerade abschaffen soll. Die meisten Antworten stehen aber
- * schon auf seiner eigenen Website -- er muss sie nur bestaetigen statt
+ * schon auf seiner eigenen Website — er muss sie nur bestaetigen statt
  * abtippen.
  *
  * DIE ENTSCHEIDENDE EINSCHRAENKUNG
  *
  * Was hier entsteht, sind VORSCHLAEGE, kein gespeichertes Angebot. Der Nutzer
  * uebernimmt jedes Feld einzeln. Grund: eine falsch gelesene Website vergiftet
- * danach jede erzeugte Mail, und zwar unsichtbar -- der Fehler steht dann in
+ * danach jede erzeugte Mail, und zwar unsichtbar — der Fehler steht dann in
  * einem Feld, das niemand mehr liest, weil es ja "schon ausgefuellt" ist.
  *
  * Und dieselbe Regel wie ueberall sonst in diesem Bereich: was nicht auf der
  * Seite steht, bleibt leer. Das Modell wird ausdruecklich angewiesen, nichts
- * zu ergaenzen -- vor allem keine Referenzen und keine Zahlen.
+ * zu ergaenzen — vor allem keine Referenzen und keine Zahlen.
  */
 import { OFFER_TEXT_FIELDS, type OfferTextField } from "@/lib/offers";
 import type { WebsiteContent } from "@/lib/website-text";
@@ -34,7 +34,7 @@ export type OfferSuggestion = Partial<Record<OfferTextField, string>>;
  * Die Trennlinie ist nicht "schwer zu finden", sondern: steht es auf der
  * Seite, oder ist es eine Entscheidung? Eine Website ist ein Schaufenster.
  * Was jemand in einer kalten Mail versprechen und fragen will, steht dort
- * nicht -- ein Vorschlag waere geraten, und geraten heisst hier: es steht
+ * nicht — ein Vorschlag waere geraten, und geraten heisst hier: es steht
  * danach etwas im Feld, das niemand entschieden hat.
  *
  *  - tone: wie jemand schreiben will, hat mit seinem Schaufenster nichts zu tun.
@@ -43,7 +43,7 @@ export type OfferSuggestion = Partial<Record<OfferTextField, string>>;
  *  - friction_reason: eine Verhaltensbeobachtung. Genau die Sorte Satz, die
  *    ein Modell erfindet, wenn es sie nicht findet.
  *  - cta: DER wichtigste Ausschluss. Auf fast jeder Seite steht "Termin
- *    buchen" oder "Demo anfragen" -- und genau das ist der Micro-Yes NICHT.
+ *    buchen" oder "Demo anfragen" — und genau das ist der Micro-Yes NICHT.
  *    Solange dieses Feld hier mitlief, hat die Uebernahme dem Nutzer die
  *    Terminbitte ins Angebot geschrieben, gegen die das ganze Playbook
  *    geschrieben ist.
@@ -66,7 +66,7 @@ export const SUGGESTED_FIELDS: OfferTextField[] = OFFER_TEXT_FIELDS.filter(
  * `produkt` ist gesetzt, wenn die Seite mehr als eine Sache beschreibt und der
  * Nutzer gesagt hat, um welche es in DIESEM Angebot geht (siehe
  * offer-products.ts). Ohne den Wert ist der Prompt Wort fuer Wort der von
- * vorher -- die eindeutige Seite ist der Normalfall und darf sich nicht
+ * vorher — die eindeutige Seite ist der Normalfall und darf sich nicht
  * aendern. Gleiche Form wie in offer-from-search.ts: eine Regelzeile oben und
  * der Block direkt vor dem Material, das er einschraenkt.
  */
@@ -82,7 +82,7 @@ export function buildOfferPrompt(
     "",
     "RULES:",
     "- Only use what is actually on the page. Never add industry knowledge of your own.",
-    // Der Satz steht doppelt -- hier als Regel und unten am Produkt selbst.
+    // Der Satz steht doppelt — hier als Regel und unten am Produkt selbst.
     // Was hier als ein Punkt zwischen acht anderen steht, wird sonst
     // mitueberlesen.
     produkt
@@ -102,14 +102,14 @@ export function buildOfferPrompt(
     "- icp: who they sell to (industry, size, role)",
     "- problem: what the customer struggles with beforehand",
     // Die Friction ist der einzige der neuen Werte, der ueberhaupt auf einer
-    // Verkaeuferseite stehen KANN -- naemlich dort, wo sie das Problem ihrer
+    // Verkaeuferseite stehen KANN — naemlich dort, wo sie das Problem ihrer
     // Kunden beschreibt. Die Anweisung ist deshalb streng: ein konkreter
     // Moment oder gar nichts. Ein allgemeiner Satz an dieser Stelle waere
     // schlimmer als ein leeres Feld, weil er sich ausgefuellt anfuehlt.
     "- friction: ONE concrete, checkable moment where that customer gets stuck, if the page names one.",
     "  It must be something a person could go and look at. If the page only talks in general terms, return an empty string.",
     "- outcome: what is different afterwards, with a number if the page names one",
-    // Der Mechanismus steht fast immer auf der Seite -- meist in
+    // Der Mechanismus steht fast immer auf der Seite — meist in
     // Werkzeugsprache. Genau die soll hier herausfallen.
     "- mechanism: how the result actually comes about, in plain words.",
     "  Never use the words AI, agent, LLM, API, platform, software, automation or any product name.",
@@ -142,9 +142,9 @@ export function buildOfferPrompt(
     .join("\n");
 }
 
-/** Das erste JSON-Objekt im Text -- auch mit Vorrede oder Codeblock drumherum.
+/** Das erste JSON-Objekt im Text — auch mit Vorrede oder Codeblock drumherum.
  *  Exportiert, weil offer-products.ts dieselbe Antwortform bekommt (JSON,
- *  gelegentlich mit Vorrede) -- eine zweite Kopie waere eine zweite Stelle, an
+ *  gelegentlich mit Vorrede) — eine zweite Kopie waere eine zweite Stelle, an
  *  der ein Codeblock nicht erkannt wird. */
 export function extractJsonObject(raw: string): string | null {
   const start = raw.indexOf("{");
@@ -163,7 +163,7 @@ export function extractJsonObject(raw: string): string | null {
  *
  * Die erlaubten Felder kommen als Parameter, weil es zwei Quellen gibt: die
  * eigene Website (SUGGESTED_FIELDS) und eine einzelne Lead-Liste
- * (offer-from-search.ts). Beide brauchen dieselbe Strenge -- eine zweite Kopie
+ * (offer-from-search.ts). Beide brauchen dieselbe Strenge — eine zweite Kopie
  * dieser Funktion waere eine zweite Ausreden-Liste, die auseinanderlaufen kann.
  */
 export function parseSuggestionFields(raw: string, erlaubt: OfferTextField[]): OfferSuggestion {
@@ -189,7 +189,7 @@ export function parseSuggestionFields(raw: string, erlaubt: OfferTextField[]): O
   return out;
 }
 
-/** Die Vorschlaege aus der eigenen Website -- ohne die fuenf Felder, die eine
+/** Die Vorschlaege aus der eigenen Website — ohne die fuenf Felder, die eine
  *  Entscheidung sind und nicht auf einer Seite stehen (siehe
  *  NICHT_VORSCHLAGEN). */
 export function parseOfferSuggestion(raw: string): OfferSuggestion {
@@ -197,7 +197,7 @@ export function parseOfferSuggestion(raw: string): OfferSuggestion {
 }
 
 /**
- * "Nicht angegeben", "n/a", "unbekannt" -- die Standardausreden.
+ * "Nicht angegeben", "n/a", "unbekannt" — die Standardausreden.
  *
  * Ohne diese Pruefung steht spaeter woertlich "Keine Angabe auf der Website"
  * im Feld `proof`, und der Sequenzgenerator liest das als Beleg, den er

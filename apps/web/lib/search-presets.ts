@@ -12,12 +12,12 @@ import type { ProspeoFilters } from "./prospeo-query";
  *
  * Ein Kunde am 2026-08-10: "Ich habe einen Test gemacht, der gut gelaufen ist.
  * Top waere, wenn man die Vorlage gleich von diesem Interface aus speichern
- * koennte -- dann muesste ich nicht nochmal ueberlegen, was hatte ich nochmal
+ * koennte — dann muesste ich nicht nochmal ueberlegen, was hatte ich nochmal
  * ausgewaehlt."
  *
  * Vorlagen liessen sich bis dahin nur VOR einer Suche anlegen, im Formular auf
- * dem Dashboard. Die naheliegende Stelle -- die fertige Suche, von der man
- * gerade weiss, dass sie funktioniert hat -- ging nicht, weil die beiden
+ * dem Dashboard. Die naheliegende Stelle — die fertige Suche, von der man
+ * gerade weiss, dass sie funktioniert hat — ging nicht, weil die beiden
  * Seiten dieselben Werte in unterschiedlicher Schreibweise fuehren:
  *
  *   Formular/Vorlage   personTitles, apolloCountries (ISO-Codes),
@@ -28,7 +28,7 @@ import type { ProspeoFilters } from "./prospeo-query";
  * searchRowToPresetConfig ist genau diese Uebersetzung.
  *
  * ═══════════════════════════════════════════════════════════════════════
- * WAS DABEI NICHT ZURUECKKOMMT -- UND WARUM DAS IN ORDNUNG IST
+ * WAS DABEI NICHT ZURUECKKOMMT — UND WARUM DAS IN ORDNUNG IST
  * ═══════════════════════════════════════════════════════════════════════
  *
  * 1. Bei Apollo, Corporate und Prospeo ist searches.query KEINE Nutzereingabe,
@@ -45,13 +45,13 @@ import type { ProspeoFilters } from "./prospeo-query";
  *    Seit Migration 0096 haengen diese Zeilen an einer Gruppen-Huelle, und die
  *    ist es auch, die man auf der Suchen-Seite anklickt. Deren query/location
  *    sind fuer das Auge zusammengefasst ("15 Orte") und als Vorlage unbrauchbar
- *    -- deshalb legt das Formular die urspruenglichen Kommalisten zusaetzlich
+ *    — deshalb legt das Formular die urspruenglichen Kommalisten zusaetzlich
  *    als group_queries/group_locations in filters ab, und von dort holt sie
  *    diese Uebersetzung zurueck. "Suche wiederholen" auf einer gebuendelten
  *    Suche fuellt das Formular damit wieder genau so, wie es abgeschickt wurde.
  *
  * 3. Technologien ohne Slug beim jeweiligen Anbieter fehlen. Sie fehlen aber
- *    schon in der Suche selbst -- resolveTechnologies hat sie beim Anlegen
+ *    schon in der Suche selbst — resolveTechnologies hat sie beim Anlegen
  *    fallen lassen. Hier geht nichts verloren, was vorher da gewesen waere.
  */
 
@@ -61,7 +61,7 @@ export type SearchMode = "maps" | "corporate" | "apollo" | "prospeo";
  * Der Inhalt von search_presets.config: eine Momentaufnahme des Formulars.
  *
  * Lag bis zum 2026-08-10 als Typ `Preset` im Formular selbst. Herausgezogen,
- * weil ihn jetzt zwei Seiten schreiben (Formular und Suchdetail) -- und zwei
+ * weil ihn jetzt zwei Seiten schreiben (Formular und Suchdetail) — und zwei
  * Definitionen desselben Formats waeren genau die Sorte Abweichung, die man
  * erst bemerkt, wenn eine Vorlage halb geladen wird.
  *
@@ -92,7 +92,7 @@ export type PresetConfig = {
   technologies?: string[];
   marketSegments?: string[];
   /**
-   * Prospeos Filter als ganzes Objekt -- so, wie sie auch in searches.filters
+   * Prospeos Filter als ganzes Objekt — so, wie sie auch in searches.filters
    * liegen.
    *
    * Fehlten bis zum 2026-08-10 komplett: savePreset schrieb `mode: "prospeo"`,
@@ -140,7 +140,7 @@ function isMode(value: unknown): value is SearchMode {
  *
  * Bewusst nachsichtig gegenueber dem, was in filters steht: die Spalte ist
  * jsonb und enthaelt je nach Alter der Suche unterschiedliche Schluessel. Ein
- * fehlender Wert wird zur Formularvorgabe, nicht zu undefined -- eine Vorlage,
+ * fehlender Wert wird zur Formularvorgabe, nicht zu undefined — eine Vorlage,
  * die beim Laden Felder leer raeumt, waere schlimmer als gar keine.
  */
 export function searchRowToPresetConfig(row: SearchRowForPreset): PresetConfig {
@@ -184,7 +184,7 @@ export function searchRowToPresetConfig(row: SearchRowForPreset): PresetConfig {
       personTitles: str(f.person_titles),
       apolloCountries: apolloCountryCodes(strList(f.apollo_locations)),
       // Leere Senioritaeten waeren eine Suche quer durch alle Hierarchiestufen
-      // -- dieselbe Rueckfallregel wie im Zaehler (validSeniorities).
+      // — dieselbe Rueckfallregel wie im Zaehler (validSeniorities).
       apolloSeniorities:
         strList(f.apollo_seniorities).length > 0
           ? strList(f.apollo_seniorities)
@@ -212,7 +212,7 @@ export function searchRowToPresetConfig(row: SearchRowForPreset): PresetConfig {
   if (mode === "prospeo") {
     // Unveraendert uebernehmen: das Objekt in searches.filters IST das
     // Prospeo-Filterobjekt des Formulars (siehe new-search-form.tsx), es gibt
-    // hier also nichts zu uebersetzen -- und jede Umformung waere eine
+    // hier also nichts zu uebersetzen — und jede Umformung waere eine
     // Gelegenheit, ein Feld zu verlieren.
     return { ...basis, prospeoFilters: (row.filters ?? {}) as ProspeoFilters };
   }

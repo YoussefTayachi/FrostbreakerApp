@@ -21,7 +21,7 @@ def test_firmen_aus_geloeschten_suchen_sind_wieder_findbar():
 
 
 def test_bereits_kontaktierte_firmen_bleiben_gesperrt():
-    """Auch wenn ihre Suche im Papierkorb liegt -- sonst entstuenden neue
+    """Auch wenn ihre Suche im Papierkorb liegt — sonst entstuenden neue
     Kontaktzeilen mit Status 'new' und dieselbe Person wuerde ein zweites Mal
     angeschrieben."""
     blocking = filter_blocking(BUSINESSES, {"s-aktiv"}, {"b3"})
@@ -32,7 +32,7 @@ def test_bereits_kontaktierte_firmen_bleiben_gesperrt():
 
 def test_ohne_aktive_suchen_und_ohne_kontakte_ist_nichts_gesperrt():
     """Genau der real aufgetretene Zustand: alle Firmen stammten aus
-    geloeschten Suchen, niemand war kontaktiert -- die Suche war komplett
+    geloeschten Suchen, niemand war kontaktiert — die Suche war komplett
     blockiert."""
     assert filter_blocking(BUSINESSES, set(), set()) == []
 
@@ -74,7 +74,7 @@ def test_mehrere_kontakte_derselben_firma_ergeben_eine_sperre():
 
 
 def test_archivzeile_ohne_domain_und_name_faellt_raus():
-    """Ein Kontakt ohne Firmenangabe kann nichts sperren -- er wuerde als
+    """Ein Kontakt ohne Firmenangabe kann nichts sperren — er wuerde als
     leerer Eintrag jede Suche mit leerem Namen blockieren."""
     assert archive_as_businesses([{"domain": None, "company_name": None}]) == []
 

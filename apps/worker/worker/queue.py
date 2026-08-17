@@ -25,14 +25,14 @@ WORKER_VERSION = (os.getenv("RAILWAY_GIT_COMMIT_SHA") or "")[:7] or None
 def ping() -> None:
     """Lebenszeichen setzen (Migration 0058).
 
-    Der Worker ist von aussen unsichtbar -- kein Port, keine Oberflaeche.
+    Der Worker ist von aussen unsichtbar — kein Port, keine Oberflaeche.
     Faellt er aus, werden Jobs weiter eingereiht und nur nicht mehr abgeholt;
     in der App sieht eine gestartete Suche dann exakt so aus wie eine
     laufende. Dieser Aufruf ist die einzige Stelle, an der er von sich hoeren
     laesst.
 
     Fehler werden hier bewusst NICHT gefangen: der Aufrufer in main.py
-    entscheidet, was ein fehlgeschlagener Herzschlag bedeutet -- ein Worker
+    entscheidet, was ein fehlgeschlagener Herzschlag bedeutet — ein Worker
     soll nicht sterben, weil er sich nicht melden konnte.
     """
     sb().rpc("worker_ping", {"p_worker": WORKER_ID, "p_version": WORKER_VERSION}).execute()
@@ -48,7 +48,7 @@ def complete_job(job_id: str) -> None:
 
 
 def cancel_job(job_id: str) -> None:
-    """Der Nutzer hat abgebrochen -- kein Fehler, also auch kein Retry.
+    """Der Nutzer hat abgebrochen — kein Fehler, also auch kein Retry.
 
     Bewusst nicht ueber fail_job: das reiht mit Backoff erneut ein, und ein
     abgebrochener Suchlauf, der von selbst wieder anlaeuft, waere die teuerste
@@ -58,7 +58,7 @@ def cancel_job(job_id: str) -> None:
 
 
 # Wie lange ein Job zurueckgestellt wird, wenn beim Anbieter das Guthaben alle
-# ist. Eine Stunde, weil niemand ein Konto binnen Minuten auflaedt -- und weil
+# ist. Eine Stunde, weil niemand ein Konto binnen Minuten auflaedt — und weil
 # der Job bis dahin nichts anderes tut, als denselben Fehler zu erzeugen.
 OUT_OF_CREDIT_DELAY_S = 3600
 
@@ -68,13 +68,13 @@ def fail_job(job: dict, error: str) -> None:
 
     Sonderfall aufgebrauchtes Guthaben: Wiederholen ist zwecklos, bis ein
     Mensch das Konto auflaedt. Der Job wird deshalb lange zurueckgestellt und
-    der verbrauchte Versuch zurueckgegeben -- sonst faellt er in den Zustand
+    der verbrauchte Versuch zurueckgegeben — sonst faellt er in den Zustand
     'failed', obwohl an ihm selbst nichts falsch war.
 
     Genau das ist am 2026-08-03 passiert: 128 Jobs (88 personalize, 40
     find_decisionmaker) haben ihre Versuche gegen ein leeres OpenAI-Konto
     aufgebraucht und galten danach als endgueltig gescheitert. Nach dem
-    Auffuellen haette man sie von Hand neu einreihen muessen -- wenn man
+    Auffuellen haette man sie von Hand neu einreihen muessen — wenn man
     ueberhaupt gemerkt haette, dass es sie gibt.
     """
     kind = classify_error(error)
@@ -122,7 +122,7 @@ def clear_provider_alert(workspace_id: str, provider: str) -> None:
     """Alarm aufloesen, wenn dieser Anbieter wieder antwortet.
 
     Damit muss niemand eine Warnung wegklicken, nachdem er das Guthaben
-    aufgeladen hat -- sie verschwindet beim naechsten geglueckten Job von
+    aufgeladen hat — sie verschwindet beim naechsten geglueckten Job von
     selbst. Eine Meldung, die man von Hand wegraeumen muss, steht sonst
     wochenlang herum und wird genauso ignoriert wie eine, die nie kam.
     """

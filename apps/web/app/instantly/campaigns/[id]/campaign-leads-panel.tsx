@@ -58,7 +58,7 @@ export default function CampaignLeadsPanel({ campaignId }: { campaignId: string 
   }
 
   // Beim ersten Anzeigen einmal laden. Die Komponente wird nur gerendert,
-  // wenn der Reiter offen ist -- der Abruf haengt damit am Klick, ohne dass
+  // wenn der Reiter offen ist — der Abruf haengt damit am Klick, ohne dass
   // hier eine zweite Zustandsvariable dafuer noetig waere.
   useEffect(() => {
     load();
@@ -139,7 +139,7 @@ export default function CampaignLeadsPanel({ campaignId }: { campaignId: string 
       {/* max-h + overflow-y-auto begrenzt den scrollbaren Bereich auf die
           sichtbare Flaeche: ohne das sitzt der horizontale Scrollbalken von
           overflow-x-auto bei 293 Zeilen ganz unten auf der Seite, weit
-          hinter dem letzten Eintrag -- praktisch unerreichbar, ohne vorher
+          hinter dem letzten Eintrag — praktisch unerreichbar, ohne vorher
           durch die ganze Liste zu scrollen. sticky auf dem Kopf haelt die
           Spaltenueberschriften waehrend des Scrollens sichtbar. */}
       <div className="max-h-[28rem] overflow-x-auto overflow-y-auto rounded-lg border border-edge/60">

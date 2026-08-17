@@ -8,12 +8,12 @@ import { useWorkspace } from "../../workspace-provider";
 import { inputCls, primaryBtnCls, dangerBtnCls, cardCls } from "@/lib/ui";
 
 /**
- * Instantly-API-Key -- fruehe stand das mit unter Einstellungen bei den
+ * Instantly-API-Key — fruehe stand das mit unter Einstellungen bei den
  * anderen BYOK-Providern (Google Maps/OpenAI/Hunter/NeverBounce), jetzt hier
  * unter dem eigenen Instantly-Bereich, weil alles rund um Versand hier
  * zusammengehoert und nicht mehr in den generischen Einstellungen versteckt
  * sein soll. Speichert weiterhin ueber denselben /api/keys-Endpoint wie die
- * anderen Provider -- keine Backend-Aenderung noetig.
+ * anderen Provider — keine Backend-Aenderung noetig.
  */
 export default function InstantlyConnectionPage() {
   const { t } = useT();

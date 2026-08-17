@@ -81,7 +81,7 @@ describe("buildOfferFromSearchPrompt", () => {
 
   it("erzeugt nichts zu den Feldern, die aus dem Angebot uebernommen werden", () => {
     // Der Micro-Yes und das Preview-Asset gehoeren dem Angebot. Stuenden sie im
-    // Prompt, wuerde das Modell sie irgendwann mit ausgeben -- und die
+    // Prompt, wuerde das Modell sie irgendwann mit ausgeben — und die
     // Uebernahme haette sie ueberschrieben.
     const p = buildOfferFromSearchPrompt(liste, angebot);
     expect(p).not.toContain("Soll ich sie dir schicken?");
@@ -105,7 +105,7 @@ describe("buildOfferFromSearchPrompt", () => {
 
   it("laesst Ergebnis und Mechanismus umformulieren statt neu erfinden", () => {
     const p = buildOfferFromSearchPrompt(liste, angebot);
-    // Beide Werte gehen als VORLAGE mit -- ohne sie waere "reframe" eine
+    // Beide Werte gehen als VORLAGE mit — ohne sie waere "reframe" eine
     // Anweisung ohne Gegenstand.
     expect(p).toContain("in 14 Tagen 12 Prozent weniger");
     expect(p).toContain("Wir raeumen den Bestellabschluss auf");
@@ -183,7 +183,7 @@ describe("parseOfferFromSearch", () => {
   it("ignoriert alles, was dem Angebot gehoert", () => {
     // Der gefaehrlichste Fall: das Modell liefert einen Micro-Yes mit und
     // ueberschreibt damit die Frage, die in allen vier Mails steht. proof ist
-    // der zweite -- siehe den Test weiter oben.
+    // der zweite — siehe den Test weiter oben.
     for (const feld of ["cta", "offering", "proof", "tone", "preview_asset"] as const) {
       expect(SEARCH_SUGGESTED_FIELDS).not.toContain(feld);
     }

@@ -39,7 +39,7 @@ describe("splitSentences", () => {
   });
 
   it("behandelt Zeilenumbrueche als Satzgrenze", () => {
-    // Anrede und Gruss stehen in E-Mails ohne Satzzeichen -- ohne diese Regel
+    // Anrede und Gruss stehen in E-Mails ohne Satzzeichen — ohne diese Regel
     // waere das ein einziger, kuenstlich langer Satz.
     const s = splitSentences("Hallo Anna\n\nkurze Frage zu eurem Fuhrpark.\n\nGruesse", "de");
     expect(s).toHaveLength(3);

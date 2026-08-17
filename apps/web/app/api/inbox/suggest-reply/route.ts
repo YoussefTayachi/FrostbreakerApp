@@ -19,7 +19,7 @@ import {
  *
  * Auf Klick, nicht automatisch: jeder Aufruf kostet Geld, und die meisten
  * Antworten beantwortet man in zehn Sekunden selbst. Der Vorschlag ist fuer
- * die, bei denen man ins Grübeln kommt -- und genau die bleiben sonst liegen.
+ * die, bei denen man ins Grübeln kommt — und genau die bleiben sonst liegen.
  *
  * Prompt-Bau und Auswertung stehen in lib/crm/reply-suggestions.ts (mit
  * Tests). Hier steht nur, woher das Gespraech kommt.
@@ -57,7 +57,7 @@ export async function POST(req: Request) {
    *
    * Ein "ja, gerne" ist ohne die Frage davor nicht zu beantworten. Gruppiert
    * wird ueber den Kontakt, falls es einen gibt, sonst ueber die
-   * Absenderadresse -- dieselbe Regel wie im Posteingang selbst, sonst
+   * Absenderadresse — dieselbe Regel wie im Posteingang selbst, sonst
    * bekaeme man hier einen anderen Verlauf zu sehen als dort.
    */
   const threadQuery = supabase
@@ -102,7 +102,7 @@ export async function POST(req: Request) {
     }
     const json = await res.json();
     // Kostenzeile, wie sie der Worker fuer jeden seiner Aufrufe schreibt.
-    // Diese Route tat es bis zum 2026-08-12 nicht -- die Entwuerfe kosteten
+    // Diese Route tat es bis zum 2026-08-12 nicht — die Entwuerfe kosteten
     // Geld und tauchten unter "API-Kosten" nicht auf.
     await recordOpenAiUsage(supabase, workspaceId, "suggest_reply", json);
     const suggestions = parseSuggestions(extractOutputText(json));

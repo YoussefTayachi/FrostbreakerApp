@@ -9,7 +9,7 @@ import { displayName, hasNoNextStep, type PipelineRow } from "@/lib/crm/pipeline
 
 /**
  * Wie viele Karten pro Spalte gerendert werden. Der Nutzer entscheidet das
- * selbst, die Wahl wird lokal gemerkt -- eine feste Obergrenze war entweder zu
+ * selbst, die Wahl wird lokal gemerkt — eine feste Obergrenze war entweder zu
  * klein (man sieht seine Leads nicht) oder zu gross (endloses Scrollen).
  */
 const PAGE_SIZES = [15, 30, 60, 0] as const; // 0 = alle
@@ -23,7 +23,7 @@ export default function PipelineBoard({
   onOpen,
 }: {
   rows: PipelineRow[];
-  /** Status, die gerade lokal abweichen -- gehalten in pipeline-view.tsx,
+  /** Status, die gerade lokal abweichen — gehalten in pipeline-view.tsx,
    *  damit Board und Liste denselben Stand zeigen. */
   overrides: Record<string, string>;
   onStageChange: (row: PipelineRow, stage: string) => void;
@@ -42,7 +42,7 @@ export default function PipelineBoard({
   const [dragOverStage, setDragOverStage] = useState<OutreachStage | null>(null);
 
   // Die ganze Karte ist klickbar UND ziehbar. Endet ein Zug auf derselben Karte,
-  // feuert je nach Browser noch ein click -- das darf nicht den Drawer aufreissen.
+  // feuert je nach Browser noch ein click — das darf nicht den Drawer aufreissen.
   const draggedRef = useRef(false);
 
   useEffect(() => {
@@ -159,7 +159,7 @@ export default function PipelineBoard({
             const shown = items.slice(0, limit);
             const isTarget = dragOverStage === stage && dragId !== null;
             // Wie viele in dieser Stufe haben keinen geplanten naechsten
-            // Schritt -- die Kennzahl im Spaltenkopf, siehe Kommentar dort.
+            // Schritt — die Kennzahl im Spaltenkopf, siehe Kommentar dort.
             const openInStage = items.filter(hasNoNextStep).length;
             return (
               <section
@@ -195,7 +195,7 @@ export default function PipelineBoard({
                   Eine Geldsumme gibt es hier nicht: diese Spalten fuehren
                   Kontakte, keine Deals mit Wert. Statt eine Zahl zu erfinden
                   steht dort die Kennzahl, die bei Kaltakquise dieselbe Rolle
-                  spielt -- wie viele in dieser Stufe auf einen naechsten
+                  spielt — wie viele in dieser Stufe auf einen naechsten
                   Schritt warten. Das ist die Frage, die Pipedrive seinen
                   Nutzern antrainiert, nur uebersetzt in unsere Waehrung.
 
@@ -238,7 +238,7 @@ export default function PipelineBoard({
                         .join(" · ")}
                       className={
                         // Pipedrives Karten sind weisse Flaechen mit weichem
-                        // Schatten und fast unsichtbarem Rand -- der Rand
+                        // Schatten und fast unsichtbarem Rand — der Rand
                         // traegt dort nichts, der Schatten hebt die Karte.
                         "group cursor-grab rounded-lg border border-edge/40 bg-panel px-3.5 py-3 shadow-sm transition-all hover:shadow-md active:cursor-grabbing " +
                         (dragId === contact.id ? "opacity-40" : "")
@@ -255,7 +255,7 @@ export default function PipelineBoard({
                         beantwortet eine Spalte mit dreissig Karten die
                         wichtigste Frage ihres Systems auf einen Blick, ohne
                         eine einzige Zeile Text. Genau diese Angabe haben wir
-                        seit Migration 0061 als next_due_at -- sie war bisher
+                        seit Migration 0061 als next_due_at — sie war bisher
                         nur als Textzeile sichtbar.
 
                         Rot statt gruen, wenn der Termin ueberfaellig ist: das
