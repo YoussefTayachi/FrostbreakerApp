@@ -724,7 +724,9 @@ def _run_with_existing_icebreaker(monkeypatch, payload: dict) -> list[str]:
     trace: list[str] = []
 
     class FakeResult:
-        data = {"personalization": "Ein alter Aufhaenger.", "name": "Testfirma"}
+        # ClassVar, weil ruff (RUF012) veraenderliche Klassenvorgaben meldet --
+        # bei einer Attrappe ist das harmlos, aber CI kennt den Unterschied nicht.
+        data: ClassVar[dict] = {"personalization": "Ein alter Aufhaenger.", "name": "Testfirma"}
 
     class FakeQuery:
         def select(self, *a, **k):

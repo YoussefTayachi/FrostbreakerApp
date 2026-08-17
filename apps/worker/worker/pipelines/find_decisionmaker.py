@@ -9,8 +9,8 @@ import re
 from openai import OpenAI
 from tenacity import retry, stop_after_attempt, wait_exponential
 
-from worker.db import sb
 from worker import usage
+from worker.db import sb
 from worker.email_classify import classify_email
 from worker.keys import get_api_key
 from worker.search_state import BUSINESS_WITH_SEARCH, search_is_deleted

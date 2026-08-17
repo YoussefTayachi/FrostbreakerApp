@@ -6,21 +6,42 @@ from worker.pipelines.apollo import (
     APOLLO_MAX_PER_SEARCH,
     APOLLO_SENIORITIES,
     DECISIONMAKER_SENIORITIES,
+    MAX_SUMMARY_CHARS,
     PER_PAGE,
     ApolloPlanError,
     _employee_range,
+    alexa_rank,
+    build_company_summary,
     build_people_search_body,
     candidate_ids,
     enrich_people,
     explain_empty_result,
-    alexa_rank,
-    is_platform_domain,
-    build_company_summary,
     fetch_company_summaries,
-    MAX_SUMMARY_CHARS,
     is_masked_email,
+    is_platform_domain,
     parse_apollo_person,
 )
+
+
+@pytest.fixture(autouse=True)
+def kein_cache(monkeypatch):
+    """Der Apollo-Cache wird in JEDEM Test stillgelegt.
+
+    Die erste Zeile dieser Datei verspricht "kein Netz, keine DB". Seit
+    `enrich_people` den kontoweiten Cache befragt (Commit 26ad32c), stimmte
+    das nicht mehr: `apollo_cache.get_many` geht an Supabase. Fuenf Tests aus
+    dem Commit davor kannten ihn nicht und fielen deshalb um -- nicht weil die
+    geprueften Regeln falsch waren, sondern weil der Cache alle Kandidaten als
+    "schon bezahlt" zurueckgab und der bezahlte Aufruf nie stattfand.
+
+    Autouse und nicht je Test eingehaengt, damit der naechste hinzugefuegte
+    Test nicht dieselbe Falle findet. Wer den Cache PRUEFEN will, setzt ihn im
+    Test selbst neu -- eine spaetere Ersetzung gewinnt gegen diese hier.
+    """
+    from worker import apollo_cache
+
+    monkeypatch.setattr(apollo_cache, "get_many", lambda api_key, kind, ids: {})
+    monkeypatch.setattr(apollo_cache, "put_many", lambda api_key, kind, items: None)
 
 
 def test_build_body_always_filters_to_verified_emails():
@@ -866,6 +887,7 @@ def test_veralteter_eintrag_gilt_nicht_mehr():
     """Eine Adresse von vor einem Jahr gratis auszuliefern waere billig und
     falsch -- sie bounct und beschaedigt die Absender-Reputation."""
     from datetime import datetime, timedelta, timezone
+
     from worker.apollo_cache import MAX_AGE_DAYS, _fresh_enough
 
     jung = datetime.now(timezone.utc) - timedelta(days=MAX_AGE_DAYS - 1)

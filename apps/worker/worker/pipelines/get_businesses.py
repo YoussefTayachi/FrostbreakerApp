@@ -17,12 +17,13 @@ Drei Quellen, die sich in Schritt 1-3 unterscheiden und in Schritt 4 fast:
 
 Die beiden Personen-Wege teilen sich den Schreibpfad in _store_people_pairs.
 """
+from collections.abc import Callable
 from datetime import datetime, timedelta, timezone
-from typing import Callable
 
 import httpx
 from tenacity import retry, stop_after_attempt, wait_exponential
 
+from worker import usage
 from worker.db import sb
 from worker.dedupe import businesses_to_skip
 from worker.email_classify import classify_email
@@ -32,7 +33,6 @@ from worker.pipelines import apollo, prospeo
 from worker.pipelines.discover import discover_companies, parse_discover_company
 from worker.queue import enqueue
 from worker.search_state import SearchCancelled, search_is_cancelled
-from worker import usage
 from worker.suppression import domain_of, is_suppressed, load_suppression
 
 GEOCODE_URL = "https://maps.googleapis.com/maps/api/geocode/json"

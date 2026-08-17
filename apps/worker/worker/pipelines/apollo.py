@@ -34,7 +34,7 @@ Docs: https://docs.apollo.io/reference/people-api-search
 import logging
 import re
 import time
-from typing import Callable
+from collections.abc import Callable
 
 import httpx
 from tenacity import retry, retry_if_exception, stop_after_attempt, wait_exponential

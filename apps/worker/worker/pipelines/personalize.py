@@ -18,8 +18,8 @@ import trafilatura
 from openai import OpenAI
 from tenacity import retry, stop_after_attempt, wait_exponential
 
-from worker.db import sb
 from worker import usage
+from worker.db import sb
 from worker.search_state import BUSINESS_WITH_SEARCH, search_is_deleted
 
 MODEL = "gpt-4.1-mini"
@@ -163,10 +163,19 @@ def constraint_block(max_words: int, banned_words: list[str], language: str = DE
         # Nutzer sie zusaetzlich in seinen selbst geschriebenen Prompt
         # schreibt, waeren zwei Wahrheiten fuer dieselbe Sache -- und der
         # gemeldete Fehler war genau das.
-        f"- Write the icebreaker in {_LANGUAGE_NAMES.get(language, 'German')}. "
-        "This overrides any language used in the instructions above.",
-        f"- Maximum {max_words} words. Count them before you answer. "
-        "Going over is the single most common failure here.",
+        # Klammern, damit sichtbar ist, dass hier ZWEI Zeilen absichtlich eine
+        # Anweisung ergeben und nicht ein Komma fehlt. Ruff meldet die
+        # unbeklammerte Form (ISC004) -- zu Recht: genau so sieht ein
+        # vergessenes Komma aus, und in einer Liste von Prompt-Zeilen faellt
+        # der Unterschied niemandem auf.
+        (
+            f"- Write the icebreaker in {_LANGUAGE_NAMES.get(language, 'German')}. "
+            "This overrides any language used in the instructions above."
+        ),
+        (
+            f"- Maximum {max_words} words. Count them before you answer. "
+            "Going over is the single most common failure here."
+        ),
     ]
     chars = [w.strip() for w in banned_words if w.strip()]
     if chars:
@@ -178,8 +187,10 @@ def constraint_block(max_words: int, banned_words: list[str], language: str = DE
         # Vorlage gelesen, wenn man es nicht ausdruecklich daran hindert. Bei
         # Kaltakquise faellt genau das auf: 94 Mails an dieselbe Nische, die
         # alle gleich enden.
-        "- Any example phrasings above are examples, NOT templates. Never reuse "
-        "one word for word; end differently every time.",
+        (
+            "- Any example phrasings above are examples, NOT templates. Never reuse "
+            "one word for word; end differently every time."
+        ),
         "- Output the line itself only: no quotes, no label, no preamble.",
     ]
     return "\n".join(lines)

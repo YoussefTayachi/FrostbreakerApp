@@ -8,8 +8,8 @@ from urllib.parse import urlparse
 import httpx
 from tenacity import retry, stop_after_attempt, wait_exponential
 
-from worker.db import sb
 from worker import usage
+from worker.db import sb
 from worker.email_classify import classify_email
 from worker.http_safety import raise_for_status_safe
 from worker.keys import get_api_key

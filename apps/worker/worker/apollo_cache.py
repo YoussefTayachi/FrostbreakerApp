@@ -79,7 +79,7 @@ def get_many(api_key: str, kind: str, external_ids: list[str]) -> dict[str, dict
                 .data
                 or []
             )
-        except Exception:  # noqa: BLE001 -- Begruendung siehe Docstring
+        except Exception:
             log.warning("Apollo-Cache nicht lesbar, es wird regulaer angereichert", exc_info=True)
             return found
         for row in rows:
@@ -116,6 +116,6 @@ def put_many(api_key: str, kind: str, items: dict[str, dict]) -> None:
             sb().table("apollo_cache").upsert(
                 rows[i : i + 200], on_conflict="key_fingerprint,kind,external_id"
             ).execute()
-        except Exception:  # noqa: BLE001 -- Begruendung siehe Docstring
+        except Exception:
             log.warning("Apollo-Cache nicht beschreibbar", exc_info=True)
             return

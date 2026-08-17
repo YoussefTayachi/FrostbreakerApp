@@ -66,7 +66,7 @@ Docs: https://prospeo.io/api-docs
 import logging
 import time
 import uuid
-from typing import Callable
+from collections.abc import Callable
 
 import httpx
 from tenacity import retry, retry_if_exception, stop_after_attempt, wait_exponential

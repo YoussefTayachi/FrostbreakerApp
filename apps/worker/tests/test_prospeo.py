@@ -10,17 +10,16 @@ die die Suche nicht einloest.
 Die Faelle unten sind deshalb absichtlich dieselben wie in
 prospeo-query.test.ts. Wer hier etwas aendert, aendert dort mit.
 """
-import pytest
 
 from worker.pipelines.prospeo import (
     BULK_ENRICH_CHUNK,
-    _current_job,
-    _phone_of,
     HEADCOUNT_RANGES,
     PER_PAGE,
     REVENUE_TIERS,
     _address_of,
+    _current_job,
     _map_pair,
+    _phone_of,
     _website_of,
     build_company_summary,
     build_search_filters,
