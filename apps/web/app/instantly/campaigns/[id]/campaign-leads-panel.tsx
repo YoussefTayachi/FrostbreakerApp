@@ -58,7 +58,7 @@ export default function CampaignLeadsPanel({ campaignId }: { campaignId: string 
   }
 
   // Beim ersten Anzeigen einmal laden. Die Komponente wird nur gerendert,
-  // wenn der Reiter offen ist — der Abruf haengt damit am Klick, ohne dass
+  // wenn der Reiter offen ist; der Abruf haengt damit am Klick, ohne dass
   // hier eine zweite Zustandsvariable dafuer noetig waere.
   useEffect(() => {
     load();

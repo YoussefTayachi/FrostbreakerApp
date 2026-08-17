@@ -2,25 +2,25 @@
 
 > Grundregel: nie "ich kann programmieren" schreiben. Immer ein konkretes
 > Ding benennen, das du für *diese Art* Firma bauen würdest. Personalisiere
-> immer die erste Zeile — der Rest kann als Baustein bleiben.
+> immer die erste Zeile: der Rest kann als Baustein bleiben.
 
 ---
 
 ## Rechtlicher Hinweis: Österreich/EU vs. USA (kein Rechtsrat)
 
 In AT/DE ist unaufgeforderte E-Mail-Kaltakquise nach **UWG §7** auch B2B
-grundsätzlich einwilligungspflichtig — echtes Abmahnrisiko für einen
+grundsätzlich einwilligungspflichtig: echtes Abmahnrisiko für einen
 Solo-Freelancer ohne Rechtsabteilung. Deshalb: **Zielland USA statt
 Österreich/EU.**
 
-In den USA regelt der **CAN-SPAM Act** kommerzielle E-Mail — dort reicht
+In den USA regelt der **CAN-SPAM Act** kommerzielle E-Mail: dort reicht
 ein Opt-out-Modell: echter Absender, funktionierender Abmelde-Link,
 kein irreführender Betreff. Unaufgeforderte B2B-Kaltakquise ist dort
 Alltag (genau das Modell, auf dem Instantly, Apollo, Smartlead, Clay
 aufgebaut sind).
 
 **Praktisch heißt das:** Frostbreaker-Suche mit einer US-Stadt statt Wien
-starten — Pipeline (Ansprechpartner finden, E-Mail verifizieren, Versand
+starten; Pipeline (Ansprechpartner finden, E-Mail verifizieren, Versand
 über Instantly) bleibt exakt gleich. Die Vorlagen unten (Englisch) sind
 für dieses Zielpublikum.
 
@@ -156,7 +156,7 @@ die Case Study.
 
 ---
 
-## Vorlage A (English): Agencies — your strongest, provable offer
+## Vorlage A (English): Agencies, your strongest, provable offer
 
 **Target:** Marketing / growth / recruiting agencies in the US that run
 outbound themselves or sell lead-gen as a service to clients.
@@ -167,7 +167,7 @@ Subject: Own tool instead of Apollo + Instantly + a spreadsheet?
 Hi [Name],
 
 Quick question: how many tools are you stitching together for
-outbound right now — a contact database, an email finder, a
+outbound right now: a contact database, an email finder, a
 verification tool, a sender, and probably a spreadsheet as CRM?
 
 I built exactly that as one system: Google Maps search → AI research
@@ -176,7 +176,7 @@ sending → CRM, all in one place, using your own API keys instead of
 five separate subscriptions. It's live and running: [Link to case
 study]
 
-Would something like that help if it were built around your workflow —
+Would something like that help if it were built around your workflow,
 maybe wired into your existing CRM instead of being another silo? Happy
 to show you in 15 minutes what that could look like for you.
 
@@ -202,7 +202,7 @@ Hi [Name],
 
 I noticed [Company] [specific process, e.g. "handles inbound leads
 through a contact form and then enters them manually into your CRM"].
-That's the kind of thing a small custom tool can automate directly —
+That's the kind of thing a small custom tool can automate directly:
 saves a few minutes per lead, which adds up fast at your volume.
 
 I build exactly this kind of thing (recent example, fully self-built:
@@ -230,7 +230,7 @@ Betreff: Eigenes Tool statt Apollo + Instantly + Tabelle?
 Hi [Name],
 
 kurze Frage: Wie viele Tools kombiniert ihr aktuell für Leadgen und
-Kaltakquise – Datenbank, E-Mail-Finder, Verifizierung, Versand, dazu
+Kaltakquise: Datenbank, E-Mail-Finder, Verifizierung, Versand, dazu
 vermutlich eine Tabelle als CRM?
 
 Ich hab genau das als eigenes System gebaut (Google-Maps-Suche →
@@ -239,7 +239,7 @@ Versand → CRM, alles in einem, eure eigenen API-Keys, kein
 Abo-Wirrwarr). Läuft bei mir live, Case Study hier: [Link]
 
 Würde euch das was bringen, wenn es auf eure Prozesse zugeschnitten
-wäre – vielleicht mit eurem bestehenden CRM verbunden statt als
+wäre, vielleicht mit eurem bestehenden CRM verbunden statt als
 Insellösung? Ich zeig dir gern in 15 Minuten, wie das für euch
 aussehen könnte.
 
@@ -257,19 +257,19 @@ zeigen, nicht "Projekt beauftragen").
 ## Vorlage B: Firmen mit einem konkreten manuellen Prozess
 
 **Zielgruppe:** Firmen, bei denen du (per Website, LinkedIn, Vor-Ort-Besuch,
-Bekannte) einen sichtbaren manuellen Schritt erkennst — z. B. Bestellungen
+Bekannte) einen sichtbaren manuellen Schritt erkennst: z. B. Bestellungen
 per E-Mail statt Formular, Excel-Chaos, doppelte Dateneingabe zwischen zwei
 Systemen.
 
 ```
-Betreff: [konkreter Prozess] – hab da eine Idee
+Betreff: [konkreter Prozess], hab da eine Idee
 
 Hi [Name],
 
 mir ist aufgefallen, dass ihr [konkreter Prozess, z. B. "Anfragen über
 ein Kontaktformular bekommt und die dann manuell in [System] übertragt"].
 Das lässt sich mit einem kleinen Tool automatisieren, das die Daten
-direkt überträgt – spart pro Anfrage ein paar Minuten, bei eurem Volumen
+direkt überträgt: spart pro Anfrage ein paar Minuten, bei eurem Volumen
 vermutlich einiges an Zeit im Monat.
 
 Ich entwickle sowas (aktuelles Beispiel, komplett selbst gebaut:
@@ -280,19 +280,19 @@ Viele Grüße
 Youssef
 ```
 
-**Wichtig:** Diese Vorlage braucht echte Vorarbeit — du musst den Prozess
+**Wichtig:** Diese Vorlage braucht echte Vorarbeit: du musst den Prozess
 tatsächlich gesehen haben (Website, Stellenanzeigen die auf manuelle
 Arbeit hindeuten, ein Gespräch). Ohne diese Konkretheit wird sie zur
 generischen Massen-Mail und verliert ihre Wirkung.
 
 ---
 
-## Wie du Zielfirmen findest — nutz dein eigenes Tool dafür
+## Wie du Zielfirmen findest: nutz dein eigenes Tool dafür
 
 Für Vorlage A ist der naheliegendste Weg: **Starte in Frostbreaker selbst
 eine Suche nach "Marketing Agentur" / "Growth Agentur" / "Recruiting
 Agentur" in Wien (oder mehreren Städten)**. Das liefert dir automatisch
-Firmen samt Ansprechpartner und E-Mail — dieselbe Pipeline, die du gerade
+Firmen samt Ansprechpartner und E-Mail: dieselbe Pipeline, die du gerade
 als Beweis verkaufst, liefert dir gleichzeitig die Kontaktliste dafür.
 Doppelter Nutzen aus einer Suche.
 
@@ -306,7 +306,7 @@ Vereine/Verbände).
 
 ## Reihenfolge zum Ausprobieren
 
-1. Vorlage A an 15–20 Agenturen (per Frostbreaker-Suche gefunden) — das
+1. Vorlage A an 15–20 Agenturen (per Frostbreaker-Suche gefunden): das
    ist deine stärkste, am schnellsten wiederholbare Kampagne
 2. Antwortquote beobachten, Text bei Bedarf nachschärfen
 3. Erst danach Vorlage B einzeln und mit echter Recherche pro Firma, weil

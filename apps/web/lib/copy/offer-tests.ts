@@ -5,7 +5,7 @@
  * WARUM AM ANGEBOT UND NICHT AM TEXT
  * ═══════════════════════════════════════════════════════════════════════
  *
- * sequenceProblems() prueft das Erzeugnis. Hier wird die Quelle geprueft --
+ * sequenceProblems() prueft das Erzeugnis. Hier wird die Quelle geprueft,
  * und das ist die frueheste Stelle, an der man etwas retten kann. Ein Outcome
  * ohne Zeitrahmen erzeugt vier Mails ohne Zeitrahmen, und dann steht der
  * Nutzer vor acht Textfeldern und weiss nicht, warum sie sich beliebig
@@ -23,7 +23,7 @@
  *    gefaellt dir besser?" endet auch mit einem Fragezeichen.
  *
  * Beides gehoert in den Coach, der fragen kann. Hier steht nur, was sich
- * nachmessen laesst — lieber fuenf harte Befunde als zwoelf, von denen sieben
+ * nachmessen laesst: lieber fuenf harte Befunde als zwoelf, von denen sieben
  * geraten sind. Ein Warnsystem, das oft danebenliegt, schaltet der Nutzer nach
  * einer Woche im Kopf ab.
  */
@@ -41,7 +41,7 @@ import type { Offer, OfferTextField } from "@/lib/offers";
 export type OfferFinding =
   /** Der Outcome nennt kein "in X Tagen". */
   | { kind: "outcomeNoTimeframe" }
-  /** Der Outcome nennt keine Zahl — also keine Metrik, sondern eine Stimmung. */
+  /** Der Outcome nennt keine Zahl, also keine Metrik, sondern eine Stimmung. */
   | { kind: "outcomeNoNumber" }
   /** Im Mechanismus stehen Werkzeugwoerter. */
   | { kind: "mechanismJargon"; words: string[] }
@@ -56,7 +56,7 @@ export type OfferFinding =
   /** Der Kernsatz laesst sich nicht in 15 Sekunden sagen. */
   | { kind: "tooLongToSay"; words: number; max: number };
 
-/** Zu welchem Feld ein Befund gehoert — fuer die Anzeige unter dem Feld. */
+/** Zu welchem Feld ein Befund gehoert, fuer die Anzeige unter dem Feld. */
 export const FINDING_FIELD: Record<OfferFinding["kind"], OfferTextField> = {
   outcomeNoTimeframe: "outcome",
   outcomeNoNumber: "outcome",
@@ -74,7 +74,7 @@ export const FINDING_FIELD: Record<OfferFinding["kind"], OfferTextField> = {
  * Keine inhaltliche Pruefung, nur eine untere Schranke: "alte Website" oder
  * "schlechtes Marketing" sind drei Woerter und beschreiben nichts, was der
  * Empfaenger nachsehen koennte. Vier Woerter machen einen Satz noch nicht
- * konkret — aber unter vier ist er es sicher nicht.
+ * konkret, aber unter vier ist er es sicher nicht.
  */
 const FRICTION_MIN_WORDS = 4;
 
@@ -87,7 +87,7 @@ const FRICTION_MIN_WORDS = 4;
  * die zusammen den Kernsatz ergeben: was, wofuer, wie.
  *
  * Das ist eine Naeherung und wird auch so beschriftet. Sie taugt, um ein
- * Angebot zu erkennen, das in drei Schachtelsaetzen erklaert wird — nicht, um
+ * Angebot zu erkennen, das in drei Schachtelsaetzen erklaert wird, nicht, um
  * zwischen 36 und 40 Woertern zu richten.
  */
 const SPOKEN_WORDS_PER_15_SECONDS = 38;
@@ -112,7 +112,7 @@ export function offerFindings(offer: Pick<Offer, OfferTextField>): OfferFinding[
   }
 
   // Der Micro-Yes wird nur bemaengelt, wenn er ausgefuellt ist. Ein leeres
-  // Pflichtfeld meldet ohnehin schon der Ring — zwei Meldungen fuer dasselbe
+  // Pflichtfeld meldet ohnehin schon der Ring; zwei Meldungen fuer dasselbe
   // Loch sind eine zu viel.
   if (offer.cta.trim()) {
     const problems = microYesProblems(offer.cta);

@@ -2,14 +2,14 @@
 //
 // Warum eine eigene Liste statt Hunters Werten: Hunter veroeffentlicht fuer
 // Branchen (industries.json) und Technologien (technologies.json) je eine
-// Referenzdatei, fuer Staedte aber NICHT — und einen Autocomplete-Endpunkt
+// Referenzdatei, fuer Staedte aber NICHT, und einen Autocomplete-Endpunkt
 // gibt es in der dokumentierten API auch nicht (Stand 2026-07-30). Verifizierbar
 // sind laut Doku nur country (ISO 3166-1 alpha-2), state (US-Kuerzel) und
 // continent.
 //
 // Konsequenz fuer die UI: Diese Liste ist bewusst eine VORSCHLAGSLISTE
 // (<datalist>), kein hartes <select>. Ein gesperrtes Dropdown wuerde
-// vortaeuschen, jeder Eintrag sei garantiert gueltig — das kann hier niemand
+// vortaeuschen, jeder Eintrag sei garantiert gueltig; das kann hier niemand
 // garantieren, und schlimmer noch: eine von Hunter durchaus indizierte Stadt,
 // die hier fehlt, waere dann gar nicht mehr suchbar. So bekommt man die
 // bequeme Auswahl und behaelt den Ausweg.

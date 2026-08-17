@@ -6,7 +6,7 @@
 
 ## 1. Die Lösung für das Instantly-Problem
 
-**Kernidee: Wir bauen den Sequencer selbst und verschicken über die eigenen Postfächer des Users (BYO-Mailbox).** Instantly ist im Kern nur: Mailbox-Rotation + Sequenzen + Warmup + Analytics. Alles außer Warmup ist mit überschaubarem Aufwand selbst gebaut — und genau das passt zu deinem BYOK-Modell.
+**Kernidee: Wir bauen den Sequencer selbst und verschicken über die eigenen Postfächer des Users (BYO-Mailbox).** Instantly ist im Kern nur: Mailbox-Rotation + Sequenzen + Warmup + Analytics. Alles außer Warmup ist mit überschaubarem Aufwand selbst gebaut, und genau das passt zu deinem BYOK-Modell.
 
 ### So funktioniert es
 
@@ -30,7 +30,7 @@
 
 ### Rechtlicher Hinweis (kein Rechtsrat)
 
-DSGVO deckt die **Datenverarbeitung** ab — dein BYOK-Ansatz + EU-Hosting (Supabase Frankfurt) + Löschfunktionen helfen hier. Aber: Kaltakquise per E-Mail ist in DE/AT nach **UWG §7** auch B2B grundsätzlich einwilligungspflichtig. Das Risiko trägt dein User (er ist Verantwortlicher, du Auftragsverarbeiter mit AVV). Die App sollte trotzdem einbauen: Pflicht-Unsubscribe, Suppression-List, Impressumspflicht-Hinweis, Double-Opt-out-Log. Das ist auch ein Verkaufsargument.
+DSGVO deckt die **Datenverarbeitung** ab: dein BYOK-Ansatz + EU-Hosting (Supabase Frankfurt) + Löschfunktionen helfen hier. Aber: Kaltakquise per E-Mail ist in DE/AT nach **UWG §7** auch B2B grundsätzlich einwilligungspflichtig. Das Risiko trägt dein User (er ist Verantwortlicher, du Auftragsverarbeiter mit AVV). Die App sollte trotzdem einbauen: Pflicht-Unsubscribe, Suppression-List, Impressumspflicht-Hinweis, Double-Opt-out-Log. Das ist auch ein Verkaufsargument.
 
 ---
 
@@ -64,36 +64,36 @@ Deine n8n-Logik wird 1:1 portiert, aber robuster:
 
 ---
 
-## 3. Projektplan — Phasen
+## 3. Projektplan: Phasen
 
 **Prinzip: Ich baue alles. Du lieferst nur Accounts, Keys und Freigaben.**
 
-### Phase 0 — Setup (1 Session)
+### Phase 0: Setup (1 Session)
 - **Ich:** Monorepo-Scaffold, CI (GitHub Actions), Supabase-Schema/Migrations, README, .env-Struktur.
 - **Du:** GitHub-Repo anlegen + mir Zugriff geben (Browser-Freigabe reicht), Supabase-Projekt (Region Frankfurt) anlegen, Keys reingeben.
 
-### Phase 1 — Lead-Pipeline in Python (2–3 Sessions)
+### Phase 1: Lead-Pipeline in Python (2–3 Sessions)
 - **Ich:** Die 3 Workflows als Python-Module portieren, Job-Queue (Postgres-basiert, kein Redis nötig → Kosten), Rate-Limiting, Retry, Tests mit deinen Pin-Daten aus den JSONs.
 - **Du:** Test-API-Keys (Google Maps neu rotiert!, OpenAI, Hunter). Einen Testlauf abnicken.
 
-### Phase 2 — Personalisierung (1 Session)
+### Phase 2: Personalisierung (1 Session)
 - **Ich:** Scraper + GPT-Personalisierung, Prompt-Templates, Batch-Verarbeitung pro Nische.
 - **Du:** 2–3 Beispiel-Personalisierungen bewerten (Qualitätskalibrierung).
 
-### Phase 3 — Sending Engine (2–3 Sessions) ← ersetzt Instantly
+### Phase 3: Sending Engine (2–3 Sessions) ← ersetzt Instantly
 - **Ich:** SMTP/IMAP-Connector, Sequencer + Scheduler, Ramp-up, Stop-on-Reply, Bounce-Handling, Unsubscribe-Endpoint, Suppression-List, DNS-Checker.
 - **Du:** Ein Test-Postfach (z. B. Google Workspace + App-Passwort) und eine Test-Sending-Domain; DNS-Einträge setzen (ich sag dir exakt welche).
 
-### Phase 4 — Frontend (2–3 Sessions)
+### Phase 4: Frontend (2–3 Sessions)
 - **Ich:** Next.js-Dashboard: Onboarding (Keys eintragen), Suche starten (Nische + Ort), Lead-Tabelle mit Status, Kampagnen-Builder mit Variablen-Editor, Reply-Inbox, Analytics (Open/Reply/Bounce-Rate). Baue ich v0-kompatibel (shadcn/ui + Tailwind).
 - **Du:** Vercel-Account verbinden, Design-Feedback.
 
-### Phase 5 — DSGVO & Härtung (1–2 Sessions)
+### Phase 5: DSGVO & Härtung (1–2 Sessions)
 - **Ich:** RLS-Policies final, Key-Verschlüsselung auditieren, Datenexport + Konto-Löschung (Art. 15/17), AVV-Template, Audit-Log, Rate-Limits gegen Missbrauch.
 - **Du:** AVV/Datenschutzerklärung von einem Anwalt gegenlesen lassen (das kann ich nicht ersetzen).
 
-### Phase 6 — Monetarisierung & Launch (1–2 Sessions)
-- **Ich:** Stripe-Integration (Subscription, z. B. 29–49 €/Monat — dein Pricing-Vorteil: User zahlt APIs selbst, du hast fast null variable Kosten), Landing Page, Onboarding-Docs.
+### Phase 6: Monetarisierung & Launch (1–2 Sessions)
+- **Ich:** Stripe-Integration (Subscription, z. B. 29–49 €/Monat, dein Pricing-Vorteil: User zahlt APIs selbst, du hast fast null variable Kosten), Landing Page, Onboarding-Docs.
 - **Du:** Stripe-Account (Identitätsprüfung), Domain kaufen, Preis festlegen.
 
 **Gesamt: ~10–14 Arbeitssessions.**
@@ -117,9 +117,9 @@ Deine n8n-Logik wird 1:1 portiert, aber robuster:
 
 | Posten | Für dich | Für deinen User |
 |---|---|---|
-| Hosting Backend | ~5 €/Monat (Railway/Fly) | — |
-| Supabase | 0 € (Free) → 25 $ (Pro) bei Wachstum | — |
-| Vercel | 0 € (Hobby) → 20 $ | — |
+| Hosting Backend | ~5 €/Monat (Railway/Fly) | entfällt |
+| Supabase | 0 € (Free) → 25 $ (Pro) bei Wachstum | entfällt |
+| Vercel | 0 € (Hobby) → 20 $ | entfällt |
 | APIs (Maps/OpenAI/Hunter) | 0 € (BYOK) | zahlt er selbst, nutzungsbasiert |
 | E-Mail-Versand | 0 € | sein eigenes Postfach (~6 €/Monat) |
 

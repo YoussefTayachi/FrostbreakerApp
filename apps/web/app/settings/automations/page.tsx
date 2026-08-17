@@ -64,7 +64,7 @@ export default function AutomationsPage() {
   }
 
   /** Schickt eine echte Mail an die gespeicherte Adresse. Der Fehlertext von
-   *  Resend wird woertlich angezeigt — "Domain nicht verifiziert" und
+   *  Resend wird woertlich angezeigt: "Domain nicht verifiziert" und
    *  "Schluessel fehlt" sehen sonst identisch aus. */
   async function testReplyNotify() {
     setReplyTest("sending");
@@ -88,7 +88,7 @@ export default function AutomationsPage() {
    *
    * Beide Felder duerfen leer bleiben. Der Unterschied ist nicht "mit oder
    * ohne Komfort", sondern was das Modell tut, wenn es die Angabe nicht hat:
-   * ohne Terminlink wird ihm ausdruecklich verboten, einen zu erfinden --
+   * ohne Terminlink wird ihm ausdruecklich verboten, einen zu erfinden;
    * sonst steht eine plausible, tote Calendly-Adresse in einer echten
    * Geschaeftsmail, und der Fehler faellt erst dem Empfaenger auf.
    */

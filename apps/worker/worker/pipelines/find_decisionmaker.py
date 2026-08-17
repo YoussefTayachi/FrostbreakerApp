@@ -1,4 +1,4 @@
-"""Pipeline 2 — Port von n8n 'Find_Decisionmaker'.
+"""Pipeline 2: Port von n8n 'Find_Decisionmaker'.
 
 OpenAI Responses API mit web_search-Tool + Structured Output (JSON Schema).
 Ersetzt das '```json'-Prompt-Parsing und die Switch/Stop-and-Error-Logik aus n8n.
@@ -168,7 +168,7 @@ def research(
         },
     )
     # Web-Suche als Werkzeug macht diesen Aufruf deutlich teurer als eine
-    # reine Textgenerierung — umso wichtiger, ihn echt zu zaehlen statt
+    # reine Textgenerierung; umso wichtiger, ihn echt zu zaehlen statt
     # pauschal pro Job zu schaetzen.
     if workspace_id:
         usage.record_openai(workspace_id, "find_decisionmaker", resp, search_id=search_id)
@@ -180,7 +180,7 @@ def run(job: dict) -> None:
     business_id = job["payload"]["business_id"]
     biz = sb().table("businesses").select(BUSINESS_WITH_SEARCH).eq("id", business_id).single().execute().data
     if search_is_deleted(biz):
-        return  # Suche im Papierkorb — keine OpenAI-Kosten fuer unsichtbare Leads
+        return  # Suche im Papierkorb, keine OpenAI-Kosten fuer unsichtbare Leads
 
     def set_status(status: str) -> None:
         sb().table("businesses").update({"decisionmaker_status": status}).eq(
@@ -199,7 +199,7 @@ def run(job: dict) -> None:
             ).execute()
         emails, domains = load_suppression(ws)
         # Schon vorhandene Kontakte dieser Firma ausklammern. Ein Job kann
-        # mehrfach laufen — etwa wenn der Worker mitten in der Ausfuehrung
+        # mehrfach laufen, etwa wenn der Worker mitten in der Ausfuehrung
         # stirbt und claim_job() den Job nach der Zeitueberschreitung neu
         # einreiht (Migration 0047). Ohne diese Pruefung wuerde der zweite
         # Durchlauf dieselben Personen ein weiteres Mal anlegen.

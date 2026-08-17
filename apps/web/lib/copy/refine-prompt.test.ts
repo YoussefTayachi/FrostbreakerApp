@@ -3,7 +3,7 @@ import type { Offer } from "@/lib/offers";
 import { MAX_INSTRUCTION_CHARS, buildRefinePrompt, parseVariant } from "./refine-prompt";
 
 // Die LinkedIn-Vorlage hat mit dem Nachschaerfen nichts zu tun und wird seit
-// 2026-08-13 in linkedin-prompt.test.ts geprueft — dort, wo sie hingehoert.
+// 2026-08-13 in linkedin-prompt.test.ts geprueft: dort, wo sie hingehoert.
 
 const angebot: Offer = {
   id: "o1",

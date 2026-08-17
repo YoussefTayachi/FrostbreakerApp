@@ -71,7 +71,7 @@ export default function CampaignDetail({ id }: { id: string }) {
           to: body.to,
           timezone: body.timezone,
           // Beim Bearbeiten kommt der Zustand von Instantly. Null (vor
-          // Migration 0071 angelegt) wird als "aus" dargestellt — und beim
+          // Migration 0071 angelegt) wird als "aus" dargestellt, und beim
           // Speichern damit auch so gesetzt, was die Unklarheit aufloest.
           openTracking: body.openTracking === true,
           linkTracking: body.linkTracking === true,

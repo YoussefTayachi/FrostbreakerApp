@@ -1,7 +1,7 @@
 """Einordnung von Anbieter-Fehlern: aufgebrauchtes Guthaben vs. Drosselung.
 
 Warum es diese Datei gibt: Am 2026-08-03 standen 467 fehlgeschlagene Jobs in
-der Warteschlange. 128 davon — 88 personalize und 40 find_decisionmaker --
+der Warteschlange. 128 davon (88 personalize und 40 find_decisionmaker)
 trugen denselben Text:
 
     Error code: 429 - {'error': {'message': 'You have no credits remaining.
@@ -9,7 +9,7 @@ trugen denselben Text:
 
 Das OpenAI-Guthaben war leer. Die App hat trotzdem 128-mal weiter versucht,
 jeder Versuch hat die Zustellversuche des Jobs verbraucht, und am Ende waren
-die Jobs endgueltig 'failed' — ohne dass jemand je eine Meldung gesehen
+die Jobs endgueltig 'failed', ohne dass jemand je eine Meldung gesehen
 haette. Fuer ein Produkt, bei dem der Kunde seine eigenen Schluessel
 mitbringt, ist das der wichtigste Ausfall ueberhaupt: laeuft fremdes Guthaben
 aus, steht alles still, und es faellt erst auf, wenn eine Woche Akquise fehlt.
@@ -23,7 +23,7 @@ Zwei Faelle, die sehr unterschiedlich behandelt werden muessen:
                     zurueckstellen, kein Alarm.
 
 Die Unterscheidung ist bei OpenAI heikel, weil BEIDE Faelle den Code 429
-liefern — nur der Meldungstext trennt sie. Genau deshalb steht die Logik hier
+liefern; nur der Meldungstext trennt sie. Genau deshalb steht die Logik hier
 als reine Funktion mit Tests gegen die echten Texte aus der Datenbank und
 nicht verstreut in den Pipelines.
 """
@@ -53,7 +53,7 @@ _RATE_LIMIT_MARKERS = (
     "429",
 )
 
-# Aus der Fehlermeldung ablesbare Anbieter — die httpx-Fehler enthalten die
+# Aus der Fehlermeldung ablesbare Anbieter: die httpx-Fehler enthalten die
 # aufgerufene URL, das ist zuverlaessiger als vom Job-Typ zurueckzuschliessen.
 _URL_PROVIDERS = (
     ("api.hunter.io", "hunter"),
@@ -75,7 +75,7 @@ _JOB_TYPE_PROVIDERS = {
 }
 
 # Zweiter Rueckfall: Meldungen, die WIR selbst formuliert haben und die
-# deshalb keine URL enthalten — ProspeoPlanError sagt "Prospeo hat den
+# deshalb keine URL enthalten. ProspeoPlanError sagt "Prospeo hat den
 # Schluessel abgelehnt", nicht "https://api.prospeo.io/...".
 #
 # Bewusst eine eigene, kurze Liste statt den Anbieternamen einfach zu
@@ -93,8 +93,8 @@ def classify_error(error_text: str) -> str | None:
 
     Reihenfolge ist wesentlich: OpenAI schickt bei aufgebrauchtem Guthaben
     ebenfalls 429. Wuerde zuerst auf Drosselung geprueft, waere jedes leere
-    Konto als voruebergehend eingestuft — genau der Fehler, der die 128
-    Fehlschlaege erzeugt hat.
+    Konto als voruebergehend eingestuft. Genau dieser Fehler hat die 128
+    Fehlschlaege erzeugt.
     """
     if not error_text:
         return None

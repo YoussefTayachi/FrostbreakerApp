@@ -7,7 +7,7 @@ import { useToast } from "../toast-provider";
 
 // Selbstregistrierung fuer neue Accounts. handle_new_user() (Migration 0024)
 // legt bei jedem neuen auth.users-Eintrag automatisch einen Workspace UND
-// eine Subscription mit 14 Tage Trial an (trial_ends_at = now() + 14 Tage) --
+// eine Subscription mit 14 Tage Trial an (trial_ends_at = now() + 14 Tage);
 // hier muss nichts weiter fuer den Trial getan werden, nur der Auth-User
 // selbst muss entstehen.
 //

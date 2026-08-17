@@ -19,13 +19,13 @@ type SearchOption = {
   location: string;
   instantly_campaign_id: string | null;
   // Gebuendelte Mehrfach-Suche (Migration 0096): angeboten wird die Gruppe,
-  // ausgewaehlt werden ihre Teilsuchen — an der Huelle selbst haengt keine
+  // ausgewaehlt werden ihre Teilsuchen; an der Huelle selbst haengt keine
   // einzige Firma. Siehe lib/search-group.ts.
   parent_search_id: string | null;
   is_search_group: boolean;
 };
 
-/** Vorschau auf die Menge, die tatsaechlich versendet wuerde — dieselben
+/** Vorschau auf die Menge, die tatsaechlich versendet wuerde: dieselben
  *  Filter wie in api/instantly/campaigns (ungueltig, blockiert, kein
  *  Interesse, eine Person pro Firma), damit die Zahl hier nicht hoeher ist
  *  als die spaeter tatsaechlich angelegte Kampagne. */
@@ -34,14 +34,14 @@ type LeadPreview = { sendable: number; invalid: number };
 /**
  * Der halbfertige Entwurf im Browser.
  *
- * Postfaecher waehlen, vier Stufen erzeugen, drueberlesen, Zeitplan setzen --
+ * Postfaecher waehlen, vier Stufen erzeugen, drueberlesen, Zeitplan setzen:
  * das dauert Minuten, und bis hierher war jeder Klick auf einen anderen
  * Menuepunkt der Verlust von allem: die Seite haelt ihren Zustand in React,
  * und React unmountet sie beim Routenwechsel.
  *
  * Bewusst nur localStorage und bewusst nur dieser eine Fluss. Server-seitige
  * Entwuerfe waeren eine Tabelle, eine Migration und die Frage, wann sie
- * aufgeraeumt wird — fuer ein Formular, das in derselben Sitzung fertig wird.
+ * aufgeraeumt wird, fuer ein Formular, das in derselben Sitzung fertig wird.
  *
  * Der Schluessel haengt am Workspace: sonst taucht der Entwurf der einen
  * Agentur-Kundschaft im Formular der naechsten auf.
@@ -54,7 +54,7 @@ type CampaignDraft = { searchIds: string[]; value: CampaignFormValue };
  *
  * Ein unangetastetes Formular zu sichern hiesse, beim naechsten Besuch
  * "Entwurf wiederhergestellt" ueber leere Felder zu schreiben. Gezaehlt wird
- * nur, was der Nutzer selbst getan haben muss — Zeitplan und Messung sind
+ * nur, was der Nutzer selbst getan haben muss: Zeitplan und Messung sind
  * vorbelegt und sagen nichts darueber aus, ob hier jemand gearbeitet hat.
  */
 function hatInhalt(searchIds: string[], v: CampaignFormValue): boolean {
@@ -81,7 +81,7 @@ export default function NewCampaignPage() {
    * Mehrfach erlaubt: eine gebuendelte Mehrfach-Suche schickt von ihrer
    * Detailseite alle Teilsuchen mit, weil an ihrer eigenen ID keine Firmen
    * haengen (Migration 0096). Der Umweg ueber den zusammengefuegten String
-   * haelt die Abhaengigkeit der Effekte unten stabil — getAll() gibt bei
+   * haelt die Abhaengigkeit der Effekte unten stabil: getAll() gibt bei
    * jedem Rendern ein neues Array zurueck und wuerde sie endlos ausloesen.
    */
   const preselectedRaw = searchParams.getAll("searchId").join(",");
@@ -103,7 +103,7 @@ export default function NewCampaignPage() {
    */
   const [readiness, setReadiness] = useState<ReadinessResult | null>(null);
   const [override, setOverride] = useState(false);
-  /** Das Angebot, aus dem erzeugt wurde — wandert weiter an die Stufenkarten,
+  /** Das Angebot, aus dem erzeugt wurde; es wandert weiter an die Stufenkarten,
    *  damit das Nachschaerfen denselben Zusammenhang kennt. */
   const [offerId, setOfferId] = useState<string | null>(null);
   const handleOfferChange = useCallback((id: string | null) => setOfferId(id), []);
@@ -127,7 +127,7 @@ export default function NewCampaignPage() {
   }, []);
 
   /** Ein Haken kann mehrere Listen meinen: bei einer Gruppe sind es ihre
-   *  Teilsuchen. Alles dahinter — Vorschau, Anlegen, campaign_searches --
+   *  Teilsuchen. Alles dahinter (Vorschau, Anlegen, campaign_searches)
    *  arbeitet unveraendert mit echten Such-IDs weiter. */
   function toggleSearch(ids: string[]) {
     setSearchIds((prev) =>
@@ -146,7 +146,7 @@ export default function NewCampaignPage() {
   }
 
   /** Von vorn anfangen: der Entwurf ist weg, das Formular wieder leer. Die
-   *  per ?searchId= mitgebrachte Liste bleibt — sie ist der Grund, warum der
+   *  per ?searchId= mitgebrachte Liste bleibt: sie ist der Grund, warum der
    *  Nutzer ueberhaupt auf dieser Seite steht. */
   function discardDraft() {
     forgetDraft();
@@ -155,7 +155,7 @@ export default function NewCampaignPage() {
     setRestoreNotice(false);
   }
 
-  // Entwurf holen. Laeuft vor dem Speichern-Effekt und setzt restoredFor --
+  // Entwurf holen. Laeuft vor dem Speichern-Effekt und setzt restoredFor;
   // ohne diese Reihenfolge ueberschreibt der leere Anfangszustand das
   // Gespeicherte, bevor es im Formular ankommt.
   useEffect(() => {
@@ -224,7 +224,7 @@ export default function NewCampaignPage() {
         .not("email", "is", null)
         .limit(5000),
       supabase.from("suppression_list").select("email, domain").eq("workspace_id", workspaceId),
-      // Muss mitlaufen, weil der Server-Pfad es auch tut (Migration 0095) --
+      // Muss mitlaufen, weil der Server-Pfad es auch tut (Migration 0095);
       // sonst verspricht die Vorschau Empfaenger, die beim Anlegen wegfallen.
       supabase
         .from("contact_archive")
@@ -243,7 +243,7 @@ export default function NewCampaignPage() {
         businesses: { website: string | null } | null;
       }[];
       // Dieselbe Regel wie im Server-Pfad (lib/contacts.ts): wer schon
-      // reagiert hat — auch auf LinkedIn — zaehlt hier nicht mit, sonst
+      // reagiert hat (auch auf LinkedIn), zaehlt hier nicht mit, sonst
       // verspricht die Vorschau mehr Empfaenger, als danach rausgehen.
       const { contactable: notDeclined } = splitByEngagement(rows);
       const blocked = [
@@ -268,7 +268,7 @@ export default function NewCampaignPage() {
    * Die angebotenen Listen: Teilsuchen verschwinden hinter ihrer Gruppe.
    *
    * Ohne das stuenden hier bei einer Laender-Abdeckung sechzig Zeilen "Nische ·
-   * Stadt" und eine leere Huelle dazwischen — und wer die Huelle anhakt,
+   * Stadt" und eine leere Huelle dazwischen, und wer die Huelle anhakt,
    * bekaeme null Empfaenger.
    */
   const listenOptionen = useMemo(() => groupPickerOptions(searches ?? []), [searches]);
@@ -364,7 +364,7 @@ export default function NewCampaignPage() {
         <div className="max-h-64 space-y-1 overflow-y-auto rounded-lg border border-edge2 bg-field p-2">
           {listenOptionen.map(({ row: s, searchIds: ids }) => {
             // "Bereits verknuepft" gilt fuer eine Gruppe erst, wenn ALLE ihre
-            // Teilsuchen an einer Kampagne haengen — die Verknuepfung schreibt
+            // Teilsuchen an einer Kampagne haengen: die Verknuepfung schreibt
             // die API auf die Teilsuchen, nie auf die Huelle.
             const linked = ids.every((i) => !!listenNachId.get(i)?.instantly_campaign_id);
             return (

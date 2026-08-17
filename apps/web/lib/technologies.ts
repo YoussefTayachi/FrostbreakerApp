@@ -1,6 +1,6 @@
 // Technologie-Filter fuer Corporate (Hunter) und Apollo.
 //
-// Beide Anbieter koennen nach der eingesetzten Technik einer Firma filtern --
+// Beide Anbieter koennen nach der eingesetzten Technik einer Firma filtern;
 // damit lassen sich z.B. gezielt Shopify-Shops finden, statt "ecommerce" als
 // Keyword zu raten. Die Slugs sind aber NICHT dieselben:
 //
@@ -13,7 +13,7 @@
 //
 // ACHTUNG, teuer gelernt: Apollos CSV enthaelt ANZEIGENAMEN, nicht die UIDs.
 // Eine UID laesst sich daraus NICHT zuverlaessig ableiten. Frueher stand hier
-// die Regel "klein, Leerzeichen und Punkte zu Unterstrichen" — die stimmt fuer
+// die Regel "klein, Leerzeichen und Punkte zu Unterstrichen"; die stimmt fuer
 // "Woo Commerce" -> woo_commerce, aber genau drei Eintraege weichen ab:
 //
 //   Apollo.io   -> apolloio    (NICHT apollo_io; "apollo" ist Apollo GraphQL,
@@ -23,7 +23,7 @@
 //
 // Das ist keine Kosmetik: ein unbekannter UID wird von Apollo nicht als Fehler
 // abgewiesen, sondern liefert stillschweigend NULL Treffer. Die Suche laeuft
-// dann sauber durch und endet mit "fertig, 0 Leads" — ohne jeden Hinweis
+// dann sauber durch und endet mit "fertig, 0 Leads", ohne jeden Hinweis
 // darauf, dass der Filter gar nicht existiert. Genau so ist am 2026-08-02 eine
 // 300-Lead-Suche auf Apollo.io-Nutzer leer ausgegangen.
 //
@@ -37,7 +37,7 @@
 // kennt nur Apollo, ActiveCampaign nur Hunter, und Brevo laeuft bei Hunter noch
 // unter dem alten Namen "sendinblue". Fehlt ein Slug, bleibt das Feld leer und
 // der Eintrag wird im jeweiligen Modus gar nicht erst angeboten (siehe
-// technologiesFor) — sonst waehlte man einen Filter, der stillschweigend
+// technologiesFor); sonst waehlte man einen Filter, der stillschweigend
 // wirkungslos bliebe.
 //
 // Bewusst kuratiert statt vollstaendig: die Rohlisten haben zusammen ueber
@@ -47,7 +47,7 @@
 export type TechGroup = "shop" | "tools" | "sales";
 
 export type Technology = {
-  /** Stabile interne ID. Sie — nicht der Anbieter-Slug — landet im
+  /** Stabile interne ID. Sie und nicht der Anbieter-Slug landet im
    *  Formular-State und in gespeicherten Vorlagen, damit eine Vorlage beim
    *  Wechsel zwischen Corporate und Apollo gueltig bleibt. */
   id: string;
@@ -78,7 +78,7 @@ export const TECHNOLOGIES: Technology[] = [
   { id: "lightspeed", label: "Lightspeed eCom", group: "shop", apollo: "lightspeed_ecom", hunter: "lightspeed-ecom" },
   { id: "opencart", label: "OpenCart", group: "shop", apollo: "opencart", hunter: "opencart" },
   { id: "afterbuy", label: "Afterbuy", group: "shop", apollo: "afterbuy", hunter: "afterbuy" },
-  // Nur bei Apollo gelistet — im Corporate-Modus deshalb ausgeblendet.
+  // Nur bei Apollo gelistet, im Corporate-Modus deshalb ausgeblendet.
   { id: "shopgate", label: "Shopgate", group: "shop", apollo: "shopgate" },
   { id: "commercetools", label: "commercetools", group: "shop", apollo: "commercetools" },
   { id: "spryker", label: "Spryker", group: "shop", apollo: "spryker_cloud_commerce_os" },
@@ -116,7 +116,7 @@ export const TECHNOLOGIES: Technology[] = [
   // hat das Problem bereits erkannt und ein Budget dafuer.
   //
   // Was hier NICHT steht und warum:
-  //   Hunter.io, Instantly.ai, Smartlead, Clay, Lusha, Cognism — in KEINEM
+  //   Hunter.io, Instantly.ai, Smartlead, Clay, Lusha, Cognism: in KEINEM
   //   der beiden Kataloge enthalten (geprueft am 2026-08-02 gegen beide
   //   Rohlisten). Sie liessen sich zwar als Kachel anbieten, wuerden bei der
   //   Suche aber wirkungslos durchlaufen, und der Nutzer haette scheinbar
@@ -131,7 +131,7 @@ export const TECHNOLOGIES: Technology[] = [
   //   Genau diese Trennung bildet Apollo in den UIDs ab, aber anders als
   //   erwartet: "apollo" IST das GraphQL-Framework (Stichprobe: Microsoft,
   //   Razorpay, EXL), das CRM liegt auf "apolloio" (Stichprobe: The Retail
-  //   Doctor, Tibicle, APEX Consulting — Agenturen und Beratungen). Der
+  //   Doctor, Tibicle, APEX Consulting, also Agenturen und Beratungen). Der
   //   naheliegende Zwischenweg "apollo_io" existiert bei Apollo NICHT und
   //   lieferte deshalb null Treffer, siehe Kopf dieser Datei.
   { id: "apollo_io", label: "Apollo.io", group: "sales", apollo: "apolloio" },
@@ -146,14 +146,14 @@ export const TECHNOLOGIES: Technology[] = [
 export type TechProvider = "apollo" | "hunter";
 
 /** Nur die Technologien, die der jeweilige Anbieter ueberhaupt kennt. Ein
- *  Eintrag, den man auswaehlen kann, muss auch wirken — sonst liefe die Suche
+ *  Eintrag, den man auswaehlen kann, muss auch wirken; sonst liefe die Suche
  *  scheinbar gefiltert, tatsaechlich aber ungefiltert. */
 export function technologiesFor(provider: TechProvider): Technology[] {
   return TECHNOLOGIES.filter((tech) => Boolean(tech[provider]));
 }
 
 /** Interne IDs in die Slugs des Anbieters uebersetzen. Unbekannte IDs und
- *  solche ohne Slug fallen weg — Vorlagen aus dem jeweils anderen Modus
+ *  solche ohne Slug fallen weg; Vorlagen aus dem jeweils anderen Modus
  *  koennen IDs enthalten, die hier nicht gelten. */
 export function resolveTechnologies(ids: string[], provider: TechProvider): string[] {
   const bySlug = new Set<string>();
@@ -172,7 +172,7 @@ export function resolveTechnologies(ids: string[], provider: TechProvider): stri
  * das Formular arbeitet aber mit den internen IDs.
  *
  * Slugs, zu denen es keinen Eintrag gibt, fallen weg. Das ist kein Verlust,
- * der hier entsteht — er ist schon beim Speichern der Suche passiert, denn
+ * der hier entsteht; er ist schon beim Speichern der Suche passiert, denn
  * resolveTechnologies laesst genau dieselben Faelle fallen.
  */
 export function technologyIdsFromSlugs(slugs: string[], provider: TechProvider): string[] {

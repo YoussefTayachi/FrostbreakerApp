@@ -32,7 +32,7 @@ export type ActivityChannel = (typeof ACTIVITY_CHANNELS)[number];
  * Farbe je Aktivitaetstyp, wie STAGE_DOT_CLS in stages.ts. Sprachunabhaengig,
  * deshalb hier und nicht in dict.ts.
  *
- * Pipedrive faerbt seine Aktivitaetstypen und stellt ihnen ein Symbol voran --
+ * Pipedrive faerbt seine Aktivitaetstypen und stellt ihnen ein Symbol voran;
  * das macht eine Liste mit dreissig Eintraegen auf einen Blick lesbar, statt
  * dass man jede Zeile lesen muss, um "Anruf" von "Aufgabe" zu unterscheiden.
  */
@@ -75,7 +75,7 @@ export type Activity = {
  * Frueher gab es dafuer nur supportsOutcome() mit der Regel "nur beim Anruf".
  * Mit 'message' als Typ reicht das nicht mehr: eine Direktnachricht hat sehr
  * wohl ein Ergebnis, aber nicht dasselbe wie ein Anruf. "Mailbox" ergibt bei
- * einer LinkedIn-DM keinen Sinn, und "erreicht" auch nicht — verschickt ist
+ * einer LinkedIn-DM keinen Sinn, und "erreicht" auch nicht: verschickt ist
  * nicht gelesen. Uebrig bleibt, was man an einer Antwort ablesen kann, plus
  * "keine Antwort" fuer den haeufigsten Ausgang.
  *
@@ -116,7 +116,7 @@ export function defaultChannelFor(type: ActivityType): ActivityChannel | null {
 
 /**
  * Ordnet ein Gespraechsergebnis der Outreach-Stufe zu, auf die der Kontakt
- * dadurch springen soll. Nur Ergebnisse mit klarer Aussage sind hier gelistet --
+ * dadurch springen soll. Nur Ergebnisse mit klarer Aussage sind hier gelistet;
  * "voicemail"/"no_answer" sagen nichts ueber das Interesse und aendern nichts.
  */
 export const OUTCOME_TO_STAGE: Partial<Record<ActivityOutcome, string>> = {
@@ -133,5 +133,5 @@ export function isOverdue(activity: Pick<Activity, "due_at" | "completed_at">, n
 // Bewusst KEINE Funktion "welche Kanaele hat dieser Kontakt hinterlegt":
 // Der Composer protokolliert, was tatsaechlich passiert ist. Wer jemanden auf
 // einer Messe getroffen oder unter einer anderswo gefundenen Nummer angerufen
-// hat, muss das eintragen koennen — eine Einschraenkung auf gespeicherte
+// hat, muss das eintragen koennen; eine Einschraenkung auf gespeicherte
 // Felder wuerde genau diese Faelle blockieren. Die Auswahl bleibt vollstaendig.

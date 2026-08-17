@@ -4,7 +4,7 @@
  * WOFUER ES DAS GIBT
  *
  * Eine Kaltakquise-Kampagne scheitert fast nie daran, dass der Text schlecht
- * ist. Sie scheitert daran, dass sie gar nicht ankommt — fehlende
+ * ist. Sie scheitert daran, dass sie gar nicht ankommt: fehlende
  * SPF/DKIM-Eintraege, ungeprueft eingesammelte Adressen, eine Domain, die
  * sich schon eine Bounce-Quote eingefangen hat. Das merkt man erst Wochen
  * spaeter, und dann ist die Absender-Domain verbrannt und nicht mehr zu
@@ -20,7 +20,7 @@
  * Ein Blocker ist etwas, das mit Sicherheit schiefgeht und dessen Schaden
  * bleibt: ohne SPF/DKIM landet die Mail im Spam, und jede weitere Mail von
  * dieser Domain danach ebenso. Eine Warnung ist etwas, das schlechter macht,
- * aber weder sicher noch dauerhaft ist — eine unverifizierte Adresse KANN
+ * aber weder sicher noch dauerhaft ist: eine unverifizierte Adresse KANN
  * bouncen, muss aber nicht.
  *
  * Diese Trennung ist die ganze Glaubwuerdigkeit der Sache. Wenn ein Blocker
@@ -62,7 +62,7 @@ export type StepFacts = { words: number; hasLink: boolean };
 export type ReadinessFacts = {
   /** Nach denselben Filtern wie beim tatsaechlichen Anlegen (ungueltig, gesperrt, kein Interesse). */
   sendableLeads: number;
-  /** Adressen ohne jede Pruefung — weder als gueltig noch als ungueltig bekannt. */
+  /** Adressen ohne jede Pruefung, weder als gueltig noch als ungueltig bekannt. */
   unverifiedLeads: number;
   /** Sendbare Leads, deren Firma gar keinen Aufhaenger hat. */
   leadsWithoutIcebreaker: number;
@@ -88,7 +88,7 @@ export const BOUNCE_WARN_RATE = 0.03;
 /**
  * Unter 50 versendeten Mails sagt eine Quote nichts.
  *
- * Bei 20 Mails ist ein einziger Bounce bereits 5 % — daraus einen Blocker zu
+ * Bei 20 Mails ist ein einziger Bounce bereits 5 %. Daraus einen Blocker zu
  * machen hiesse, jeden Neustart nach dem ersten Missgeschick zu verhindern.
  */
 export const BOUNCE_MIN_SAMPLE = 50;
@@ -103,7 +103,7 @@ export const ICEBREAKER_WARN_SHARE = 0.2;
  * Erste Mail unter 90 Woertern.
  *
  * Die erste Mail hat genau eine Aufgabe: eine Antwort ausloesen. Alles, was
- * darueber hinaus erklaert, kostet Antwortwahrscheinlichkeit — und auf dem
+ * darueber hinaus erklaert, kostet Antwortwahrscheinlichkeit, und auf dem
  * Telefon ist eine laengere Mail nicht mehr auf einen Blick erfassbar.
  */
 export const FIRST_MAIL_MAX_WORDS = 90;
@@ -112,7 +112,7 @@ export const FIRST_MAIL_MAX_WORDS = 90;
  * Was ein Platzhalter beim Zaehlen wiegt.
  *
  * {{personalization}} wird zum Aufhaenger und ist damit so lang, wie die
- * Vorgabe erlaubt — ihn als ein Wort zu zaehlen wuerde jede Mail kuerzer
+ * Vorgabe erlaubt; ihn als ein Wort zu zaehlen wuerde jede Mail kuerzer
  * rechnen, als sie ankommt. Alle anderen Platzhalter (Vorname, Firma) sind
  * tatsaechlich etwa ein Wort.
  */
@@ -139,7 +139,7 @@ export function estimateWords(body: string, personalizationWords: number): numbe
  * Steht ein Link drin?
  *
  * Ein Link in der ERSTEN Mail ist einer der staerksten Spam-Faktoren beim
- * kalten Erstkontakt — die Empfaenger-Filter bewerten eine Mail an einen
+ * kalten Erstkontakt: die Empfaenger-Filter bewerten eine Mail an einen
  * Unbekannten mit Link deutlich strenger. In Folge-Mails ist er
  * unproblematisch, deshalb wird nur der erste Schritt geprueft.
  *
@@ -172,7 +172,7 @@ function share(part: number, whole: number): number {
  *
  * Auch die bestandenen kommen mit zurueck ("ok"). Eine Liste, die nur Fehler
  * zeigt, beantwortet nicht die Frage, die der Nutzer vor dem Start wirklich
- * hat — naemlich ob ueberhaupt hingeschaut wurde. Die Oberflaeche kann die
+ * hat, naemlich ob ueberhaupt hingeschaut wurde. Die Oberflaeche kann die
  * bestandenen einklappen; hier gehen sie nicht verloren.
  */
 export function assessCampaign(facts: ReadinessFacts): Readiness {
@@ -186,7 +186,7 @@ export function assessCampaign(facts: ReadinessFacts): Readiness {
   });
 
   // Zustellungs-Nachweise: je fehlender Eintrag EINE Meldung mit allen
-  // betroffenen Domains, statt einer Meldung je Domain — der Handgriff ist
+  // betroffenen Domains, statt einer Meldung je Domain: der Handgriff ist
   // derselbe, nur an mehreren Stellen.
   const missingSpf = facts.domains.filter((d) => !d.spf).map((d) => d.domain);
   const missingDkim = facts.domains.filter((d) => !d.dkim).map((d) => d.domain);
@@ -204,7 +204,7 @@ export function assessCampaign(facts: ReadinessFacts): Readiness {
   });
   // DMARC nur als Warnung: seit 2024 verlangen Google und Yahoo es von
   // Massenversendern, aber eine Mail ohne DMARC wird nicht zwingend
-  // abgewiesen — anders als eine, die den SPF-Abgleich nicht besteht.
+  // abgewiesen, anders als eine, die den SPF-Abgleich nicht besteht.
   checks.push({
     id: "dmarc",
     severity: missingDmarc.length > 0 ? "warning" : "ok",

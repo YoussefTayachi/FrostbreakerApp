@@ -5,7 +5,7 @@ import type { Lang } from "@/lib/i18n/lang";
  *
  * Einzige Quelle der Wahrheit: die DB speichert deals.probability als Zahl und
  * berechnet sie NICHT aus der Stufe (siehe Kommentar in Migration 0034). Beim
- * Anlegen und Umstufen setzt der Client den Wert von hier — dadurch kann der
+ * Anlegen und Umstufen setzt der Client den Wert von hier; dadurch kann der
  * Vertriebler eine Wahrscheinlichkeit im Einzelfall uebersteuern, ohne dass eine
  * Stufen-Aenderung sie stillschweigend wieder wegrechnet.
  *
@@ -77,7 +77,7 @@ export function formatMoney(value: number, currency: string, lang: Lang): string
  * Vorher fragte ein window.prompt nach Freitext. Das laesst sich nicht
  * auswerten: "zu teuer", "Preis", "price too high" sind drei verschiedene
  * Zeilen in jeder Statistik, obwohl sie dasselbe meinen. Pipedrive gibt die
- * Gruende deshalb vor — und genau diese Auswertung ("woran verlieren wir
+ * Gruende deshalb vor, und genau diese Auswertung ("woran verlieren wir
  * eigentlich") ist der einzige Bericht, den Vertriebler wirklich lesen.
  *
  * Bewusst kurz gehalten. Eine lange Liste wird nicht gelesen, sondern es wird

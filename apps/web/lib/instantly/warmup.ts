@@ -13,7 +13,7 @@
  *                  gesperrt, weil das Konto den Warmup-Pool belastet hat)
  *
  * Die Oberflaeche zeigte bisher NUR status an. Am 2026-08-09 stand deshalb
- * bei allen 50 Postfaechern des Kunden "Aktiv" — auch bei dem einen, dessen
+ * bei allen 50 Postfaechern des Kunden "Aktiv", auch bei dem einen, dessen
  * Warmup Instantly gesperrt hatte (g.berat@retaiyn.de, warmup_status = -1).
  * In Instantlys eigener Oberflaeche war es an der roten Flamme sofort zu
  * sehen, bei uns gar nicht.
@@ -24,7 +24,7 @@
 export const WARMUP_TARGET_DAYS = 14;
 
 export type WarmupState =
-  /** Instantly hat das Aufwaermen gesperrt — braucht einen Reaktivierungscode. */
+  /** Instantly hat das Aufwaermen gesperrt; braucht einen Reaktivierungscode. */
   | "blocked"
   /** Laeuft, aber die empfohlenen Tage sind noch nicht voll. */
   | "warming"
@@ -32,7 +32,7 @@ export type WarmupState =
   | "ready"
   /** Vom Nutzer pausiert. */
   | "paused"
-  /** Laeuft, aber Instantly nennt keinen Startzeitpunkt — Dauer unbekannt. */
+  /** Laeuft, aber Instantly nennt keinen Startzeitpunkt, Dauer unbekannt. */
   | "unknown";
 
 export type WarmupInfo = {
@@ -50,7 +50,7 @@ export type WarmupInfo = {
  *
  * Bewusst auf ganze Tage abgerundet und ab Tag 1 gezaehlt: "Tag 1 von 14"
  * ist fuer den Nutzer der erste Tag, nicht "Tag 0". Ein Postfach, das vor
- * einer Stunde gestartet ist, steht damit bei Tag 1 — und nicht bei einer
+ * einer Stunde gestartet ist, steht damit bei Tag 1, und nicht bei einer
  * Null, die aussieht, als sei nichts passiert.
  */
 export function warmupDays(start: string | null | undefined, now: Date = new Date()): number | null {

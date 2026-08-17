@@ -15,7 +15,7 @@ import HelpLink from "../help-link";
  *
  * Warum zweistufig und nicht eine Liste: der Bestand verteilt sich am
  * 2026-08-03 auf 21 Suchen, die groesste mit 300 Profilen. Flach
- * untereinander ist das eine Wand aus Namen ohne jeden Zusammenhang — man
+ * untereinander ist das eine Wand aus Namen ohne jeden Zusammenhang: man
  * sieht nicht, ob man gerade US-Agenturen oder DACH-Shops anschreibt, und
  * genau das entscheidet ueber die Ansprache. Die Suche ist ausserdem die
  * Einheit, in der hier tatsaechlich gearbeitet wird (eine Nische, ein Ort,
@@ -27,13 +27,13 @@ import HelpLink from "../help-link";
  * Gesendet wird nicht von hier. LinkedIn bietet keine API fuer Nachrichten
  * oder Kontaktanfragen; jede Automatisierung laeuft ueber Browser-Steuerung,
  * verstoesst gegen die Nutzervereinbarung und riskiert die Sperrung des
- * Kontos. Diese Seite bereitet vor und protokolliert — dasselbe Prinzip wie
+ * Kontos. Diese Seite bereitet vor und protokolliert, dasselbe Prinzip wie
  * /calls, wo auch mit dem eigenen Telefon gewaehlt wird.
  */
 
 // Grosszuegig: der gesamte Bestand liegt aktuell bei rund 900 Profilen, und
 // die Gruppenzahlen sollen stimmen. Waere hier zu frueh Schluss, zeigte die
-// Uebersicht falsche Summen — schlimmer als eine lange Liste.
+// Uebersicht falsche Summen; schlimmer als eine lange Liste.
 const MAX_ROWS = 3000;
 
 type ContactRow = {
@@ -52,7 +52,7 @@ type ContactRow = {
     personalization: string | null;
     company_summary: string | null;
     search_id: string | null;
-    // Dank searches!inner nie null — siehe Begruendung an der Abfrage.
+    // Dank searches!inner nie null, siehe Begruendung an der Abfrage.
     searches: {
       id: string;
       name: string | null;
@@ -79,7 +79,7 @@ export default async function LinkedInPage({
 
   const [{ data: templateRows }, { data }, { data: contacted }, { data: followUpRows }] = await Promise.all([
     // Seit Migration 0080 liegen die Vorlagen in einer eigenen Tabelle statt
-    // als eine Textspalte am Workspace — benannt, mehrere, eine davon
+    // als eine Textspalte am Workspace: benannt, mehrere, eine davon
     // vorausgewaehlt.
     supabase
       .from("linkedin_templates")
@@ -100,7 +100,7 @@ export default async function LinkedInPage({
       // Akquise-Liste wieder auf, egal ueber welchen Kanal.
       .neq("outreach_status", "not_interested")
       // Papierkorb ausblenden. Ohne diesen Filter zeigte die Seite auch Leads
-      // aus geloeschten Suchen — gemessen am Bestand vom 2026-08-03 waren das
+      // aus geloeschten Suchen; gemessen am Bestand vom 2026-08-03 waren das
       // 360 von 908 Profilen aus 16 Papierkorb-Listen, also 40% der Seite.
       //
       // Der Filter sitzt in der Abfrage und nicht im Speicher, weil sonst ein
@@ -109,8 +109,8 @@ export default async function LinkedInPage({
       //
       // searches!inner statt eines lockeren Joins: nur so schliesst PostgREST
       // die Eltern-Zeile aus. Bei einem lockeren Join bliebe der Kontakt
-      // stehen und nur die eingebettete Suche waere null. Der Preis dafuer --
-      // Kontakte ohne zugeordnete Suche fallen raus — ist hier keiner: das
+      // stehen und nur die eingebettete Suche waere null. Der Preis dafuer
+      // (Kontakte ohne zugeordnete Suche fallen raus) ist hier keiner: das
       // endgueltige Loeschen entfernt die Firmen mit (search-actions.tsx),
       // und deren Kontakte haengen per Kaskade daran. Nachgemessen: null
       // Kontakte ohne Suche.
@@ -120,7 +120,7 @@ export default async function LinkedInPage({
     //
     // completed_at war hier bis zum 2026-08-09 nicht eingeschraenkt, und das
     // war falsch: Schritt 2 der Kette (Migration 0074) legt eine OFFENE
-    // Aufgabe mit channel='linkedin' an — "diesen Kontakt anschreiben". Ohne
+    // Aufgabe mit channel='linkedin' an: "diesen Kontakt anschreiben". Ohne
     // den Filter galt der Kontakt in dem Moment als angeschrieben, wurde von
     // "Bereits angeschriebene ausblenden" verborgen und zaehlte im Fortschritt
     // mit. Die Aufgabe, jemanden anzuschreiben, blendete ihn also aus der
@@ -134,7 +134,7 @@ export default async function LinkedInPage({
       .not("contact_id", "is", null),
     // Offene Nachfass-Aufgaben: "nachschauen, ob geantwortet wurde".
     //
-    // LinkedIn liefert keine Antworten an die App — ohne diese Erinnerung
+    // LinkedIn liefert keine Antworten an die App; ohne diese Erinnerung
     // muesste der Nutzer selbst im Kopf behalten, wen er wann angeschrieben
     // hat, und taeglich auf gut Glueck in LinkedIn nachsehen. Genau das
     // passiert im Alltag nicht.
@@ -151,7 +151,7 @@ export default async function LinkedInPage({
 
   const contactedIds = new Set((contacted ?? []).map((a) => a.contact_id as string));
   const nowIso = new Date().toISOString();
-  // Bei mehreren offenen Aufgaben gewinnt die frueheste — sie ist die, die
+  // Bei mehreren offenen Aufgaben gewinnt die frueheste: sie ist die, die
   // als naechstes faellig wird.
   const followUps = new Map<string, string>();
   for (const a of followUpRows ?? []) {
@@ -223,7 +223,7 @@ export default async function LinkedInPage({
 
   const templates = (templateRows ?? []) as LinkedInTemplateRow[];
   // Vorausgewaehlt ist die als Standard markierte, sonst die erste. Gibt es
-  // noch gar keine, steht die Vorgabe aus dem Code im Feld — der Nutzer
+  // noch gar keine, steht die Vorgabe aus dem Code im Feld; der Nutzer
   // sieht also nie ein leeres Blatt.
   const initial = templates.find((x) => x.is_default) ?? templates[0] ?? null;
   const template = initial?.body ?? getDefaultLinkedInTemplate(lang);

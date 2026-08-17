@@ -21,7 +21,7 @@ import { useWorkspace } from "../workspace-provider";
  * benutzerdefinierte Felder hinzu").
  *
  * Bewusst schlicht gehalten: Beschriftung, Typ, bei Auswahlfeldern die
- * Moeglichkeiten. Kein Drag & Drop zum Sortieren wie bei Pipedrive — die
+ * Moeglichkeiten. Kein Drag & Drop zum Sortieren wie bei Pipedrive: die
  * Reihenfolge ergibt sich aus dem Anlegen und laesst sich spaeter ergaenzen,
  * ohne dass sich am Datenmodell etwas aendert.
  */
@@ -61,7 +61,7 @@ export default function CustomFields() {
     const trimmed = label.trim();
     if (!trimmed || busy) return;
 
-    // Auswahlfeld ohne Moeglichkeiten waere ein Dropdown ohne Eintraege --
+    // Auswahlfeld ohne Moeglichkeiten waere ein Dropdown ohne Eintraege:
     // anlegbar, aber nutzlos, deshalb hier abgefangen statt spaeter zu
     // verwirren.
     const optionList = options
@@ -77,7 +77,7 @@ export default function CustomFields() {
     const { error } = await createClient().from("custom_field_defs").insert({
       workspace_id: workspaceId,
       entity,
-      // Schluessel einmalig aus der Beschriftung, danach unveraenderlich --
+      // Schluessel einmalig aus der Beschriftung, danach unveraenderlich;
       // wer umbenennt, soll nicht die vorhandenen Werte verlieren.
       key: uniqueKey(trimmed, forEntity.map((d) => d.key)),
       label: trimmed,

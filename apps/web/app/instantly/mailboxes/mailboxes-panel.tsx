@@ -16,7 +16,7 @@ type Account = {
   stat_warmup_score: number | null;
   daily_limit: number | null;
   /** Liefert Instantly bereits mit; bis zum 2026-08-09 wurde es nur nicht
-   *  gelesen — und damit blieb die einzige Auskunft ungenutzt, aus der sich
+   *  gelesen, und damit blieb die einzige Auskunft ungenutzt, aus der sich
    *  "wie lange waermt das schon auf" ableiten laesst. */
   timestamp_warmup_start?: string | null;
 };
@@ -24,7 +24,7 @@ type Account = {
 type BulkRowResult = { email: string; success: boolean; error?: string };
 
 // Spalten, die der CSV-Bulk-Upload erkennt (Reihenfolge egal, Header
-// case-insensitiv). smtp_username/smtp_password sind optional — fehlen sie,
+// case-insensitiv). smtp_username/smtp_password sind optional: fehlen sie,
 // werden imap_username/imap_password uebernommen (typischer Fall: eine
 // Mailbox, ein Login fuer IMAP und SMTP).
 const CSV_TEMPLATE_HEADERS = [
@@ -423,7 +423,7 @@ export default function InstantlyMailboxes({ hasInstantlyKey }: { hasInstantlyKe
 }
 
 /**
- * Der Aufwaerm-Fortschritt eines Postfachs — und im Sperrfall die Anleitung.
+ * Der Aufwaerm-Fortschritt eines Postfachs, und im Sperrfall die Anleitung.
  *
  * ═══════════════════════════════════════════════════════════════════════
  * ZWEI DINGE, DIE VORHER UNSICHTBAR WAREN
@@ -433,7 +433,7 @@ export default function InstantlyMailboxes({ hasInstantlyKey }: { hasInstantlyKe
  *
  * Die Empfehlung lautet ueberall im Produkt "zwei bis vier Wochen aufwaermen",
  * aber nirgends stand, wie weit ein Postfach ist. Der Nutzer musste sich das
- * Startdatum selbst merken. Jetzt steht "Tag 3 von 14" mit Balken daneben --
+ * Startdatum selbst merken. Jetzt steht "Tag 3 von 14" mit Balken daneben,
  * dieselbe Zahl, auf die sich die Empfehlung bezieht.
  *
  * 2. DIE SPERRE
@@ -443,7 +443,7 @@ export default function InstantlyMailboxes({ hasInstantlyKey }: { hasInstantlyKe
  * Erklaerung; bei uns stand weiterhin "Aktiv" (das war der VERBINDUNGS-Status).
  *
  * Der Reaktivierungscode laesst sich nicht aus der App anfordern: Instantlys
- * API v2 kennt dafuer keinen Endpunkt — geprueft am 2026-08-09, alle
+ * API v2 kennt dafuer keinen Endpunkt; geprueft am 2026-08-09, alle
  * plausiblen Pfade antworten "Route not found". Statt eines Knopfes, der
  * nichts tut, steht hier deshalb der genaue Weg samt Direktlink. Ein
  * Bedienelement, das so tut, als koennte es etwas, waere schlimmer als keins.
@@ -532,7 +532,7 @@ function WarmupRow({
  *
  * Sie beantwortet die drei Fragen, die man sonst durch Scrollen beantworten
  * muesste: wie viele sind sendebereit, bei wie vielen laeuft das Aufwaermen
- * noch, und ab wann sind alle so weit. Der Sperrfall steht zuerst und rot --
+ * noch, und ab wann sind alle so weit. Der Sperrfall steht zuerst und rot:
  * er ist der einzige, der Handeln verlangt.
  */
 function WarmupSummary({

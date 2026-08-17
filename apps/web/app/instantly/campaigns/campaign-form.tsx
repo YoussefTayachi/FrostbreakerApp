@@ -45,11 +45,11 @@ export function emptyCampaignFormValue(): CampaignFormValue {
 }
 
 /**
- * Reines Formular fuer Kampagnen-Name/Mailboxen/Sequenz/Zeitplan — wird
+ * Reines Formular fuer Kampagnen-Name/Mailboxen/Sequenz/Zeitplan; wird
  * sowohl beim Anlegen (campaigns/new) als auch beim Bearbeiten
  * (campaigns/[id]) verwendet. Haelt selbst keinen Server-State, der Aufrufer
  * kontrolliert `value`/`onChange` und entscheidet, was beim Submit passiert
- * (POST vs. PATCH) — so bleibt die Logik fuer "anlegen" vs. "bearbeiten" an
+ * (POST vs. PATCH): so bleibt die Logik fuer "anlegen" vs. "bearbeiten" an
  * einer Stelle je Seite, statt in einer gemeinsamen Komponente verzweigt zu
  * werden.
  */
@@ -70,12 +70,12 @@ export default function CampaignForm({
   submitting: boolean;
   submitLabel: string;
   submittingLabel: string;
-  /** Platz direkt ueber dem Absenden-Knopf — beim Anlegen sitzt dort der
+  /** Platz direkt ueber dem Absenden-Knopf: beim Anlegen sitzt dort der
    *  Torwart (campaign-readiness-panel). Beim Bearbeiten bleibt er leer: die
    *  Kampagne laeuft dann schon, und eine Startbedingung waere zu spaet. */
   beforeSubmit?: React.ReactNode;
   submitDisabled?: boolean;
-  /** Das gewaehlte Angebot — nur fuers Nachschaerfen je Stufe. Ohne es
+  /** Das gewaehlte Angebot, nur fuers Nachschaerfen je Stufe. Ohne es
    *  funktioniert das Nachschaerfen weiter, das Modell kennt dann nur den
    *  vorhandenen Text und nicht das Geschaeft dahinter. */
   offerId?: string | null;

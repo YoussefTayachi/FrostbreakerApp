@@ -12,7 +12,7 @@ import { unknownTags } from "@/lib/copy/sequence-prompt";
 /**
  * Eine einzelne Fassung nachschaerfen.
  *
- * Ein Aufruf, eine Fassung zurueck — kein Gespraechsverlauf. Die
+ * Ein Aufruf, eine Fassung zurueck, kein Gespraechsverlauf. Die
  * Begruendung dafuer steht in lib/copy/refine-prompt.ts.
  *
  * Das Angebot ist optional: wer nur "kuerzer" will, soll das auch ohne
@@ -95,7 +95,7 @@ export async function POST(req: Request) {
   }
 
   // Ungefuellte Platzhalter meldet die Oberflaeche neben dem Text. Sie hier
-  // stillschweigend zu entfernen wuerde den Satz zerreissen — der Nutzer
+  // stillschweigend zu entfernen wuerde den Satz zerreissen; der Nutzer
   // soll sehen, was das Modell gebaut hat, und entscheiden.
   return NextResponse.json({
     variant,

@@ -1,9 +1,9 @@
-"""Apollo.io — Firmen UND Entscheider samt verifizierter E-Mail in einem Lauf.
+"""Apollo.io: Firmen UND Entscheider samt verifizierter E-Mail in einem Lauf.
 
 Anders als die beiden bestehenden Quellen ist das keine reine Firmensuche:
 Apollos People-Search liefert die Person (Name, Titel, E-Mail) zusammen mit
-ihrer Firma zurueck. Deshalb schreibt diese Pipeline beides — businesses UND
-contacts — und die Anreicherungsjobs (find_decisionmaker/hunt_persons)
+ihrer Firma zurueck. Deshalb schreibt diese Pipeline beides, businesses UND
+contacts, und die Anreicherungsjobs (find_decisionmaker/hunt_persons)
 entfallen fuer Apollo-Suchen komplett. Genau darin liegt der Zweck der
 Integration: die KI-Websuche findet gemessen nur bei ~22% der Firmen eine
 E-Mail (siehe Kommentar in get_businesses.py), Apollo liefert per
@@ -14,14 +14,14 @@ Kosten/Limits, die das Design bestimmen (aus dem eingeloggten Apollo-Account
 abgelesen, Stand 2026-08):
   * Der Free-Plan sperrt mixed_people/api_search UND people/bulk_match, also
     genau die zwei Endpunkte dieser Pipeline. API-Zugang beginnt bei Apollos
-    Basic-Plan. Ein Master-Key hebt die Plan-Sperre NICHT auf — er erweitert
+    Basic-Plan. Ein Master-Key hebt die Plan-Sperre NICHT auf; er erweitert
     nur den Umfang innerhalb dessen, was der Plan hergibt. Der 403 wird
     deshalb als erklaerende Meldung weitergegeben (ApolloPlanError), nicht als
     "keine Ergebnisse" verschluckt.
   * People-Search kostet 1 Credit pro Seite (bis 100 Treffer), nicht pro
     Person. Grosse Suchen sind dadurch guenstig; teuer ist erst das
     Freischalten persoenlicher Adressen (bulk_match: 1 Credit pro E-Mail,
-    8 pro Telefonnummer — Telefonnummern fragen wir bewusst nicht ab).
+    8 pro Telefonnummer; Telefonnummern fragen wir bewusst nicht ab).
   * Harte Anzeigegrenze bei Apollo: 100 Treffer/Seite, max. 500 Seiten.
     Unsere Grenzen liegen bewusst weit darunter (siehe Konstanten).
   * Rate Limits (Free): 50/Minute, 200/Stunde, 600/Tag. PAGE_PAUSE_S haelt
@@ -52,7 +52,7 @@ BULK_MATCH_URL = "https://api.apollo.io/api/v1/people/bulk_match"
 # Adressen) und liefert das, was die Personensuche gerade nicht mitgibt:
 # short_description, keywords und Branche.
 BULK_ORG_URL = "https://api.apollo.io/api/v1/organizations/bulk_enrich"
-# Kostet keine Credits und beruehrt keine Suchdaten — reiner Lebenszeichen-Test
+# Kostet keine Credits und beruehrt keine Suchdaten: reiner Lebenszeichen-Test
 # fuer einen Key (siehe apps/web/app/api/apollo/health).
 HEALTH_URL = "https://api.apollo.io/api/v1/auth/health"
 
@@ -61,7 +61,7 @@ PER_PAGE = 100
 # technisch 500 Seiten), aber endlich: eine versehentlich zu breite Suche soll
 # nicht das ganze Monatskontingent des Kunden verbrauchen.
 APOLLO_MAX_PER_SEARCH = 1000
-# Zweite, uebergeordnete Bremse pro Workspace und Tag — greift ueber mehrere
+# Zweite, uebergeordnete Bremse pro Workspace und Tag; greift ueber mehrere
 # Suchen hinweg (z.B. Fan-out mit vielen Kombinationen oder ein Lead-Abo, das
 # taeglich laeuft).
 APOLLO_MAX_PER_DAY = 5000
@@ -73,11 +73,11 @@ BULK_MATCH_CHUNK = 10
 # organizations/bulk_enrich ebenfalls 10 Domains pro Aufruf.
 BULK_ORG_CHUNK = 10
 # Obergrenze fuer die Firmenbeschreibung. Der Personalisierungs-Prompt
-# braucht Anhaltspunkte, keinen kompletten Unternehmensauftritt — und lange
+# braucht Anhaltspunkte, keinen kompletten Unternehmensauftritt, und lange
 # Texte kosten bei jedem Lead OpenAI-Tokens.
 MAX_SUMMARY_CHARS = 2000
 # Wie viele Such-Kandidaten pro gewuenschtem Lead gesammelt werden. Die Suche
-# ist kostenlos, das Anreichern nicht — ein Puffer kostet also nichts und
+# ist kostenlos, das Anreichern nicht; ein Puffer kostet also nichts und
 # faengt Kandidaten ab, die beim bulk_match doch keine Domain oder Adresse
 # liefern. Zu gross waere trotzdem unsinnig: es verlaengert nur die Laufzeit.
 CANDIDATE_OVERFETCH = 3
@@ -86,7 +86,7 @@ log = logging.getLogger(__name__)
 
 
 class ApolloPlanError(Exception):
-    """Apollo verweigert den Zugriff (401/403) — praktisch immer ein Key aus
+    """Apollo verweigert den Zugriff (401/403), praktisch immer ein Key aus
     einem Plan, der den Endpunkt nicht enthaelt (Free sperrt Personensuche und
     bulk_match). Eigene Klasse, damit get_businesses daraus eine erklaerende
     Fehlermeldung machen kann statt eines rohen HTTP-Fehlers."""
@@ -98,7 +98,7 @@ class ApolloDailyCapReached(Exception):
 
 def _is_retryable(exc: BaseException) -> bool:
     """Gleiche Logik wie in discover.py: ein deterministischer 4xx wird beim
-    dritten Versuch nicht ploetzlich zum Erfolg. 429 ist die Ausnahme — das
+    dritten Versuch nicht ploetzlich zum Erfolg. 429 ist die Ausnahme: das
     IST transient."""
     if isinstance(exc, httpx.HTTPStatusError):
         status = exc.response.status_code
@@ -109,7 +109,7 @@ def _is_retryable(exc: BaseException) -> bool:
 
 # Apollos vollstaendige, gueltige Werte fuer person_seniorities. Ein Wert
 # ausserhalb dieser Liste ist keine Geschmacksfrage, sondern eine ungueltige
-# Anfrage — deshalb wird jede Auswahl aus dem Formular hier gegengeprueft
+# Anfrage; deshalb wird jede Auswahl aus dem Formular hier gegengeprueft
 # statt ungefiltert durchgereicht (siehe _valid_seniorities).
 APOLLO_SENIORITIES = [
     "owner",
@@ -131,14 +131,14 @@ APOLLO_SENIORITIES = [
 
 # Standardauswahl, wenn das Formular keine trifft: Senioritaeten, die als
 # Entscheider gelten. Ohne diese Einschraenkung liefert Apollo auch
-# Praktikanten und Sachbearbeiter — fuer Cold Outreach wertlos, aber sie
+# Praktikanten und Sachbearbeiter, fuer Cold Outreach wertlos, aber sie
 # wuerden Credits und das Tageskontingent verbrauchen.
 DECISIONMAKER_SENIORITIES = ["owner", "founder", "c_suite", "partner", "vp", "head", "director"]
 
 
 def _valid_seniorities(raw: object) -> list[str]:
     """Nur von Apollo anerkannte Werte weitergeben, Reihenfolge stabil halten.
-    Bleibt nach dem Filtern nichts uebrig, gilt die Entscheider-Vorauswahl --
+    Bleibt nach dem Filtern nichts uebrig, gilt die Entscheider-Vorauswahl;
     eine Suche ohne Senioritaets-Einschraenkung wuerde quer durch alle
     Hierarchiestufen Credits verbrauchen."""
     if not isinstance(raw, list):
@@ -148,7 +148,7 @@ def _valid_seniorities(raw: object) -> list[str]:
 
 
 # Apollos eigene elf Stufen aus dem "# Employees"-Filter. Apollo akzeptiert
-# technisch beliebige untere,obere Grenzen — eine eigene Stufung waere aber ein
+# technisch beliebige untere,obere Grenzen; eine eigene Stufung waere aber ein
 # stiller Unterschied zu dem, was der Kunde in Apollo selbst sieht ("11-50" ist
 # dort keine Option). Muss mit APOLLO_EMPLOYEE_RANGES in
 # apps/web/app/new-search-form.tsx uebereinstimmen.
@@ -161,7 +161,7 @@ APOLLO_EMPLOYEE_RANGES = [
 def _employee_range(headcount: str | None) -> str | None:
     """Formularwert ("11-20", "10001+") in Apollos Range-Schreibweise
     ("11,20", "10001,1000000"). Unbekannte Stufen werden verworfen statt
-    umgerechnet — ein Wert, den Apollos Oberflaeche nicht kennt, waere eine
+    umgerechnet: ein Wert, den Apollos Oberflaeche nicht kennt, waere eine
     stille Abweichung von dem, was der Kunde dort sieht."""
     if not headcount:
         return None
@@ -177,7 +177,7 @@ def _employee_range(headcount: str | None) -> str | None:
 # Apollos "Market Segments" aus dem Bereich "Industry & Keywords".
 #
 # Diese Werte sind am 2026-08-09 gegen die echte API gemessen, nicht geraten.
-# Noetig war das, weil Apollos API-Referenz den Filter nicht auffuehrt — sie
+# Noetig war das, weil Apollos API-Referenz den Filter nicht auffuehrt; sie
 # listet nicht einmal q_organization_keyword_tags, das hier seit Langem laeuft.
 # Und ein Parametername, den Apollo nicht kennt, wird STILL IGNORIERT statt
 # abgelehnt: genau der Fall, der weiter unten schon einmal auftrat
@@ -207,7 +207,7 @@ def _market_segments(raw: object) -> list[str]:
     Anders als bei den Technologie-Slugs wird hier gegengeprueft: die Liste hat
     elf Eintraege statt zehntausend, sie aendert sich praktisch nie, und ein
     unbekannter Wert wuerde nicht etwa die Suche eingrenzen, sondern von Apollo
-    stillschweigend verworfen — der Trefferzaehler haette dann einen Filter
+    stillschweigend verworfen; der Trefferzaehler haette dann einen Filter
     gezaehlt, den die Suche nicht anwendet.
 
     Reihenfolge folgt der Konstanten, damit der Body testbar bleibt.
@@ -225,7 +225,7 @@ def _technology_uids(raw: object) -> list[str]:
     Quelle gehoert). Gegengeprueft wird nicht: Apollos Katalog hat ueber 10.000
     Eintraege, den im Worker zu spiegeln hiesse, ihn doppelt zu pflegen und bei
     jeder Apollo-Erweiterung gueltige Werte auszusperren. Ein unbekannter Slug
-    schadet bei Apollo auch nicht — er grenzt die Suche nur weiter ein.
+    schadet bei Apollo auch nicht; er grenzt die Suche nur weiter ein.
     Entdoppelt bei stabiler Reihenfolge, damit der Body testbar bleibt.
     """
     if not isinstance(raw, list):
@@ -253,7 +253,7 @@ def build_people_search_body(filters: dict, page: int, per_page: int = PER_PAGE)
     Uebertragung und liefert total_entries genauso.
 
     MUSS mit buildApolloSearchBody() in apps/web/lib/apollo-query.ts
-    uebereinstimmen — die Oberflaeche zaehlt damit die Treffer vor dem Start,
+    uebereinstimmen: die Oberflaeche zaehlt damit die Treffer vor dem Start,
     und eine Abweichung waere eine Zusage, die die Suche nicht einloest.
     """
     body: dict = {
@@ -283,10 +283,10 @@ def build_people_search_body(filters: dict, page: int, per_page: int = PER_PAGE)
     domains = [d.strip() for d in str(filters.get("domains") or "").split(",") if d.strip()]
     if domains:
         # Der Parameter heisst q_organization_domains_LIST und nimmt ein Array.
-        # Vorher stand hier q_organization_domains mit newline-getrenntem String
-        # — den kennt die People-Search nicht, er wurde stillschweigend ignoriert.
+        # Vorher stand hier q_organization_domains mit newline-getrenntem String.
+        # Den kennt die People-Search nicht, er wurde stillschweigend ignoriert.
         body["q_organization_domains_list"] = domains
-    # Eingesetzte Technik der Firma — damit laesst sich ein Shopify-Shop direkt
+    # Eingesetzte Technik der Firma: damit laesst sich ein Shopify-Shop direkt
     # ansprechen, statt ihn ueber das Keyword "ecommerce" zu erraten. "any_of"
     # ist Absicht: mehrere Shopsysteme sind ein ODER (Shopify ODER Shopware),
     # ein UND haette bei Shopsystemen praktisch nie einen Treffer.
@@ -294,7 +294,7 @@ def build_people_search_body(filters: dict, page: int, per_page: int = PER_PAGE)
     if technologies:
         body["currently_using_any_of_technology_uids"] = technologies
     # Mehrere Segmente sind bei Apollo ein ODER (nachgemessen, siehe
-    # APOLLO_MARKET_SEGMENTS) — genau richtig fuer "B2B oder SaaS".
+    # APOLLO_MARKET_SEGMENTS), genau richtig fuer "B2B oder SaaS".
     segments = _market_segments(filters.get("market_segments"))
     if segments:
         body["market_segments"] = segments
@@ -306,7 +306,7 @@ def build_people_search_body(filters: dict, page: int, per_page: int = PER_PAGE)
 def is_masked_email(email: str | None) -> bool:
     """Apollo maskiert Adressen, die der Plan nicht freigeschaltet hat, als
     "email_not_unlocked@domain.com". Unveraendert gespeichert waere das eine
-    garantiert bouncende Fantasieadresse — solche Treffer muessen entweder
+    garantiert bouncende Fantasieadresse; solche Treffer muessen entweder
     freigeschaltet oder verworfen werden."""
     if not email:
         return True
@@ -319,11 +319,11 @@ def parse_apollo_person(person: dict) -> dict | None:
 
     Wichtig: Das funktioniert NUR mit der Antwort von bulk_match, nicht mit der
     von mixed_people/api_search. Die Suche liefert bewusst nur eine
-    anonymisierte Vorschau — first_name, last_name_obfuscated, has_email und
+    anonymisierte Vorschau: first_name, last_name_obfuscated, has_email und
     ein organization-Objekt, das ausser dem Namen ausschliesslich has_*-Flags
     enthaelt. Weder name noch email noch primary_domain stehen darin. Genau
     daran ist die Integration anfangs gescheitert: der Parser wurde auf die
-    Suchantwort angewendet, fand nie einen vollen Namen, verwarf jede Person --
+    Suchantwort angewendet, fand nie einen vollen Namen, verwarf jede Person,
     und die Suche endete ohne Fehler mit null Treffern (siehe collect_people).
 
     Gibt None zurueck, wenn die Firma nicht identifizierbar ist: ohne Domain
@@ -425,7 +425,7 @@ def _bulk_enrich_chunk(domains: list[str], api_key: str) -> dict[str, dict]:
 
 # Domains, hinter denen keine EINZELNE Firma steht.
 #
-# Warum das noetig ist — am 2026-08-05 im Bestand gefunden:
+# Warum das noetig ist (am 2026-08-05 im Bestand gefunden):
 #
 #   Restauracja Quattro Leczyca   facebook.com/restauracjaquattro...   Rang 13
 #   Style Cut Barbershop Kiel     instagram.com/style_cut_kiel         Rang 19
@@ -436,7 +436,7 @@ def _bulk_enrich_chunk(domains: list[str], api_key: str) -> dict[str, dict]:
 # Facebooks Beschreibung, Facebooks Mitarbeiterzahl. Ein Friseursalon stand so
 # als 19.-groesste Website der Welt in der Datenbank.
 #
-# Der Rang ist dabei das kleinere Uebel — er sieht wenigstens absurd aus. Die
+# Der Rang ist dabei das kleinere Uebel; er sieht wenigstens absurd aus. Die
 # BESCHREIBUNG waere schlimmer: sie fliesst in den Aufhaenger, und "Facebook
 # is a social networking service" als Eroeffnungszeile an einen polnischen
 # Restaurantbesitzer ist die Sorte Fehler, die eine Kampagne verbrennt.
@@ -478,13 +478,13 @@ def alexa_rank(org: dict) -> int | None:
     """Apollos alexa_ranking als geprueften Rang, oder None.
 
     Kleiner = groesser. Am 2026-08-05 an echten Domains nachgesehen:
-    shopify.com 134, thredup.com 19 072, mtailor.com 633 392 — die Rangfolge
+    shopify.com 134, thredup.com 19 072, mtailor.com 633 392; die Rangfolge
     passt zur Wirklichkeit.
 
     ACHTUNG, das gehoert zu jeder Verwendung dazu: Alexa wurde 2022
     eingestellt. Was Apollo hier ausliefert, ist Altbestand. Fuer alles, was
     seither gestartet oder deutlich gewachsen ist, fehlt der Wert oder er
-    stimmt nicht mehr — chatarmin.com etwa hat gar keinen. Deshalb speichert
+    stimmt nicht mehr; chatarmin.com etwa hat gar keinen. Deshalb speichert
     get_businesses zusaetzlich Quelle und Datum (Migration 0079), statt eine
     nackte Zahl abzulegen, der man ihr Alter nicht ansieht.
 
@@ -512,11 +512,11 @@ def fetch_company_facts(
 
     Ein Aufruf statt zweier: _bulk_enrich_chunk liefert ohnehin das ganze
     organization-Objekt, und bis 2026-08-05 wurde davon alles ausser der
-    Beschreibung weggeworfen — auch das alexa_ranking, das jetzt als
+    Beschreibung weggeworfen, auch das alexa_ranking, das jetzt als
     Groessenanhaltspunkt in businesses.traffic_rank landet.
 
     KOSTET CREDITS: 1 je zurueckgelieferter Firma (Apollos Preisdoku, im
-    Betrieb bestaetigt). Gemeldet wird ueber on_charge — gezaehlt werden die
+    Betrieb bestaetigt). Gemeldet wird ueber on_charge; gezaehlt werden die
     tatsaechlich gelieferten Firmen, nicht die angefragten Domains: fuer eine
     Domain, die Apollo nicht kennt, wird auch nichts abgerechnet.
 
@@ -555,7 +555,7 @@ def fetch_company_facts(
                 fresh_orgs[domain] = out[domain]
         except ApolloPlanError:
             raise
-        except Exception as exc:  # noqa: BLE001 — Zusatzdaten, kein Arbeitsschritt
+        except Exception as exc:  # noqa: BLE001 (Zusatzdaten, kein Arbeitsschritt)
             log.warning("Apollo-Firmendaten fuer %s Domains fehlgeschlagen: %s", len(chunk), exc)
         if i + BULK_ORG_CHUNK < len(clean):
             time.sleep(PAGE_PAUSE_S)
@@ -571,7 +571,7 @@ def fetch_company_summaries(
 ) -> dict[str, str]:
     """Nur die Beschreibungen. Duenne Huelle um fetch_company_facts.
 
-    Bleibt bestehen, weil sie das ist, was der Name verspricht — und weil
+    Bleibt bestehen, weil sie das ist, was der Name verspricht, und weil
     Aufrufer, die nur den Text brauchen, sich nicht mit einem Dictionary je
     Domain befassen sollen.
     """
@@ -594,7 +594,7 @@ def _raise_for_plan(exc: httpx.HTTPStatusError) -> None:
         raise ApolloPlanError(
             "Apollo hat den Key abgelehnt (403). Der Free-Plan gibt die Personensuche "
             "und das E-Mail-Anreichern ueber die API nicht frei (mixed_people/api_search "
-            "und people/bulk_match sind dort gesperrt) -- dafuer braucht es mindestens "
+            "und people/bulk_match sind dort gesperrt). Dafuer braucht es mindestens "
             "Apollos Basic-Plan. Ein Master-Key hebt die Plan-Sperre nicht auf. "
             "Firmensuche (organizations/search) waere im Free-Plan erlaubt."
         ) from exc
@@ -611,7 +611,7 @@ def post_search(body: dict, api_key: str) -> dict:
 
     Gibt die ganze Antwort zurueck, nicht nur people[]: total_entries wird fuer
     den Trefferzaehler und die Fehlerdiagnose gebraucht. Achtung, total_entries
-    steht auf OBERSTER Ebene — pagination ist bei diesem Endpunkt durchgaengig
+    steht auf OBERSTER Ebene; pagination ist bei diesem Endpunkt durchgaengig
     null, anders als bei Apollos uebrigen Such-Endpunkten.
     """
     try:
@@ -624,7 +624,7 @@ def post_search(body: dict, api_key: str) -> dict:
 
 
 def search_people(filters: dict, api_key: str, page: int) -> list[dict]:
-    """Eine Seite der People-Search. Liefert nur die anonymisierte Vorschau --
+    """Eine Seite der People-Search. Liefert nur die anonymisierte Vorschau;
     brauchbar ist daraus praktisch nur die id und das has_email-Flag (siehe
     candidate_ids)."""
     return post_search(build_people_search_body(filters, page), api_key).get("people") or []
@@ -636,7 +636,7 @@ def candidate_ids(people: list[dict]) -> list[str]:
 
     has_email ist das einzige belastbare Signal der Vorschau: Apollo sagt damit
     zu, dass eine Adresse hinterlegt ist. Wer das Flag nicht hat, wuerde beim
-    bulk_match ohne E-Mail zurueckkommen — der Aufruf waere zwar gratis (Apollo
+    bulk_match ohne E-Mail zurueckkommen; der Aufruf waere zwar gratis (Apollo
     berechnet nichts, wenn nichts geliefert wird), aber er verbraucht ein
     Kontingent im Zehnerpaket und damit am Ende echte Credits fuer weniger
     Leads. Reihenfolge bleibt stabil, Duplikate fallen raus."""
@@ -659,8 +659,8 @@ _LEGAL_FORMS = {
 def normalize_company(name: str | None) -> str:
     """Firmenname auf eine vergleichbare Form bringen.
 
-    Wird gebraucht, weil Apollos KOSTENLOSE Vorschau keine Domain liefert --
-    nachgemessen am 2026-08-09 enthaelt sie je Person nur
+    Wird gebraucht, weil Apollos KOSTENLOSE Vorschau keine Domain liefert.
+    Nachgemessen am 2026-08-09 enthaelt sie je Person nur
     organization.name, kein primary_domain und keine organization_id. Der Name
     ist damit das einzige Merkmal, an dem sich vor dem Bezahlen erkennen
     laesst, ob eine Firma schon im Bestand ist.
@@ -669,7 +669,7 @@ def normalize_company(name: str | None) -> str:
         return ""
     # Punkte ZUERST und ersatzlos: "B.V." muss zu "bv" werden, nicht zu "b v".
     # Andernfalls faende der Vergleich genau die Schreibvariante nicht, fuer
-    # die er gedacht ist — dieselbe Firma einmal mit und einmal ohne Punkte.
+    # die er gedacht ist: dieselbe Firma einmal mit und einmal ohne Punkte.
     without_dots = name.lower().replace(".", "")
     cleaned = re.sub(r"[^\w\s&]", " ", without_dots, flags=re.UNICODE)
     words = [w for w in cleaned.split() if w and w not in _LEGAL_FORMS]
@@ -679,7 +679,7 @@ def normalize_company(name: str | None) -> str:
 def candidate_pairs(people: list[dict]) -> list[tuple[str, str]]:
     """Wie candidate_ids, aber mit dem normalisierten Firmennamen daneben.
 
-    Der Name kommt aus der Vorschau und kostet nichts — genau deshalb kann
+    Der Name kommt aus der Vorschau und kostet nichts; genau deshalb kann
     collect_people damit filtern, BEVOR bulk_match Credits verbraucht.
     """
     out: list[tuple[str, str]] = []
@@ -702,7 +702,7 @@ def candidate_pairs(people: list[dict]) -> list[tuple[str, str]]:
 )
 def _bulk_match_chunk(apollo_ids: list[str], api_key: str) -> list[dict]:
     """Anreicherung fuer maximal BULK_MATCH_CHUNK Personen. Liefert die vollen
-    Datensaetze aus matches[] — erst hier gibt es Name, E-Mail und die
+    Datensaetze aus matches[]: erst hier gibt es Name, E-Mail und die
     Firmendomain (die Suche liefert davon nichts, siehe parse_apollo_person).
 
     reveal_phone_number bleibt bewusst aus: Telefonnummern kosten 8 Credits
@@ -729,17 +729,17 @@ def enrich_people(
 ) -> list[dict]:
     """Kandidaten anreichern, bis wanted verwertbare Leads zusammen sind.
 
-    Die Paketgroesse richtet sich nach dem, was noch fehlt — nicht stur nach
+    Die Paketgroesse richtet sich nach dem, was noch fehlt, nicht stur nach
     BULK_MATCH_CHUNK. Wer fuenf Leads will, reichert fuenf Personen an und zahlt
     fuenf Credits, nicht zehn. Sobald das Ziel erreicht ist, wird abgebrochen;
     die restlichen Kandidaten aus der (kostenlosen) Suche bleiben ungenutzt.
 
-    Ein fehlgeschlagenes Paket darf die uebrigen nicht mitnehmen — schon
+    Ein fehlgeschlagenes Paket darf die uebrigen nicht mitnehmen; schon
     bezahlte Adressen sollen nicht verfallen. Ein ApolloPlanError betrifft
     dagegen jeden weiteren Aufruf gleichermassen und bricht sofort ab.
 
     on_charge meldet die Zahl der TATSAECHLICH freigeschalteten Adressen pro
-    Paket — das ist die Groesse, die Apollo abrechnet. Bewusst nicht die Zahl
+    Paket; das ist die Groesse, die Apollo abrechnet. Bewusst nicht die Zahl
     der zurueckgegebenen Leads: ein Treffer ohne Firmendomain faellt bei uns
     raus, kostet aber trotzdem einen Credit. Wer nur die Rueckgabe zaehlt,
     unterschaetzt die Rechnung.
@@ -749,7 +749,7 @@ def enrich_people(
     # Was dieses Apollo-Konto fuer diese Personen schon bezahlt hat, kommt aus
     # der eigenen Ablage statt noch einmal von Apollo. Bewusst hier und nicht
     # als Vorfilter beim Aufrufer: ein Treffer heisst "gratis", nicht
-    # "ueberspringen" — der Lead soll ja trotzdem beim Nutzer ankommen.
+    # "ueberspringen": der Lead soll ja trotzdem beim Nutzer ankommen.
     cached = apollo_cache.get_many(api_key, "person", apollo_ids)
     if cached:
         for pid in apollo_ids:
@@ -773,7 +773,7 @@ def enrich_people(
         # gratis, alles danach ist bereits bezahlt.
         #
         # Dass zwischen zwei Pruefungen noch ein Paket durchgeht, laesst sich
-        # nicht vermeiden — ein laufender HTTP-Aufruf ist nicht zurueckholbar.
+        # nicht vermeiden, ein laufender HTTP-Aufruf ist nicht zurueckholbar.
         # Deshalb sitzt die Pruefung hier und nicht eine Ebene hoeher: aus
         # "100 Leads" werden so hoechstens zehn statt hundert.
         if should_stop and should_stop():
@@ -794,7 +794,7 @@ def enrich_people(
                     # gratis, egal aus welchem Workspace desselben Kontos.
                     #
                     # Die ID steckt in parsed["contact"], nicht eine Ebene
-                    # hoeher — parse_apollo_person liefert das Paar aus Firma
+                    # hoeher; parse_apollo_person liefert das Paar aus Firma
                     # und Person. Eine Ebene daneben war der Cache still leer
                     # und haette nie etwas gespart.
                     pid = (parsed.get("contact") or {}).get("apollo_id")
@@ -802,7 +802,7 @@ def enrich_people(
                         fresh[pid] = parsed
         except ApolloPlanError:
             raise
-        except Exception as exc:  # noqa: BLE001 — absichtlich breit, s. Docstring
+        except Exception as exc:  # noqa: BLE001 (absichtlich breit, s. Docstring)
             log.warning("Apollo bulk_match fuer %s Personen fehlgeschlagen: %s", len(chunk), exc)
         if idx < len(apollo_ids) and len(out) < wanted:
             time.sleep(PAGE_PAUSE_S)
@@ -826,7 +826,7 @@ def collect_people(
     1. mixed_people/api_search kostet nichts und liefert nur eine anonymisierte
        Vorschau. Daraus werden ausschliesslich die IDs der Personen gesammelt,
        die laut has_email eine Adresse haben.
-    2. people/bulk_match macht daraus die vollen Datensaetze — und kostet
+    2. people/bulk_match macht daraus die vollen Datensaetze und kostet
        1 Credit pro gelieferter Adresse.
 
     Deshalb wird in Stufe 1 bewusst mehr gesammelt als gebraucht
@@ -841,13 +841,13 @@ def collect_people(
 
     Beobachtet am 2026-08-09 an einer echten Suche: Apollo lieferte genau eine
     Person, sie wurde angereichert (1 Credit bulk_match, 1 Credit
-    organizations/bulk_enrich) — und danach stellte _store_people_pairs fest,
+    organizations/bulk_enrich), und danach stellte _store_people_pairs fest,
     dass ihre Firma langst im Bestand steht. Ergebnis: null Leads, zwei
     Credits, und die Suche gab auf, obwohl Apollo fuer dieselben Filter
     hunderte weitere Treffer hat.
 
     Zwei Fehler in einem: es wurde fuer eine Dublette bezahlt, und es wurde
-    nicht weitergeblaettert. Beides behebt derselbe Griff — die Vorschau ist
+    nicht weitergeblaettert. Beides behebt derselbe Griff: die Vorschau ist
     gratis, also gehoert der Abgleich dorthin und nicht hinter die Kasse.
 
     Verglichen wird der Firmenname, nicht die Domain: die Vorschau liefert
@@ -915,7 +915,7 @@ def collect_people(
 
     if not ids:
         # Kein Fehler, aber die haeufigste Ursache fuer "Suche fertig, null
-        # Leads" — ohne diese Zeile bliebe voellig offen, ob Apollo nichts
+        # Leads": ohne diese Zeile bliebe voellig offen, ob Apollo nichts
         # fand oder die Anreicherung scheiterte.
         if skipped_known:
             log.warning(
@@ -978,7 +978,7 @@ def explain_empty_result(filters: dict, api_key: str) -> str:
     einmal pro leerer Suche. PAGE_PAUSE_S haelt dabei Abstand zum Rate Limit.
 
     Wirft nicht: eine fehlgeschlagene Diagnose darf die Suche nicht nachtraeglich
-    zum Fehler machen — sie ist eine Zusatzauskunft, kein Arbeitsschritt.
+    zum Fehler machen. Sie ist eine Zusatzauskunft, kein Arbeitsschritt.
     """
     try:
         full = build_people_search_body(filters, 1, per_page=1)
@@ -1027,7 +1027,7 @@ def explain_empty_result(filters: dict, api_key: str) -> str:
         )
     except ApolloPlanError:
         raise
-    except Exception as exc:  # noqa: BLE001 — Diagnose darf nie die Suche kippen
+    except Exception as exc:  # noqa: BLE001 (Diagnose darf nie die Suche kippen)
         log.warning("Apollo-Ursachensuche fehlgeschlagen: %s", exc)
         return (
             "Keine Treffer. Die Ursache ließ sich nicht ermitteln, weil Apollo bei der "
@@ -1038,7 +1038,7 @@ def explain_empty_result(filters: dict, api_key: str) -> str:
 def check_key(api_key: str) -> dict:
     """Lebenszeichen-Test fuer einen Apollo-Key.
 
-    /auth/health kostet keine Credits und ist in jedem Plan erlaubt — damit
+    /auth/health kostet keine Credits und ist in jedem Plan erlaubt; damit
     laesst sich "ist der Key gueltig?" beantworten, ohne eine Suche zu starten
     und Kontingent zu verbrennen. Beantwortet ausdruecklich NICHT, ob der Plan
     die Personensuche freigibt; das zeigt sich erst beim ersten echten Lauf

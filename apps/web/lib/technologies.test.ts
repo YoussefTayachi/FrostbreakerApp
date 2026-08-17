@@ -7,7 +7,7 @@ import { TECHNOLOGIES, resolveTechnologies, technologiesFor } from "./technologi
  *  abgeleitete Wert jeweils falsch ist und Apollo einen unbekannten UID nicht
  *  ablehnt, sondern stillschweigend null Treffer liefert. Wer einen dieser
  *  Werte "korrigiert", laesst damit Suchen leer laufen, ohne dass irgendwo ein
- *  Fehler auftaucht — genau am 2026-08-02 passiert. Alle drei sind live gegen
+ *  Fehler auftaucht; genau am 2026-08-02 passiert. Alle drei sind live gegen
  *  mixed_people/api_search geprueft (per_page=1, kostet keine Credits). */
 const VERIFIED_APOLLO_UIDS: Record<string, string> = {
   apollo_io: "apolloio",
@@ -79,7 +79,7 @@ describe("Katalog-Hygiene", () => {
   });
 
   it("hat fuer jeden Eintrag mindestens einen Anbieter-Slug", () => {
-    // Ein Eintrag ohne beide Slugs waere in keinem Modus waehlbar — toter Code.
+    // Ein Eintrag ohne beide Slugs waere in keinem Modus waehlbar, also toter Code.
     const orphans = TECHNOLOGIES.filter((t) => !t.apollo && !t.hunter);
     expect(orphans.map((t) => t.label)).toEqual([]);
   });

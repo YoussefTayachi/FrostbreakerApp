@@ -23,14 +23,14 @@ const WEASEL_EN = [
 
 // Verstaerker/Adverbien: im Englischen faengt die "-ly"-Regel das meiste ab,
 // im Deutschen gibt es keine vergleichbare Endung (Adverb und Adjektiv sind
-// formgleich) — also bleibt nur eine kuratierte Liste.
+// formgleich), also bleibt nur eine kuratierte Liste.
 const ADVERBS_DE = [
   "sehr", "wirklich", "total", "extrem", "absolut", "definitiv", "unbedingt",
   "äußerst", "höchst", "besonders", "ausgesprochen", "durchaus", "überaus",
   "enorm", "riesig", "wahnsinnig", "megamäßig", "super",
 ] as const;
 
-// Woerter auf "-ly", die keine Adverbien sind — ohne diese Ausnahmen wuerde
+// Woerter auf "-ly", die keine Adverbien sind; ohne diese Ausnahmen wuerde
 // jedes "reply" oder "supply" in einer Vertriebsmail angemeckert.
 const LY_EXCEPTIONS_EN = new Set([
   "reply", "supply", "apply", "family", "rally", "ally", "bully", "belly",

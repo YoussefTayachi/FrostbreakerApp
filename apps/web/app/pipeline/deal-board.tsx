@@ -19,7 +19,7 @@ import { useToast } from "../toast-provider";
 import { useWorkspace } from "../workspace-provider";
 
 /**
- * Das Deal-Board — die dritte Ansicht neben Liste und Kontakt-Board.
+ * Das Deal-Board: die dritte Ansicht neben Liste und Kontakt-Board.
  *
  * Warum es das braucht: Fuer einen Pipedrive-Umsteiger IST das die Pipeline.
  * Deren Spalten fuehren Deals mit Wert und Abschlussdatum, nicht Kontakte mit
@@ -30,7 +30,7 @@ import { useWorkspace } from "../workspace-provider";
  *   Deal-Board     "was kommt davon zurueck"  -> public.deals mit Wert
  *
  * Die Tabelle public.deals gibt es seit Migration 0034. Sichtbar war sie
- * bisher nur im Drawer eines einzelnen Kontakts — man musste also wissen, wo
+ * bisher nur im Drawer eines einzelnen Kontakts; man musste also wissen, wo
  * ein Deal haengt, um ihn zu sehen.
  *
  * Aufbau und Verhalten sind bewusst dieselben wie im Kontakt-Board
@@ -43,7 +43,7 @@ export default function DealBoard({
   onOpenContact,
 }: {
   rows: DealBoardRow[];
-  /** Klick auf eine Karte oeffnet den Kontakt-Drawer — dort liegen Verlauf,
+  /** Klick auf eine Karte oeffnet den Kontakt-Drawer; dort liegen Verlauf,
    *  Notizen und die Gewonnen/Verloren-Knoepfe bereits. */
   onOpenContact: (businessId: string, contactId: string | null) => void;
 }) {
@@ -57,7 +57,7 @@ export default function DealBoard({
   const [dragId, setDragId] = useState<string | null>(null);
   const [dragOverStage, setDragOverStage] = useState<DealStage | null>(null);
   // Die ganze Karte ist klickbar UND ziehbar. Endet ein Zug auf derselben
-  // Karte, feuert je nach Browser noch ein click — dieselbe Falle wie im
+  // Karte, feuert je nach Browser noch ein click; dieselbe Falle wie im
   // Kontakt-Board, deshalb dieselbe Loesung.
   const draggedRef = useRef(false);
 
@@ -68,7 +68,7 @@ export default function DealBoard({
    *
    * Die Wahrscheinlichkeit wird mitgezogen: sie haengt in unserem Modell an
    * der Stufe (siehe DEAL_STAGES in lib/crm/deals.ts). Wer sie im Einzelfall
-   * uebersteuert hat, verliert diese Uebersteuerung damit — das ist bewusst
+   * uebersteuert hat, verliert diese Uebersteuerung damit; das ist bewusst
    * so, weil ein Stufenwechsel die groessere Aussage ist.
    */
   async function moveTo(deal: DealBoardRow, stage: DealStage) {

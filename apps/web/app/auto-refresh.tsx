@@ -8,8 +8,8 @@ import { useRouter } from "next/navigation";
  * Das Dashboard laesst es weg: dort haengt das Nachladen an "es laufen Jobs",
  * und wenn keine mehr laufen, verschwindet die Komponente von selbst. Die
  * Suchdetail-Seite braucht die Grenze, weil ihre Bedingung "eine Firma ohne
- * Aufhaenger" auch dann wahr bleibt, wenn der Job endgueltig gescheitert ist
- * — ohne Grenze wuerde der Tab bis zum naechsten Neustart alle fuenf
+ * Aufhaenger" auch dann wahr bleibt, wenn der Job endgueltig gescheitert ist.
+ * Ohne Grenze wuerde der Tab bis zum naechsten Neustart alle fuenf
  * Sekunden die Seite neu holen.
  */
 export default function AutoRefresh({

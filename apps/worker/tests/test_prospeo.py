@@ -1,7 +1,7 @@
 """Unit-Tests fuer die reinen Prospeo-Funktionen (kein Netz, keine DB).
 
 Der Zweck dieser Datei ist nicht nur, dass build_search_filters richtig
-rechnet — sondern dass sie GENAUSO rechnet wie buildProspeoFilters() in
+rechnet, sondern dass sie GENAUSO rechnet wie buildProspeoFilters() in
 apps/web/lib/prospeo-query.ts. Die beiden Seiten muessen uebereinstimmen,
 weil der Trefferzaehler im Formular dieselbe Anfrage stellt wie der Worker
 beim echten Lauf. Weicht ein Feld ab, verspricht die Oberflaeche eine Zahl,
@@ -29,7 +29,7 @@ from worker.pipelines.prospeo import (
 class TestBuildSearchFilters:
     def test_leere_filter_fallen_ganz_weg(self):
         """Ein leeres include-Array ist bei Prospeo keine fehlende Bedingung,
-        sondern eine, die nichts erfuellt — der Fehler erschiene als
+        sondern eine, die nichts erfuellt; der Fehler erschiene als
         'keine Treffer' und waere von einem echten Nullergebnis nicht zu
         unterscheiden."""
         assert build_search_filters({}) == {}
@@ -187,7 +187,7 @@ class TestMapping:
             _address_of({"location": {"city": "Austin", "state": "TX", "country": "United States"}})
             == "Austin, TX, United States"
         )
-        # Laut Doku kann jedes Feld null sein — das darf nicht knallen.
+        # Laut Doku kann jedes Feld null sein; das darf nicht knallen.
         assert _address_of({"location": None}) is None
         assert _address_of({}) is None
 
@@ -197,7 +197,7 @@ class TestMapping:
             {"phone_hq": "+16165759676", "phone_hq_national": "(616) 575-9676", ...}
 
         Ohne _phone_of waere dieses dict in die Textspalte
-        businesses.phone_national gewandert — entweder ein Datenbankfehler
+        businesses.phone_national gewandert: entweder ein Datenbankfehler
         oder ein gespeichertes "{'phone_hq': ...}". Am 2026-08-05 im Testlauf
         aufgefallen."""
         assert _phone_of({"phone_hq": {
@@ -213,7 +213,7 @@ class TestMapping:
         assert _phone_of({}) is None
 
     def test_senioritaet_kommt_aus_der_job_historie(self):
-        """seniority und departments stehen NICHT oben auf dem Person-Objekt --
+        """seniority und departments stehen NICHT oben auf dem Person-Objekt,
         dort sind sie durchgaengig null. Sie haengen am Eintrag in
         job_history mit current=true. Ohne das haette jeder Prospeo-Kontakt
         seniority=None bekommen, und die Kampagnen-Auswahl "nur Entscheider"
@@ -242,7 +242,7 @@ class TestMapping:
         assert _current_job({"job_history": [{"title": "A", "seniority": "VP"}]})["seniority"] == "VP"
 
     def test_ohne_website_kein_datensatz(self):
-        """Ohne Website gibt es keinen Entdopplungsschluessel — dieselbe
+        """Ohne Website gibt es keinen Entdopplungsschluessel; dieselbe
         Regel wie bei Apollo."""
         assert _map_pair({"full_name": "A B"}, {"name": "X"}, "a@b.c", "VERIFIED") is None
 
@@ -277,7 +277,7 @@ class TestMapping:
         assert pair["business"]["phone_national"] == "+49 30 123"
         assert pair["contact"]["email"] == "sarah@beispiel.de"
         assert pair["contact"]["source"] == "prospeo"
-        # Nur die erste Abteilung — unsere Spalte haelt eine.
+        # Nur die erste Abteilung, unsere Spalte haelt eine.
         assert pair["contact"]["department"] == "Support"
         assert pair["contact"]["seniority"] == "head"
         assert pair["contact"]["email_verification_status"] == "valid"
@@ -322,7 +322,7 @@ class TestCompanySummary:
 
 
 def test_konstanten_entsprechen_prospeos_vorgaben():
-    """Von Prospeo fest vorgegeben, nicht von uns gewaehlt — wer sie aendert,
+    """Von Prospeo fest vorgegeben, nicht von uns gewaehlt: wer sie aendert,
     aendert gegen die API."""
     assert PER_PAGE == 25
     assert BULK_ENRICH_CHUNK == 50

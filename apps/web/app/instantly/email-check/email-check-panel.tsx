@@ -10,7 +10,7 @@ import type { Highlights } from "@/lib/email-quality";
 // Kampagne: zum Vorformulieren, bevor ueberhaupt eine Sequenz existiert, oder
 // um einen fertigen Text schnell gegenzuchecken. Grosszuegiges Editor+Sidebar-
 // Layout (wie hemingwayapp.com) statt des kompakten Panels aus der
-// Sequenz-Karte — hier ist der Text-Check der einzige Seiteninhalt, es muss
+// Sequenz-Karte; hier ist der Text-Check der einzige Seiteninhalt, es muss
 // also nichts zusammengefaltet werden. Nutzt trotzdem denselben Baustein fuer
 // das markierte Textfeld (HighlightedTextarea) wie die Kampagnen-Sequenz.
 export default function EmailCheckPanel() {

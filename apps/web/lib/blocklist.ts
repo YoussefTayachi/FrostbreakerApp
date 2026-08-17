@@ -1,11 +1,11 @@
 // Parsing fuer die Blockliste (app/blocklist/page.tsx). Eigene Datei statt
-// inline in der Seite, damit die Logik ohne React/DOM testbar ist — genau
+// inline in der Seite, damit die Logik ohne React/DOM testbar ist: genau
 // hier sass zuvor der Bug, der ganze Fliesstext-Absaetze als "Domain"
 // gespeichert hat.
 
 // Ein Domain-Label besteht aus alphanumerischen Zeichen mit optionalen
 // Bindestrichen in der Mitte, mindestens zwei Labels durch Punkte getrennt.
-// Ohne diese Pruefung reichte "enthaelt einen Punkt" als Domain-Erkennung --
+// Ohne diese Pruefung reichte "enthaelt einen Punkt" als Domain-Erkennung;
 // damit landete auch mal ein ganzer, versehentlich eingefuegter Website-Text-
 // Absatz woertlich als "Domain" in der Sperrliste, sobald irgendwo eine
 // Abkuerzung mit Punkt vorkam. Echte Domains haben nie Leerzeichen.

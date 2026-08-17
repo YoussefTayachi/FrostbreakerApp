@@ -2,7 +2,7 @@ import type { EmailQualityReport, QualityIssue, Severity } from "./types";
 
 // Umrechnung der Befunde in zusammenhaengende, ueberschneidungsfreie
 // Textabschnitte fuer die farbige Markierung im Textfeld. Reine
-// Bereichsarithmetik, deshalb hier statt in der Komponente — so ist der
+// Bereichsarithmetik, deshalb hier statt in der Komponente: so ist der
 // heikle Teil (Ueberlappungen) testbar.
 
 export type HighlightRange = { start: number; end: number; severity: Severity };
@@ -11,7 +11,7 @@ export type Highlights = {
   ranges: HighlightRange[];
   /**
    * Der Text, auf dem die Offsets berechnet wurden. Die Analyse laeuft
-   * entprellt, das Tippen nicht — ohne diesen Abgleich wuerden die Flaechen
+   * entprellt, das Tippen nicht; ohne diesen Abgleich wuerden die Flaechen
    * fuer den Moment dazwischen um ein paar Zeichen verrutschen und flackern.
    */
   forText: string;

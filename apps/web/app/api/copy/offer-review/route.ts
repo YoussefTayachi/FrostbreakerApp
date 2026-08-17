@@ -13,7 +13,7 @@ import { buildCoachPrompt, parseCoachFindings } from "@/lib/copy/coach-prompt";
  * Genau EIN Aufruf, keine Korrekturrunde. Anders als beim Sequenzgenerator
  * gibt es hier nichts nachzubessern: das Ergebnis ist eine Liste von Befunden,
  * und ein Befund, den das Modell im zweiten Anlauf anders formuliert, ist kein
- * besserer Befund — er ist nur ein anderer.
+ * besserer Befund; er ist nur ein anderer.
  *
  * Prompt und Auswertung stehen in lib/copy/coach-prompt.ts (mit Tests). Hier
  * steht nur, woher das Angebot kommt.
@@ -35,7 +35,7 @@ export async function POST(req: Request) {
   const offerId = (body?.offerId as string | undefined)?.trim();
   if (!offerId) return NextResponse.json({ error: "offerId fehlt" }, { status: 400 });
 
-  // Workspace-Filter zusaetzlich zur RLS — siehe CLAUDE.md.
+  // Workspace-Filter zusaetzlich zur RLS, siehe CLAUDE.md.
   const { data } = await supabase
     .from("offers")
     .select(OFFER_COLUMNS)
@@ -57,7 +57,7 @@ export async function POST(req: Request) {
   if (!res.ok) return NextResponse.json({ error: res.error }, { status: 502 });
   await recordOpenAiUsage(supabase, workspaceId, "offer_review", res.json);
 
-  // Eine leere Liste ist ein gueltiges Ergebnis und kommt oft vor — deshalb
+  // Eine leere Liste ist ein gueltiges Ergebnis und kommt oft vor; deshalb
   // hier KEINE Fehlermeldung wie beim Sequenzgenerator, wo eine leere Antwort
   // bedeutet, dass etwas schiefging.
   return NextResponse.json({ findings: parseCoachFindings(res.text, offer) });

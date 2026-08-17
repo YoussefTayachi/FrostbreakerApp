@@ -13,13 +13,13 @@ import HelpLink from "../../help-link";
  * Die BYOK-Schluessel der Anreicherungs-Anbieter.
  *
  * Instantly steht bewusst NICHT hier, sondern hat seinen eigenen Bereich
- * (/instantly) mit Mailboxen und Kampagnen — die Karte unten fuehrt nur
+ * (/instantly) mit Mailboxen und Kampagnen; die Karte unten fuehrt nur
  * dorthin. Die anderen sind reine Lookup-Schluessel ohne eigene Oberflaeche.
  */
 const PROVIDER_IDS = ["google_maps", "openai", "hunter", "apollo", "prospeo", "neverbounce"] as const;
 
 /** Anbieter mit einem kostenlosen Endpunkt, an dem sich ein Key pruefen
- *  laesst. Beide sagen ausdruecklich nur "Key gueltig" — ob der TARIF die
+ *  laesst. Beide sagen ausdruecklich nur "Key gueltig"; ob der TARIF die
  *  Personensuche bzw. die einzelnen Filter freigibt, beantwortet keiner von
  *  beiden (siehe die jeweilige health-Route). */
 const TESTABLE: readonly string[] = ["apollo", "prospeo"];
@@ -33,7 +33,7 @@ export default function ApiKeysPage() {
   const [values, setValues] = useState<Record<string, string>>({});
   const [status, setStatus] = useState<Record<string, string>>({});
   const [removing, setRemoving] = useState<string | null>(null);
-  // Apollo hat einen kostenlosen Health-Endpunkt — damit laesst sich ein Key
+  // Apollo hat einen kostenlosen Health-Endpunkt: damit laesst sich ein Key
   // pruefen, ohne eine Suche zu starten und Credits zu verbrennen. Die anderen
   // Provider bieten kein Gegenstueck, deshalb bewusst nur hier.
   const [keyTest, setKeyTest] = useState<Record<string, "idle" | "testing" | "ok" | "fail">>({});
@@ -104,7 +104,7 @@ export default function ApiKeysPage() {
 
   /**
    * Key pruefen. Verallgemeinert, als Prospeo als zweiter pruefbarer Anbieter
-   * dazukam — eine zweite testProspeo()-Funktion daneben waere dieselbe
+   * dazukam; eine zweite testProspeo()-Funktion daneben waere dieselbe
    * Funktion mit einem anderen Pfad gewesen.
    *
    * Beide Routen kosten nichts: Apollo hat einen Health-Endpunkt, Prospeo

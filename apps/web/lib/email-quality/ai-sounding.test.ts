@@ -32,7 +32,7 @@ describe("checkAiSounding", () => {
 
   describe("Gleichfoermigkeit der Satzlaengen", () => {
     it("bewertet kurze Mails gar nicht erst", () => {
-      // Drei Saetze sind fuer eine Streuungsaussage zu wenig — genau hier
+      // Drei Saetze sind fuer eine Streuungsaussage zu wenig; genau hier
       // entstehen sonst die Fehlalarme bei guten, knappen Mails.
       const r = check("Wir liefern schnell. Das spart Geld. Passt das?");
       expect(r.burstiness).toBeNull();

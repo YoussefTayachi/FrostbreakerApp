@@ -53,8 +53,8 @@ describe("domainChange — nur der Uebergang wird gemeldet", () => {
 
   /**
    * Eine seit Wochen kaputte Domain jeden Tag erneut zu melden ist die
-   * zuverlaessigste Art, dafuer zu sorgen, dass die Meldung weggeklickt wird
-   * — und mit ihr die vom Tag, an dem etwas Neues passiert.
+   * zuverlaessigste Art, dafuer zu sorgen, dass die Meldung weggeklickt wird,
+   * und mit ihr die vom Tag, an dem etwas Neues passiert.
    */
   it("meldet einen anhaltenden Bruch nicht erneut", () => {
     expect(domainChange(dom({ spf: false }), dom({ spf: false }))).toBe("still_broken");
@@ -92,7 +92,7 @@ describe("assessBounces", () => {
 
   /**
    * Bei 20 Mails ist ein einziger Bounce schon 5 Prozent. Dieselbe
-   * Mindestmenge wie beim Torwart, und absichtlich aus derselben Konstante --
+   * Mindestmenge wie beim Torwart, und absichtlich aus derselben Konstante:
    * zwei Zahlen fuer dieselbe Frage driften auseinander.
    */
   it("schweigt unter der Mindestmenge, auch bei hoher Quote", () => {

@@ -29,7 +29,7 @@ type CreateCampaignBody = {
 };
 
 /**
- * Legt eine neue Instantly-Kampagne an (als Draft — Instantly startet nichts
+ * Legt eine neue Instantly-Kampagne an (als Draft; Instantly startet nichts
  * automatisch, siehe Kommentar bei .../activate/route.ts), speichert einen
  * lokalen Spiegel in public.campaigns/campaign_steps und fuegt alle Kontakte
  * der uebergebenen Suche mit E-Mail-Adresse als Leads hinzu.
@@ -41,7 +41,7 @@ export async function POST(req: Request) {
   const workspaceId = ctx.workspace.id;
 
   // Gleiche Sperre wie fuer neue Suchen (RLS auf public.searches, Migration
-  // 0024) — hier zusaetzlich auf App-Ebene, weil das Anlegen einer Kampagne
+  // 0024), hier zusaetzlich auf App-Ebene, weil das Anlegen einer Kampagne
   // ueber diese API-Route laeuft und nicht per Direkt-Insert vom Client.
   const billing = await getBillingStatus(supabase);
   if (!billing?.isActive) {
@@ -64,7 +64,7 @@ export async function POST(req: Request) {
   }
   // Jede Fassung muss vollstaendig sein. Eine halb ausgefuellte Variante
   // wuerde bei Instantly als leere Mail an einen Teil der Empfaenger
-  // rausgehen — und zwar an einen zufaellig ausgewaehlten.
+  // rausgehen, und zwar an einen zufaellig ausgewaehlten.
   if (steps.some((s) => !s.variants?.length || s.variants.some((v) => !v.subject?.trim() || !v.body?.trim()))) {
     return NextResponse.json({ error: "Jede Variante braucht Betreff und Text." }, { status: 400 });
   }
@@ -117,16 +117,16 @@ export async function POST(req: Request) {
 
   // Sicherheitsnetz gegen versehentliches erneutes Anschreiben: Blockliste
   // (suppression_list) UND Kontakte, die bereits reagiert haben, werden nie in
-  // eine neue Kampagne aufgenommen — unabhaengig davon, aus welcher Suche/wann
+  // eine neue Kampagne aufgenommen, unabhaengig davon, aus welcher Suche/wann
   // sie urspruenglich gefunden wurden. Vorher wurden hier ausnahmslos alle
   // Kontakte mit E-Mail uebernommen, auch bereits blockierte/abgelehnte.
   const withEmail = ((contacts ?? []) as unknown as ContactRow[]).filter((c) => !!c.email);
   // Bis zum 2026-08-09 stand hier nur 'not_interested'. Wer geantwortet oder
-  // einen Termin hatte, landete in jeder neuen Kampagne derselben Suche wieder
-  // — inklusive derer, die auf LinkedIn geantwortet hatten. isColdContactable
+  // einen Termin hatte, landete in jeder neuen Kampagne derselben Suche
+  // wieder, inklusive derer, die auf LinkedIn geantwortet hatten. isColdContactable
   // deckt alle vier Faelle ab, siehe lib/contacts.ts.
   const { contactable: notDeclined } = splitByEngagement(withEmail);
-  // Das Archiv geht als Sperrliste durch dieselbe Pruefung — bewusst nur mit
+  // Das Archiv geht als Sperrliste durch dieselbe Pruefung, bewusst nur mit
   // der Adresse, nicht mit der Domain. Die Domain sperrt der Dublettenschutz
   // im Worker, damit die Firma gar nicht erst erneut gekauft wird; hier waere
   // sie zu grob und wuerde eine bewusst gewaehlte zweite Ansprechpartnerin
@@ -141,7 +141,7 @@ export async function POST(req: Request) {
   const { sendable, unsendable } = splitBySendability(filterSuppressed(notDeclined, blocked));
   const contactable = sendable;
   // KI-Recherche und Hunter finden bewusst mehrere moegliche Ansprechpartner
-  // pro Firma (siehe lib/contacts.ts) — fuer den tatsaechlichen Versand aber
+  // pro Firma (siehe lib/contacts.ts), fuer den tatsaechlichen Versand aber
   // nur die ranghoechste Person je Firma, sonst wuerde jede Mitarbeiterin/jeder
   // Mitarbeiter derselben Firma angeschrieben.
   const rows = pickPrimaryContactPerBusiness(contactable);
@@ -180,7 +180,7 @@ export async function POST(req: Request) {
         // Ohne dieses Feld ist laut Instantly-Doku bei per API angelegten
         // Kampagnen nicht garantiert, dass Folge-Schritte ausbleiben, sobald
         // ein Lead geantwortet hat (im UI ist "Stop on reply" default an, bei
-        // API-Erstellung nicht zuverlaessig geerbt) — explizit gesetzt statt
+        // API-Erstellung nicht zuverlaessig geerbt): explizit gesetzt statt
         // sich auf einen unspezifizierten Default zu verlassen.
         stop_on_reply: true,
       }),
@@ -199,7 +199,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: (e as Error).message }, { status });
   }
 
-  // Lokalen Spiegel anlegen — Fehler hier duerfen die Instantly-Seite nicht
+  // Lokalen Spiegel anlegen. Fehler hier duerfen die Instantly-Seite nicht
   // rueckgaengig machen (die Kampagne existiert dort bereits echt), daher
   // best-effort mit klarer Fehlermeldung statt Transaktion ueber zwei Systeme.
   const { data: localCampaign, error: campaignInsertError } = await supabase
@@ -207,7 +207,7 @@ export async function POST(req: Request) {
     .insert({
       workspace_id: workspaceId,
       // Primaere Suche fuer Analytics-Polling (instantly_campaign_stats haengt
-      // an genau einer search_id) — welche der mehreren Suchen egal, die
+      // an genau einer search_id); welche der mehreren Suchen egal, die
       // Kampagnen-Metriken bei Instantly sind ohnehin ueber alle gemeinsam.
       search_id: searchIds[0],
       instantly_campaign_id: instantlyCampaign.id,
@@ -262,7 +262,7 @@ export async function POST(req: Request) {
 
   // searches.instantly_campaign_id bleibt die Quelle, die der Sync-Cron
   // (api/cron/instantly-sync) fuer Analytics-Polling und Reply-Verarbeitung
-  // liest — jetzt fuer ALLE verknuepften Suchen gesetzt, nicht nur die erste,
+  // liest; jetzt fuer ALLE verknuepften Suchen gesetzt, nicht nur die erste,
   // damit jede von ihnen im UI korrekt als "verknuepft" erscheint.
   await supabase.from("searches").update({ instantly_campaign_id: instantlyCampaign.id }).in("id", searchIds).eq("workspace_id", workspaceId);
 
@@ -271,7 +271,7 @@ export async function POST(req: Request) {
     campaign_id: localCampaign.id,
     instantly_campaign_id: instantlyCampaign.id,
     // Aussortierte ungueltige Adressen mitgeben statt sie stillschweigend zu
-    // schlucken — der Nutzer soll sehen, dass die Verifizierung gewirkt hat.
+    // schlucken: der Nutzer soll sehen, dass die Verifizierung gewirkt hat.
     skipped_unverified: unsendable.length,
     leads_added: leads.length,
   });
@@ -280,7 +280,7 @@ export async function POST(req: Request) {
 /**
  * Liste aller Kampagnen dieses Workspaces fuer /instantly/campaigns. Status
  * wird live bei Instantly nachgeladen (kleine, ueberschaubare Anzahl an
- * Kampagnen pro Kunde — Genauigkeit ist hier wichtiger als ein Request
+ * Kampagnen pro Kunde; Genauigkeit ist hier wichtiger als ein Request
  * einzusparen, z.B. wenn jemand direkt in Instantly pausiert hat).
  */
 export async function GET() {
@@ -290,13 +290,13 @@ export async function GET() {
 
   // searches!campaigns_search_id_fkey statt nur searches: seit
   // campaign_searches (Migration 0050) gibt es ZWEI Wege von campaigns zu
-  // searches — die Spalte search_id und die neue Zwischentabelle. PostgREST
+  // searches: die Spalte search_id und die neue Zwischentabelle. PostgREST
   // kann den Einbettungspfad dann nicht mehr waehlen und antwortet mit
   // HTTP 300 ("Multiple Choices"), die Abfrage liefert also gar nichts.
   //
   // Sichtbar wurde das als leere Kampagnenliste bei drei aktiven Kampagnen:
   // der Fehler blieb unbemerkt, weil hier nur data ausgelesen und error
-  // verworfen wurde — aus dem Abbruch wurde stillschweigend ein "[]".
+  // verworfen wurde: aus dem Abbruch wurde stillschweigend ein "[]".
   // Deshalb wird der Fehler jetzt gemeldet statt als "keine Kampagnen"
   // ausgegeben: eine leere Liste und eine kaputte Abfrage sehen im Frontend
   // sonst identisch aus.
@@ -329,7 +329,7 @@ export async function GET() {
         }
         return { ...c, status: liveStatus };
       } catch {
-        return c; // Instantly kurz nicht erreichbar — lieber den letzten bekannten Stand zeigen als die ganze Liste kippen
+        return c; // Instantly kurz nicht erreichbar, lieber den letzten bekannten Stand zeigen als die ganze Liste kippen
       }
     })
   );
@@ -361,7 +361,7 @@ export async function GET() {
    * Wieso EINE Zeile und nicht die Summe ueber alle verknuepften Suchen,
    * steht mitsamt dem Zahlenbeispiel in lib/instantly/campaign-stats.ts.
    * Kurz: die Tabelle ist nach search_id geschluesselt, ihr Inhalt ist
-   * kampagnenweit — wer aufaddiert, multipliziert.
+   * kampagnenweit; wer aufaddiert, multipliziert.
    *
    * Faellt auf campaigns.search_id zurueck, wenn campaign_searches leer ist:
    * Kampagnen von vor Migration 0050 stehen dort nicht drin und haetten

@@ -1,6 +1,6 @@
 import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 
-// Service-Role-Client — umgeht RLS komplett. NUR fuer server-seitigen Code
+// Service-Role-Client, umgeht RLS komplett. NUR fuer server-seitigen Code
 // ohne User-Session, der App-uebergreifend schreiben muss (z.B. der Stripe-
 // Webhook, der keinen eingeloggten User hat). Niemals an den Client durchreichen.
 export function createServiceClient() {

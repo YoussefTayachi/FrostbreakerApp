@@ -27,7 +27,7 @@ describe("matchesSearchFilter", () => {
   });
 
   it("findet auch ueber den Ort", () => {
-    // Wer "Netherlands" tippt, meint die niederlaendische Liste — auch wenn
+    // Wer "Netherlands" tippt, meint die niederlaendische Liste, auch wenn
     // das Wort zufaellig nicht im Namen steht.
     const ohneOrtImNamen = { ...basis, name: "E-Com WhatsApp" };
     expect(matchesSearchFilter(ohneOrtImNamen, { ...offen, q: "netherlands" })).toBe(true);

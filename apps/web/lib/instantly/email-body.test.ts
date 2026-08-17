@@ -47,7 +47,7 @@ describe("htmlToText", () => {
   });
 
   // Die Akzente werden aus Buchstabe und kombinierendem Zeichen gebaut, nicht
-  // aus einer Tabelle — der Test haelt fest, dass das fuer die ganze Familie
+  // aus einer Tabelle; der Test haelt fest, dass das fuer die ganze Familie
   // gilt und nicht nur fuer die drei deutschen Umlaute.
   it("loest die Akzent-Entitaeten in beiden Schreibweisen auf", () => {
     expect(htmlToText("<p>&Ouml;sterreich, caf&eacute;, fran&ccedil;ais, &Aring;ngstr&ouml;m</p>")).toBe(
@@ -56,7 +56,7 @@ describe("htmlToText", () => {
   });
 
   it("laesst eine Akzent-Kombination stehen, die kein Zeichen ergibt", () => {
-    // "q" mit Ring gibt es nicht — ein nacktes kombinierendes Zeichen im
+    // "q" mit Ring gibt es nicht; ein nacktes kombinierendes Zeichen im
     // Text waere schlimmer als die unaufgeloeste Entitaet.
     expect(htmlToText("<p>&qring;</p>")).toBe("&qring;");
   });

@@ -17,7 +17,7 @@ describe("htmlToText", () => {
   });
 
   it("wirft Navigation und Fussbereich weg, behaelt aber den Kopfbereich", () => {
-    // Der Kopfbereich traegt bei Firmenseiten fast immer die Kernaussage --
+    // Der Kopfbereich traegt bei Firmenseiten fast immer die Kernaussage,
     // genau das, wonach hier gesucht wird. Die Linklisten drumherum nicht.
     const html =
       "<nav><a>Start</a><a>Preise</a></nav>" +
@@ -71,7 +71,7 @@ describe("extractWebsiteContent", () => {
 
 describe("hasEnoughContent", () => {
   it("laesst eine leere JS-Seite nicht als gelesen durchgehen", () => {
-    // Sonst gilt "Website ausgewertet" fuer eine Seite ohne Inhalt — und das
+    // Sonst gilt "Website ausgewertet" fuer eine Seite ohne Inhalt, und das
     // Modell denkt sich die sieben Felder aus.
     expect(hasEnoughContent({ title: "Shop", description: null, text: "Bitte JavaScript aktivieren." })).toBe(false);
   });

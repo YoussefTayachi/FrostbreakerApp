@@ -19,7 +19,7 @@ describe("tokensFromResponse", () => {
   });
 
   it("liefert null statt einer Schaetzung, wenn nichts gemeldet wurde", () => {
-    // Eine ehrliche Luecke statt einer erfundenen Zahl — gleiche Regel wie
+    // Eine ehrliche Luecke statt einer erfundenen Zahl, gleiche Regel wie
     // im Worker.
     expect(tokensFromResponse({})).toBeNull();
     expect(tokensFromResponse(null)).toBeNull();

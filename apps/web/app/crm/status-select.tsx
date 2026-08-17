@@ -3,7 +3,7 @@ import { OUTREACH_STAGES, STAGE_SELECT_CLS, isOutreachStage } from "@/lib/crm/st
 
 /**
  * Status-Dropdown fuer einen Kontakt. Lag vorher lokal in leads-table.tsx und
- * wird inzwischen zusaetzlich vom Pipeline-Board und der Timeline genutzt --
+ * wird inzwischen zusaetzlich vom Pipeline-Board und der Timeline genutzt,
  * auch als Touch-Fallback dort, wo Drag and Drop nicht funktioniert.
  *
  * Labels kommen von aussen (dict.ts), damit die Komponente sprachneutral bleibt.

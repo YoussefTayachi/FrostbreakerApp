@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { detectAutoReply } from "./auto-reply";
 
 /**
- * Die Betreffzeilen stammen woertlich aus Instantly (Stand 2026-08-03) --
+ * Die Betreffzeilen stammen woertlich aus Instantly (Stand 2026-08-03);
  * ausgedachte Beispiele haetten hier wenig Wert, weil die Formulierungen von
  * fremden Mailservern kommen und niemand sie sich so ausdenken wuerde.
  */
@@ -52,7 +52,7 @@ describe("detectAutoReply", () => {
   });
 
   // Wendungen aus einer zitierten Originalmail weit unten duerfen nicht
-  // greifen — geprueft wird nur der Anfang des Textes.
+  // greifen; geprueft wird nur der Anfang des Textes.
   it("greift nicht auf eine Wendung tief im Zitat", () => {
     const body = "Klingt gut!\n\n" + "x".repeat(600) + "\nI am currently out of the office";
     expect(detectAutoReply("Re: Termin", body).autoReply).toBe(false);

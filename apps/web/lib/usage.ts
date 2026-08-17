@@ -1,12 +1,12 @@
 /**
- * Verbrauch kostenpflichtiger API-Aufrufe festhalten — die Web-Seite.
+ * Verbrauch kostenpflichtiger API-Aufrufe festhalten: die Web-Seite.
  *
  * DAS GEGENSTUECK ZU worker/usage.py, UND WARUM ES DAS BRAUCHT
  *
  * Der Worker haelt jeden zahlungsrelevanten Aufruf fest. Im Web tat das bis
  * zum 2026-08-12 genau EINE Stelle: api/verify-emails. Die drei
- * OpenAI-Aufrufe im Web — der Live-Test im KI-Agenten, die Antwortentwuerfe
- * im Posteingang, die Einstufung eingehender Mails im Minutentakt-Cron --
+ * OpenAI-Aufrufe im Web (der Live-Test im KI-Agenten, die Antwortentwuerfe
+ * im Posteingang, die Einstufung eingehender Mails im Minutentakt-Cron)
  * schrieben nichts. Unter "API-Kosten" tauchten sie nicht auf; das Dashboard
  * zeigte sie als nicht existent an.
  *
@@ -14,7 +14,7 @@
  * jede Minute auf. Das ist kein Nebenposten, das ist eine Dauerlast, die
  * niemand sehen konnte.
  *
- * Die Preise stehen bewusst doppelt — hier und in worker/usage.py. Sie
+ * Die Preise stehen bewusst doppelt: hier und in worker/usage.py. Sie
  * MUESSEN uebereinstimmen; eine gemeinsame Quelle gaebe es nur ueber die
  * Datenbank, und dann haette eine Kostenzeile eine zweite Abfrage noetig.
  * Wer einen Preis aendert, aendert beide Dateien.
@@ -82,7 +82,7 @@ export async function recordUsage(
  * Tokenverbrauch aus einer OpenAI-Antwort uebernehmen.
  *
  * Gezaehlt wird, was die Antwort selbst meldet, nicht was wir geschaetzt
- * haetten — eine Korrekturrunde schlaegt damit korrekt ein zweites Mal zu
+ * haetten; eine Korrekturrunde schlaegt damit korrekt ein zweites Mal zu
  * Buche. Fehlt das usage-Feld, wird nichts geschrieben statt geraten (gleiche
  * Regel wie im Worker: eine ehrliche Luecke statt einer erfundenen Zahl).
  */

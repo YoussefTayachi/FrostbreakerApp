@@ -11,7 +11,7 @@ import Thaw from "../../thaw";
 import type { Step } from "./campaign-form";
 
 /**
- * "Mit KI schreiben" — die Abkuerzung durch acht leere Textfelder.
+ * "Mit KI schreiben": die Abkuerzung durch acht leere Textfelder.
  *
  * Steht UEBER dem Kampagnenformular und nicht darin: was es tut, ist das
  * Formular auszufuellen. Ein Knopf mitten zwischen den Stufen saehe aus, als
@@ -23,7 +23,7 @@ import type { Step } from "./campaign-form";
  * Fortschritt, sondern der schnellste Weg, eine Domain zu verbrennen.
  *
  * Die Fläche trägt dieselbe Instrumentensprache wie die Angebotsseite
- * (.fb-hud in globals.css) — es ist derselbe Vorgang, nur an seinem zweiten
+ * (.fb-hud in globals.css): es ist derselbe Vorgang, nur an seinem zweiten
  * Ende. Während des Schreibens läuft ein Streifen durch die Fläche statt
  * eines Spinners: er sagt "es wird gearbeitet", und die vier Stufenfelder
  * darunter zeigen, woran.
@@ -95,7 +95,7 @@ export default function GenerateSequence({
   if (offers === null) return null;
 
   // Ohne Angebot gibt es nichts zu erzeugen. Statt eines abgeschalteten
-  // Knopfes der Weg dorthin — ein grauer Knopf beantwortet die Frage nicht,
+  // Knopfes der Weg dorthin; ein grauer Knopf beantwortet die Frage nicht,
   // was jetzt zu tun waere.
   if (offers.length === 0) {
     return (

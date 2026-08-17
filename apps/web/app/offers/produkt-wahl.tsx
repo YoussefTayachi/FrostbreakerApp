@@ -10,7 +10,7 @@ import type { OfferProduct } from "@/lib/copy/offer-products";
  *
  * Beide Kerne stellen sie: Aim, bevor es das Angebot auf eine Lead-Liste
  * zuschneidet, und Core, bevor es aus der eigenen Website den ersten Entwurf
- * macht. Es ist dieselbe Frage an denselben Nutzer — sie muss sich auch gleich
+ * macht. Es ist dieselbe Frage an denselben Nutzer; sie muss sich auch gleich
  * anfuehlen. Zweimal derselbe Block waere die naechste Stelle, an der eine
  * Verbesserung nur in einer der beiden landet.
  *
@@ -26,7 +26,7 @@ import type { OfferProduct } from "@/lib/copy/offer-products";
  * Antworten und dem Abbruch.
  */
 
-/** Der Index, den der Freitext-Ausweg belegt. Nie ein Produkt — die Auswahl
+/** Der Index, den der Freitext-Ausweg belegt. Nie ein Produkt: die Auswahl
  *  bleibt damit EIN Zustand statt zweier, die sich widersprechen koennen. */
 export const FREITEXT = -1;
 

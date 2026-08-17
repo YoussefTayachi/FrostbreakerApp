@@ -17,7 +17,7 @@ const WorkspaceContext = createContext<WorkspaceContextValue>({
   switchWorkspace: () => {},
 });
 
-// workspaceId/workspaces kommen vom Server (Cookie + Query in layout.tsx) — dadurch
+// workspaceId/workspaces kommen vom Server (Cookie + Query in layout.tsx); dadurch
 // ist der erste Client-Render identisch zum Server-Render, kein Hydration-Mismatch,
 // analog zu LanguageProvider fuer die UI-Sprache.
 export function WorkspaceProvider({

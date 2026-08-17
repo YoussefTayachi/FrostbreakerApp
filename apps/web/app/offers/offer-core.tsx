@@ -4,7 +4,7 @@ import { OFFER_TEXT_FIELDS, type OfferTextField } from "@/lib/offers";
 import Thaw from "../thaw";
 
 /**
- * Der Ring — das eine auffällige Element dieser Fläche.
+ * Der Ring: das eine auffällige Element dieser Fläche.
  *
  * ═══════════════════════════════════════════════════════════════════════
  * WARUM EIN RING UND KEINE PROZENTZAHL
@@ -12,13 +12,13 @@ import Thaw from "../thaw";
  *
  * "57 % ausgefüllt" beantwortet die Frage nicht, die man vor dem Erzeugen
  * wirklich hat: WELCHES Feld fehlt noch. Sieben Segmente, eines je Feld,
- * beantworten beides auf einen Blick — und ein Klick springt zum fehlenden
+ * beantworten beides auf einen Blick, und ein Klick springt zum fehlenden
  * Feld.
  *
  * Die Farbe ist keine Zierde, sie ist derselbe Zustand, den der Knopf
  * "Sequenz erzeugen" abfragt: Frostblau, solange Pflichtfelder fehlen, Glut,
  * sobald das Angebot tragfähig ist. Der Name der App steht für genau diesen
- * Übergang — ein kalter Kontakt wird aufgetaut.
+ * Übergang: ein kalter Kontakt wird aufgetaut.
  *
  * Die Pflichtsegmente sind kräftiger gezeichnet als die freiwilligen. Damit
  * trägt der Ring die Unterscheidung, die sonst nur als kleiner Zusatz am
@@ -32,7 +32,7 @@ import Thaw from "../thaw";
  * die Anzeige verloren neben einer 700 Pixel breiten Formularspalte, und die
  * Figur in der Mitte war zu klein, um als Geraet gelesen zu werden. Am
  * Live-Stand nachgemessen: bei R=68 stiessen die Orbits des Kerns fast an die
- * Segmente. Jetzt R=80 bei gleichem Kern-Anteil — die Spalte ist dafuer auf
+ * Segmente. Jetzt R=80 bei gleichem Kern-Anteil; die Spalte ist dafuer auf
  * 340 Pixel gewachsen (offers-editor.tsx).
  */
 const R = 80;
@@ -73,7 +73,7 @@ export default function OfferCore({
   filled: Set<OfferTextField>;
   /** Welche Felder fürs Erzeugen nötig sind. */
   required: Set<OfferTextField>;
-  /** Alle Pflichtfelder gefüllt — der Ring schlägt in Glut um. */
+  /** Alle Pflichtfelder gefüllt: der Ring schlägt in Glut um. */
   ready: boolean;
   percent: number;
   labels: Record<OfferTextField, string>;
@@ -81,12 +81,12 @@ export default function OfferCore({
   readyLabel: string;
   missingLabel: (n: number) => string;
   /** Was THAW gerade sagt. Formuliert wird in dict.ts, entschieden hier
-   *  nicht — der Aufrufer kennt den Zustand ohnehin. */
+   *  nicht; der Aufrufer kennt den Zustand ohnehin. */
   say: string;
 }) {
   /**
    * Der Zündmoment wird nur beim ÜBERGANG gespielt, nicht bei jedem Rendern.
-   * Sonst pulsiert der Ring bei jedem Tastendruck in einem fertigen Angebot --
+   * Sonst pulsiert der Ring bei jedem Tastendruck in einem fertigen Angebot,
    * aus einem Moment würde ein Zucken.
    */
   const [ignite, setIgnite] = useState(false);

@@ -10,7 +10,7 @@ import ImportCsv from "../import-csv";
  * Er stand bis 2026-08-04 zwischen API-Schluesseln und Farbwerten, und das
  * war nicht nur eine Frage der Ordnung: importierte Firmen bekamen dort
  * search_id = null und landeten damit in keiner Liste. Sie waren unter "Alle
- * Leads" sichtbar, aber als Kampagnenquelle nicht auswaehlbar — also genau
+ * Leads" sichtbar, aber als Kampagnenquelle nicht auswaehlbar, also genau
  * fuer den einen Zweck unbrauchbar, fuer den man sie importiert.
  *
  * Hier entsteht aus der Datei eine Lead-Liste wie jede gesuchte auch: sie

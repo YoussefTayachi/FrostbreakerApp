@@ -6,7 +6,7 @@ import { useT } from "../language-provider";
 /**
  * Horizontale Unternavigation fuer den gesamten /instantly-Bereich (Uebersicht,
  * Verbindung, Mailboxen, Kampagnen). Bewusst als eigene kleine Client-
- * Komponente statt in app/nav.tsx integriert — die Hauptnavigation bleibt
+ * Komponente statt in app/nav.tsx integriert: die Hauptnavigation bleibt
  * eine flache Liste, dieser Bereich hier ist der einzige mit einer zweiten
  * Ebene.
  */

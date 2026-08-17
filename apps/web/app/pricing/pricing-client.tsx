@@ -6,7 +6,7 @@ import { primaryBtnCls, cardCls } from "@/lib/ui";
 import type { BillingStatus } from "@/lib/billing";
 import { PLANS, type PlanId } from "@/lib/plans";
 
-// PLANS (Preis, Label, Feature-Liste) lebt zentral in lib/billing.ts — vorher
+// PLANS (Preis, Label, Feature-Liste) lebt zentral in lib/billing.ts; vorher
 // gab es hier eine zweite, unabhaengige Kopie derselben Daten (Preis-Aenderung
 // haette man an zwei Stellen synchron halten muessen). Einzige Quelle der
 // Wahrheit jetzt: lib/billing.ts.

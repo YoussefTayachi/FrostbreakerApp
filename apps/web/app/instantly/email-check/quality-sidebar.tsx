@@ -5,7 +5,7 @@ import type { Lang } from "@/lib/i18n/lang";
 import { bodyHighlightRanges, hasAnalyzableContent, runEmailQualityCheck, type Highlights, type IssueCategory, type Severity } from "@/lib/email-quality";
 import { RISK_TONE, READABILITY_TONE, SEVERITY_DOT, TONE_TEXT, groupByCategory, useDebouncedContent } from "../quality-shared";
 
-// Grosse, immer offene Stat-Sidebar fuer den eigenstaendigen Text-Check --
+// Grosse, immer offene Stat-Sidebar fuer den eigenstaendigen Text-Check;
 // bewusst kein Ableger von email-quality-panel.tsx (das bleibt kompakt und
 // eingeklappt fuer die dichte Sequenz-Karte), sondern eine eigene, deutlich
 // geraeumigere Darstellung im Stil von hemingwayapp.com: grosse Kennzahl,
@@ -31,7 +31,7 @@ export default function QualitySidebar({
   const content = useDebouncedContent(subject, body, DEBOUNCE_MS);
   const report = useMemo(() => runEmailQualityCheck(content, contentLang), [content, contentLang]);
 
-  // Keine Einklapp-Logik hier (anders als im Panel) — die Sidebar ist der
+  // Keine Einklapp-Logik hier (anders als im Panel): die Sidebar ist der
   // einzige Seiteninhalt, Markierungen sollen deshalb immer aktuell sein.
   useEffect(() => {
     onHighlightsChange?.({ ranges: bodyHighlightRanges(report), forText: content.body });

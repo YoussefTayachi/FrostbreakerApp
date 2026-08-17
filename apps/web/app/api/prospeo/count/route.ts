@@ -10,14 +10,14 @@ import {
 } from "@/lib/prospeo-query";
 
 /**
- * Wie viele Leads gibt es fuer diese Filter — BEVOR die Suche startet?
+ * Wie viele Leads gibt es fuer diese Filter, BEVOR die Suche startet?
  *
  * ═══════════════════════════════════════════════════════════════════════
  * DER ENTSCHEIDENDE UNTERSCHIED ZU /api/apollo/count
  * ═══════════════════════════════════════════════════════════════════════
  *
  * Apollos Zaehler ist gratis und laeuft dort bei jeder Filteraenderung.
- * Prospeos Suche kostet 1 Credit je Seite — auch die erste, auch wenn nur
+ * Prospeos Suche kostet 1 Credit je Seite, auch die erste, auch wenn nur
  * die Gesamtzahl interessiert. Ein Zaehler, der bei jedem Tastendruck laeuft,
  * haette auf dem Starter-Tarif (1000 Credits) nach ein paar Minuten
  * Formularbedienung das Monatskontingent aufgebraucht.
@@ -28,7 +28,7 @@ import {
  *
  * Die Zahl kommt aus pagination.total_count. Prospeo deckelt die
  * ABRUFBAREN Treffer bei 25.000 (1000 Seiten x 25), total_count kann aber
- * darueber liegen — die Antwort gibt deshalb beides mit, damit die
+ * darueber liegen; die Antwort gibt deshalb beides mit, damit die
  * Oberflaeche "50.000 gefunden, 25.000 abrufbar" sagen kann statt eine Zahl
  * zu versprechen, die die Suche nicht einloest.
  */
@@ -54,7 +54,7 @@ export async function POST(request: Request) {
   }
 
   // Ohne Filter liefe die Suche quer durch 200 Millionen Kontakte. Das ist
-  // kein Zaehlerergebnis, das ist ein Bedienfehler — und er kostet sonst
+  // kein Zaehlerergebnis, das ist ein Bedienfehler, und er kostet sonst
   // einen Credit, um das zu erfahren.
   if (!hasAnyProspeoFilter(filters)) {
     return NextResponse.json({ error: "no_filters" }, { status: 400 });
@@ -86,14 +86,14 @@ export async function POST(request: Request) {
      * Der Rumpf zuerst, dann der Statuscode.
      *
      * Am 2026-08-05 im Testlauf gelernt: eine Tarifsperre kommt bei Prospeo
-     * als **HTTP 400** mit einem Fehlercode im Rumpf, nicht als 403 --
+     * als **HTTP 400** mit einem Fehlercode im Rumpf, nicht als 403:
      *
      *   {"error": true, "error_code": "PLAN_REQUIRED",
      *    "filter_error": "Filters not available on your plan: company_technology (STARTER+)"}
      *
      * Hier stand zuerst nur eine 403-Pruefung. Der 400 fiel dadurch in den
      * allgemeinen Zweig, und im Formular stand "Prospeo ist gerade nicht
-     * erreichbar" — obwohl Prospeo praezise geantwortet hatte.
+     * erreichbar", obwohl Prospeo praezise geantwortet hatte.
      *
      * filter_error geht woertlich an die Oberflaeche: Prospeo nennt darin den
      * Filternamen und die noetige Stufe, das ist besser als jede Umschreibung.

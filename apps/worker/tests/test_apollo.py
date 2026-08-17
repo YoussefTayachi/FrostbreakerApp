@@ -30,13 +30,13 @@ def kein_cache(monkeypatch):
     Die erste Zeile dieser Datei verspricht "kein Netz, keine DB". Seit
     `enrich_people` den kontoweiten Cache befragt (Commit 26ad32c), stimmte
     das nicht mehr: `apollo_cache.get_many` geht an Supabase. Fuenf Tests aus
-    dem Commit davor kannten ihn nicht und fielen deshalb um — nicht weil die
+    dem Commit davor kannten ihn nicht und fielen deshalb um, nicht weil die
     geprueften Regeln falsch waren, sondern weil der Cache alle Kandidaten als
     "schon bezahlt" zurueckgab und der bezahlte Aufruf nie stattfand.
 
     Autouse und nicht je Test eingehaengt, damit der naechste hinzugefuegte
     Test nicht dieselbe Falle findet. Wer den Cache PRUEFEN will, setzt ihn im
-    Test selbst neu — eine spaetere Ersetzung gewinnt gegen diese hier.
+    Test selbst neu; eine spaetere Ersetzung gewinnt gegen diese hier.
     """
     from worker import apollo_cache
 
@@ -84,7 +84,7 @@ def test_build_body_maps_technologies():
 
 
 def test_technologies_alone_are_a_sufficient_filter():
-    """"Alle Shopify-Shops" ist eine vollwertige Zielgruppe — ohne diesen
+    """"Alle Shopify-Shops" ist eine vollwertige Zielgruppe; ohne diesen
     Zweig haette build_body sie als filterlos abgelehnt."""
     body = build_people_search_body({"technologies": ["shopify"]}, page=1)
     assert body["currently_using_any_of_technology_uids"] == ["shopify"]
@@ -104,7 +104,7 @@ def test_build_body_ignores_technologies_that_are_not_a_list():
 
 
 def test_market_segments_are_passed_through_in_apollos_own_spelling():
-    """Die Werte sind Apollos, nicht unsere — "ecommerce" ohne Bindestrich.
+    """Die Werte sind Apollos, nicht unsere: "ecommerce" ohne Bindestrich.
 
     Am 2026-08-09 gegen die echte API gemessen: der Parameter heisst
     market_segments (organization_market_segments wird still ignoriert).
@@ -112,7 +112,7 @@ def test_market_segments_are_passed_through_in_apollos_own_spelling():
     body = build_people_search_body(
         {"market_segments": ["saas", "ecommerce", "non_profit"]}, page=1
     )
-    # Reihenfolge folgt APOLLO_MARKET_SEGMENTS, nicht der Klickreihenfolge --
+    # Reihenfolge folgt APOLLO_MARKET_SEGMENTS, nicht der Klickreihenfolge:
     # nur so ist der Body zwischen Zaehler und Worker vergleichbar.
     assert body["market_segments"] == ["ecommerce", "non_profit", "saas"]
 
@@ -139,7 +139,7 @@ def test_build_body_ignores_market_segments_that_are_not_a_list():
 
 def test_build_body_rejects_filterless_search():
     """Ohne inhaltlichen Filter wuerde Apollo einen beliebigen Querschnitt
-    seiner Datenbank liefern — teuer und wertlos."""
+    seiner Datenbank liefern, teuer und wertlos."""
     with pytest.raises(ValueError):
         build_people_search_body({}, page=1)
 
@@ -152,7 +152,7 @@ def test_employee_range_translation():
 
 
 def test_employee_range_rejects_stufen_die_apollo_nicht_kennt():
-    """"11-50" war unsere eigene Erfindung — Apollo akzeptiert sie technisch,
+    """"11-50" war unsere eigene Erfindung. Apollo akzeptiert sie technisch,
     zeigt sie in der Oberflaeche aber nicht an. Eine stille Abweichung von dem,
     was der Kunde dort sieht, ist schlechter als kein Filter."""
     assert _employee_range("11-50") is None
@@ -183,7 +183,7 @@ SEARCH_PREVIEW_PERSON = {
 def test_search_preview_is_not_parseable_into_a_lead():
     """Der urspruengliche Fehler: der Parser wurde auf die Suchantwort
     angewendet statt auf die Anreicherung. Er verwarf dann jede Person, die
-    Suche endete ohne Fehler mit null Treffern — und niemand sah warum."""
+    Suche endete ohne Fehler mit null Treffern, und niemand sah warum."""
     assert parse_apollo_person(SEARCH_PREVIEW_PERSON) is None
 
 
@@ -223,7 +223,7 @@ def test_enrich_stops_at_the_requested_number(monkeypatch):
 
 
 def test_enrich_refills_when_a_match_is_unusable(monkeypatch):
-    """Ein Treffer ohne Firmendomain ist kein Lead — dann muss nachgeladen
+    """Ein Treffer ohne Firmendomain ist kein Lead; dann muss nachgeladen
     werden, sonst liefert die Suche weniger als bestellt."""
     def fake_chunk(ids, api_key):
         return [
@@ -238,7 +238,7 @@ def test_enrich_refills_when_a_match_is_unusable(monkeypatch):
 
 
 def test_masked_email_detection():
-    """Apollo maskiert nicht freigeschaltete Adressen — unveraendert
+    """Apollo maskiert nicht freigeschaltete Adressen; unveraendert
     gespeichert waere das eine garantiert bouncende Fantasieadresse."""
     assert is_masked_email("email_not_unlocked@domain.com")
     assert is_masked_email(None)
@@ -318,7 +318,7 @@ def test_parse_person_falls_back_to_domain_when_org_name_missing():
 
 
 def test_search_cap_is_a_whole_number_of_pages():
-    """collect_people blaettert bis APOLLO_MAX_PER_SEARCH // PER_PAGE — bei
+    """collect_people blaettert bis APOLLO_MAX_PER_SEARCH // PER_PAGE; bei
     einem Rest waere die letzte Seite unerreichbar."""
     assert APOLLO_MAX_PER_SEARCH % PER_PAGE == 0
 
@@ -329,7 +329,7 @@ def test_default_seniorities_are_all_valid_apollo_values():
 
 def test_partner_is_a_valid_seniority():
     """Regressionsschutz: "partner" wurde einmal aufgrund einer unvollstaendigen
-    Websuche entfernt, obwohl Apollos eigene Oberflaeche es fuehrt — fuer
+    Websuche entfernt, obwohl Apollos eigene Oberflaeche es fuehrt. Fuer
     Kanzleien und Beratungen ist es die wichtigste Stufe ueberhaupt."""
     assert "partner" in APOLLO_SENIORITIES
     assert "partner" in DECISIONMAKER_SENIORITIES
@@ -349,7 +349,7 @@ def test_seniorities_from_form_are_filtered_against_apollo_enum():
 
 def test_seniorities_fall_back_when_selection_is_empty_or_invalid():
     """Ohne Einschraenkung wuerde Apollo quer durch alle Hierarchiestufen
-    Credits verbrauchen — deshalb nie leer weitergeben."""
+    Credits verbrauchen; deshalb nie leer weitergeben."""
     for raw in ([], ["nonsense"], None, "owner"):
         body = build_people_search_body(
             {"keywords": "supplements", "apollo_seniorities": raw}, page=1
@@ -359,7 +359,7 @@ def test_seniorities_fall_back_when_selection_is_empty_or_invalid():
 
 # --- Ursachensuche bei null Treffern ---------------------------------------
 # Eine leere Suche meldete bisher nur "fertig, 0 Leads". Diese Tests halten
-# fest, dass sie stattdessen benennt, WORAN es lag — ohne dabei je selbst zur
+# fest, dass sie stattdessen benennt, WORAN es lag, ohne dabei je selbst zur
 # Fehlerquelle zu werden.
 
 def _stub_search(monkeypatch, handler):
@@ -377,7 +377,7 @@ def _stub_search(monkeypatch, handler):
 
 def test_explain_names_the_filter_that_costs_the_hits(monkeypatch):
     """Der Fall vom 2026-08-02: ein Technologie-Slug, den Apollo nicht kennt.
-    Ohne diesen Filter gibt es Treffer — genau das muss die Meldung sagen."""
+    Ohne diesen Filter gibt es Treffer, und genau das muss die Meldung sagen."""
     def handler(body):
         if "currently_using_any_of_technology_uids" in body:
             return {"people": [], "total_entries": 0}
@@ -397,7 +397,7 @@ def test_explain_names_the_filter_that_costs_the_hits(monkeypatch):
 
 def test_explain_reports_people_without_email_separately(monkeypatch):
     """Passende Personen ohne hinterlegte Adresse sind ein anderes Problem als
-    ein zu enger Filter — ein anderer Filter wuerde hier nicht helfen."""
+    ein zu enger Filter; ein anderer Filter wuerde hier nicht helfen."""
     _stub_search(
         monkeypatch,
         lambda body: {"people": [{"id": "a", "has_email": False}], "total_entries": 12},
@@ -420,7 +420,7 @@ def test_explain_reports_enrichment_gap(monkeypatch):
 
 def test_explain_says_so_when_no_single_filter_is_to_blame(monkeypatch):
     """Wenn auch das Weglassen jedes einzelnen Filters nichts bringt, ist die
-    Kombination schuld — dann darf die Meldung keinen Suendenbock erfinden."""
+    Kombination schuld; dann darf die Meldung keinen Suendenbock erfinden."""
     _stub_search(monkeypatch, lambda body: {"people": [], "total_entries": 0})
     msg = explain_empty_result(
         {"keywords": "x", "technologies": ["shopify"], "person_titles": "CEO"}, "key"
@@ -440,7 +440,7 @@ def test_explain_never_raises_and_never_costs_the_search(monkeypatch):
 
 
 def test_explain_passes_a_plan_error_through(monkeypatch):
-    """Ein gesperrter Plan ist keine "zu enge Suche" — diese Unterscheidung
+    """Ein gesperrter Plan ist keine "zu enge Suche", und diese Unterscheidung
     darf die Diagnose nicht verschlucken."""
     def blocked(body, api_key):
         raise ApolloPlanError("Free-Plan")
@@ -451,7 +451,7 @@ def test_explain_passes_a_plan_error_through(monkeypatch):
 
 
 def test_body_accepts_a_smaller_page_size_for_counting():
-    """Zaehlen und Diagnose brauchen nur total_entries — per_page=1 spart die
+    """Zaehlen und Diagnose brauchen nur total_entries; per_page=1 spart die
     ganze Uebertragung, muss aber sonst denselben Body ergeben."""
     counting = build_people_search_body({"keywords": "x"}, page=1, per_page=1)
     full = build_people_search_body({"keywords": "x"}, page=1)
@@ -465,7 +465,7 @@ def test_body_accepts_a_smaller_page_size_for_counting():
 # --- Firmenbeschreibung aus Apollo -----------------------------------------
 # Apollos Personensuche liefert im organization-Objekt nur den Namen und
 # has_*-Flags. Ohne die Beschreibung aus organizations/bulk_enrich faellt
-# personalize auf den Website-Text zurueck — und den blocken die meisten
+# personalize auf den Website-Text zurueck, und den blocken die meisten
 # Shops (gemessen: 12 von 12 Seiten mit HTTP 429).
 
 def test_summary_combines_description_keywords_and_industry():
@@ -482,7 +482,7 @@ def test_summary_combines_description_keywords_and_industry():
 
 
 def test_summary_is_dropped_when_too_thin():
-    """Aus zwei Worten soll die KI keinen Satz erfinden — lieber nichts
+    """Aus zwei Worten soll die KI keinen Satz erfinden; lieber nichts
     liefern und personalize den Website-Fallback ueberlassen."""
     assert build_company_summary({"short_description": "Supplements."}) is None
     assert build_company_summary({"keywords": ["d2c"]}) is None
@@ -507,7 +507,7 @@ def test_company_summaries_are_keyed_by_domain(monkeypatch):
 
 
 def test_company_summaries_survive_a_failing_chunk(monkeypatch):
-    """Eine fehlende Beschreibung ist eine Zusatzinfo, kein Arbeitsschritt --
+    """Eine fehlende Beschreibung ist eine Zusatzinfo, kein Arbeitsschritt;
     sie darf die Suche nicht kippen."""
     calls = {"n": 0}
 
@@ -535,7 +535,7 @@ def test_company_summaries_pass_a_plan_error_through(monkeypatch):
 class TestAlexaRank:
     """Apollos alexa_ranking als Groessenanhaltspunkt (Migration 0079).
 
-    Am 2026-08-05 an echten Domains geprueft — die Rangfolge passt:
+    Am 2026-08-05 an echten Domains geprueft, die Rangfolge passt:
     shopify.com 134, thredup.com 19 072, mtailor.com 633 392.
 
     Der Endpunkt (organizations/bulk_enrich) wird von run_apollo ohnehin bei
@@ -560,7 +560,7 @@ class TestAlexaRank:
         assert alexa_rank({"alexa_ranking": -5}) is None
 
     def test_verwirft_wahrheitswerte(self):
-        """bool ist in Python ein int — ohne die ausdrueckliche Pruefung
+        """bool ist in Python ein int; ohne die ausdrueckliche Pruefung
         wuerde True zu Rang 1 und die Firma zur groessten im Bestand."""
         assert alexa_rank({"alexa_ranking": True}) is None
         assert alexa_rank({"alexa_ranking": False}) is None
@@ -580,7 +580,7 @@ class TestPlattformDomains:
     facebook.com als "Website" bekam Facebooks Rang 13, zwei Kieler Friseure
     mit instagram.com-Profilen Instagrams Rang 19.
 
-    Der Rang war dabei das kleinere Uebel — die BESCHREIBUNG waere schlimmer
+    Der Rang war dabei das kleinere Uebel; die BESCHREIBUNG waere schlimmer
     gewesen: sie fliesst in den Aufhaenger.
     """
 
@@ -660,7 +660,7 @@ def _fake_search(pages: dict[int, list[dict]], calls: list[int]):
 def test_collect_people_blaettert_weiter_statt_bei_dubletten_aufzugeben(monkeypatch):
     """DER gemeldete Fall: Seite 1 enthaelt nur eine bereits bekannte Firma.
 
-    Vorher endete die Suche damit — mit zwei verbrauchten Credits und null
+    Vorher endete die Suche damit, mit zwei verbrauchten Credits und null
     Leads. Jetzt muss Seite 2 geholt und die neue Firma angereichert werden.
     """
     from worker.pipelines import apollo
@@ -704,7 +704,7 @@ def test_collect_people_reichert_bekannte_firmen_gar_nicht_erst_an(monkeypatch):
 
 
 def test_collect_people_ohne_bestand_verhaelt_sich_wie_bisher(monkeypatch):
-    """Ohne known_companies darf sich nichts aendern — der Parameter ist
+    """Ohne known_companies darf sich nichts aendern; der Parameter ist
     optional, und Prospeo/aeltere Aufrufer geben ihn nicht mit."""
     from worker.pipelines import apollo
 
@@ -733,7 +733,7 @@ def test_abbruch_stoppt_vor_dem_naechsten_bezahlten_paket(monkeypatch):
     """100 angeforderte Leads, Abbruch nach dem ersten Paket.
 
     Ohne Prueffpunkt liefen alle zehn Pakete durch (100 Credits). Erwartet
-    wird genau ein bezahltes Paket — das laufende laesst sich nicht
+    wird genau ein bezahltes Paket: das laufende laesst sich nicht
     zurueckholen, alle weiteren schon.
     """
     billed: list[int] = []
@@ -769,7 +769,7 @@ def test_ohne_abbruch_laeuft_alles_durch(monkeypatch):
 
 def test_abbruch_behaelt_was_bereits_bezahlt_wurde(monkeypatch):
     """Bezahlte Leads wegzuwerfen waere die zweite Verschwendung nach der
-    ersten — der Nutzer wollte die Suche stoppen, nicht sein Guthaben."""
+    ersten; der Nutzer wollte die Suche stoppen, nicht sein Guthaben."""
     monkeypatch.setattr(
         "worker.pipelines.apollo._bulk_match_chunk",
         lambda ids, api_key: [_match(i) for i in ids],
@@ -789,7 +789,7 @@ def test_abbruch_behaelt_was_bereits_bezahlt_wurde(monkeypatch):
 # ─────────────────────────────────────────────────────────────────────────
 # Apollo-Cache (Migration 0087)
 #
-# Zweck: dieselbe Person nie zweimal bezahlen — und den Lead trotzdem
+# Zweck: dieselbe Person nie zweimal bezahlen, und den Lead trotzdem
 # ausliefern. Die Tests messen deshalb beides: was noch gekauft wurde UND was
 # beim Aufrufer ankommt.
 # ─────────────────────────────────────────────────────────────────────────
@@ -823,7 +823,7 @@ def test_bekannte_person_kostet_nichts_und_kommt_trotzdem(monkeypatch):
 
 
 def test_nur_die_unbekannten_kosten_credits(monkeypatch):
-    """Gemischter Fall -- der Normalfall bei ueberlappenden Suchen."""
+    """Gemischter Fall, der Normalfall bei ueberlappenden Suchen."""
     _cache_stub(monkeypatch, {"p1": _match("p1"), "p2": _match("p2")})
     gekauft: list[str] = []
 
@@ -885,7 +885,7 @@ def test_fingerprint_gibt_den_schluessel_nicht_preis():
 
 def test_veralteter_eintrag_gilt_nicht_mehr():
     """Eine Adresse von vor einem Jahr gratis auszuliefern waere billig und
-    falsch — sie bounct und beschaedigt die Absender-Reputation."""
+    falsch: sie bounct und beschaedigt die Absender-Reputation."""
     from datetime import datetime, timedelta, timezone
 
     from worker.apollo_cache import MAX_AGE_DAYS, _fresh_enough

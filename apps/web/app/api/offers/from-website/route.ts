@@ -12,12 +12,12 @@ import { cleanProduct } from "@/lib/copy/offer-products";
  * Die eigene Website lesen und daraus Feldvorschlaege machen.
  *
  * Was zurueckkommt, wird NICHT gespeichert. Der Nutzer uebernimmt jedes Feld
- * einzeln — eine falsch gelesene Website vergiftet sonst unsichtbar jede
+ * einzeln: eine falsch gelesene Website vergiftet sonst unsichtbar jede
  * spaeter erzeugte Mail (siehe lib/copy/offer-from-website.ts).
  *
  * Der Abruf laeuft hier und nicht im Worker: er ist ein einzelner,
  * interaktiver Handgriff mit sofortiger Antwort. Ein Job in der Queue haette
- * fuenf Sekunden Wartezeit und eine Zustandsanzeige noetig — fuer einen
+ * fuenf Sekunden Wartezeit und eine Zustandsanzeige noetig, fuer einen
  * Knopf, der einmal je Angebot gedrueckt wird.
  */
 export const maxDuration = 45;
@@ -38,7 +38,7 @@ export async function POST(req: Request) {
   if (!url) return NextResponse.json({ error: "Keine gültige Adresse." }, { status: 400 });
   const language = body?.language === "en" ? "en" : "de";
   /**
-   * Auf welche der beschriebenen Sachen dieses Angebot zielt — optional.
+   * Auf welche der beschriebenen Sachen dieses Angebot zielt, optional.
    *
    * Gesetzt nur, wenn api/offers/detect-products auf derselben Seite mehrere
    * gefunden HAT und der Nutzer danach eine gewaehlt hat (auch von Hand

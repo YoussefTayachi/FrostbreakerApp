@@ -4,14 +4,14 @@ import { findPhrases, mean, normalizeVariables, splitSentences, splitWords, stde
 
 // "Klingt nach KI"-Heuristik. Ausdruecklich KEIN statistischer Detektor: hier
 // werden bekannte Modell-Floskeln gesucht und geprueft, wie gleichfoermig die
-// Satzlaengen sind. Beides sind Stilindizien, keine Beweise — Werkzeuge wie
+// Satzlaengen sind. Beides sind Stilindizien, keine Beweise: Werkzeuge wie
 // ZeroGPT arbeiten mit Sprachmodell-Perplexitaet und liegen selbst damit
 // regelmaessig daneben. Die UI muss das entsprechend deutlich sagen (siehe den
 // Disclaimer in dict.ts), sonst schafft die Zahl mehr Schaden als Nutzen.
 
 /**
  * Unter dieser Satzzahl wird die Gleichfoermigkeit gar nicht erst bewertet.
- * Eine gute Kaltakquise-Mail besteht oft aus drei Saetzen — die Streuung
+ * Eine gute Kaltakquise-Mail besteht oft aus drei Saetzen; die Streuung
  * daraus zu berechnen wuerde vor allem Rauschen produzieren und ausgerechnet
  * die kurzen, guten Mails faelschlich anschwaerzen.
  */

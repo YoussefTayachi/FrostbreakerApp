@@ -219,7 +219,7 @@ const de = {
     colUnits: "Verbrauch",
     // "Aufrufe" wurde als "Leads" gelesen: 19 Aufrufe neben 133 Credits neben
     // 63 Leads ergab keinen Reim. Ein Aufruf ist ein Paket von bis zu zehn
-    // Datensaetzen — das gehoert in die Ueberschrift.
+    // Datensaetzen, und das gehoert in die Ueberschrift.
     colCalls: "Aufrufe (Pakete à ≤10)",
     colCost: "Kosten",
     tariffDependent: "tarifabhängig",
@@ -416,7 +416,7 @@ const de = {
     filterYes: "ja",
     // Bewusst dieselben Woerter wie im Suchformular. Eigene Karte statt
     // Verweise dorthin, weil die Schluessel nicht deckungsgleich sind und drei
-    // Prospeo-Filter im Formular gar nicht vorkommen — siehe used-filters.tsx.
+    // Prospeo-Filter im Formular gar nicht vorkommen; siehe used-filters.tsx.
     filterLabels: {
       radius: "Umkreis",
       noWebsite: "Ohne Website",
@@ -937,7 +937,7 @@ const de = {
     logged: "Kontaktaufnahme protokolliert",
     activitySubject: "LinkedIn-Nachricht",
     // Antwort eintragen: der einzige Weg, wie eine Reaktion auf LinkedIn in
-    // die App kommt — es gibt dort keine Schnittstelle, die das liefert.
+    // die App kommt: es gibt dort keine Schnittstelle, die das liefert.
     replyButton: "Antwort eintragen",
     replyChange: "Antwort ändern",
     replyPrompt: "Was ist bei der Antwort herausgekommen?",
@@ -1248,7 +1248,7 @@ const de = {
       deleteConfirm: (email: string) => `${email} wirklich entfernen?`,
       warmupScore: "Warmup-Score",
       // Aufwaerm-Fortschritt. Die 14 Tage sind dieselbe Zahl, die auch die
-      // Anleitung und die Website nennen — eine zweite Empfehlung waere
+      // Anleitung und die Website nennen; eine zweite Empfehlung waere
       // genau die Sorte Widerspruch, die niemand aufloest.
       warmupDay: (d: number, target: number) => `Aufwärmen: Tag ${d} von ${target}`,
       warmupReady: "Aufgewärmt — bereit für den Versand",
@@ -1584,7 +1584,7 @@ const de = {
     },
   },
   // Team-Zugaenge, neu mit Migration 0081. Bis dahin gehoerte ein Workspace
-  // genau einem Konto — fuer eine Agentur hiess das ein geteiltes Passwort.
+  // genau einem Konto, fuer eine Agentur hiess das ein geteiltes Passwort.
   team: {
     title: "Team",
     subtitle: "Wer an diesem Workspace arbeiten darf.",
@@ -1653,11 +1653,11 @@ const de = {
       n === 1 ? "Noch ein Pflichtfeld, dann kann die Sequenz entstehen." : `Noch ${n} Pflichtfelder, dann kann die Sequenz entstehen.`,
     /** Die Herkunft eines Vorschlags, nicht seine Gattung: dass es ein
      *  Vorschlag ist, sagen schon die Knöpfe „Übernehmen/Verwerfen" darunter.
-     *  Gemeint ist die eine Frage, die der Nutzer wirklich hat — woher kommt
+     *  Gemeint ist die eine Frage, die der Nutzer wirklich hat: woher kommt
      *  das hier. */
     suggestionLabel: "Aus deiner Website",
     addressSubtitle: "Wie sprichst du an?",
-    // Was Core sagt. Immer eine Zeile, immer der naechste Handgriff — kein
+    // Was Core sagt. Immer eine Zeile, immer der naechste Handgriff, kein
     // Geplauder. Ein Satz, der nichts zu tun gibt, ist beim dritten Oeffnen
     // der Seite nur noch Text.
     sayCold: "Erzähl mir von deinem Angebot. Ich fange bei null an.",
@@ -1698,7 +1698,7 @@ const de = {
      * Die Zwischenfrage von Core, wenn auf der Website mehr als ein Produkt
      * oder eine Leistung steht. Eigene Schlüssel statt der von Aim: dort steht
      * die Lead-Liste in der Frage („Worum geht es bei X?"), hier gibt es noch
-     * keine. Schlichte Fassung — noch nicht formuliert.
+     * keine. Schlichte Fassung, noch nicht formuliert.
      */
     websiteProduct: {
       heading: "Worum soll es in diesem Angebot gehen?",
@@ -1707,7 +1707,7 @@ const de = {
       otherPlaceholder: "z. B. Chatarmin — WhatsApp-Marketing für Shops",
       confirm: "Weiter",
     },
-    /** Der zweite Kern — „Aim": dasselbe Angebot, zugeschnitten auf EINE
+    /** Der zweite Kern, „Aim": dasselbe Angebot, zugeschnitten auf EINE
      *  Lead-Liste. Der Name steht in beiden Sprachen gleich da. */
     fromSearch: {
       heading: "Auf eine Lead-Liste zuschneiden",
@@ -1728,7 +1728,7 @@ const de = {
       nothing: "Aus dieser Liste ließ sich nichts ableiten.",
       /**
        * Die Zwischenfrage, wenn das Angebot mehr als ein Produkt oder eine
-       * Leistung beschreibt. Schlichte Fassung — noch nicht formuliert.
+       * Leistung beschreibt. Schlichte Fassung, noch nicht formuliert.
        */
       product: {
         heading: (liste: string) => `Worum geht es bei „${liste}"?`,
@@ -1795,12 +1795,12 @@ const de = {
         hint: "Optional. z. B. direkt, kein Hype, keine Fachwörter.",
       },
     },
-    /** Die Beschriftungen der Kanten auf der Karte. Jede trägt eine Regel --
+    /** Die Beschriftungen der Kanten auf der Karte. Jede trägt eine Regel;
      *  eine Kante ohne Regel wäre Zierde und gehörte entfernt. */
     edges: {
       // Kurz halten: die Lücke zwischen zwei Spalten ist 36 Pixel breit, und
       // eine Beschriftung, die länger ist, ragt in den Nachbarknoten. Am
-      // Standbild geprüft mit "macht das Ja leicht" — das lag über einer
+      // Standbild geprüft mit "macht das Ja leicht": das lag über einer
       // fremden Überschrift.
       world: "gilt für",
       concrete: "konkret",
@@ -2315,7 +2315,7 @@ const de = {
     viewPricing: "Preise ansehen",
     errorGeneric: "Fehler beim Laden des Abo-Status.",
     // Zwei Varianten, weil sich der Zaehler waehrend der Testphase auf den
-    // gesamten Trial-Zeitraum bezieht und danach auf den Kalendermonat --
+    // gesamten Trial-Zeitraum bezieht und danach auf den Kalendermonat;
     // "diesen Monat" waere im Trial schlicht falsch.
     leadUsageHeading: "Qualifizierte Leads diesen Monat",
     leadUsageHeadingTrial: "Qualifizierte Leads in der Testphase",
@@ -3964,7 +3964,7 @@ const en: Dictionary = {
     reading: "Reading...",
     suggestionsReady: (n: number) => `${n} suggestions from the website`,
     /** Core's follow-up question when the website describes more than one
-     *  product or service. Plain wording — not a final copy pass. */
+     *  product or service. Plain wording, not a final copy pass. */
     websiteProduct: {
       heading: "Which one should this offer be about?",
       hint: "Core found more than one product or service on your website. An offer is always about just one of them -- you can add a second offer for the other one later.",
@@ -3972,7 +3972,7 @@ const en: Dictionary = {
       otherPlaceholder: "e.g. Chatarmin — WhatsApp marketing for shops",
       confirm: "Continue",
     },
-    /** The second core — "Aim": the same offer, tailored to ONE lead list. */
+    /** The second core, "Aim": the same offer, tailored to ONE lead list. */
     fromSearch: {
       heading: "Tailor it to a lead list",
       subtitle:
@@ -3991,7 +3991,7 @@ const en: Dictionary = {
       hint: "Rewritten: problem, friction, reason, audience. Reworded only: outcome and mechanism. Numbers and proof stay.",
       nothing: "Nothing could be drawn from this list.",
       /** The follow-up question when the offer describes more than one product
-       *  or service. Plain wording — not a final copy pass. */
+       *  or service. Plain wording, not a final copy pass. */
       product: {
         heading: (liste: string) => `What is "${liste}" about?`,
         hint: "Aim found more than one product or service in your offer. A list is always about just one of them.",
@@ -4048,7 +4048,7 @@ const en: Dictionary = {
       },
       tone: { label: "How should it sound?", hint: "Optional. e.g. direct, no hype, no jargon." },
     },
-    /** Labels on the map's edges. Each carries a rule — an edge without one
+    /** Labels on the map's edges. Each carries a rule; an edge without one
      *  would be decoration and should go. */
     edges: {
       // Keep short: the column gap is 36px, longer labels reach into the

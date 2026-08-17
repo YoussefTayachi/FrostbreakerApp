@@ -6,7 +6,7 @@ import { buildHighlightSegments, type Highlights, type Severity } from "@/lib/em
 // Textfeld mit farbiger Markierung von Textstellen, wie im Hemingway-Editor.
 //
 // Liegt bewusst hier und nicht mehr unter instantly/campaigns: die Komponente
-// wird inzwischen von zwei Stellen mit unterschiedlicher Bedeutung genutzt --
+// wird inzwischen von zwei Stellen mit unterschiedlicher Bedeutung genutzt:
 // im Kampagnen-Editor markiert sie Qualitaetsbefunde (Passiv, Spam-Trigger),
 // im LinkedIn-Vorlagen-Editor die Variablen (blau gueltig, rot vertippt). Sie
 // kennt beide Bedeutungen nicht, sie faerbt nur Bereiche ein.
@@ -14,7 +14,7 @@ import { buildHighlightSegments, type Highlights, type Severity } from "@/lib/em
 // deckungsgleiche Ebene mit demselben Text: dort stehen die farbigen Flaechen,
 // der sichtbare Text kommt weiterhin aus der Textarea selbst. Deshalb bleiben
 // Cursor, Auswahl, Undo und das Einfuegen von Variablen exakt das native
-// Verhalten — ein contentEditable-Editor haette all das nachbauen muessen.
+// Verhalten; ein contentEditable-Editor haette all das nachbauen muessen.
 
 // Bewusst zurueckhaltende Flaechen: der Text liegt darueber und muss in
 // beiden Themes lesbar bleiben.
@@ -45,7 +45,7 @@ export default function HighlightedTextarea({
 
   const active = highlights && highlights.forText === value && highlights.ranges.length > 0;
   // Eine abschliessende Leerzeile hat im <div> keine Hoehe, in der Textarea
-  // schon — ohne dieses Zeichen laufen beide Ebenen am Ende auseinander.
+  // schon; ohne dieses Zeichen laufen beide Ebenen am Ende auseinander.
   const segments = active
     ? buildHighlightSegments(value.endsWith("\n") ? value + " " : value, highlights.ranges)
     : null;
@@ -92,7 +92,7 @@ export default function HighlightedTextarea({
         className={inputCls + " relative block w-full resize-y"}
         // Als Inline-Style, nicht als Klasse: "bg-transparent" und das
         // "bg-field" aus inputCls sind beides einfache Utilities, da
-        // entscheidet die Reihenfolge im Stylesheet und nicht die im String --
+        // entscheidet die Reihenfolge im Stylesheet und nicht die im String;
         // die Klasse verliert und das Feld bleibt deckend weiss.
         style={segments ? { backgroundColor: "transparent" } : undefined}
       />

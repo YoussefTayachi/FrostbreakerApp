@@ -14,7 +14,7 @@ import {
 
 describe("planCountryCoverage", () => {
   it("waehlt so viele Staedte, wie die Zielzahl konservativ verlangt", () => {
-    // 300 Leads / (15 pro Kombination * 1 Nische) = 20 Staedte — mehr als die
+    // 300 Leads / (15 pro Kombination * 1 Nische) = 20 Staedte, mehr als die
     // Niederlande hergeben, deshalb hier mit zwei Nischen: 300 / (15*2) = 10.
     const plan = planCountryCoverage({
       country: "NL",
@@ -44,7 +44,7 @@ describe("planCountryCoverage", () => {
 
   it("haengt den Landeszusatz an, damit das Geocoding eindeutig ist", () => {
     // "Birmingham" allein waere zwischen England und Alabama nicht
-    // entscheidbar — der Worker geokodiert freien Text.
+    // entscheidbar; der Worker geokodiert freien Text.
     const plan = planCountryCoverage({ country: "GB", niches: ["agency"], targetLeads: 45 });
     expect(plan.locations).toEqual([
       "London, United Kingdom",
@@ -63,7 +63,7 @@ describe("planCountryCoverage", () => {
   });
 
   it("deckelt bei MAX_COUNTRY_FANOUT statt unbegrenzt loszulaufen", () => {
-    // Sechs Nischen * 15 US-Staedte waeren 90 Kombinationen — der Deckel
+    // Sechs Nischen * 15 US-Staedte waeren 90 Kombinationen; der Deckel
     // laesst 60 zu, also zehn Staedte.
     const plan = planCountryCoverage({
       country: "US",
@@ -113,7 +113,7 @@ describe("planCountryCoverage", () => {
   });
 
   it("behandelt eine unsinnige Zielzahl wie die kleinstmoegliche", () => {
-    // 0 oder negativ kaeme nur ueber ein leergeraeumtes Zahlenfeld — eine
+    // 0 oder negativ kaeme nur ueber ein leergeraeumtes Zahlenfeld; eine
     // einzelne Kombination ist die ehrlichste Auslegung davon.
     for (const targetLeads of [0, -50, Number.NaN]) {
       const plan = planCountryCoverage({ country: "NL", niches: ["kapper"], targetLeads });

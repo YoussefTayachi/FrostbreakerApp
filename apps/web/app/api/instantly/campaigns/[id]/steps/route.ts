@@ -7,7 +7,7 @@ import { assessSteps, type VariantStats } from "@/lib/instantly/variant-winner";
 /**
  * Wie sich die Varianten dieser Kampagne schlagen.
  *
- * Quelle ist Instantlys /campaigns/analytics/steps — der einzige Ort, an dem
+ * Quelle ist Instantlys /campaigns/analytics/steps: der einzige Ort, an dem
  * je Schritt UND je Variante gezaehlt wird. Aus unseren eigenen Daten liesse
  * sich das nicht rekonstruieren: welche Fassung ein Empfaenger bekommen hat,
  * entscheidet Instantly beim Versand und teilt es uns nirgends mit.
@@ -17,7 +17,7 @@ import { assessSteps, type VariantStats } from "@/lib/instantly/variant-winner";
  * die selbst wieder veralten kann.
  *
  * Die Bewertung ("darf man daraus schon einen Gewinner ableiten") steht in
- * lib/instantly/variant-winner.ts und ist dort mit 16 Faellen abgesichert --
+ * lib/instantly/variant-winner.ts und ist dort mit 16 Faellen abgesichert;
  * es ist die Stelle, an der man sich am leichtesten selbst betruegt.
  */
 
@@ -52,7 +52,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     return NextResponse.json({ error: (e as Error).message }, { status });
   }
 
-  // Laut Doku koennen step und variant null sein — fuer Ereignisse ausserhalb
+  // Laut Doku koennen step und variant null sein, fuer Ereignisse ausserhalb
   // einer Kampagnensequenz. Die gehoeren nicht in einen Variantenvergleich.
   const stats: VariantStats[] = (Array.isArray(rows) ? rows : [])
     .filter((r) => r.step != null && r.variant != null)

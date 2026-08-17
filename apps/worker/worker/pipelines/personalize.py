@@ -1,4 +1,4 @@
-"""Pipeline 4 — KI-Personalisierung / Icebreaker.
+"""Pipeline 4: KI-Personalisierung / Icebreaker.
 
 Generiert die personalisierte Eroeffnungszeile ({{personalization}}-Variable)
 fuer die Akquise-Mail. Nutzt je nach Workspace-Einstellung (personalization_source)
@@ -63,7 +63,7 @@ DEFAULT_PROMPT_DE = (
 
 # Inhaltsgleich zu DEFAULT_PROMPT_DE, nur auf Englisch. Muss mit
 # DEFAULT_PROMPT_EN in apps/web/lib/personalization-defaults.ts
-# uebereinstimmen — die Web-Oberflaeche zeigt denselben Text als
+# uebereinstimmen: die Web-Oberflaeche zeigt denselben Text als
 # Ausgangspunkt an, und ein Unterschied waere fuer den Nutzer unsichtbar.
 DEFAULT_PROMPT_EN = (
     "Your task is to generate a single, commercially razor-sharp opening line "
@@ -115,7 +115,7 @@ DEFAULT_PROMPT = DEFAULT_PROMPT_DE
 # Am 2026-08-13 von 22 auf 35 gehoben. Gemessen: von 737 erzeugten Aufhaengern
 # fielen 439 durch, fast alle mit "33 statt max. 22 Woerter". Der
 # Standardprompt verlangt einen konkreten Fakt UND den Anschluss "deswegen
-# melde ich mich" — beides zusammen passt nicht in 22 Woerter. Eine Grenze,
+# melde ich mich"; beides zusammen passt nicht in 22 Woerter. Eine Grenze,
 # die drei von fuenf Ergebnissen bemaengelt, wird ueberlesen und verdeckt dann
 # den echten Fehler. Muss mit DEFAULT_MAX_WORDS in
 # apps/web/lib/personalization-defaults.ts uebereinstimmen.
@@ -136,11 +136,11 @@ def constraint_block(max_words: int, banned_words: list[str], language: str = DE
     DER FEHLER, DEN DAS BEHEBT
 
     Die Wortgrenze stand nie im Prompt. Sie wurde ausschliesslich HINTERHER
-    von validate() geprueft — das Modell hat also nie erfahren, woran es sich
+    von validate() geprueft. Das Modell hat also nie erfahren, woran es sich
     halten soll, und erst der Korrektur-Versuch nannte die Zahl. Gemessen am
     2026-08-04 ueber 1032 erzeugte Zeilen: Median 24 Woerter bei einer Grenze
     von 22, und 705 Zeilen darueber. Die auffaelligen lagen bei 33 Woertern,
-    also 50 Prozent ueber der Vorgabe — kein Ausrutscher, sondern ein Prompt,
+    also 50 Prozent ueber der Vorgabe: kein Ausrutscher, sondern ein Prompt,
     der die Laenge schlicht nicht erwaehnt.
 
     Wird an JEDEN Prompt angehaengt, auch an einen selbst geschriebenen. Die
@@ -150,7 +150,7 @@ def constraint_block(max_words: int, banned_words: list[str], language: str = DE
 
     Auf Englisch, unabhaengig von der Sprache des Prompts: das Modell befolgt
     Formvorgaben in Englisch verlaesslicher, und dieser Block sagt nichts
-    ueber den INHALT — die Ausgabesprache bestimmt weiterhin der Prompt
+    ueber den INHALT; die Ausgabesprache bestimmt weiterhin der Prompt
     darueber.
     """
     lines = [
@@ -161,11 +161,11 @@ def constraint_block(max_words: int, banned_words: list[str], language: str = DE
         # demselben Grund wie die Wortgrenze: sie ist eine Einstellung des
         # Workspaces. Sie dort zu setzen und dann darauf zu hoffen, dass der
         # Nutzer sie zusaetzlich in seinen selbst geschriebenen Prompt
-        # schreibt, waeren zwei Wahrheiten fuer dieselbe Sache — und der
+        # schreibt, waeren zwei Wahrheiten fuer dieselbe Sache, und der
         # gemeldete Fehler war genau das.
         # Klammern, damit sichtbar ist, dass hier ZWEI Zeilen absichtlich eine
         # Anweisung ergeben und nicht ein Komma fehlt. Ruff meldet die
-        # unbeklammerte Form (ISC004) — zu Recht: genau so sieht ein
+        # unbeklammerte Form (ISC004), zu Recht: genau so sieht ein
         # vergessenes Komma aus, und in einer Liste von Prompt-Zeilen faellt
         # der Unterschied niemandem auf.
         (
@@ -182,7 +182,7 @@ def constraint_block(max_words: int, banned_words: list[str], language: str = DE
         lines.append("- Never use these characters: " + " ".join(chars))
     lines += [
         # Der Grund fuer diese Zeile: an echten Daten endeten praktisch ALLE
-        # erzeugten Aufhaenger mit derselben Wendung — naemlich der ersten,
+        # erzeugten Aufhaenger mit derselben Wendung, naemlich der ersten,
         # die der Prompt als Beispiel nennt. Ein Beispiel wird vom Modell als
         # Vorlage gelesen, wenn man es nicht ausdruecklich daran hindert. Bei
         # Kaltakquise faellt genau das auf: 94 Mails an dieselbe Nische, die
@@ -227,7 +227,7 @@ def _safe_website_text(website: str | None) -> str | None:
 def pain_point_hint(biz: dict) -> str | None:
     """Zusatzsignal aus der Google-Places-Suche (fehlende Website, auffaellig
     niedrige/keine Bewertung). Wird als zusaetzliche, klar benannte Tatsache an
-    den Kontext angehaengt — der bestehende System-Prompt weist das Modell
+    den Kontext angehaengt; der bestehende System-Prompt weist das Modell
     ohnehin an, spezifische Fakten "aus anderen Datenfeldern" zu nutzen, dieses
     Signal ist also nur ein weiteres solches Datenfeld, kein neuer Prompt-Typ."""
     if not biz.get("website"):
@@ -296,7 +296,7 @@ def _is_banned_hit(text: str, banned: str) -> bool:
     Satzzeichen gilt dieselbe Unterscheidung wie in
     sanitize_banned_punctuation: ein Bindestrich INNERHALB eines Wortes
     ("third-party", "NSF-certified") verbindet ein zusammengesetztes Wort und
-    ist kein Verstoss — gemeint sind nur Striche, die Satzteile abtrennen.
+    ist kein Verstoss; gemeint sind nur Striche, die Satzteile abtrennen.
 
     Ohne diese Unterscheidung galt jede Zeile mit einem zusammengesetzten Wort
     als fehlerhaft, sobald "-" auf der Verbotsliste stand. Gemessen an zwei
@@ -323,8 +323,8 @@ def _is_punctuation_only(word: str) -> bool:
 # Striche, die auch WORTINTERN vorkommen duerfen: der normale Bindestrich
 # verbindet zusammengesetzte Woerter ("two-decade", "values-driven",
 # "always-on"). Wird er dort durch ein Komma ersetzt, zerlegt das echte Woerter
-# ("a two, decade foothold") — schlimmer als das Gedankenstrich-Problem, das
-# die Sanierung loesen soll. Gedankenstriche (— –) und der doppelte Bindestrich
+# ("a two, decade foothold"). Das ist schlimmer als das Gedankenstrich-Problem,
+# das die Sanierung loesen soll. Gedankenstriche (— –) und der doppelte Bindestrich
 # stehen dagegen nie innerhalb eines Wortes und werden immer ersetzt, auch ohne
 # Leerzeichen drumherum ("events—that's why").
 _DASHES_ALSO_VALID_INSIDE_WORDS = {"-", "‐"}
@@ -351,12 +351,12 @@ def _replace_punctuation_token(text: str, token: str) -> str:
 
 def sanitize_banned_punctuation(text: str, banned_words: list[str]) -> str:
     """Verboten markierte Satzzeichen (allen voran Gedankenstriche) haelt sich
-    GPT auch nach einem expliziten Korrektur-Hinweis zuverlaessig NICHT --
-    eine bekannte Modell-Eigenart, kein Prompting-Problem. Fuer Eintraege in
+    GPT auch nach einem expliziten Korrektur-Hinweis zuverlaessig NICHT.
+    Eine bekannte Modell-Eigenart, kein Prompting-Problem. Fuer Eintraege in
     banned_words, die ausschliesslich aus Satzzeichen bestehen (z.B. "—",
     "--", "-"), ersetzt dieser deterministische Nachbearbeitungsschritt sie
     hart durch ein Komma, statt sich weiter aufs Modell zu verlassen.
-    Normale verbotene WOERTER bleiben bewusst aussen vor — die ersatzlos aus
+    Normale verbotene WOERTER bleiben bewusst aussen vor: die ersatzlos aus
     dem Satz zu streichen wuerde ihn oft kaputt machen, das kann nur eine
     echte Umformulierung (also der bestehende Retry) leisten."""
     punctuation_words = sorted(
@@ -433,7 +433,7 @@ def load_agent_config(workspace_id: str) -> dict:
         language = DEFAULT_LANGUAGE
     return {
         # Ohne eigenen Prompt gilt der Standard IN DER GEWAEHLTEN SPRACHE.
-        # Vorher stand hier fest DEFAULT_PROMPT (deutsch) — daher kamen
+        # Vorher stand hier fest DEFAULT_PROMPT (deutsch), daher kamen
         # deutsche Icebreaker fuer einen Workspace, dessen Oberflaeche den
         # englischen Prompt anzeigte. Siehe Migration 0083.
         "system_prompt": (row.get("personalization_prompt") or "").strip()
@@ -462,7 +462,7 @@ def run(job: dict) -> None:
         # Mal ankommt (Neustart des Workers, wiederholte Zustellung).
         return
     if search_is_deleted(biz):
-        return  # Suche im Papierkorb — keine OpenAI-Kosten fuer unsichtbare Leads
+        return  # Suche im Papierkorb, keine OpenAI-Kosten fuer unsichtbare Leads
 
     cfg = load_agent_config(ws)
     context = build_context(biz, cfg["source"])  # kann NotReadyYet werfen -> Queue retried spaeter
@@ -473,7 +473,7 @@ def run(job: dict) -> None:
     # Direkt vom Datensatz: das eingebettete searches(...) liefert nur
     # deleted_at, keine id (siehe BUSINESS_WITH_SEARCH).
     search_id = biz.get("search_id")
-    # Die Vorgaben gehoeren IN den Prompt, nicht nur in die Nachpruefung --
+    # Die Vorgaben gehoeren IN den Prompt, nicht nur in die Nachpruefung,
     # siehe constraint_block.
     system_prompt = cfg["system_prompt"] + constraint_block(
         cfg["max_words"], cfg["banned_words"], cfg["language"]

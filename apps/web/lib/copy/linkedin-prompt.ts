@@ -4,7 +4,7 @@
  * WARUM DAS HIER UEBERHAUPT AUFTAUCHT
  *
  * Dieselben Leads ueber LinkedIn anzuschreiben kostet keinen einzigen
- * zusaetzlichen Credit — die Kontakte sind schon gekauft. Die Verkettung
+ * zusaetzlichen Credit: die Kontakte sind schon gekauft. Die Verkettung
  * dahin gibt es seit Migration 0074/0082. Was fehlte, war auch hier der Text:
  * die LinkedIn-Arbeitsliste startet mit einer leeren Vorlage, genau wie die
  * Mail-Kampagne.
@@ -12,25 +12,25 @@
  * WAS ANDERS IST ALS BEI DER MAIL
  *
  * Kein Betreff, kein Link, und vor allem: viel kuerzer. Eine Kontaktanfrage
- * bei LinkedIn hat 300 Zeichen — nicht 300 Woerter. Eine Mail-Eroeffnung
+ * bei LinkedIn hat 300 Zeichen, nicht 300 Woerter. Eine Mail-Eroeffnung
  * dort hineinzukopieren ergibt einen abgeschnittenen Satz.
  *
  * DIE SIGNATUR (gemeldet 2026-08-13)
  *
  * "Wenn ich bei LinkedIn aus Angebot erzeugen druecke, wird die Signatur nie
  * ergaenzt." Stimmte: hier stand ausdruecklich "No signature", weil 300
- * Zeichen knapp sind. Das war unsere Entscheidung, nicht seine — und sie
+ * Zeichen knapp sind. Das war unsere Entscheidung, nicht seine, und sie
  * gehoert ihm. Wer eine Signatur am Angebot hinterlegt (Migration 0091), will
  * sie auch unter der LinkedIn-Nachricht sehen.
  *
  * Angehaengt wird MECHANISCH, nicht vom Modell geschrieben: dieselbe
- * Entscheidung wie bei freeStandingPersonalization — was eine reine Formsache
+ * Entscheidung wie bei freeStandingPersonalization: was eine reine Formsache
  * ist, wird repariert und nicht erbeten. Ein Modell, das die Signatur selbst
  * tippt, kuerzt sie ("Best, Y."), uebersetzt sie oder vergisst sie unter der
  * Zeichengrenze. Der Prompt sagt ihm nur, wie viele Zeichen sie ihm wegnimmt.
  *
  * Ist keine hinterlegt (auch nicht ueber workspaces.reply_sender_name), wird
- * NICHTS angehaengt und kein Name erfunden — genau wie in der Mailsequenz.
+ * NICHTS angehaengt und kein Name erfunden, genau wie in der Mailsequenz.
  */
 import { LINKEDIN_PLACEHOLDERS } from "@/lib/crm/linkedin-message";
 import type { Offer } from "@/lib/offers";
@@ -44,7 +44,7 @@ export const LINKEDIN_MAX_CHARS = 300;
 const LANGUAGE_NAMES: Record<string, string> = { de: "German", en: "English" };
 
 /** Womit ein Wort des eingesetzten Aufhaengers veranschlagt wird. Grob, aber
- *  einheitlich — Schaetzung und Prompt muessen dieselbe Zahl benutzen, sonst
+ *  einheitlich: Schaetzung und Prompt muessen dieselbe Zahl benutzen, sonst
  *  rechnet das Modell gegen eine andere Grenze als die Anzeige. */
 const AVG_WORT_ZEICHEN = 6;
 /** Womit ein gewoehnlicher Platzhalter ({{firstName}}, {{companyName}})
@@ -64,7 +64,7 @@ export function signatureCost(signature: string): number {
  * @param signature Gruss und Unterschrift, fertig ermittelt mit
  *   signatureFor() aus sequence-prompt.ts (Angebot vor Workspace). Leerer
  *   String heisst: es gibt keine, und es wird auch keine erfunden.
- * @param personalizationWords workspaces.personalization_max_words — wie lang
+ * @param personalizationWords workspaces.personalization_max_words, wie lang
  *   der eingesetzte Aufhaenger wird. Ohne diese Zahl kann das Modell seinen
  *   eigenen Spielraum nicht kennen.
  */
@@ -81,15 +81,15 @@ export function buildLinkedInPrompt(
   //
   // Live gemessen (2026-08-13, 22 Aufhaenger-Woerter): mit "HARD LIMIT 285
   // INCLUDING the placeholders" kam eine Nachricht heraus, die eingesetzt auf
-  // 341 Zeichen kam. Nicht weil das Modell zu viel geschrieben haette --
-  // seine eigenen Saetze waren 177 Zeichen --, sondern weil die Platzhalter
+  // 341 Zeichen kam. Nicht weil das Modell zu viel geschrieben haette (seine
+  // eigenen Saetze waren 177 Zeichen), sondern weil die Platzhalter
   // 148 davon vorwegnahmen und es sie nicht mitrechnete. Ein Modell kann
   // Zeichen einer Zeichenkette nicht zaehlen, die es gar nicht sieht.
   //
   // Deshalb rechnet die App die Platzhalter ab und nennt nur noch die Zahl,
   // die das Modell selbst beeinflusst.
   const persoZeichen = personalizationWords * AVG_WORT_ZEICHEN;
-  // {{firstName}} in der Anrede und {{companyName}} in der Frage — beide
+  // {{firstName}} in der Anrede und {{companyName}} in der Frage: beide
   // stehen in der Schablone unten, also sind beide eingeplant.
   const platzhalterZeichen = persoZeichen + PLATZHALTER_ZEICHEN * 2;
   const budget = LINKEDIN_MAX_CHARS - signatureCost(sig);
@@ -103,7 +103,7 @@ export function buildLinkedInPrompt(
     `Problem before: ${offer.problem.trim() || "(not specified, do not assert one)"}`,
     // Dieselbe Friction und derselbe Micro-Yes wie in der Mailsequenz. Wer
     // ueber beide Kanaele angeschrieben wird, soll zweimal dieselbe Sache
-    // hoeren — zwei verschiedene Aufhaenger derselben Firma lesen sich wie
+    // hoeren; zwei verschiedene Aufhaenger derselben Firma lesen sich wie
     // zwei verschiedene Absender.
     `The ONE friction: ${offer.friction.trim() || "(not specified, do not invent one)"}`,
     `Why buyers hesitate at it: ${offer.friction_reason.trim() || "(not specified, do not explain why)"}`,
@@ -130,7 +130,7 @@ export function buildLinkedInPrompt(
 
   lines.push(
     // Die Zeichengrenze ist der ganze Unterschied zur Mail. Wird sie
-    // ueberschritten, schneidet LinkedIn ab — mitten im Satz.
+    // ueberschritten, schneidet LinkedIn ab, mitten im Satz.
     `- HARD LIMIT: ${eigenBudget} characters OF YOUR OWN TEXT. Count only the letters you type yourself.`,
     `  LinkedIn allows ${LINKEDIN_MAX_CHARS}. The rest is already spoken for and is NOT yours to spend:`,
     `  {{personalization}} becomes about ${persoZeichen} characters when the message is sent,`,
@@ -140,7 +140,7 @@ export function buildLinkedInPrompt(
     "  Do NOT try to count the placeholders. Count your own sentences and keep them under that number.",
     sig
       ? // Die Signatur wird nach der Erzeugung angehaengt. Schriebe das Modell
-        // sie zusaetzlich, staende sie zweimal da — appendSignature erkennt
+        // sie zusaetzlich, staende sie zweimal da; appendSignature erkennt
         // das zwar, aber die Zeichen waeren trotzdem verplant.
         "- No subject line. Do NOT write a sign-off or a name of your own: the sender's own signature is added under your text automatically."
       : "- No subject line. No signature. No sender name is known, never invent one.",

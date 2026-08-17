@@ -1,4 +1,4 @@
-"""Pipeline 3 — Port von n8n 'Hunt_Persons'.
+"""Pipeline 3: Port von n8n 'Hunt_Persons'.
 
 Hunter Domain-Search (executive/management, limit 5).
 Verbesserung ggü. n8n: E-Mails mit verification.status == 'invalid' werden verworfen.
@@ -25,7 +25,7 @@ def extract_domain(url: str) -> str:
 
 
 def parse_hunter_emails(payload: dict) -> list[dict]:
-    """Nimmt nur personenbezogene Treffer mit (Hunters eigenes type-Feld) --
+    """Nimmt nur personenbezogene Treffer mit (Hunters eigenes type-Feld);
     generische Rollen-Adressen (info@/office@ etc.) werden verworfen, siehe
     worker.email_classify. Cold-Outreach an ein geteiltes Postfach bringt dem
     Kunden praktisch nichts und zaehlt auch nicht als qualifizierter Lead."""
@@ -79,12 +79,12 @@ def run(job: dict) -> None:
     business_id = job["payload"]["business_id"]
     biz = sb().table("businesses").select(BUSINESS_WITH_SEARCH).eq("id", business_id).single().execute().data
     if search_is_deleted(biz):
-        return  # Suche im Papierkorb — keine Hunter-Credits fuer unsichtbare Leads
+        return  # Suche im Papierkorb, keine Hunter-Credits fuer unsichtbare Leads
 
     def set_status(status: str) -> None:
         # decisionmaker_status wandert bewusst mit: seit jeder Suchweg genau
         # eine Adressquelle hat, ist hunt_persons im Corporate-Modus der
-        # einzige Schritt, der Ansprechpartner findet — find_decisionmaker
+        # einzige Schritt, der Ansprechpartner findet; find_decisionmaker
         # laeuft dort nicht mehr. Bliebe das Feld auf "pending", wuerde
         # personalize dauerhaft mit NotReadyYet zurueckgestellt und nie eine
         # Eroeffnungszeile schreiben (siehe personalize.build_context).
@@ -99,7 +99,7 @@ def run(job: dict) -> None:
     try:
         payload = domain_search(extract_domain(biz["website"]), get_api_key(ws, "hunter"))
         # Hunter rechnet pro Domain-Suche ab, unabhaengig davon, wie viele
-        # Adressen dabei herauskommen — deshalb hier zaehlen und nicht erst
+        # Adressen dabei herauskommen; deshalb hier zaehlen und nicht erst
         # nach der Sperrlisten-Filterung. Der Eurowert eines Credits haengt am
         # Tarif und bleibt offen (siehe worker/usage.py).
         usage.record(

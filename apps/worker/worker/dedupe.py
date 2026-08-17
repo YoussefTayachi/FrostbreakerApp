@@ -1,20 +1,20 @@
 """Welche bereits bekannten Firmen eine neue Suche NICHT erneut aufnehmen soll.
 
-Bisher sperrte die Dedupe-Pruefung gegen jede Firma des Workspaces --
+Bisher sperrte die Dedupe-Pruefung gegen jede Firma des Workspaces,
 unabhaengig davon, ob die zugehoerige Suche noch existiert. Praktische Folge:
 wer seine Suchen in den Papierkorb legt und dieselbe Suche neu startet, bekommt
 null Treffer, weil die App die geloeschten Firmen weiterhin kennt. Real
 gemessen: 340 Firmen im Workspace, davon 340 aus geloeschten Suchen und keine
-einzige aus einer aktiven — die Leadsuche war damit komplett blockiert, ohne
+einzige aus einer aktiven. Die Leadsuche war damit komplett blockiert, ohne
 dass die Oberflaeche einen Grund genannt haette.
 
 "Papierkorb" heisst: diese Liste will ich nicht mehr. Es heisst NICHT: diese
-Firma nie wieder kontaktieren — dafuer gibt es die Blockliste
+Firma nie wieder kontaktieren. Dafuer gibt es die Blockliste
 (suppression_list), die unabhaengig davon weiter greift.
 
 Eine Ausnahme bleibt trotzdem gesperrt: Firmen, bei denen schon jemand
 angeschrieben wurde (irgendein Kontakt nicht mehr auf "new"). Wuerde man die
-erneut finden, entstuenden neue Kontaktzeilen mit Status "new" — und der
+erneut finden, entstuenden neue Kontaktzeilen mit Status "new", und der
 Kampagnen-Filter, der sich genau auf diesen Status stuetzt, wuerde dieselbe
 Person ein zweites Mal anschreiben. Der Verlauf haengt an der Kontaktzeile,
 nicht an der E-Mail-Adresse, deshalb muss die Sperre hier greifen.
@@ -24,8 +24,8 @@ Zeilen in businesses/contacts, und "Papierkorb leeren" loescht beide. Danach
 war die Firma wieder unbekannt, wurde neu gekauft (bei Apollo rund 2 Credits
 pro Lead) und dieselben Menschen bekamen dieselbe Mail ein zweites Mal.
 public.contact_archive haelt deshalb Domain und Firmenname jedes bereits
-angeschriebenen Kontakts fest, auch wenn seine Zeile laengst weg ist — und
-diese Eintraege werden hier mitgesperrt.
+angeschriebenen Kontakts fest, auch wenn seine Zeile laengst weg ist; diese
+Eintraege werden hier mitgesperrt.
 """
 
 from worker.db import sb
@@ -48,13 +48,13 @@ def archive_as_businesses(archive: list[dict]) -> list[dict]:
     """contact_archive-Zeilen in die Form bringen, die die Aufrufer erwarten.
 
     Dieselben Schluessel wie eine businesses-Zeile, damit die Aufrufer nicht
-    zwei Quellen unterscheiden muessen — aber ohne id und place_id, denn
+    zwei Quellen unterscheiden muessen, aber ohne id und place_id, denn
     beides gibt es zu einer geloeschten Firma nicht mehr. website traegt die
     blanke Domain (kein Schema); die Aufrufer vergleichen ohnehin ueber
     domain_of().
 
     Mehrere angeschriebene Kontakte derselben Firma ergeben mehrere
-    Archiv-Zeilen — hier auf eine je Domain bzw. Name zusammengezogen, damit
+    Archiv-Zeilen, hier auf eine je Domain bzw. Name zusammengezogen, damit
     die Sperrmenge nicht unnoetig waechst.
     """
     seen: set[tuple[str, str]] = set()
@@ -75,7 +75,7 @@ def archive_as_businesses(archive: list[dict]) -> list[dict]:
                 "website": domain or None,
                 "place_id": None,
                 # Kennzeichen fuer Aufrufer, die NUR gegen das Archiv sperren
-                # wollen — die Maps-Suche etwa darf Filialen einer Kette
+                # wollen: die Maps-Suche etwa darf Filialen einer Kette
                 # weiterhin einzeln aufnehmen, eine bereits angeschriebene und
                 # geloeschte Firma aber nicht erneut.
                 "from_archive": True,
@@ -89,12 +89,12 @@ def businesses_to_skip(workspace_id: str) -> list[dict]:
 
     name kam am 2026-08-09 dazu: Apollos kostenlose Vorschau liefert keine
     Domain, nur den Firmennamen. Ohne ihn liesse sich eine Dublette erst nach
-    dem kostenpflichtigen Anreichern erkennen — siehe
+    dem kostenpflichtigen Anreichern erkennen; siehe
     apollo.collect_people(known_companies).
 
     Zwei Quellen, eine Liste: die noch vorhandenen Firmen und das Archiv der
     bereits angeschriebenen Kontakte aus endgueltig geloeschten Listen
-    (Migration 0095). Die Archiv-Eintraege tragen weder id noch place_id --
+    (Migration 0095). Die Archiv-Eintraege tragen weder id noch place_id;
     Aufrufer, die darauf zugreifen, muessen .get() benutzen.
     """
     businesses = (

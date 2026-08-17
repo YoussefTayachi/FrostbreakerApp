@@ -277,7 +277,7 @@ function toCsv(groups: Group[], headers: readonly string[]): string {
   return [headers.join(";"), ...lines].join("\n");
 }
 
-// Spaltennamen sind Instantlys eigene Merge-Tag-Namen — NICHT uebersetzen,
+// Spaltennamen sind Instantlys eigene Merge-Tag-Namen: NICHT uebersetzen,
 // unabhaengig von der UI-Sprache, sonst greift Instantlys Auto-Mapping nicht mehr.
 function toInstantlyCsv(groups: Group[]): string {
   const header = [
@@ -403,7 +403,7 @@ export default function LeadsTable({
    *
    * Nur auf "Alle Leads" gefuellt: dort laufen alle Listen zusammen, und wer
    * dort jemanden findet, sieht sonst nicht, woher er kommt. Die
-   * Suchdetailseite reicht searches gar nicht erst herein — dort waere die
+   * Suchdetailseite reicht searches gar nicht erst herein; dort waere die
    * Antwort die Ueberschrift der Seite.
    */
   const listeVon = (searchId: string | null): string | null =>
@@ -420,7 +420,7 @@ export default function LeadsTable({
   }, [searchParams]);
   const [onlyEmail, setOnlyEmail] = useState(false);
   const [onlyPhone, setOnlyPhone] = useState(false);
-  // Mehrfachauswahl statt einer einzelnen Suche — z.B. bei einem
+  // Mehrfachauswahl statt einer einzelnen Suche: z.B. bei einem
   // Fan-out ueber mehrere Staedte will man alle zugehoerigen Suchen
   // zusammen filtern und in einem Rutsch verifizieren, statt jede einzeln.
   const [searchFilters, setSearchFilters] = useState<Set<string>>(new Set());
@@ -467,7 +467,7 @@ export default function LeadsTable({
   }
 
   // statusOverrides haelt lokale, optimistische Aenderungen (Dropdown -> sofortige
-  // UI-Reaktion), ohne auf einen vollen router.refresh() zu warten — gruppiert wird
+  // UI-Reaktion), ohne auf einen vollen router.refresh() zu warten; gruppiert wird
   // trotzdem aus contacts neu, damit ein echter Reload jederzeit die Quelle der
   // Wahrheit bleibt.
   const allGroups = useMemo(() => {
@@ -519,7 +519,7 @@ export default function LeadsTable({
 
   // Ueberschreibt die automatische Rang-Auswahl (lib/contacts.ts) fuer genau
   // diese Firma: erst alle anderen Kontakte der Firma zuruecksetzen, dann den
-  // gewaehlten setzen — sonst wuerde der unique Index
+  // gewaehlten setzen; sonst wuerde der unique Index
   // contacts_one_primary_per_business (Migration 0044) den zweiten Schritt
   // ablehnen, falls kurzzeitig zwei Kontakte gleichzeitig is_primary haetten.
   async function setPrimaryContact(businessId: string, contactId: string) {
@@ -1119,7 +1119,7 @@ export default function LeadsTable({
                   );
                 }
                 // Seit jeder Suchweg genau eine Adressquelle hat, laeuft Hunter
-                // im Umkreis-Modus gar nicht mehr — dort kommt die Adresse aus
+                // im Umkreis-Modus gar nicht mehr; dort kommt die Adresse aus
                 // der KI-Recherche, die als eigener Schritt darueber steht.
                 // hunter_status bleibt deshalb dauerhaft "pending". Diesen
                 // Schritt trotzdem anzuzeigen waere ein Versprechen auf etwas,
@@ -1181,13 +1181,13 @@ export default function LeadsTable({
               {(() => {
                 // Bei mehreren Kontakten derselben Firma schreibt eine Kampagne
                 // nur die ranghoechste Person an (siehe lib/contacts.ts,
-                // dieselbe Funktion wie beim Kampagnen-Start) — hier dieselbe
+                // dieselbe Funktion wie beim Kampagnen-Start): hier dieselbe
                 // Logik angewendet, damit die Anzeige garantiert zum
                 // tatsaechlichen Versandverhalten passt statt nur zu vermuten.
                 // primaryOverrides ueberschreibt is_primary lokal-optimistisch:
                 // drawer selbst ist eine beim Oeffnen eingefrorene Momentaufnahme
                 // (setDrawer(g)), reagiert also nicht von selbst auf spaetere
-                // Aenderungen — ohne diesen Merge wuerde ein Klick auf "Diesen
+                // Aenderungen; ohne diesen Merge wuerde ein Klick auf "Diesen
                 // kontaktieren" erst nach Schliessen/erneutem Oeffnen sichtbar.
                 const resolvedContacts = drawer.contacts.map((c) =>
                   drawer.business_id && primaryOverrides[drawer.business_id]

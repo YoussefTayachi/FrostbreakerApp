@@ -9,4 +9,4 @@
 - `contacts` = Decisionmaker + E-Mail-Adressen
 - `jobs` = Job-Status (pending → running → completed)
 
-Wenn im Fenster eine Weile keine neuen Jobs mehr kommen, ist alles fertig — Fenster schließen.
+Wenn im Fenster eine Weile keine neuen Jobs mehr kommen, ist alles fertig: Fenster schließen.

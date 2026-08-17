@@ -2,7 +2,7 @@
 
 Ausgedachte Beispiele haetten hier wenig Wert: der springende Punkt ist, dass
 OpenAI bei aufgebrauchtem Guthaben denselben Code 429 schickt wie bei blosser
-Drosselung. Nur der Wortlaut trennt die beiden, und der ist so, wie er ist --
+Drosselung. Nur der Wortlaut trennt die beiden, und der ist so, wie er ist,
 nicht so, wie man ihn sich ausdenken wuerde.
 """
 from worker.provider_errors import classify_error, provider_from_error
@@ -64,7 +64,7 @@ class TestProviderFromError:
         assert provider_from_error("https://api.openai.com/v1/responses 500") == "openai"
 
     def test_url_schlaegt_job_typ(self):
-        """Die URL ist die verlaesslichere Quelle -- sie steht direkt im Fehler."""
+        """Die URL ist die verlaesslichere Quelle, sie steht direkt im Fehler."""
         assert provider_from_error(HUNTER_RATE_LIMIT, "personalize") == "hunter"
 
     def test_rueckfall_auf_job_typ(self):

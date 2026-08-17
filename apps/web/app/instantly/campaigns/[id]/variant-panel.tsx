@@ -6,14 +6,14 @@ import { variantLabel } from "@/lib/instantly/campaigns";
 import type { StepAssessment, VariantVerdict } from "@/lib/instantly/variant-winner";
 
 /**
- * Welche Textfassung Antworten bringt — und ob man das schon sagen darf.
+ * Welche Textfassung Antworten bringt, und ob man das schon sagen darf.
  *
  * Die eigentliche Arbeit macht lib/instantly/variant-winner.ts. Hier steht
  * nur, wie das Ergebnis aussieht, mit einer Gestaltungsentscheidung: der
  * Zustand "collecting" wird genauso deutlich angezeigt wie ein Gewinner.
  * Eine Oberflaeche, die bei duenner Datenlage einfach die hoechste Zahl
  * hervorhebt, erzeugt genau den Fehler, gegen den die Logik dahinter gebaut
- * ist — der Nutzer sieht "5 % gegen 2 %" und schaltet ab, obwohl das bei 40
+ * ist: der Nutzer sieht "5 % gegen 2 %" und schaltet ab, obwohl das bei 40
  * Mails je Fassung reines Rauschen ist.
  */
 type Response = { steps: StepAssessment[]; openTracking: boolean | null };
@@ -45,7 +45,7 @@ export default function VariantPanel({ campaignId }: { campaignId: string }) {
       })
       .finally(() => setLoading(false));
     // Einmal beim Oeffnen. Die Zahlen bewegen sich im Tagesrhythmus, nicht im
-    // Sekundentakt — ein Dauerabruf waere Last ohne Erkenntnis.
+    // Sekundentakt; ein Dauerabruf waere Last ohne Erkenntnis.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [campaignId]);
 

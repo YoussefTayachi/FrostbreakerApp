@@ -5,7 +5,7 @@
  * Bewusst flach statt verschachtelt: die Felder kommen aus vier Tabellen
  * (contacts, businesses, searches und den Aggregaten ueber activities/messages),
  * und eine nachgebaute Verschachtelung wuerde nur so tun, als gaebe es sie.
- * Board und Liste teilen sich diesen einen Typ — vorher hatte das Board seine
+ * Board und Liste teilen sich diesen einen Typ; vorher hatte das Board seine
  * eigene, kleinere Form, und jede neue Angabe haette an zwei Stellen gepflegt
  * werden muessen.
  */
@@ -20,7 +20,7 @@ export type PipelineRow = {
   /** Durchwahl des Kontakts, sonst die Firmennummer (Migration 0063). */
   phone: string | null;
   /** true = es ist die Zentrale, nicht die Durchwahl. Wer eine Zentrale anruft,
-   *  meldet sich anders — deshalb steht das an der Nummer dran. */
+   *  meldet sich anders, deshalb steht das an der Nummer dran. */
   phone_is_company: boolean;
   linkedin: string | null;
   outreach_status: string;
@@ -33,19 +33,19 @@ export type PipelineRow = {
   list_name: string | null;
   list_location: string | null;
   list_source: string | null;
-  /** Letzte eigene Kontaktaufnahme — Anruf, Nachricht oder ausgehende Mail. */
+  /** Letzte eigene Kontaktaufnahme: Anruf, Nachricht oder ausgehende Mail. */
   last_touch_at: string | null;
   last_touch_channel: string | null;
   /** Wann der Kontakt zuletzt geantwortet hat. Getrennt gefuehrt: "ich habe geschrieben"
    *  und "er hat geantwortet" sind beim Abarbeiten zwei verschiedene Dinge. */
   last_reply_at: string | null;
-  /** Naechster offener Termin — exakt die Zeile, die auch unter /calls steht. */
+  /** Naechster offener Termin, exakt die Zeile, die auch unter /calls steht. */
   next_due_at: string | null;
   next_due_subject: string | null;
   next_due_channel: string | null;
   next_due_type: string | null;
   /** Seit wann steht der Kontakt auf dieser Stufe (Migration 0063). Grundlage
-   *  fuer die Stagnations-Anzeige — Pipedrives "rotting deals". */
+   *  fuer die Stagnations-Anzeige, Pipedrives "rotting deals". */
   stage_since: string | null;
 };
 
@@ -53,7 +53,7 @@ export type PipelineRow = {
  * Ab wann gilt ein Kontakt als liegengeblieben?
  *
  * Pipedrive laesst die Schwelle je Phase einstellen. Das waere hier
- * verfrueht — erst muss sich zeigen, ob die Anzeige ueberhaupt genutzt wird.
+ * verfrueht: erst muss sich zeigen, ob die Anzeige ueberhaupt genutzt wird.
  * 14 Tage sind bei Kaltakquise eine vertretbare Vorgabe: kuerzer waere bei
  * einer Sequenz mit mehreren Schritten reines Rauschen, laenger merkt man den
  * Stillstand erst, wenn der Lead ohnehin kalt ist.
@@ -77,7 +77,7 @@ export function isStale(row: PipelineRow, now = new Date()): boolean {
   return days !== null && days >= STALE_AFTER_DAYS;
 }
 
-/** Kein geplanter naechster Schritt — Pipedrives zentraler Reflex. */
+/** Kein geplanter naechster Schritt, Pipedrives zentraler Reflex. */
 export function hasNoNextStep(row: PipelineRow): boolean {
   if (FINAL_STAGES.has(row.outreach_status)) return false;
   return !row.next_due_at;

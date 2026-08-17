@@ -2,7 +2,7 @@
 import { useId } from "react";
 
 /**
- * THAW — der Kern, der in der App mitarbeitet.
+ * THAW: der Kern, der in der App mitarbeitet.
  *
  * ═══════════════════════════════════════════════════════════════════════
  * WARUM DIE APP EINE FIGUR BEKOMMT
@@ -12,17 +12,17 @@ import { useId } from "react";
  * einzige Teil der App, in dem der Nutzer nicht verwaltet, sondern etwas
  * entstehen laesst. Genau dort lohnt sich ein Gegenueber: ein
  * Fortschrittsbalken meldet einen Zustand, ein Gegenueber sagt, was es
- * braucht — und man fuellt das dritte Feld aus, weil jemand darauf wartet.
+ * braucht, und man fuellt das dritte Feld aus, weil jemand darauf wartet.
  *
  * Der Name stand schon im Code, bevor es die Figur gab: das Workspace-Cookie
  * heisst thaw_ws. Frostbreaker ist das Werkzeug, THAW ist das, was es tut.
  *
  * ═══════════════════════════════════════════════════════════════════════
- * WAS ER IST — UND WAS ER ZWEIMAL NICHT WAR
+ * WAS ER IST, UND WAS ER ZWEIMAL NICHT WAR
  * ═══════════════════════════════════════════════════════════════════════
  *
  * Ein Energieball: eine Kugel aus leuchtenden Bahnen, durch die Licht
- * laeuft, um einen heissen Kern. Kein Koerper, kein Gesicht, kein Tier --
+ * laeuft, um einen heissen Kern. Kein Koerper, kein Gesicht, kein Tier,
  * eine Rechenleistung, die man sehen kann.
  *
  * Zwei verworfene Fassungen, beide am Bild entschieden:
@@ -31,12 +31,12 @@ import { useId } from "react";
  *     hat, und ein Maskottchen verschiebt den Ton einer Flaeche, neben der
  *     eine Kostenaufstellung und ein Versandtor stehen.
  *  2. Eine Optik mit Iris, umlaufen von zwei gekippten Bahnen. Das Auge
- *     schaute zurueck — ungewollt unheimlich — und eine einzelne gekippte
+ *     schaute zurueck (ungewollt unheimlich), und eine einzelne gekippte
  *     Ellipse liest sich als Saturn, nicht als Technik.
  *
  * Beides faellt hier weg: keine Pupille, kein einzelner Reif. Ein
  * geschlossenes Drahtgitter aus fuenf Breiten- und drei Laengenkreisen liest
- * sich als Kugel, nicht als Planet mit Ring — der Unterschied liegt allein
+ * sich als Kugel, nicht als Planet mit Ring; der Unterschied liegt allein
  * in der Anzahl.
  *
  * ═══════════════════════════════════════════════════════════════════════
@@ -48,7 +48,7 @@ import { useId } from "react";
  * Zustaende reagieren):
  *
  *  1. Breitenkreise als GESTAUCHTE Ellipsen, deren Radius zu den Polen hin
- *     abnimmt. Das ist die ganze Kugelperspektive — eine Formel, keine
+ *     abnimmt. Das ist die ganze Kugelperspektive: eine Formel, keine
  *     3D-Bibliothek.
  *  2. Laengengrade als Ellipsen mit voller Hoehe und abnehmender Breite.
  *     Erst zusammen schliesst sich das Gitter zur Kugel.
@@ -64,14 +64,14 @@ import { useId } from "react";
  */
 
 export type ThawState =
-  /** Nichts oder fast nichts bekannt — der Kern glimmt nur, das Licht
+  /** Nichts oder fast nichts bekannt: der Kern glimmt nur, das Licht
    *  kriecht. */
   | "cold"
-  /** Es fehlt noch etwas Notwendiges — er laeuft. */
+  /** Es fehlt noch etwas Notwendiges: er laeuft. */
   | "listening"
-  /** Alles Notwendige da — Mint, Kern hell, ein zweiter Reif. */
+  /** Alles Notwendige da: Mint, Kern hell, ein zweiter Reif. */
   | "ready"
-  /** Schreibt gerade — das Licht rast durch die Bahnen. */
+  /** Schreibt gerade: das Licht rast durch die Bahnen. */
   | "working";
 
 const C = 32;
@@ -94,7 +94,7 @@ const LAENGEN = [1, 0.62, 0.26];
  * Fest hinterlegt statt zufaellig erzeugt: Zufall bei jedem Rendern liesse
  * die Figur bei jedem Tastendruck im Formular neu zucken, und ein Muster,
  * das niemand nachlesen kann, laesst sich auch nicht nachbessern.
- * Absichtlich ungleichmaessig verteilt — gleiche Abstaende ergeben einen
+ * Absichtlich ungleichmaessig verteilt: gleiche Abstaende ergeben einen
  * Stern, und ein Stern sieht aus wie ein Ladesymbol.
  */
 const FAEDEN = [
@@ -126,7 +126,7 @@ const FAEDEN = [
  * Sehnen: Verbindungen zwischen zwei Punkten auf der Kugel, die NICHT durch
  * die Mitte gehen.
  *
- * Ohne sie waeren die Faeden ein regelmaessiger Strahlenkranz — und der
+ * Ohne sie waeren die Faeden ein regelmaessiger Strahlenkranz, und der
  * liest sich sofort als Ladesymbol. Erst die Querverbindungen machen aus dem
  * Stern ein Netz.
  */
@@ -164,16 +164,16 @@ export default function Thaw({
    * im Angebotsformular liest der eine das Angebot, der andere eine Lead-Liste.
    * Zwei gleich aussehende Kerne waeren dort zweimal derselbe Knopf.
    *
-   * Ohne diesen Wert bleibt alles wie bisher — der Kern faerbt sich nach
+   * Ohne diesen Wert bleibt alles wie bisher: der Kern faerbt sich nach
    * seinem Zustand (Frost bzw. Mint).
    */
   accent?: string;
   /**
-   * Wie die Figur an DIESER Stelle heisst — fuer Screenreader.
+   * Wie die Figur an DIESER Stelle heisst, fuer Screenreader.
    *
    * Im Angebotsformular stehen zwei Kerne nebeneinander, die Verschiedenes
    * tun: "Core" liest das Angebot selbst, "Aim" eine Lead-Liste. Zwei Bilder
-   * mit derselben Ansage waeren dort zweimal derselbe Knopf — fuer einen
+   * mit derselben Ansage waeren dort zweimal derselbe Knopf; fuer einen
    * Screenreader waere die Farbe, die sie unterscheidet, ohnehin nicht da.
    *
    * Nicht uebersetzt: Produktnamen, die in beiden Sprachen gleich lauten.
@@ -190,11 +190,11 @@ export default function Thaw({
   const kalt = state === "cold";
   const arbeitet = state === "working";
   // Der Akzent uebersteuert nur die FARBE. Kerngroesse, Staerke und Tempo
-  // haengen weiter am Zustand — ein Kern, der die Farbe wechselt UND anders
+  // haengen weiter am Zustand: ein Kern, der die Farbe wechselt UND anders
   // atmet, waere eine zweite Figur.
   const licht = accent ?? (warm ? "var(--fb-ready)" : "var(--fb-frost)");
 
-  /** Der Kern waechst mit dem Wissen — der einzige Zustandswert, den die
+  /** Der Kern waechst mit dem Wissen: der einzige Zustandswert, den die
    *  Figur wirklich anzeigt. Alles andere ist Farbe und Tempo. */
   const kernR = kalt ? 5.6 : warm ? 9.8 : 8.2;
   /** Solange nichts bekannt ist, liegt das Gitter im Halbdunkel. */
@@ -209,7 +209,7 @@ export default function Thaw({
       viewBox="0 0 64 64"
       className={className}
       role="img"
-      // Der Bauteilname bleibt THAW (Datei, Komponente, Cookie thaw_ws) — nach
+      // Der Bauteilname bleibt THAW (Datei, Komponente, Cookie thaw_ws); nach
       // aussen traegt jede Stelle ihren eigenen Namen (siehe `label`).
       aria-label={label}
       style={{ overflow: "visible" }}

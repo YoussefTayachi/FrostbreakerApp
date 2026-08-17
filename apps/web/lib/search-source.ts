@@ -1,11 +1,11 @@
 /** Anzeige-Namen der Lead-Quellen einer Suche (searches.source).
  *
  *  Vorher stand an drei Stellen dieselbe Inline-Bedingung
- *  (`s.source === "corporate" ? "Corporate" : "Maps"`) — mit Apollo als
+ *  (`s.source === "corporate" ? "Corporate" : "Maps"`); mit Apollo als
  *  dritter Quelle waere daraus an jeder Stelle eine verschachtelte Kette
  *  geworden, die beim naechsten Anbieter erneut angefasst werden muesste.
  *  Farben unterscheiden sich bewusst: die Quelle entscheidet, ob eine Suche
- *  Apollo-Credits oder Google-Places-Kontingent verbraucht — das soll man in
+ *  Apollo-Credits oder Google-Places-Kontingent verbraucht; das soll man in
  *  der Liste erkennen, ohne die Suche zu oeffnen. */
 // Bewusst der ANBIETER statt des Suchwegs ("Firmen"/"Entscheider"): in der
 // Suchliste ist die Frage nicht, wonach gesucht wurde, sondern welches
@@ -30,7 +30,7 @@ const NEUTRAL = "border-edge2 bg-chip text-soft";
  *
  *  Der Farbton sitzt bewusst nur in Rahmen und Flaeche, der Text bleibt eine
  *  dunkle Stufe derselben Farbe. Apollos echtes Markengelb (#FFDD00) hat auf
- *  Weiss rund 1,3:1 und waere als Textfarbe unlesbar — yellow-700 kommt auf
+ *  Weiss rund 1,3:1 und waere als Textfarbe unlesbar; yellow-700 kommt auf
  *  ~5,4:1 und traegt denselben Farbeindruck. Aus demselben Grund steht die
  *  Farbe nie allein: daneben steht immer der Anbietername.
  *
@@ -38,7 +38,7 @@ const NEUTRAL = "border-edge2 bg-chip text-soft";
  *  Flaeche), wie bei den uebrigen Chips der App. */
 export function searchSourceBadgeClass(source: string | null | undefined): string {
   // Prospeos Markenfarbe ist ein kraeftiges Rot. Als Textfarbe rot-700, damit
-  // der Kontrast wie bei den uebrigen Chips ueber 4,5:1 bleibt — Prospeos
+  // der Kontrast wie bei den uebrigen Chips ueber 4,5:1 bleibt; Prospeos
   // eigenes #FF4D4D kaeme auf Weiss nur auf rund 3:1.
   if (source === "prospeo") {
     return "border-red-500/40 bg-red-500/10 text-red-700 dark:text-red-300";
@@ -60,7 +60,7 @@ export function searchSourceBadgeClass(source: string | null | undefined): strin
  *
  *  Bewusst nur die beiden Anbieter eingefaerbt, deren Abfrage Credits kostet.
  *  Bekaeme jeder Wert eine eigene Farbe, waere die Spalte bunt und die Farbe
- *  saegte nichts mehr aus — gerade in einer Tabelle mit hunderten Zeilen. */
+ *  saegte nichts mehr aus, gerade in einer Tabelle mit hunderten Zeilen. */
 export function contactSourceBadgeClass(source: string | null | undefined): string {
   if (source === "prospeo") {
     return "border-red-500/40 bg-red-500/10 text-red-700 dark:text-red-300";

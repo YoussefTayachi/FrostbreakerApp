@@ -10,7 +10,7 @@ import type { PipelineRow } from "@/lib/crm/pipeline";
  * anklicken, den Drawer lesen, die Adresse markieren und woanders einfuegen.
  * Jetzt sitzt der Weg dort, wo der Lead steht.
  *
- * mailto: und tel: statt eigener Oberflaeche — geschrieben und telefoniert
+ * mailto: und tel: statt eigener Oberflaeche, geschrieben und telefoniert
  * wird im Programm des Nutzers, genau wie unter /calls ("Gewaehlt wird mit dem
  * eigenen Telefon"). Die App bereitet vor und protokolliert.
  *
@@ -66,7 +66,7 @@ export default function ContactChannels({
           }}
           // Zentrale oder Durchwahl steht dran: wer eine Zentrale anruft,
           // meldet sich anders. Bei Leads aus Google Maps ist die Zentrale
-          // sogar der Normalfall — Places liefert die Betriebsnummer, keine
+          // sogar der Normalfall: Places liefert die Betriebsnummer, keine
           // Durchwahl.
           title={row.phone_is_company ? P.phoneCompany(row.phone) : P.phoneDirect(row.phone)}
           className={

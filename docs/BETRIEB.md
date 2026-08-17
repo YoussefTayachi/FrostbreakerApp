@@ -1,7 +1,7 @@
 # Betrieb: was läuft wo
 
 Stand: 2026-08-03. Jede Angabe hier ist am laufenden System nachgesehen, nicht
-aus dem Code abgeleitet — Code sagt, was passieren *soll*, diese Datei sagt,
+aus dem Code abgeleitet: Code sagt, was passieren *soll*, diese Datei sagt,
 was tatsächlich läuft. Wer etwas ändert, das hier steht, ändert bitte auch
 diese Datei.
 
@@ -20,7 +20,7 @@ Instantly übernimmt das).
 | Next.js-Frontend + alle `/api`-Routen | Vercel, Region `fra1` | Push auf `main` |
 | Python-Worker (Lead-Pipelines) | Railway, Region US West | Push auf `main` |
 | `instantly-sync` (Analytics + Antworten) | Vercel-Route, aufgerufen von Supabase `pg_cron` | jede Minute |
-| Datenbank, Auth, Cron | Supabase | — |
+| Datenbank, Auth, Cron | Supabase | läuft durchgehend |
 
 Es gibt **keinen** eigenen Mailversand. Kampagnen laufen über Instantly, der
 Nutzer bringt seinen eigenen Instantly-Key mit (BYOK).
@@ -41,18 +41,18 @@ Der Worker pollt `public.jobs` alle 5 Sekunden über die RPC-Funktion
 **Konfiguration:**
 
 - Builder: Dockerfile, von Railway **automatisch erkannt**. Weder Root
-  Directory noch Dockerfile Path sind gesetzt — Railway hat
+  Directory noch Dockerfile Path sind gesetzt: Railway hat
   `apps/worker/Dockerfile` selbst gefunden. Das funktioniert, ist aber
   implizit: sobald ein zweites Dockerfile ins Repo kommt, kann die Erkennung
   auf das falsche fallen. Beide Felder explizit zu setzen wäre robuster.
 - 2 Replicas. Das ist sicher, weil `claim_job` mit `for update skip locked`
-  arbeitet (siehe Migration 0046/0047) — zwei Worker können sich denselben
+  arbeitet (siehe Migration 0046/0047): zwei Worker können sich denselben
   Job nicht doppelt greifen, es entstehen also keine doppelten API-Kosten.
   Doppelt ist nur der Container-Verbrauch.
 - Restart Policy: On Failure, max. 10 Versuche.
 - Drei Umgebungsvariablen, exakt die aus `worker/config.py`:
   `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `APP_ENCRYPTION_KEY`.
-  Die API-Keys der Nutzer stehen **nicht** hier — die liegen Fernet-
+  Die API-Keys der Nutzer stehen **nicht** hier: die liegen Fernet-
   verschlüsselt in `public.api_keys` und werden zur Laufzeit mit
   `APP_ENCRYPTION_KEY` entschlüsselt.
 
@@ -63,12 +63,12 @@ Der Worker pollt `public.jobs` alle 5 Sekunden über die RPC-Funktion
    zehn Deployments, von denen keines den Worker betraf. Jeder Neustart
    reißt laufende Jobs mittendrin ab; die bleiben auf `running` stehen, bis
    `claim_job` sie nach 15 Minuten wieder einsammelt (Migration 0047). Die
-   dort dokumentierte Beobachtung — „zwei Jobs 12,5 Minuten auf 'running'" —
+   dort dokumentierte Beobachtung („zwei Jobs 12,5 Minuten auf 'running'")
    ist sehr wahrscheinlich genau das. Behebbar mit einem Watch Path auf
    `apps/worker/**`.
 2. **Das Guthaben ist ein Trial.** Am 2026-08-03 zeigte Railway „10 days or
    $4.02 left", also Ablauf um den **2026-08-13**. Ohne hinterlegte
-   Zahlungsmethode stoppt der Worker dann, und die Lead-Suche steht still —
+   Zahlungsmethode stoppt der Worker dann, und die Lead-Suche steht still:
    ohne Fehlermeldung in der App, denn Jobs werden weiterhin eingereiht, nur
    nicht mehr abgeholt.
 
@@ -93,7 +93,7 @@ Das Secret liegt in `supabase_vault`, nicht in einer Migration.
 
 Ebenfalls per `pg_net`: `handle_new_user()` meldet jede Anmeldung an
 `api/internal/notify-signup` (Migration 0048). Die dort fest eingetragene URL
-lautet `https://system3-app.vercel.app` — nicht die Kundendomain
+lautet `https://system3-app.vercel.app`, nicht die Kundendomain
 `app.frostbreaker.app`. Beim Umzug auf eine andere Vercel-Domain muss diese
 URL mitwandern, sonst laufen Signup-Meldungen ins Leere.
 
@@ -104,7 +104,7 @@ URL mitwandern, sonst laufen Signup-Meldungen ins Leere.
 Region `fra1`. Deployt bei jedem Push auf `main`.
 
 Vier Routen laufen bewusst **ohne** Supabase-Session und prüfen ihre
-Authentifizierung selbst — sie sind deshalb im Middleware-Matcher
+Authentifizierung selbst; sie sind deshalb im Middleware-Matcher
 ausgenommen (siehe `apps/web/middleware.ts`):
 
 | Route | Prüft |
@@ -132,13 +132,13 @@ sie stellt ausschließlich an die Adresse zu, mit der das Resend-Konto
 angelegt wurde. Solange die Benachrichtigung an `youtaybusiness@gmail.com`
 geht, ist das folgenlos. Soll sie je an ein Team- oder Kundenpostfach gehen,
 muss zuerst `frostbreaker.app` in Resend verifiziert werden (DNS), danach
-`RESEND_FROM` setzen — überschreibbar ohne Deploy.
+`RESEND_FROM` setzen, überschreibbar ohne Deploy.
 
 Supabase-Auth verschickt Bestätigungsmails **nicht** über Resend, sondern
 über Supabases eingebauten Dienst. Der ist geteilt und ratenbegrenzt und von
 Supabase selbst nicht für Produktivbetrieb empfohlen. Ob eine
 Bestätigungsmail bei einer echten neuen Adresse ankommt, ist **nie getestet
-worden** — bislang hat sich außer dem Betreiber niemand registriert. Eine
+worden**: bislang hat sich außer dem Betreiber niemand registriert. Eine
 Umstellung auf Resend lohnt erst nach der Domain-Verifizierung, vorher käme
 die Mail nur von `resend.dev` statt von `supabase.co`.
 
@@ -146,18 +146,18 @@ die Mail nur von `resend.dev` statt von `supabase.co`.
 
 ## Was tot ist
 
-**`apps/api`** — FastAPI-Backend, wird von nirgendwo aufgerufen. Das Frontend
+**`apps/api`**: FastAPI-Backend, wird von nirgendwo aufgerufen. Das Frontend
 spricht direkt mit Supabase bzw. mit den eigenen Next.js-Routen. Letzte
 inhaltliche Änderung: ein Rebrand-Commit am 2026-07-19. Steht noch im
 Verzeichnisbaum und im alten README, ist aber kein Teil des laufenden
 Systems.
 
-**`start_worker.bat`** — startete den Worker lokal, bevor er auf Railway lag.
+**`start_worker.bat`**: startete den Worker lokal, bevor er auf Railway lag.
 Funktioniert weiterhin, aber wer es benutzt, betreibt einen dritten Worker
 gegen dieselbe Queue. Wegen `skip locked` richtet das keinen Schaden an,
 nötig ist es nicht mehr.
 
-**Sending Engine (Phase 3 im PROJEKTPLAN)** — bewusst nie gebaut. Instantly
+**Sending Engine (Phase 3 im PROJEKTPLAN)**: bewusst nie gebaut. Instantly
 bleibt die Sende-Infrastruktur, siehe Kommentar in `worker/main.py`.
 
 ---
@@ -170,4 +170,4 @@ bleibt die Sende-Infrastruktur, siehe Kommentar in `worker/main.py`.
 | Jobs hängen auf `running` | Wurde der Worker neu deployt? Reclaim greift nach 15 Min automatisch |
 | Antworten kommen nicht in der App an | Vercel-Logs der Route `api/cron/instantly-sync`; danach Instantlys Rate-Limit (20/Min) |
 | Antwort-Benachrichtigung kommt nicht | Einstellungen → „Testmail senden". Der Knopf zeigt Resends Originalfehler |
-| Kampagnenliste leer | Nicht mehr stillschweigend möglich — die Route meldet DB-Fehler jetzt explizit (Session 3) |
+| Kampagnenliste leer | Nicht mehr stillschweigend möglich: die Route meldet DB-Fehler jetzt explizit (Session 3) |

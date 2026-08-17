@@ -17,7 +17,7 @@ import { DEAL_STAGE_IDS, type DealStage } from "./deals";
 export type DealBoardRow = {
   id: string;
   title: string;
-  /** numeric(12,2) kommt als String aus PostgREST — siehe dealValue(). */
+  /** numeric(12,2) kommt als String aus PostgREST, siehe dealValue(). */
   value: number | string;
   currency: string;
   stage: DealStage;
@@ -35,7 +35,7 @@ export type DealBoardRow = {
   email: string | null;
   phone: string | null;
   linkedin: string | null;
-  /** Naechster offener Termin an Kontakt oder Firma — traegt den Kreis auf der Karte. */
+  /** Naechster offener Termin an Kontakt oder Firma, traegt den Kreis auf der Karte. */
   next_due_at: string | null;
   next_due_subject: string | null;
   /** Tage seit der letzten Aenderung am Deal. */
@@ -44,8 +44,9 @@ export type DealBoardRow = {
 
 /**
  * numeric aus Postgres kommt ueber PostgREST als String an, nicht als Zahl.
- * Ungeprueft addiert ergaebe das eine Zeichenkette ("1000" + "2000" = "10002000")
- * — und eine Spaltensumme, die auf den ersten Blick plausibel aussieht.
+ * Ungeprueft addiert ergaebe das eine Zeichenkette ("1000" + "2000" =
+ * "10002000") und eine Spaltensumme, die auf den ersten Blick plausibel
+ * aussieht.
  */
 export function dealValue(row: Pick<DealBoardRow, "value">): number {
   const n = typeof row.value === "number" ? row.value : Number(row.value);
@@ -60,7 +61,7 @@ export function stageTotal(rows: Pick<DealBoardRow, "value">[]): number {
 /**
  * Gewichtete Summe: Wert mal Abschlusswahrscheinlichkeit.
  *
- * Die ehrlichere Zahl fuer eine Prognose — vier Deals zu 10.000 in der
+ * Die ehrlichere Zahl fuer eine Prognose: vier Deals zu 10.000 in der
  * Erstqualifizierung sind eben nicht 40.000, sondern bei 20 Prozent
  * Wahrscheinlichkeit 8.000.
  */
@@ -78,7 +79,7 @@ export function groupByStage<T extends Pick<DealBoardRow, "stage">>(
   >;
   for (const row of rows) {
     // Unbekannte Stufen landen in der ersten, statt lautlos vom Board zu
-    // verschwinden — gleiche Regel wie im Kontakt-Board.
+    // verschwinden, gleiche Regel wie im Kontakt-Board.
     (groups[row.stage] ?? groups[DEAL_STAGE_IDS[0]]).push(row);
   }
   return groups;

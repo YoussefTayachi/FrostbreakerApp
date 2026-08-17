@@ -3,10 +3,10 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { PLANS, STARTER_MONTHLY_LEAD_CAP, TRIAL_LEAD_CAP, type PlanId } from "./plans";
 
 // Zentrale Stelle fuer alles Billing-Bezogene. Abo ist an den Account (auth.uid())
-// gebunden, nicht an einen einzelnen Workspace — siehe Migration 0024.
+// gebunden, nicht an einen einzelnen Workspace; siehe Migration 0024.
 // Plan-Metadaten (Preis/Label/Features) leben in lib/plans.ts, damit
 // Client-Komponenten sie importieren koennen, ohne die Stripe-SDK mit
-// auszuliefern — hier nur re-exportiert, damit bestehende Importe aus
+// auszuliefern; hier nur re-exportiert, damit bestehende Importe aus
 // lib/billing.ts weiterhin funktionieren.
 export { PLANS, STARTER_MONTHLY_LEAD_CAP, TRIAL_LEAD_CAP, type PlanId };
 
@@ -89,7 +89,7 @@ export type LeadUsage = { used: number; cap: number | null; scope: "trial" | "mo
 
 // Fuer die Fortschrittsanzeige in den Einstellungen. cap = null bedeutet
 // unlimitiert (Agentur-Plan). Muss zu under_lead_cap() aus Migration 0029
-// passen — dort entscheidet dieselbe Fallunterscheidung darueber, ob eine
+// passen: dort entscheidet dieselbe Fallunterscheidung darueber, ob eine
 // neue Suche ueberhaupt angelegt werden darf.
 export async function getLeadUsage(supabase: SupabaseClient): Promise<LeadUsage | null> {
   const {
@@ -104,7 +104,7 @@ export async function getLeadUsage(supabase: SupabaseClient): Promise<LeadUsage 
     .single();
 
   if (sub?.plan === "agency") {
-    // Ohne Cap braucht die Anzeige keine Zahl — der RPC-Aufruf entfaellt.
+    // Ohne Cap braucht die Anzeige keine Zahl; der RPC-Aufruf entfaellt.
     return { used: 0, cap: null, scope: "month" };
   }
 

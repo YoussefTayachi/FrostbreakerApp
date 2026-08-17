@@ -5,12 +5,12 @@ import type { EmailField, IssueCategory, QualityIssue, ReadabilityBand, RiskLeve
 // Gemeinsame Bausteine fuer die beiden Textqualitaets-Ansichten: das kompakte
 // Panel in der Sequenz-Karte (campaigns/email-quality-panel.tsx) und die
 // grosse Sidebar im eigenstaendigen Text-Check (email-check/quality-sidebar.tsx).
-// Beide zeigen denselben Befund (lib/email-quality) nur unterschiedlich dicht --
+// Beide zeigen denselben Befund (lib/email-quality) nur unterschiedlich dicht;
 // Farben, Gruppierung und das Entprellen sollen dabei nicht zweimal existieren.
 
 export type Tone = "ok" | "warn" | "bad";
 
-// Gleiche Statusfarben wie im Deliverability-Panel und in STATUS_BADGE_CLS --
+// Gleiche Statusfarben wie im Deliverability-Panel und in STATUS_BADGE_CLS:
 // gruen/gelb/rot bedeutet in der App ueberall dasselbe.
 export const TONE_BADGE: Record<Tone, string> = {
   ok: "border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-300",
@@ -84,7 +84,7 @@ export function toIssueLines(issues: QualityIssue[], template: Record<string, (v
 export type CategoryCount = { category: IssueCategory; count: number; severity: Severity };
 
 /**
- * Pro Kategorie nur die Anzahl, nicht jeder einzelne Fund — fuer die
+ * Pro Kategorie nur die Anzahl, nicht jeder einzelne Fund, fuer die
  * Hemingway-artige Sidebar-Zeile ("3 lange Saetze") statt einer Aufzaehlung.
  */
 export function groupByCategory(issues: QualityIssue[]): CategoryCount[] {

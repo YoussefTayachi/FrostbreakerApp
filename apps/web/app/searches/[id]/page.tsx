@@ -28,7 +28,7 @@ export default async function SearchDetailPage({
 
   // .eq("workspace_id", workspaceId) auf der searches-Abfrage sorgt dafuer, dass
   // eine ID aus einem ANDEREN eigenen Workspace hier als "nicht gefunden" behandelt
-  // wird, statt Daten aus dem falschen Workspace anzuzeigen — RLS wuerde den
+  // wird, statt Daten aus dem falschen Workspace anzuzeigen: RLS wuerde den
   // Zugriff technisch erlauben (gehoert ja demselben Account), aber es waere hier
   // der falsche Kontext.
   const [
@@ -45,7 +45,7 @@ export default async function SearchDetailPage({
      * Die Teilsuchen dieser Zeile, falls es eine gebuendelte Mehrfach-Suche ist
      * (Migration 0096).
      *
-     * Laeuft fuer JEDE Suchdetailseite mit, auch fuer gewoehnliche Suchen --
+     * Laeuft fuer JEDE Suchdetailseite mit, auch fuer gewoehnliche Suchen;
      * dort kommt eine leere Liste zurueck. Das kostet eine indizierte Abfrage
      * und erspart die Fallunterscheidung "erst nachsehen, ob es eine Gruppe
      * ist, dann nochmal fragen", die jeden Seitenaufruf um eine Serverrunde
@@ -79,7 +79,7 @@ export default async function SearchDetailPage({
      * Genau das war die Frage eines Kunden am 2026-08-09: Er sah im
      * Seitenpanel den grauen Punkt bei "AI personalization" und schloss
      * daraus, die Personalisierung laufe gar nicht. Tatsaechlich war sie 46
-     * Sekunden nach dem Start fertig — seine Seite hat sich nur nie wieder
+     * Sekunden nach dem Start fertig; seine Seite hat sich nur nie wieder
      * gemeldet. Die Bedingung hier ist dieselbe, nach der das Panel den
      * Punkt zeichnet: Website vorhanden, Aufhaenger noch nicht.
      */
@@ -100,7 +100,7 @@ export default async function SearchDetailPage({
   /**
    * Die Leads einer Gruppe stehen bei ihren Teilsuchen.
    *
-   * An der Gruppen-Huelle selbst haengt keine einzige Firma — ohne diesen
+   * An der Gruppen-Huelle selbst haengt keine einzige Firma: ohne diesen
    * zweiten Durchgang zeigte die Seite, in die man gerade wegen der Leads
    * geklickt hat, eine leere Tabelle. Nur fuer Gruppen: bei einer
    * gewoehnlichen Suche ist kinder leer und oben steht bereits alles.
@@ -109,8 +109,8 @@ export default async function SearchDetailPage({
   const istGruppe = kinder.length > 0;
   const leadIds = istGruppe ? kinder.map((k) => k.id) : [id];
   // Der zweite Durchgang laeuft nur fuer Gruppen. Die drei Abfragen aus dem
-  // ersten sind fuer sie in Sekundenbruchteilen leer zurueckgekommen — an der
-  // Huelle haengt nichts — und werden hier mit dem richtigen Umfang wiederholt.
+  // ersten sind fuer sie in Sekundenbruchteilen leer zurueckgekommen (an der
+  // Huelle haengt nichts) und werden hier mit dem richtigen Umfang wiederholt.
   const [gruppenContactsRes, gruppenAufhaengerRes, gruppenCampaignRes] = istGruppe
     ? await Promise.all([
         supabase
@@ -151,7 +151,7 @@ export default async function SearchDetailPage({
   // bis zum Abend weiterlaedt, hilft niemandem.
   //
   // Bei einer Gruppe zaehlt der Zustand der Teilsuchen. Ihr eigener bleibt
-  // lebenslang auf 'pending' (kein Worker fasst sie an) — danach zu gehen
+  // lebenslang auf 'pending' (kein Worker fasst sie an); danach zu gehen
   // hiesse, dass die Seite bis zum Timeout weiterlaedt.
   const nochInArbeit =
     (istGruppe
@@ -159,7 +159,7 @@ export default async function SearchDetailPage({
       : search.status === "pending" || search.status === "running") ||
     (gruppenAufhaengerRes.count ?? 0) > 0;
 
-  // Das Abo haengt bei einer Gruppe an den Teilsuchen, nicht an der Huelle --
+  // Das Abo haengt bei einer Gruppe an den Teilsuchen, nicht an der Huelle,
   // siehe new-search-form.tsx: haette sie eins, wuerde process_due_schedules
   // im Worker fuer sie einen Suchlauf ohne Ort einreihen.
   const scheduleTargetIds = istGruppe ? leadIds : [id];

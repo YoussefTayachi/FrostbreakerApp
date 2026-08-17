@@ -31,10 +31,10 @@ import { useT } from "./language-provider";
 import { useToast } from "./toast-provider";
 
 // Vollstaendige Liste von Hunters eigener Industry-Taxonomie fuer den Discover-Call
-// (https://hunter.io/files/industries.json, abgerufen am 2026-07-30) — vorher war das
+// (https://hunter.io/files/industries.json, abgerufen am 2026-07-30). Vorher war das
 // eine handverlesene Auswahl von ~27 Branchen, waehrend Hunter selbst ueber 480 kennt.
 // Alphabetisch sortiert (Hunters eigene Reihenfolge ist thematisch gruppiert, aber ohne
-// echte Kategorien in den Rohdaten — bei 487 Eintraegen in einem flachen <select> ist
+// echte Kategorien in den Rohdaten; bei 487 Eintraegen in einem flachen <select> ist
 // alphabetisch fuer Sprung-per-Tastatur deutlich brauchbarer).
 const INDUSTRIES = [
   "Abrasives and Nonmetallic Minerals Manufacturing", "Accessible Architecture and Design",
@@ -216,7 +216,7 @@ const COUNTRY_CODES = ["AT", "DE", "CH", "GB", "US", "NL", "FR", "IT", "ES"];
 
 // Hunters Discover-Schema kennt "state" ausdruecklich NUR fuer country="US"
 // (siehe https://hunter.io/api-documentation/v2#discover). Eine US-Stadt ohne
-// Bundesstaat lehnt Hunter mit 400 ab — in Hunters eigener Oberflaeche ist
+// Bundesstaat lehnt Hunter mit 400 ab; in Hunters eigener Oberflaeche ist
 // jede US-Stadt entsprechend voll qualifiziert ("New York, New York, United
 // States"). Deshalb hier eine feste Auswahl statt Freitext: so kann gar kein
 // ungueltiger Wert entstehen. Reihenfolge = Postal-Code-Alphabet, wie in
@@ -266,7 +266,7 @@ const PLAYBOOKS: Playbook[] = [
 // Seit Migration 0085 in der Datenbank (search_presets). Vorher lagen sie im
 // localStorage, mit der Begruendung "es gibt keinen Bedarf, sie zwischen
 // Geraeten zu teilen". Das hat sich als falsch erwiesen: ein Kunde legte eine
-// Vorlage an und fand sie nicht wieder — sie hing an seinem Browserprofil und
+// Vorlage an und fand sie nicht wieder: sie hing an seinem Browserprofil und
 // war damit an jedem anderen Rechner unsichtbar, ohne dass irgendetwas kaputt
 // gewesen waere. Seit 0081 arbeiten ausserdem mehrere Personen in einem
 // Workspace, und eine Vorlage, die nur ihr Urheber sieht, hilft einem Team
@@ -276,7 +276,7 @@ const PLAYBOOKS: Playbook[] = [
 // Suchdetailseite, und zwei Definitionen desselben Formats waeren genau die
 // Abweichung, die man erst bemerkt, wenn eine Vorlage halb geladen wird.
 
-/** Anbietername, wie ihn der Nutzer in den Einstellungen sieht — 'google_maps'
+/** Anbietername, wie ihn der Nutzer in den Einstellungen sieht. 'google_maps'
  *  als roher Provider-Schluessel waere in einer Fehlermeldung unbrauchbar. */
 const PROVIDER_LABELS: Record<string, string> = {
   google_maps: "Google Maps",
@@ -291,13 +291,13 @@ const PROVIDER_LABELS: Record<string, string> = {
 type Preset = PresetConfig & { id?: string; name: string };
 
 /** Der alte Ablageort. Wird nur noch EINMAL gelesen, um zu uebernehmen, was
- *  dort noch liegt — siehe adoptLocalPresets(). */
+ *  dort noch liegt, siehe adoptLocalPresets(). */
 const presetsKey = (workspaceId: string) => `fb_search_presets_${workspaceId}`;
 
 // Gemessene Trefferquote fuer E-Mail-Funde ueber die KI-Websuche liegt laut
 // worker/pipelines/get_businesses.py bei ca. 22%. Hier konservativ mit 20%
 // gerechnet (eher zu viele als zu wenige Firmen durchsuchen), gedeckelt bei
-// MAX_RAW_RESULTS — dem Limit pro Suche. MAX_RAW_RESULTS steht seit dem
+// MAX_RAW_RESULTS, dem Limit pro Suche. MAX_RAW_RESULTS steht seit dem
 // 2026-08-16 in lib/maps-regions.ts, weil die Laender-Abdeckung damit die
 // Vorschau rechnet und zwei Kopien auseinanderlaufen wuerden.
 const EMAIL_HIT_RATE = 0.2;
@@ -306,8 +306,8 @@ function estimateRawResults(targetEmails: number): number {
 }
 
 // Mehrere Suchbegriffe/Orte auf einmal: eine einzelne Google-Places-Abfrage
-// schoepft sich pro Ort/Nische typischerweise nach ~60-120 Treffern aus --
-// mehr rohe Leads gibt's danach nur ueber zusaetzliche, andere Kombinationen
+// schoepft sich pro Ort/Nische typischerweise nach ~60-120 Treffern aus.
+// Mehr rohe Leads gibt's danach nur ueber zusaetzliche, andere Kombinationen
 // (Nachbarbezirk, Synonym-Begriff), nicht ueber einen hoeheren Deckel.
 // Kommagetrennte Eingabe in beiden Feldern ergibt das Kreuzprodukt; Dedupe
 // (place_id pro Workspace) verhindert Dopplungen zwischen den Teilsuchen
@@ -342,13 +342,13 @@ const APOLLO_DEFAULT_TARGET = 5;
 // Zuordnung benutzen.
 
 // Vorbelegung mit den ueblichen Entscheider-Titeln im DACH- und US-Raum. Frei
-// editierbar — die Senioritaets-Einschraenkung greift zusaetzlich,
+// editierbar; die Senioritaets-Einschraenkung greift zusaetzlich,
 // unabhaengig davon, was hier steht.
 const APOLLO_DEFAULT_TITLES =
   "Founder, Owner, CEO, Geschäftsführer, Managing Director, Head of Marketing, Marketing Director, E-Commerce Manager";
 
 // Zum Anklicken statt Abtippen. person_titles ist bei Apollo bewusst Freitext
-// (unscharfer Abgleich), ein gesperrtes Dropdown waere hier also falsch — ein
+// (unscharfer Abgleich), ein gesperrtes Dropdown waere hier also falsch. Ein
 // Tippfehler kostet aber trotzdem eine halbe Suche, deshalb die Vorschlaege.
 const APOLLO_TITLE_SUGGESTIONS = [
   "Founder", "Owner", "CEO", "Geschäftsführer", "Managing Director", "CMO", "COO",
@@ -360,13 +360,13 @@ const APOLLO_TITLE_SUGGESTIONS = [
 // stehen jetzt in lib/apollo-query.ts (oben importiert): der Trefferzaehler
 // braucht dieselben Werte, und eine zweite Kopie hier waere genau die stille
 // Abweichung, an der die Suche schon einmal gescheitert ist. Beide muessen
-// weiterhin mit worker/pipelines/apollo.py uebereinstimmen — ein Wert
+// weiterhin mit worker/pipelines/apollo.py uebereinstimmen: ein Wert
 // ausserhalb der Liste ist bei Apollo eine ungueltige Anfrage.
 
 // Branchen laufen bei Apollo NICHT ueber unsere Industry-Liste: Apollos
 // Industry-Filter arbeitet intern mit Mongo-IDs
 // (organization_industry_tag_ids), die nicht oeffentlich abrufbar sind. Apollos
-// eigene Such-URL nutzt stattdessen qOrganizationKeywordTags — also einfache
+// eigene Such-URL nutzt stattdessen qOrganizationKeywordTags, also einfache
 // Strings, genau das Feld, das wir schon fuellen. Diese Vorschlaege sind
 // Apollos eigene Schreibweise (klein).
 //
@@ -377,7 +377,7 @@ const APOLLO_TITLE_SUGGESTIONS = [
 // Ein Kunde am 2026-08-10: "Hier waere es top, wenn es mehr Auswahl geben
 // wuerde wie z.B. fashion, cbd, tierfutter etc. (was e-commerce gaengig ist)."
 //
-// Ein Stichwort, das Apollo nicht als Tag kennt, liefert null Treffer — der
+// Ein Stichwort, das Apollo nicht als Tag kennt, liefert null Treffer: der
 // Nutzer haelt dann seinen Filter fuer zu eng und baut eine funktionierende
 // Suche um. Deshalb wurde jeder Eintrag hier vor der Aufnahme gegen Apollos
 // People-Search gehalten (ueber den Apollo-MCP, Suchen kosten keine Credits).
@@ -398,7 +398,7 @@ const APOLLO_TITLE_SUGGESTIONS = [
 // bitte mit derselben Basis, sonst vergleicht er zwei verschiedene Dinge.
 //
 // Zwei Gruppen statt einer Reihe: mit einunddreissig Chips nebeneinander
-// findet niemand mehr "cbd". Die Trennung folgt dem, wonach gesucht wird --
+// findet niemand mehr "cbd". Die Trennung folgt dem, wonach gesucht wird:
 // ein Shop-Sortiment ist etwas anderes als eine Branche.
 const APOLLO_KEYWORD_GROUPS = [
   {
@@ -427,7 +427,7 @@ const APOLLO_KEYWORD_GROUPS = [
  * Was im Browser dieses Geraets noch liegt, in die Datenbank heben.
  *
  * Ohne diesen Schritt waere die Umstellung fuer jeden, der schon Vorlagen
- * hatte, ein Datenverlust — und zwar ein stiller: die Liste waere danach
+ * hatte, ein Datenverlust, und zwar ein stiller: die Liste waere danach
  * einfach leer. Es laeuft genau einmal je Geraet, weil der Schluessel danach
  * entfernt wird.
  *
@@ -515,7 +515,7 @@ function TechnologyPicker({
   const available = technologiesFor(provider);
   // "sales" steht bewusst zuletzt: es ist die schmalste Gruppe und die
   // speziellste Zielgruppe (Firmen, die selbst Outbound betreiben). Leere
-  // Gruppen werden unten uebersprungen — bei Hunter sind von den
+  // Gruppen werden unten uebersprungen: bei Hunter sind von den
   // Vertriebs-Tools nur zwei ueberhaupt bekannt.
   const groups: { key: TechGroup; label: string }[] = [
     { key: "shop", label: t.newSearchForm.techGroupShop },
@@ -549,7 +549,7 @@ function TechnologyPicker({
         {groups.map((group) => {
           const items = available.filter((tech) => tech.group === group.key);
           // Eine Ueberschrift ohne Kacheln darunter waere eine leere
-          // Versprechung — bei Hunter kennt der Katalog z.B. die meisten
+          // Versprechung; bei Hunter kennt der Katalog z.B. die meisten
           // Vertriebs-Tools gar nicht.
           if (items.length === 0) return null;
           return (
@@ -590,7 +590,7 @@ export default function NewSearchForm({
   workspaceId: string;
   /** Hinterlegte Provider dieses Workspaces, fuer die Vorpruefung. Kommt vom
    *  Dashboard, das die Liste ohnehin schon fuer die Onboarding-Checkliste
-   *  laedt — keine zweite Abfrage. */
+   *  laedt, keine zweite Abfrage. */
   apiKeyProviders?: string[];
 }) {
   const router = useRouter();
@@ -604,7 +604,7 @@ export default function NewSearchForm({
   const [targetEmails, setTargetEmails] = useState(10);
   const [radius, setRadius] = useState(2000);
   // "Land automatisch abdecken": Alternative zum handgetippten Orte-Feld.
-  // coverageTarget ist bewusst ein eigener Zustand und nicht targetEmails --
+  // coverageTarget ist bewusst ein eigener Zustand und nicht targetEmails:
   // das ist eine Gesamtzahl (bis 900), targetEmails eine Zahl pro Suche (max
   // 20). Beides in ein Feld zu legen hiesse, dass eine gespeicherte Vorlage
   // spaeter einen Wert ausserhalb von min/max ins Zahlenfeld schreibt; genau
@@ -628,7 +628,7 @@ export default function NewSearchForm({
   // jeweiligen Anbieters uebersetzt.
   const [technologies, setTechnologies] = useState<string[]>([]);
   // Apollos "Market Segments". Leer als Vorgabe: anders als bei den
-  // Senioritaeten gibt es hier keine sinnvolle Vorauswahl — jedes Segment
+  // Senioritaeten gibt es hier keine sinnvolle Vorauswahl: jedes Segment
   // schneidet hart, und wer nichts anhakt, will alle.
   const [marketSegments, setMarketSegments] = useState<string[]>([]);
   /**
@@ -652,7 +652,7 @@ export default function NewSearchForm({
 
   /**
    * Vorlagen laden. Vorher einmal einsammeln, was auf diesem Geraet noch im
-   * localStorage liegt — sonst waere die Umstellung fuer jeden mit
+   * localStorage liegt; sonst waere die Umstellung fuer jeden mit
    * bestehenden Vorlagen ein stiller Datenverlust.
    */
   const loadPresets = useCallback(async () => {
@@ -678,7 +678,7 @@ export default function NewSearchForm({
   }, [loadPresets]);
 
   // Genau das Objekt, das beim Absenden in searches.filters landet. Der
-  // Trefferzaehler schickt dieses Objekt — so zaehlt er zwangslaeufig
+  // Trefferzaehler schickt dieses Objekt: so zaehlt er zwangslaeufig
   // dieselbe Anfrage, die der Worker spaeter stellt. Wuerde die Vorschau ihre
   // Filter selbst zusammenbauen, koennten beide auseinanderlaufen und die
   // angezeigte Zahl waere eine Zusage, die die Suche nicht einloest.
@@ -724,7 +724,7 @@ export default function NewSearchForm({
             : { state: "error", reason: String(body?.reason ?? "failed") }
         );
       } catch {
-        // Ein Abbruch durch die naechste Eingabe ist kein Fehler — sonst
+        // Ein Abbruch durch die naechste Eingabe ist kein Fehler; sonst
         // blitzte beim Tippen dauernd eine Fehlermeldung auf.
         if (!ctrl.signal.aborted) setApolloCount({ state: "error", reason: "unreachable" });
       }
@@ -746,7 +746,7 @@ export default function NewSearchForm({
   const queryList = parseList(query);
   const locationList = parseList(location);
 
-  // Der Plan ist Vorschau UND Grundlage der eingefuegten Zeilen — deshalb
+  // Der Plan ist Vorschau UND Grundlage der eingefuegten Zeilen, deshalb
   // genau eine Rechnung. Wuerde die Vorschau anders rechnen als das Absenden,
   // waere die angezeigte Zahl eine Zusage, die die Suche nicht einloest.
   // Ohne useMemo: reine Arithmetik plus ein slice, und anders als apolloFilters
@@ -768,7 +768,7 @@ export default function NewSearchForm({
   // Vorpruefung: welche Keys fehlen fuer genau diesen Suchweg? Wird sowohl
   // oben im Formular angezeigt (damit man es sieht, BEVOR man alles ausfuellt)
   // als auch beim Absenden geprueft. Ohne das reihte die App Jobs ein, die
-  // nie funktionieren konnten — in den Logs standen dreiundzwanzig solche
+  // nie funktionieren konnten: in den Logs standen dreiundzwanzig solche
   // Fehlschlaege ueber acht Tage.
   const missingKeys = missingProviders(mode, apiKeyProviders);
 
@@ -789,7 +789,7 @@ export default function NewSearchForm({
      *
      * Sie wird VOR den Teilsuchen eingefuegt, damit deren parent_search_id auf
      * eine existierende Zeile zeigen kann. Fuer sie feuert der Trigger keinen
-     * get_businesses-Job (Migration 0096) — sie hat weder Ort noch Firmen und
+     * get_businesses-Job (Migration 0096): sie hat weder Ort noch Firmen und
      * existiert allein, damit die Suchen-Seite EINEN Eintrag zeigt statt
      * sechzig.
      */
@@ -798,7 +798,7 @@ export default function NewSearchForm({
       // Im Abdeckungs-Modus laeuft jede Teilsuche voll aus (20 Ziel-Leads /
       // 100 Firmen); gesteuert wird ueber die Anzahl der Staedte, nicht ueber
       // die Tiefe je Stadt. Die Planung rechnet trotzdem konservativ mit 15
-      // Leads je Kombination — siehe LEADS_PER_COMBINATION.
+      // Leads je Kombination, siehe LEADS_PER_COMBINATION.
       const mapsTarget = useCoverage ? MAPS_MAX_TARGET_EMAILS : targetEmails;
       const mapsRaw = useCoverage ? MAX_RAW_RESULTS : rawResults;
 
@@ -832,7 +832,7 @@ export default function NewSearchForm({
       }
       // Dieselbe Zeilenstruktur wie bei handgetippten Orten: die automatisch
       // erzeugte Staedteliste tritt nur an die Stelle von locationList, sonst
-      // aendert sich nichts — es sind technisch dieselben get_businesses-Jobs.
+      // aendert sich nichts; es sind technisch dieselben get_businesses-Jobs.
       rows = queryList.flatMap((q) =>
         effectiveLocations.map((loc) => ({
           name: listName.trim() || null,
@@ -846,14 +846,14 @@ export default function NewSearchForm({
       /**
        * Ab zwei Kombinationen: eine Huelle darueber.
        *
-       * Bei genau einer Kombination bleibt alles wie bisher — eine Gruppe fuer
+       * Bei genau einer Kombination bleibt alles wie bisher: eine Gruppe fuer
        * eine einzige Teilsuche waere zusaetzlicher Ballast im haeufigsten Fall
        * und eine zweite Zeile, die jeder Sammelaktion erklaert werden muesste.
        */
       if (fanoutCount > 1) {
         // Fuers Auge: die Ortsliste, solange sie in eine Zeile passt. Sechzig
         // Staedte wuerden die Zeile in der Suchliste ueber drei Zeilen
-        // umbrechen — dann lieber die Anzahl. Die vollstaendigen Listen stehen
+        // umbrechen; dann lieber die Anzahl. Die vollstaendigen Listen stehen
         // ohnehin in filters (siehe unten).
         const alleOrte = effectiveLocations.join(", ");
         groupRow = {
@@ -876,14 +876,14 @@ export default function NewSearchForm({
           filters: {
             ...painPointFilters,
             // Die Kommalisten, wie sie getippt wurden. query/location oben sind
-            // zusammengefasst und als Vorlage unbrauchbar — ohne diese beiden
+            // zusammengefasst und als Vorlage unbrauchbar; ohne diese beiden
             // wuerde "Suche wiederholen" auf einer gebuendelten Suche nach dem
             // Ort "15 Orte" fahnden (siehe lib/search-presets.ts).
             group_queries: queryList,
             group_locations: effectiveLocations,
             // Die Zielzahl PRO Teilsuche. target_email_count der Gruppe ist die
             // Summe (bis 1200) und passt nicht in das Formularfeld, das bei 20
-            // gedeckelt ist — eine Vorlage daraus wuerde einen Wert ausserhalb
+            // gedeckelt ist: eine Vorlage daraus wuerde einen Wert ausserhalb
             // von min/max ins Zahlenfeld schreiben. Genau daran ist das
             // Apollo-Zielfeld schon einmal gescheitert (stepMismatch).
             group_target_email_count: mapsTarget,
@@ -906,7 +906,7 @@ export default function NewSearchForm({
           // Kein Trefferquoten-Aufschlag: bei Apollo ist die angefragte Zahl
           // die Zahl der Leads mit E-Mail (contact_email_status=verified).
           max_results: apolloTarget, target_email_count: apolloTarget,
-          // Dasselbe Objekt, das der Trefferzaehler gezaehlt hat — die
+          // Dasselbe Objekt, das der Trefferzaehler gezaehlt hat: die
           // angezeigte Zahl gilt damit fuer genau diese Suche.
           filters: apolloFilters,
         },
@@ -936,7 +936,7 @@ export default function NewSearchForm({
               .slice(0, 120) || "Prospeo-Suche",
           location: (prospeoFilters.company_locations ?? []).join(", "),
           // Kein Trefferquoten-Aufschlag: wie bei Apollo ist die angefragte
-          // Zahl die Zahl der Leads MIT verifizierter Adresse — die Pipeline
+          // Zahl die Zahl der Leads MIT verifizierter Adresse; die Pipeline
           // reichert nur mit only_verified_email an.
           max_results: apolloTarget, target_email_count: apolloTarget,
           // Genau das Objekt, das der Trefferzaehler gezaehlt hat.
@@ -974,7 +974,7 @@ export default function NewSearchForm({
     rows = rows.map((r) => ({ ...r, next_run_at: nextRun }));
 
     // RLS blockiert den Insert bei abgelaufener Testphase/fehlendem Abo
-    // (searches_owner_insert, Migration 0024) — freundliche Meldung statt des
+    // (searches_owner_insert, Migration 0024): freundliche Meldung statt des
     // rohen Postgres-Fehlertexts.
     const meldeFehler = (fehler: { code?: string; message: string }) =>
       push(fehler.code === "42501" ? t.newSearchForm.billingBlocked : fehler.message, "error");
@@ -997,7 +997,7 @@ export default function NewSearchForm({
     if (error) {
       // Die Huelle steht schon, die Teilsuchen nicht: sie jetzt stehen zu
       // lassen hiesse, dem Nutzer eine leere Liste hinzustellen, die nie etwas
-      // liefern wird. Sie hat keine Kinder und keinen Job — Wegraeumen ist
+      // liefern wird. Sie hat keine Kinder und keinen Job; Wegraeumen ist
       // gefahrlos.
       if (parentId) await supabase.from("searches").delete().eq("id", parentId).eq("workspace_id", workspaceId);
       meldeFehler(error);
@@ -1013,7 +1013,7 @@ export default function NewSearchForm({
    * Herausgezogen aus applyPlaybook, weil es seit dem 2026-08-10 einen zweiten
    * Weg hierher gibt: "Suche wiederholen" auf der Suchdetailseite belegt das
    * Formular aus einer bereits gelaufenen Suche vor (siehe useEffect unten).
-   * Beide Wege muessen dieselben Felder setzen — ein vergessener Setter waere
+   * Beide Wege muessen dieselben Felder setzen: ein vergessener Setter waere
    * ein Filter, den der Nutzer zu sehen glaubt und der nicht gilt.
    */
   const applyPresetConfig = useCallback((preset: PresetConfig) => {
@@ -1021,7 +1021,7 @@ export default function NewSearchForm({
     setQuery(preset.query);
     setLocation(preset.location);
     // Eine Vorlage traegt eine fertige Ortsliste. Bliebe die Laender-Abdeckung
-    // dabei eingeschaltet, wuerde genau diese Liste ignoriert — der Nutzer
+    // dabei eingeschaltet, wuerde genau diese Liste ignoriert: der Nutzer
     // saehe seine Orte im Feld und suchte woanders.
     setCoverageOn(false);
     setRadius(preset.radius);
@@ -1042,10 +1042,10 @@ export default function NewSearchForm({
     setMarketSegments(preset.marketSegments ?? []);
     // Leeres Objekt statt gar nichts: eine Vorlage von vor dem 2026-08-10 hat
     // kein prospeoFilters, und die Filter der zuvor angesehenen Vorlage
-    // stehenzulassen waere schlimmer als ein leeres Formular — der Nutzer
+    // stehenzulassen waere schlimmer als ein leeres Formular: der Nutzer
     // wuerde mit Filtern suchen, die er in dieser Vorlage nie gesehen hat.
     setProspeoFilters(preset.prospeoFilters ?? {});
-    // Sichtbar machen, was die Vorlage still mitgesetzt hat — beide Bloecke
+    // Sichtbar machen, was die Vorlage still mitgesetzt hat; beide Bloecke
     // sind sonst zugeklappt.
     if (preset.noWebsite || preset.maxRating !== "") setAdvancedOpen(true);
     if (techIds.length > 0) setTechOpen(true);
@@ -1056,7 +1056,7 @@ export default function NewSearchForm({
    *
    * Die Suchdetailseite schickt hierher, wenn jemand eine gelaufene Suche noch
    * einmal starten will. Die Filter kommen aus der Suche selbst, nicht aus
-   * einer Vorlage — man muss also nichts gespeichert haben, um zu wiederholen.
+   * einer Vorlage; man muss also nichts gespeichert haben, um zu wiederholen.
    *
    * Der Riegel ueber useRef ist der Punkt, an dem es sonst teuer wird: der
    * Effekt haengt an Werten, die sich bei jedem Rendern neu ergeben koennen,
@@ -1110,7 +1110,7 @@ export default function NewSearchForm({
       query,
       // Im Abdeckungs-Modus die aufgeloeste Staedteliste speichern, nicht das
       // leere Orte-Feld: die Vorlage soll dieselbe Suche noch einmal erzeugen.
-      // Sie laedt danach als normale Ortsliste — das ist die richtige
+      // Sie laedt danach als normale Ortsliste; das ist die richtige
       // Auslegung von "speichere mir DIESE Suche" (siehe lib/search-presets.ts).
       location: useCoverage ? effectiveLocations.join(", ") : location,
       radius,
@@ -1119,7 +1119,7 @@ export default function NewSearchForm({
       industry, city, state: usState, country, headcount, keywords,
       personTitles, apolloCountries, apolloSeniorities, technologies, marketSegments,
       // Bis zum 2026-08-10 fehlte diese Zeile. Eine Prospeo-Vorlage speicherte
-      // damit den Modus und sonst nichts — beim Laden stand das Formular im
+      // damit den Modus und sonst nichts: beim Laden stand das Formular im
       // richtigen Reiter mit leeren Filtern da, ohne jeden Hinweis darauf, dass
       // etwas fehlt. Prospeo hat die meisten Filter von allen vier Wegen; es
       // war ausgerechnet der Weg, bei dem sich das Merken am meisten lohnt.
@@ -1500,7 +1500,7 @@ export default function NewSearchForm({
                 // Der eigentliche Fehlerschutz: Hunter lehnt eine US-Stadt
                 // ohne Bundesstaat ab, und genau diese Zuordnung tippt man
                 // sich von Hand falsch. Bei bekannter Stadt automatisch
-                // setzen — unbekannte Stadt laesst die Auswahl unangetastet.
+                // setzen; eine unbekannte Stadt laesst die Auswahl unangetastet.
                 if (country === "US") {
                   const match = usStateForCity(next);
                   if (match) setUsState(match);
@@ -1520,7 +1520,7 @@ export default function NewSearchForm({
               value={country}
               onChange={(e) => {
                 setCountry(e.target.value);
-                // Bundesstaat gehoert zu den USA — beim Landwechsel zuruecksetzen,
+                // Bundesstaat gehoert zu den USA: beim Landwechsel zuruecksetzen,
                 // damit nie ein unsichtbarer Wert mitgeschickt wird.
                 if (e.target.value !== "US") setUsState("");
               }}
@@ -1636,7 +1636,7 @@ export default function NewSearchForm({
                 max={APOLLO_MAX_TARGET}
                 // step=50 hat einen echten Absende-Bug erzeugt: das Browser-
                 // Constraint "stepMismatch" lehnt jeden getippten Wert ab, der
-                // nicht exakt auf 1, 51, 101, ... faellt — eine ganz normale
+                // nicht exakt auf 1, 51, 101, ... faellt. Eine ganz normale
                 // kleine Testsuche mit z.B. 10 liess sich dadurch gar nicht
                 // erst abschicken (stiller Fehltritt: kein Request, keine
                 // Fehlermeldung im Formular, nur der native Browser-Tooltip).

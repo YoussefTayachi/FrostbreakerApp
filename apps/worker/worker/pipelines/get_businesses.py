@@ -1,4 +1,4 @@
-"""Pipeline 1 — Port von n8n 'Get_Businesses'.
+"""Pipeline 1: Port von n8n 'Get_Businesses'.
 
 1. Geocoding (location -> lat/lng)
 2. Places Text Search mit Pagination (nextPageToken) bis max_results
@@ -48,7 +48,7 @@ def _domains(rows: list[dict]) -> set[str]:
     """Die Domains einer Sperrmenge (businesses_to_skip) als Vergleichsmenge.
 
     Frueher wurde hier die rohe website-Zeichenkette verglichen. Das ging
-    solange gut, wie jede Quelle dieselbe Schreibweise lieferte — Apollo gibt
+    solange gut, wie jede Quelle dieselbe Schreibweise lieferte. Apollo gibt
     "x.com", Hunter "https://x.com", Places "https://www.x.com/". Ueber
     domain_of() ist das dieselbe Firma, als Zeichenkette waren es drei.
     """
@@ -104,7 +104,7 @@ def parse_place(p: dict) -> dict:
 
 
 def matching_prior_search_ids(filters: dict, prior_searches: list[dict]) -> list[str]:
-    """IDs frueherer Corporate-Suchen mit EXAKT denselben Filtern — Grundlage
+    """IDs frueherer Corporate-Suchen mit EXAKT denselben Filtern, Grundlage
     fuer den Hunter-Discover-Offset (siehe _discover_offset): Hunter liefert
     fuer eine fixe Filterkombination ohne offset immer dieselbe erste
     Ergebnisseite, deshalb muss eine Wiederholung derselben Suche wissen, wie
@@ -118,7 +118,7 @@ def _discover_offset(search: dict, ws: str) -> int:
     Workspace schon von Hunter Discover geholt. Ohne das wuerde eine
     Wiederholung derselben Suche immer wieder dieselbe erste Ergebnisseite
     abfragen und dank der Dedupe-Pruefung unten fast nur noch bereits
-    bekannte Firmen sehen — effektiv keine neuen Leads."""
+    bekannte Firmen sehen, effektiv keine neuen Leads."""
     # Geloeschte Suchen zaehlen nicht mit: deren Firmen sperren die Dedupe-
     # Pruefung ebenfalls nicht mehr (siehe worker/dedupe.py). Wuerden sie hier
     # weiter mitzaehlen, wuerde der Offset an Ergebnissen vorbeispringen, die
@@ -155,7 +155,7 @@ def run_corporate(search: dict, ws: str) -> None:
     offset = _discover_offset(search, ws)
     companies = discover_companies(search.get("filters") or {}, api_key, offset=offset)
     # Nur gegen wirklich noch relevante Firmen sperren, nicht gegen alles je
-    # Gefundene — siehe worker/dedupe.py.
+    # Gefundene, siehe worker/dedupe.py.
     #
     # Verglichen wird die Domain, nicht die Website-Zeichenkette: "x.com",
     # "https://x.com" und "https://www.x.com/" sind dieselbe Firma, und seit
@@ -181,7 +181,7 @@ def run_corporate(search: dict, ws: str) -> None:
 
 def apollo_leads_today(ws: str) -> int:
     """Wie viele Apollo-Kontakte dieser Workspace in den letzten 24 Stunden
-    angelegt hat — Grundlage fuer APOLLO_MAX_PER_DAY. Gezaehlt wird der
+    angelegt hat, Grundlage fuer APOLLO_MAX_PER_DAY. Gezaehlt wird der
     KONTAKT, nicht die Firma: bei Apollo entspricht ein Kontakt einem
     freigeschalteten, credit-kostenden Treffer, und genau das soll die Bremse
     begrenzen."""
@@ -204,7 +204,7 @@ def prospeo_leads_today(ws: str) -> int:
     Gezaehlt wird wie bei Apollo der KONTAKT: bei Prospeo entspricht ein
     Kontakt einem angereicherten Treffer, und genau der kostet einen Credit.
     Die Suchseiten kosten zusaetzlich, sind aber um Groessenordnungen
-    billiger (1 Credit je 25 Treffer) — die Bremse gehoert an die teure
+    billiger (1 Credit je 25 Treffer); die Bremse gehoert an die teure
     Seite.
     """
     since = (datetime.now(timezone.utc) - timedelta(days=1)).isoformat()
@@ -250,7 +250,7 @@ def _surviving_pairs(ws: str, pairs: list[dict]) -> tuple[dict[str, dict], dict[
     ═══════════════════════════════════════════════════════════════════════
     Bis zum 2026-08-09 lief die Reihenfolge andersherum: Apollo lieferte die
     Paare, der Worker kaufte fuer jede gelieferte Firma den Firmendatensatz
-    (1 Credit je Firma) — und erst danach warf _store_people_pairs die
+    (1 Credit je Firma), und erst danach warf _store_people_pairs die
     Dubletten, gesperrten Domains und Sperrlisten-Treffer weg. Bezahlt war da
     laengst alles.
 
@@ -270,7 +270,7 @@ def _surviving_pairs(ws: str, pairs: list[dict]) -> tuple[dict[str, dict], dict[
     sup_emails, blocked_domains = load_suppression(ws)
 
     # Mehrere Entscheider derselben Firma sind der Normalfall und sollen EINE
-    # businesses-Zeile teilen — sonst zaehlt das Dashboard dieselbe Firma
+    # businesses-Zeile teilen; sonst zaehlt das Dashboard dieselbe Firma
     # mehrfach und die Kampagnen-Auswahl "eine Person pro Firma"
     # (lib/contacts.ts) haette nichts mehr zu waehlen.
     by_website: dict[str, dict] = {}
@@ -321,12 +321,12 @@ def _store_people_pairs(
 
       surviving        bereits ermitteltes Ergebnis von _surviving_pairs. Der
                        Apollo-Weg braucht es schon vorher, um nur noch die
-                       Firmen anzureichern, die auch gespeichert werden --
+                       Firmen anzureichern, die auch gespeichert werden;
                        ohne diesen Durchreichweg wuerde derselbe Filter
                        zweimal laufen und dabei zweimal die Sperrliste laden.
 
     Gibt (geschriebene Firmen, geschriebene Kontakte) zurueck. 0 Firmen heisst
-    "geliefert, aber alles schon bekannt oder gesperrt" — eine ganz andere
+    "geliefert, aber alles schon bekannt oder gesperrt", eine ganz andere
     Auskunft als "nichts gefunden", und der Aufrufer formuliert sie selbst.
     """
     by_website, contacts_by_website = (
@@ -342,7 +342,7 @@ def _store_people_pairs(
         | {
             "workspace_id": ws,
             "search_id": search["id"],
-            # Der Ansprechpartner kam mit — die Entscheider-Recherche ist
+            # Der Ansprechpartner kam mit, die Entscheider-Recherche ist
             # damit erledigt und darf nicht noch einmal Geld kosten.
             "decisionmaker_status": "found",
             # hunt_persons laeuft fuer diese Wege grundsaetzlich nicht
@@ -351,7 +351,7 @@ def _store_people_pairs(
             # Leer lassen, wenn nichts da ist: personalize hat dann weiterhin
             # den Website-Rueckfall.
             "company_summary": summary_of(w),
-            # Rang, Quelle und Zeitpunkt zusammen — eine nackte Zahl liesse
+            # Rang, Quelle und Zeitpunkt zusammen: eine nackte Zahl liesse
             # nicht erkennen, ob sie von heute stammt oder aus Alexas
             # Altbestand (siehe Migration 0079).
             **_rank_fields(rank_of, w),
@@ -381,7 +381,7 @@ def _store_people_pairs(
         sb().table("contacts").insert(contact_rows).execute()
 
     # Firmen, fuer die am Ende kein brauchbarer Kontakt uebrig blieb, ehrlich
-    # als 'not_found' markieren statt sie als 'found' zu fuehren — sonst zeigt
+    # als 'not_found' markieren statt sie als 'found' zu fuehren; sonst zeigt
     # die Suchliste einen Fortschritt, den es nicht gibt.
     with_contact = {r["business_id"] for r in contact_rows}
     empty_ids = [r["id"] for r in inserted if r["id"] not in with_contact]
@@ -398,7 +398,7 @@ def _note(search_id: str, text: str) -> None:
 
     Bewusst getrennt von searches.error: error heisst "fehlgeschlagen" und wird
     im Frontend rot als Fehlschlag gezeigt. Diese Suche ist aber nicht
-    fehlgeschlagen, sie hat nur nichts gefunden — und der Unterschied ist fuer
+    fehlgeschlagen, sie hat nur nichts gefunden, und der Unterschied ist fuer
     den Nutzer wesentlich.
     """
     sb().table("searches").update({"note": text[:1000]}).eq("id", search_id).execute()
@@ -431,12 +431,12 @@ def run_apollo(search: dict, ws: str) -> None:
     # Apollo rechnet pro freigeschalteter Adresse ab. Der Betrag bleibt leer:
     # was ein Credit in Euro wert ist, haengt am gebuchten Tarif und liesse
     # sich hier nur unterstellen (siehe worker/usage.py).
-    # Die Firmen, die dieser Workspace schon hat — als normalisierte Namen.
+    # Die Firmen, die dieser Workspace schon hat, als normalisierte Namen.
     #
     # Sie gehen in die KOSTENLOSE Suchstufe, nicht erst in die Pruefung nach
     # dem Anreichern. Vorher lief es andersherum, und das war teuer: am
     # 2026-08-09 lieferte eine Suche genau eine Person, sie wurde angereichert
-    # (2 Credits) und danach als Dublette verworfen — null Leads, und die
+    # (2 Credits) und danach als Dublette verworfen: null Leads, und die
     # Suche gab auf, obwohl Apollo fuer dieselben Filter hunderte weitere
     # Treffer hatte.
     #
@@ -461,12 +461,12 @@ def run_apollo(search: dict, ws: str) -> None:
         known_companies=known_companies,
         on_skip=skipped.append,
         # Wird vor jedem bulk_match-Paket gefragt. Das ist der einzige Punkt,
-        # an dem ein Abbruch noch Geld spart — danach ist alles bezahlt.
+        # an dem ein Abbruch noch Geld spart; danach ist alles bezahlt.
         should_stop=lambda: search_is_cancelled(search["id"]),
     )
     # Nach der Suche noch einmal: die teuren Folgeschritte (Firmendaten,
     # Aufhaenger je Lead) sollen gar nicht erst anlaufen. Was bis hierher
-    # gefunden wurde, wird trotzdem gespeichert — dafuer ist bereits bezahlt,
+    # gefunden wurde, wird trotzdem gespeichert: dafuer ist bereits bezahlt,
     # und es wegzuwerfen waere die zweite Verschwendung nach der ersten.
     if search_is_cancelled(search["id"]):
         _store_people_pairs(
@@ -486,19 +486,19 @@ def run_apollo(search: dict, ws: str) -> None:
                 search["id"],
                 f"Apollo hat {skipped[0]} Treffer geliefert, aber alle gehören zu Firmen, "
                 "die du schon in der Liste hast. Es wurden keine Credits verbraucht. "
-                "Für neue Leads hilft ein anderer Filter — etwa ein weiteres Land, "
+                "Für neue Leads hilft ein anderer Filter: ein weiteres Land, "
                 "andere Positionen oder ein zusätzliches Marktsegment.",
             )
             return
         # "Fertig, 0 Leads" ohne Begruendung ist die frustrierendste Auskunft,
-        # die diese Suche geben kann — der Nutzer sieht sechs Filter und weiss
+        # die diese Suche geben kann: der Nutzer sieht sechs Filter und weiss
         # nicht, welcher schuld war. Die Ursachensuche kostet keine Credits und
         # laeuft nur hier, auf dem Null-Pfad.
         _note(search["id"], apollo.explain_empty_result(filters, api_key))
         return
 
     # Entdopplung, Sperrliste und Schreiben stehen seit dem Prospeo-Einbau in
-    # _store_people_pairs — der Ablauf ist fuer beide Personen-Wege
+    # _store_people_pairs; der Ablauf ist fuer beide Personen-Wege
     # identisch. Was Apollo-spezifisch bleibt, steht hier:
     #
     # Firmenbeschreibungen kommen bei Apollo aus einem eigenen Aufruf. Ohne
@@ -506,10 +506,10 @@ def run_apollo(search: dict, ws: str) -> None:
     # wenigsten Shops her: bei einer echten Supplement-Suche antworteten alle
     # geprueften Seiten mit HTTP 429 auf unseren Crawler, am Ende hatten 10
     # von 45 Firmen eine Zeile. Ueber Apollos Firmen-Endpunkt waren es 35 von
-    # 35 — und er kostet keine Credits, weil Apollo nur Exporte abrechnet.
+    # 35, und er kostet keine Credits, weil Apollo nur Exporte abrechnet.
     #
     # ERST FILTERN, DANN BEZAHLEN. Angereichert werden nur die Firmen, die
-    # auch in der Datenbank landen — nicht alles, was Apollo geliefert hat.
+    # auch in der Datenbank landen, nicht alles, was Apollo geliefert hat.
     # Vorher lief der Aufruf ueber saemtliche Treffer, und die Dubletten und
     # Sperrlisten-Firmen flogen erst danach raus: an einem echten Konto 61
     # gekaufte Firmendatensaetze fuer 55 gespeicherte Firmen (siehe
@@ -520,7 +520,7 @@ def run_apollo(search: dict, ws: str) -> None:
     # aber er gibt zusaetzlich das alexa_ranking heraus, das bis 2026-08-05
     # weggeworfen wurde (Migration 0079).
     #
-    # Der Aufruf KOSTET Credits — 1 je Firma. Bis 2026-08-05 stand in
+    # Der Aufruf KOSTET Credits, 1 je Firma. Bis 2026-08-05 stand in
     # apollo.py das Gegenteil, und deshalb wurde er nie verbucht. Eine
     # Apollo-Suche kostet damit rund doppelt so viel, wie die Kostenseite
     # bisher auswies: einmal fuer die Adressen, einmal fuer die Firmendaten.
@@ -543,15 +543,15 @@ def run_apollo(search: dict, ws: str) -> None:
             "apollo_alexa",
         ),
         # Derselbe Filterlauf, der oben ueber die Anreicherung entschieden
-        # hat. Ein zweiter Durchlauf koennte inzwischen anders ausfallen --
-        # etwa weil eine parallele Suche dieselbe Firma gerade angelegt hat --
+        # hat. Ein zweiter Durchlauf koennte inzwischen anders ausfallen,
+        # etwa weil eine parallele Suche dieselbe Firma gerade angelegt hat,
         # und dann waeren Credits fuer Daten bezahlt, die niemand speichert.
         surviving=surviving,
     )
     if companies == 0:
         # Hier ist die Ursache bekannt und die Filter sind unschuldig: Apollo
         # hat geliefert, aber alles war schon bekannt oder gesperrt. Das ist
-        # eine ganz andere Auskunft als "Filter zu eng" — und ein Hinweis, dass
+        # eine ganz andere Auskunft als "Filter zu eng", und ein Hinweis, dass
         # hier Credits fuer Leads ausgegeben wurden, die danach wegfielen.
         _note(
             search["id"],
@@ -564,12 +564,12 @@ def run_apollo(search: dict, ws: str) -> None:
 def run_prospeo(search: dict, ws: str) -> None:
     """Prospeo-Modus: Personensuche, Anreicherung, speichern.
 
-    Aufbau wie run_apollo — mit drei Unterschieden, die aus Prospeos API
+    Aufbau wie run_apollo, mit drei Unterschieden, die aus Prospeos API
     folgen:
 
       1. Die SUCHE kostet Credits (1 je 25 Treffer). Bei Apollo ist sie
          gratis. Deshalb werden hier ZWEI Verbrauchszeilen geschrieben, eine
-         je Kostenart — sonst liesse sich in der Kostenansicht nicht mehr
+         je Kostenart; sonst liesse sich in der Kostenansicht nicht mehr
          auseinanderhalten, wofuer das Kontingent draufging.
       2. Die Firmenbeschreibung kommt je Treffer mit, es braucht also keinen
          zweiten Aufruf.
@@ -610,7 +610,7 @@ def run_prospeo(search: dict, ws: str) -> None:
         _note(search["id"], prospeo.explain_empty_result(filters, api_key))
         return
 
-    # Prospeo liefert die Beschreibung je Treffer mit — kein zweiter Aufruf.
+    # Prospeo liefert die Beschreibung je Treffer mit, kein zweiter Aufruf.
     summaries = {
         p["business"]["website"]: p.get("company_summary")
         for p in pairs
@@ -642,7 +642,7 @@ def run(job: dict) -> None:
     # error mit zuruecksetzen: ein neuer Versuch (Queue-Retry oder Lead-Abo) darf
     # nicht die Fehlermeldung des vorherigen mitschleppen. Sonst steht am Ende
     # eine erfolgreich abgeschlossene Suche mit einer Fehlermeldung in der
-    # Datenbank — irrefuehrend fuer jeden, der sie liest, und eine Zeitbombe
+    # Datenbank: irrefuehrend fuer jeden, der sie liest, und eine Zeitbombe
     # fuer jede Oberflaeche, die error unabhaengig vom Status anzeigt.
     # note wird aus demselben Grund zurueckgesetzt wie error: sonst stuende
     # nach einem erfolgreichen zweiten Versuch noch die Erklaerung des ersten
@@ -730,7 +730,7 @@ def _finish(search_id: str, ws: str, auto_enrich: bool, source: str) -> None:
     if not auto_enrich:
         return
     if source in ("apollo", "prospeo"):
-        # Beide Personen-Wege haben Firma UND Kontakt schon geliefert — weder
+        # Beide Personen-Wege haben Firma UND Kontakt schon geliefert: weder
         # find_decisionmaker (OpenAI-Kosten) noch hunt_persons (Hunter-Credits)
         # haetten hier etwas beizutragen. Personalisiert werden muss aber
         # trotzdem, sonst geht die Kampagne ohne Icebreaker raus.
@@ -739,7 +739,7 @@ def _finish(search_id: str, ws: str, auto_enrich: bool, source: str) -> None:
         # company_summary, dort ist der Website-Text die Basis. Prospeo
         # liefert sie mit (Beschreibung, Technik, Branche), der Aufhaenger
         # wird dadurch spezifischer. personalize.py faellt bei fehlender
-        # summary ohnehin auf die Website zurueck — der Zweig ist deshalb
+        # summary ohnehin auf die Website zurueck; der Zweig ist deshalb
         # fuer beide derselbe.
         for b in (
             sb()
@@ -765,7 +765,7 @@ def _finish(search_id: str, ws: str, auto_enrich: bool, source: str) -> None:
     #
     # Folge fuer Corporate, die man kennen muss: ohne find_decisionmaker gibt es
     # dort keine company_summary. personalize faellt dann auf den Website-Text
-    # zurueck — genauso wie im Apollo-Modus, siehe oben. Corporate-Firmen haben
+    # zurueck, genauso wie im Apollo-Modus, siehe oben. Corporate-Firmen haben
     # immer eine Website (sie stammt aus Hunters Domain, siehe run_corporate),
     # der Fallback greift also verlaesslich.
     #

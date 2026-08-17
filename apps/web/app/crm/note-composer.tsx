@@ -6,7 +6,7 @@ import { useToast } from "../toast-provider";
 import { useWorkspace } from "../workspace-provider";
 
 /**
- * Notizfeld des Vertrieblers. Schreibt direkt per RLS in public.notes — kein
+ * Notizfeld des Vertrieblers. Schreibt direkt per RLS in public.notes; kein
  * API-Route noetig, weil kein serverseitiges Geheimnis im Spiel ist (anders als
  * beim Instantly-Reply, der den BYOK-Key braucht). author_user_id setzt die DB
  * selbst per default auth.uid(), der Client kann den Autor also nicht faelschen.

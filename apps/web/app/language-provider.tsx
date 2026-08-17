@@ -9,7 +9,7 @@ const LangContext = createContext<{ lang: Lang; setLang: (l: Lang) => void }>({
   setLang: () => {},
 });
 
-// lang kommt vom Server (Cookie, ueber getLangServer in layout.tsx) — dadurch ist der
+// lang kommt vom Server (Cookie, ueber getLangServer in layout.tsx); dadurch ist der
 // erste Client-Render identisch zum Server-Render, kein Hydration-Mismatch/Flackern.
 export function LanguageProvider({ lang, children }: { lang: Lang; children: React.ReactNode }) {
   const router = useRouter();

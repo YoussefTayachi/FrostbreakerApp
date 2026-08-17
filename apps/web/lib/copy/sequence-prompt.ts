@@ -5,19 +5,19 @@
  *
  * Der Weg von der fertigen Lead-Liste zur laufenden Kampagne fuehrte bisher
  * durch acht leere Textfelder (vier Stufen mal Betreff und Text). Genau dort
- * endet Akquise fuer die meisten Nutzer — nicht an den Leads, nicht an der
+ * endet Akquise fuer die meisten Nutzer, nicht an den Leads, nicht an der
  * Zustellbarkeit, sondern an der Frage "was schreibe ich denn?".
  *
  * Hier steht das, was man testen kann: wie aus einem Angebot (Migration 0090)
  * ein Auftrag ans Modell wird, wie aus dessen Antwort benutzbare Stufen
  * werden, und woran ein Entwurf scheitert. Der Aufruf selbst sitzt in
- * api/copy/sequence — nach demselben Schnitt wie lib/crm/reply-suggestions.ts.
+ * api/copy/sequence, nach demselben Schnitt wie lib/crm/reply-suggestions.ts.
  *
  * DIE REGEL, DIE DIESE DATEI TRAEGT
  *
  * Der Generator darf nichts erzeugen, was der eigene Torwart
  * (lib/campaign-readiness.ts) danach blockiert. Deshalb kommen die Grenzen
- * fuer die erste Mail — Wortzahl, kein Link — aus genau denselben
+ * fuer die erste Mail (Wortzahl, kein Link) aus genau denselben
  * Konstanten und werden mit genau denselben Funktionen nachgemessen. Ein
  * Vorschlag, der beim Absenden rot wird, waere schlimmer als kein Vorschlag:
  * er saehe fertig aus.
@@ -26,7 +26,7 @@
  *
  * Die erste Fassung dieses Prompts war selbst ausgedacht und lag an vier
  * Stellen quer zu dem Verkaufs-Wissen, das jetzt in lib/copy/playbook.ts
- * steht. Sie sind ERSETZT, nicht ergaenzt — zwei widerspruechliche Anweisungen
+ * steht. Sie sind ERSETZT, nicht ergaenzt; zwei widerspruechliche Anweisungen
  * im selben Prompt sind schlimmer als eine falsche:
  *
  *  1. "jede Stufe macht etwas NEUES" -> dieselbe Friction, derselbe Micro-Yes,
@@ -63,7 +63,7 @@ import {
  *
  * Muss mit VARIABLES in app/instantly/campaigns/campaign-step-card.tsx
  * uebereinstimmen (Quelle: https://help.instantly.ai/en/articles/6135930).
- * Ein erfundener Platzhalter wird NICHT ersetzt — er geht als
+ * Ein erfundener Platzhalter wird NICHT ersetzt: er geht als
  * "{{painPoint}}" an den Empfaenger raus, und das faellt erst dort auf.
  */
 export const EMAIL_MERGE_TAGS = ["firstName", "lastName", "companyName", "email", "personalization"] as const;
@@ -71,14 +71,14 @@ export type EmailMergeTag = (typeof EMAIL_MERGE_TAGS)[number];
 
 /** Vier Stufen: Erstkontakt, anderer Blickwinkel, kurze Nachfrage, Abschied. */
 export const DEFAULT_STEP_COUNT = 4;
-/** Zwei Fassungen je Stufe — siehe Begruendung in buildSequencePrompt. */
+/** Zwei Fassungen je Stufe, siehe Begruendung in buildSequencePrompt. */
 export const DEFAULT_VARIANTS_PER_STEP = 2;
 
 /**
  * Abstaende in Tagen, von uns gesetzt und nicht vom Modell.
  *
  * Ein Sprachmodell hat zu Sendeabstaenden keine Meinung, die besser waere als
- * eine feste Vorgabe — es hat nur eine, die von Lauf zu Lauf schwankt. Jedes
+ * eine feste Vorgabe; es hat nur eine, die von Lauf zu Lauf schwankt. Jedes
  * Feld, das das Modell nicht ausfuellen muss, ist ein Feld, das nicht
  * schiefgehen kann.
  *
@@ -98,15 +98,15 @@ export type SequenceOptions = {
    * Der Terminlink stand hier frueher auch und ist mit dem Playbook
    * verschwunden: eine Kaltsequenz bittet nie um einen Termin, also gibt es in
    * ihr auch nichts zu verlinken. workspaces.calendar_link wird weiter
-   * benutzt — in der Antwort nach einem Ja (lib/crm/reply-suggestions.ts) und
+   * benutzt, in der Antwort nach einem Ja (lib/crm/reply-suggestions.ts) und
    * beim Nachschaerfen einzelner Stufen (lib/copy/refine-prompt.ts).
    */
   senderName: string | null;
-  /** Wortgrenze der Aufhaengerzeile — sie zaehlt in der ersten Mail mit. */
+  /** Wortgrenze der Aufhaengerzeile; sie zaehlt in der ersten Mail mit. */
   personalizationWords: number;
   /**
    * Die beste eigene Fassung als Vorbild. NUR uebergeben, wenn die Menge dafuer
-   * reicht (lib/report/copy-outcomes.ts, MIN_SAMPLE) — sonst zementiert der
+   * reicht (lib/report/copy-outcomes.ts, MIN_SAMPLE); sonst zementiert der
    * Generator einen Zufallstreffer aus vierzig Mails.
    */
   bestExample?: DraftVariant | null;
@@ -123,13 +123,13 @@ export function defaultSequenceOptions(): SequenceOptions {
 /**
  * Wie viele EIGENE Woerter die erste Mail haben darf.
  *
- * Die Wortgrenze des Torwarts gilt fuer die Mail, wie sie ankommt — also
+ * Die Wortgrenze des Torwarts gilt fuer die Mail, wie sie ankommt, also
  * inklusive des eingesetzten Aufhaengers. Dem Modell die 90 zu nennen hiesse,
  * es um die Laenge des Aufhaengers zu betruegen; es schriebe 90 und die Mail
  * kaeme mit 112 an. Der kleine Abzug am Ende ist Luft fuer Anrede und Gruss.
  */
 export function ownWordBudget(personalizationWords: number): number {
-  // Der Abzug deckt Anrede, Gruss und Unterschrift ab — die drei Zeilen, die
+  // Der Abzug deckt Anrede, Gruss und Unterschrift ab: die drei Zeilen, die
   // seit dem 2026-08-12 verlangt werden und in der Wortzahl des Torwarts
   // mitzaehlen.
   return Math.max(25, FIRST_MAIL_MAX_WORDS - personalizationWords - 8);
@@ -143,7 +143,7 @@ export function ownWordBudget(personalizationWords: number): number {
  * workspaces.reply_sender_name (0073) ist der Rueckfall, damit nicht zwei
  * Wahrheiten fuer dieselbe Sache entstehen.
  *
- * Ist beides leer, gibt es KEINE Unterschrift — und der Prompt sagt das
+ * Ist beides leer, gibt es KEINE Unterschrift, und der Prompt sagt das
  * ausdruecklich. Ein erfundener Name unter einer Geschaeftsmail ist schlimmer
  * als gar keiner.
  */
@@ -157,7 +157,7 @@ export function signatureFor(offer: Pick<Offer, "signature" | "language">, sende
 
 const LANGUAGE_NAMES: Record<string, string> = { de: "German", en: "English" };
 
-/** Ein Angebotsfeld als Prompt-Zeile — oder als ausdrueckliches Verbot. */
+/** Ein Angebotsfeld als Prompt-Zeile, oder als ausdrueckliches Verbot. */
 function fieldLine(label: string, value: string, emptyInstruction: string): string {
   const v = value.trim();
   return v ? `${label}: ${v}` : `${label}: (nicht angegeben) -> ${emptyInstruction}`;
@@ -168,7 +168,7 @@ function fieldLine(label: string, value: string, emptyInstruction: string): stri
  *
  * Auf Englisch formuliert, aus demselben Grund wie constraint_block() in
  * personalize.py: Formvorgaben befolgt das Modell in Englisch verlaesslicher.
- * Was das NICHT beeinflusst, ist die Sprache der Mails — die steht als harte
+ * Was das NICHT beeinflusst, ist die Sprache der Mails; die steht als harte
  * Vorgabe drin und kommt aus dem Angebot.
  */
 /** Die Anrede, die als Schablone im Prompt steht. Immer mit {{firstName}}:
@@ -194,7 +194,7 @@ export function buildSequencePrompt(offer: Offer, opts: SequenceOptions): string
     fieldLine("The pain before", offer.problem, "do not assert a specific pain"),
     // Die Friction traegt die Beobachtung, mit der Mail 1 anfaengt. Sie ist der
     // Grund, warum diese Sequenz konkret klingen kann und nicht wie eine
-    // Vorlage — und sie ist Pflichtfeld, kommt hier also praktisch immer an.
+    // Vorlage, und sie ist Pflichtfeld, kommt hier also praktisch immer an.
     fieldLine(
       "The ONE friction (the thing buyers get stuck on, right before they would spend money)",
       offer.friction,
@@ -207,7 +207,7 @@ export function buildSequencePrompt(offer: Offer, opts: SequenceOptions): string
     ),
     fieldLine("Outcome after", offer.outcome, "do not promise a specific result"),
     // Der Mechanismus steht im Prompt, damit die spaeteren Stufen wissen,
-    // worum es geht — aber er darf nicht in die Mail. Der Kaeufer entscheidet
+    // worum es geht, aber er darf nicht in die Mail. Der Kaeufer entscheidet
     // in einer Kaltmail nicht ueber die Bauweise, sondern darueber, ob er
     // hinsieht.
     fieldLine(
@@ -216,7 +216,7 @@ export function buildSequencePrompt(offer: Offer, opts: SequenceOptions): string
       "do not explain how anything works"
     ),
     // Der wichtigste leere Fall im ganzen Prompt. Ein Modell ohne Referenzen
-    // erfindet "over 200 happy clients" — das faellt nicht dem auf, der die
+    // erfindet "over 200 happy clients". Das faellt nicht dem auf, der die
     // Mail schreibt, sondern dem Empfaenger, der nachfragt.
     fieldLine(
       "Proof",
@@ -247,13 +247,13 @@ export function buildSequencePrompt(offer: Offer, opts: SequenceOptions): string
     // Am Live-Stand gemessen: das Modell hat die Angebotsfelder woertlich
     // aneinandergeklebt. Aus "Role addresses like info@ get filtered out" und
     // "Their outreach Emails are not personalized and look like spam then the
-    // buyer hesitate to reply" wurde ein Satz — samt dem Grammatikfehler des
+    // buyer hesitate to reply" wurde ein Satz, samt dem Grammatikfehler des
     // Nutzers. Und der Micro-Yes stand woertlich als "Book a 30-minute call
     // to review client setup and set up the first workspace." in der Mail.
     //
     // Der Grund liegt an der Anweisung, nicht am Modell: "nenne die Friction"
     // liest sich als "setze den Feldinhalt ein". Die Felder sind aber NOTIZEN
-    // des Absenders an sich selbst — oft kein Satz, oft in seiner Sprache,
+    // des Absenders an sich selbst: oft kein Satz, oft in seiner Sprache,
     // oft schief. Sie sind der INHALT, nicht der Wortlaut.
     "THESE ARE NOTES, NOT SENTENCES.",
     "Everything above is how the sender jotted it down for themselves. Their wording, sometimes clumsy,",
@@ -297,7 +297,7 @@ export function buildSequencePrompt(offer: Offer, opts: SequenceOptions): string
     "- Use real blank lines (\\n\\n) between paragraphs. A wall of text does not get read.",
     "- Never write more than three sentences in one paragraph.",
     "",
-    // Der Aufhaenger IST ein vollstaendiger Satz — er beginnt gross und
+    // Der Aufhaenger IST ein vollstaendiger Satz: er beginnt gross und
     // endet mit einem Punkt. Wer ihn wie ein Satzglied behandelt, erzeugt
     // "Hi Brian, Helping over 30,000 people ... reaching out.." (gemessen an
     // der LinkedIn-Vorlage am 2026-08-12).

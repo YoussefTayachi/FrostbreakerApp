@@ -1,26 +1,26 @@
 """Schutz davor, Geld fuer Leads auszugeben, die niemand mehr sehen wird.
 
 Die Anreicherung (find_decisionmaker, personalize, hunt_persons) wird beim
-Abschluss einer Suche fuer JEDE gefundene Firma eingereiht — pro Firma also
+Abschluss einer Suche fuer JEDE gefundene Firma eingereiht, pro Firma also
 mehrere OpenAI-Aufrufe. Wandert die Suche danach in den Papierkorb, laufen
 diese Jobs bisher trotzdem weiter: Kosten fuer Ergebnisse, die in keiner
 Ansicht mehr auftauchen (die Lead-Listen filtern geloeschte Suchen aus).
 Real gemessen: 9 wartende personalize-Jobs, alle fuer geloeschte Suchen.
 
-Geprueft wird beim Ausfuehren, nicht beim Einreihen — zum Einreihzeitpunkt
+Geprueft wird beim Ausfuehren, nicht beim Einreihen. Zum Einreihzeitpunkt
 existiert die Suche ja noch. Ein Job fuer eine geloeschte Suche wird still
 als erledigt abgehakt statt zu scheitern: es ist kein Fehler, sondern Arbeit,
 die sich zwischenzeitlich erledigt hat.
 """
 
 # Businesses laden und dabei den Papierkorb-Status der zugehoerigen Suche
-# mitnehmen — spart eine zweite Abfrage pro Job.
+# mitnehmen; spart eine zweite Abfrage pro Job.
 BUSINESS_WITH_SEARCH = "*, searches(deleted_at)"
 
 
 def _related_search(business: dict) -> dict | None:
     """PostgREST liefert eine many-to-one-Beziehung als Objekt, je nach Version/
-    Abfrage aber auch als einelementige Liste — beide Formen akzeptieren,
+    Abfrage aber auch als einelementige Liste. Beide Formen akzeptieren,
     damit nichts an einem Detail der Serialisierung vorbeigreift."""
     related = business.get("searches")
     if isinstance(related, list):
@@ -40,7 +40,7 @@ class SearchCancelled(Exception):
     """Der Nutzer hat diese Suche abgebrochen, waehrend sie lief.
 
     Kein Fehler, sondern eine Anweisung. main.py faengt sie ab und schliesst
-    den Job als 'cancelled' — nicht als 'failed', denn ein gescheiterter Job
+    den Job als 'cancelled', nicht als 'failed', denn ein gescheiterter Job
     wird vom Queue-Retry (Migration 0047) spaeter erneut versucht, und ein
     abgebrochener Lauf, der von selbst wieder anlaeuft, waere die teuerste
     denkbare Auslegung von "Abbrechen".
@@ -55,7 +55,7 @@ def search_is_cancelled(search_id: str) -> bool:
     gelesener Status waere immer der von vorhin.
 
     Die Abfrage kostet wenige Millisekunden und steht direkt vor Schritten,
-    die Sekunden dauern und Credits verbrauchen — sie faellt damit nicht ins
+    die Sekunden dauern und Credits verbrauchen; sie faellt damit nicht ins
     Gewicht. Bei einem Netzfehler wird bewusst False geliefert: im Zweifel
     weiterarbeiten ist besser, als eine bezahlte Suche wegen eines
     Verbindungsproblems abzubrechen.
@@ -72,7 +72,7 @@ def search_is_cancelled(search_id: str) -> bool:
             .execute()
             .data
         )
-    except Exception:  # noqa: BLE001 — Begruendung siehe Docstring
+    except Exception:  # noqa: BLE001 (Begruendung siehe Docstring)
         return False
     return bool(row) and row.get("status") == "cancelled"
 

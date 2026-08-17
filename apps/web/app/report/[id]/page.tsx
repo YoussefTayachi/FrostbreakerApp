@@ -10,12 +10,12 @@ export const dynamic = "force-dynamic";
  * Gedacht als teilbarer Link, den eine Agentur an den eigenen Endkunden
  * weitergibt (Punkt 4 Stufe 2 im Differenzierungs-Plan: Branding pro
  * Client-Workspace). Zeigt bewusst NUR aggregierte Kennzahlen, keine
- * einzelnen Kontakte/E-Mails/Namen — die Daten kommen ausschliesslich aus
+ * einzelnen Kontakte/E-Mails/Namen; die Daten kommen ausschliesslich aus
  * der SECURITY DEFINER-Funktion get_workspace_report(), die genau das
  * garantiert (siehe supabase/migrations/0021_...).
  *
  * Sicherheit beruht auf der Unraet-barkeit der Workspace-UUID im Link,
- * analog zu den meisten "Share-Link"-Features (z.B. Figma, Loom) — es gibt
+ * analog zu den meisten "Share-Link"-Features (z.B. Figma, Loom): es gibt
  * bewusst keinen Login-Zwang, damit der Endkunde der Agentur den Link ohne
  * eigenen Account oeffnen kann.
  */

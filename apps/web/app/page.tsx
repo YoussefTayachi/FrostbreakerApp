@@ -34,7 +34,7 @@ type Stats = {
   /** Gemessener Verbrauch im gewaehlten Zeitraum (api_usage, Migration 0054). */
   api_cost_usd?: number;
   /** Seit wann ueberhaupt gemessen wird. Aelter als dieses Datum gibt es keine
-   *  Kosten — nicht weil keine anfielen, sondern weil niemand mitschrieb. */
+   *  Kosten, nicht weil keine anfielen, sondern weil niemand mitschrieb. */
   api_cost_since?: string | null;
   /** Monatliche Tarifkosten, vom Nutzer eingetragen (Migration 0077). */
   subscription_monthly_usd?: number;
@@ -71,7 +71,7 @@ function estimateCosts(s: Stats) {
  *
  * GEZAEHLT WERDEN NUR KONTAKTE MIT E-MAIL.
  *
- * Vorher zaehlte die Rechnung contacts_total — am 2026-08-05 also 3115
+ * Vorher zaehlte die Rechnung contacts_total: am 2026-08-05 also 3115
  * Kontakte, von denen 1705 gar keine Adresse haben. Recherche fuer einen
  * Ansprechpartner, den man nicht anschreiben kann, ist keine gesparte Arbeit,
  * sondern ein unfertiges Ergebnis. Die Zahl war damit um rund das Doppelte
@@ -99,7 +99,7 @@ function estimateRoi(s: Stats) {
 /**
  * 0 heisst "Gesamtbestand".
  *
- * Bis 2026-08-05 filterten diese Knoepfe die Kacheln ueberhaupt nicht — sie
+ * Bis 2026-08-05 filterten diese Knoepfe die Kacheln ueberhaupt nicht; sie
  * steuerten nur den Chart, und alles darueber blieb Gesamtbestand (siehe
  * Migration 0077). Jetzt filtern sie, und weil der Gesamtbestand damit sonst
  * unerreichbar waere, steht er als eigene Auswahl daneben statt als stille
@@ -114,7 +114,7 @@ function parseRangeDays(raw: string | undefined): number {
   return RANGE_OPTIONS.includes(n as (typeof RANGE_OPTIONS)[number]) ? n : DEFAULT_RANGE_DAYS;
 }
 
-/** Kalendereingabe aus der URL. Ungueltiges wird verworfen statt korrigiert --
+/** Kalendereingabe aus der URL. Ungueltiges wird verworfen statt korrigiert:
  *  ein stillschweigend verschobenes Datum waere schlimmer als keines. */
 function parseDate(raw: string | undefined): string | null {
   if (!raw || !/^\d{4}-\d{2}-\d{2}$/.test(raw)) return null;
@@ -132,7 +132,7 @@ export default async function Dashboard({
   const rangeDays = parseRangeDays(params.range);
   const fromDate = parseDate(params.from);
   const toDate = parseDate(params.to);
-  // Nur wenn BEIDE Enden gesetzt sind, gilt die Kalenderauswahl — ein halb
+  // Nur wenn BEIDE Enden gesetzt sind, gilt die Kalenderauswahl; ein halb
   // ausgefuelltes Feld soll die Anzeige nicht schon umstellen.
   const useDateRange = Boolean(fromDate && toDate);
   // p_to ist exklusiv, deshalb einen Tag weiter: sonst fehlte der gewaehlte
@@ -172,7 +172,7 @@ export default async function Dashboard({
     supabase.from("api_keys").select("provider").eq("workspace_id", workspaceId),
     supabase.from("campaigns").select("id", { count: "exact", head: true }).eq("workspace_id", workspaceId),
     supabase.rpc("crm_pipeline_stats", { p_workspace_id: workspaceId }),
-    // Betriebszustand des Workers (Migration 0058). Nicht workspace-bezogen --
+    // Betriebszustand des Workers (Migration 0058). Nicht workspace-bezogen:
     // der Worker bedient alle. Kostet eine winzige Abfrage und beantwortet die
     // Frage, die sonst niemand stellen kann: laeuft die Maschine ueberhaupt?
     supabase.rpc("worker_health"),
@@ -194,13 +194,13 @@ export default async function Dashboard({
 
   // Punkt 4 aus dem PMF-Bericht: gefuehrte Onboarding-Checkliste. Bewusst nur
   // lokale, ohnehin schon guenstige Queries (keine Live-Instantly-API-Calls
-  // bei jedem Dashboard-Aufruf) — Mailbox-Anzahl wird daher indirekt ueber
+  // bei jedem Dashboard-Aufruf): Mailbox-Anzahl wird daher indirekt ueber
   // "mindestens eine Kampagne mit Mailboxen angelegt" approximiert statt live
   // bei Instantly nachzufragen.
   const apiKeyProviders = (apiKeysRes.data ?? []).map((k) => k.provider as string);
   // Titel, Text, Ziel und Erledigt-Kriterium stehen bewusst zusammen in EINER
   // Liste: vorher lagen die Texte im JSX und wurden per Array-Index
-  // (onboardingSteps[2]) mit dem Kriterium verheiratet — beim Einfuegen eines
+  // (onboardingSteps[2]) mit dem Kriterium verheiratet; beim Einfuegen eines
   // Schritts verschieben sich dann stillschweigend alle Zuordnungen.
   const onboardingSteps = [
     {
@@ -239,18 +239,18 @@ export default async function Dashboard({
   const onboardingDone = onboardingSteps.every((s) => s.done);
   // Gemessene Kosten aus api_usage (Migration 0054) statt der Hochrechnung
   // aus Job-Zaehlern. estimateCosts bleibt als Rueckfall fuer Workspaces, in
-  // denen noch nichts erfasst wurde — sonst stuende dort ploetzlich $0.00,
+  // denen noch nichts erfasst wurde; sonst stuende dort ploetzlich $0.00,
   // obwohl vorher Geld geflossen ist.
   const gemessen = Number(stats.api_cost_usd ?? 0);
   /**
    * Die Hochrechnung greift nur noch beim Gesamtbestand.
    *
    * estimateCosts rechnet aus den Job-Zaehlern, und die sind in
-   * dashboard_stats bewusst NICHT zeitraumgefiltert — es sind Betriebszahlen.
+   * dashboard_stats bewusst NICHT zeitraumgefiltert: es sind Betriebszahlen.
    * Sie in ein 7-Tage-Fenster zu setzen wuerde genau den Fehler wiederholen,
    * um den es hier geht: eine Zahl aus sechs Wochen in einem Fenster von einer
-   * Woche. Im Fenster gilt deshalb der gemessene Wert, auch wenn er 0 ist --
-   * eine 0 fuer "in diesen sieben Tagen lief nichts" ist richtig, keine Luecke.
+   * Woche. Im Fenster gilt deshalb der gemessene Wert, auch wenn er 0 ist.
+   * Eine 0 fuer "in diesen sieben Tagen lief nichts" ist richtig, keine Luecke.
    */
   const alleZeit = !useDateRange && rangeDays === 0;
   const verbrauch =
@@ -264,7 +264,7 @@ export default async function Dashboard({
    * Verbrauch PLUS Tarife.
    *
    * Bis 2026-08-05 zeigte das Dashboard 0,33 $ und nannte das "API-Kosten".
-   * Das war der gemessene Verbrauch — und er ist der kleinere Teil der
+   * Das war der gemessene Verbrauch, und er ist der kleinere Teil der
    * Wahrheit. Instantly taucht in api_usage gar nicht auf (ein Abo hat keinen
    * zaehlbaren Aufruf), und bei Apollo und Hunter steht dort bewusst kein
    * Betrag, weil der Wert eines Credits am gebuchten Paket haengt.
@@ -284,7 +284,7 @@ export default async function Dashboard({
    * api_usage schreibt erst seit dem 2026-08-02, die Firmen gibt es seit dem
    * 2026-07-13. Ein 90-Tage-Fenster stellt also einen Nutzen aus sechs Wochen
    * neben Kosten aus wenigen Tagen. Das gehoert dazugesagt, statt die Luecke
-   * als Ergebnis auszugeben — sie schliesst sich mit der Zeit von selbst.
+   * als Ergebnis auszugeben; sie schliesst sich mit der Zeit von selbst.
    */
   const messungSeit = stats.api_cost_since ? new Date(stats.api_cost_since) : null;
   const fensterTage = Number(stats.window_days ?? 0);
@@ -308,7 +308,7 @@ export default async function Dashboard({
        *
        * Am 2026-08-09 stand hier "$32,77 gemessen", wovon 32,67 $ ein
        * eingetipptes Monatsabo waren und 11 Cent die Messung. Sobald Tarife
-       * mitzaehlen, wird der gemessene Teil deshalb beziffert — eine Kachel,
+       * mitzaehlen, wird der gemessene Teil deshalb beziffert: eine Kachel,
        * die ihre eigene Herkunft falsch angibt, ist schlimmer als gar keine.
        */
       sub:
@@ -443,7 +443,7 @@ export default async function Dashboard({
               {k.sub && <p className="text-[11px] text-mute">{k.sub}</p>}
             </>
           );
-          // Die Kostenkachel fuehrt zur Aufschluesselung — die Frage "wie
+          // Die Kostenkachel fuehrt zur Aufschluesselung: die Frage "wie
           // kommt die Zahl zustande" stellt sich genau dort.
           return k.href ? (
             <Link key={k.label} href={k.href} className="block px-4 py-3.5 transition-colors hover:bg-edge/30">
@@ -573,7 +573,7 @@ export default async function Dashboard({
                     className={
                       "px-2.5 py-1 text-xs font-medium transition-colors " +
                       // Bei aktiver Kalenderauswahl ist keiner der festen
-                      // Bereiche gemeint — sonst saehe es aus, als gaelten beide.
+                      // Bereiche gemeint; sonst saehe es aus, als gaelten beide.
                       (!useDateRange && days === rangeDays
                         ? "bg-sky-600 text-white"
                         : "text-soft hover:bg-chip hover:text-ink")

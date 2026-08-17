@@ -16,7 +16,7 @@ import type { Lang } from "@/lib/i18n/lang";
  * ═══════════════════════════════════════════════════════════════════════
  *
  * formatDate ruft toLocaleString auf, und das nimmt die Zeitzone des
- * Prozesses, in dem es laeuft. In einer Server-Komponente ist das Vercel --
+ * Prozesses, in dem es laeuft. In einer Server-Komponente ist das Vercel,
  * also UTC, fuer jeden Nutzer auf der Welt.
  *
  * Am 2026-08-09 hat ein Kunde um 21:58 seiner Zeit eine Suche gestartet und
@@ -29,7 +29,7 @@ import type { Lang } from "@/lib/i18n/lang";
  * ═══════════════════════════════════════════════════════════════════════
  *
  * Der Server kennt die Zeitzone des Browsers nicht. Wuerde hier zuerst nichts
- * stehen, bliebe die Zeile bis zum ersten Effekt leer und spraenge dann --
+ * stehen, bliebe die Zeile bis zum ersten Effekt leer und spraenge dann,
  * und React wuerde einen Hydration-Fehler melden, weil Server- und
  * Client-Fassung sich unterscheiden. Deshalb: erst der UTC-Wert vom Server,
  * unmittelbar nach dem Einhaengen die Ortszeit. Beide Fassungen stimmen
@@ -43,7 +43,7 @@ export default function LocalTime({
 }: {
   iso: string;
   lang: Lang;
-  /** Wie der Server denselben Zeitpunkt formatiert hat — der Anfangswert. */
+  /** Wie der Server denselben Zeitpunkt formatiert hat: der Anfangswert. */
   serverFormatted: string;
   opts?: Intl.DateTimeFormatOptions;
 }) {
@@ -51,7 +51,7 @@ export default function LocalTime({
 
   useEffect(() => {
     setText(formatDate(iso, lang, opts));
-    // opts ist ein Objektliteral und waere bei jedem Rendern neu — es hier
+    // opts ist ein Objektliteral und waere bei jedem Rendern neu; es hier
     // nicht mitzuueberwachen ist Absicht, sonst laeuft der Effekt endlos.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [iso, lang]);

@@ -13,7 +13,7 @@ import { useT } from "./language-provider";
  * ═══════════════════════════════════════════════════════════════════════
  *
  * Bis zum 2026-08-09 stand hier ein "text-xs text-faint"-Link unter der
- * E-Mail-Adresse — also grauer Kleinsttext neben grauem Kleinsttext, ohne
+ * E-Mail-Adresse, also grauer Kleinsttext neben grauem Kleinsttext, ohne
  * Rahmen, ohne Symbol. Er war da, aber niemand fand ihn. Ein Bedienelement,
  * das man suchen muss, gibt es fuer den Nutzer nicht.
  *
@@ -21,14 +21,14 @@ import { useT } from "./language-provider";
  * ZWEI DINGE, DIE VORHER STILL SCHIEFGEHEN KONNTEN
  * ═══════════════════════════════════════════════════════════════════════
  *
- * 1. signOut() konnte scheitern (kein Netz, Supabase nicht erreichbar) --
+ * 1. signOut() konnte scheitern (kein Netz, Supabase nicht erreichbar);
  *    der Rueckgabewert wurde nicht angesehen. Danach lief router.push("/login")
  *    trotzdem, die Middleware sah eine gueltige Sitzung und schickte zurueck
  *    aufs Dashboard. Fuer den Nutzer sah das aus, als haette der Knopf nichts
  *    getan. Jetzt steht die Ursache daneben.
  *
  * 2. Zweimal klicken schickte zwei Abmeldungen los. Harmlos, aber der Knopf
- *    gab bis zum Seitenwechsel keinerlei Rueckmeldung — bei langsamer
+ *    gab bis zum Seitenwechsel keinerlei Rueckmeldung; bei langsamer
  *    Verbindung die haeufigste Ursache fuers zweite Klicken.
  *
  * scope bleibt bewusst auf Supabases Vorgabe 'global': damit enden ALLE
@@ -57,7 +57,7 @@ export default function LogoutButton({ compact = false }: { compact?: boolean })
   }
 
   // Im Kopf der mobilen Ansicht ist neben Logo und Workspace-Wahl kein Platz
-  // fuer ein Wort. Der Fehlerfall faellt dort weg — eine Meldung in einer
+  // fuer ein Wort. Der Fehlerfall faellt dort weg: eine Meldung in einer
   // 56 Pixel hohen Leiste bricht das Layout; sichtbar bleibt, dass die Seite
   // eben nicht wechselt, und in der Seitenleiste steht der Grund.
   if (compact) {

@@ -21,7 +21,7 @@ import { useWorkspace } from "../workspace-provider";
 // das Ergebnis mit einem einzigen, angenommenen Symbol an. Bei zwei Deals mit
 // unterschiedlicher Waehrung waere die Summe still falsch beschriftet. Fest
 // auf EUR (der tatsaechliche Markt), zusaetzlich per Migration 0038 in der DB
-// erzwungen — die Aggregation muss dadurch nicht angefasst werden.
+// erzwungen; die Aggregation muss dadurch nicht angefasst werden.
 const DEAL_CURRENCY = "EUR";
 
 type DraftDeal = {
@@ -50,7 +50,7 @@ function emptyDraft(): DraftDeal {
  *
  * Deals haengen an der Firma (business_id ist not null in Migration 0034), weil
  * ein Abschluss mit dem Unternehmen zustande kommt und nicht mit einer einzelnen
- * Person — der Ansprechpartner wird optional mitgespeichert, damit man weiss,
+ * Person; der Ansprechpartner wird optional mitgespeichert, damit man weiss,
  * mit wem man verhandelt hat.
  */
 export default function DealsPanel({
@@ -74,7 +74,7 @@ export default function DealsPanel({
    *
    * Vorher fragte ein window.prompt danach. Zwei Probleme: es sieht aus wie
    * ein Browserfehler statt wie Teil der App, und Freitext laesst sich nicht
-   * auswerten — "zu teuer", "Preis", "price too high" sind drei Zeilen in
+   * auswerten: "zu teuer", "Preis", "price too high" sind drei Zeilen in
    * jeder Statistik. Pipedrive laesst die Gruende deshalb vorgeben. Genau
    * diese Auswertung ("woran verlieren wir eigentlich") ist der einzige
    * Bericht, den Vertriebler wirklich lesen.

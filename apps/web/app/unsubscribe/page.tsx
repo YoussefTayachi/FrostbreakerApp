@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 /**
  * Oeffentliche Bestaetigungsseite fuer den Opt-out-Link aus Kampagnen-Mails.
  * Die eigentliche Eintragung in die Sperrliste passiert schon in
- * app/api/unsubscribe/route.ts (GET, Service-Role-Client) — diese Seite
+ * app/api/unsubscribe/route.ts (GET, Service-Role-Client); diese Seite
  * zeigt nur das Ergebnis per ?status=ok|error|invalid. Kein Login noetig,
  * dafuer in middleware.ts als oeffentlicher Pfad gefuehrt, analog zu /login.
  */

@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { sendSlackNotification } from "@/lib/notify";
 
 // Wird von handle_new_user() (supabase/migrations/0048_signup_notify.sql) per
-// pg_net asynchron aufgerufen, sobald ein neuer auth.users-Eintrag entsteht --
+// pg_net asynchron aufgerufen, sobald ein neuer auth.users-Eintrag entsteht;
 // gleiche Konvention wie api/cron/instantly-sync (Bearer-Secret aus supabase_vault).
 function isAuthorized(req: Request): boolean {
   const secret = process.env.INTERNAL_NOTIFY_SECRET;

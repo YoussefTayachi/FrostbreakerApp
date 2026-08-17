@@ -19,7 +19,7 @@ export type PipelineStats = {
  * Forecast- und Aufgabenkacheln fuers Dashboard, gefuettert von der RPC
  * crm_pipeline_stats (Migration 0035).
  *
- * Blendet sich komplett aus, solange es weder Deals noch faellige Aufgaben gibt --
+ * Blendet sich komplett aus, solange es weder Deals noch faellige Aufgaben gibt:
  * ein Dashboard voller Nullen hilft niemandem, und Deals sind ein Feature, das
  * Nutzer erst ab einer gewissen Pipeline-Groesse anfassen.
  */

@@ -19,7 +19,7 @@ describe("parseCsv", () => {
     ]);
   });
 
-  // Die drei Faelle, an denen naive Zerlegung scheitert — und alle drei
+  // Die drei Faelle, an denen naive Zerlegung scheitert, und alle drei
   // kommen in echten Exporten vor.
   it("laesst ein Komma innerhalb von Anfuehrungszeichen stehen", () => {
     expect(parseCsv('name,ort\n"Meyer, Anna GmbH",Wien')).toEqual([
@@ -201,7 +201,7 @@ describe("planImport", () => {
   });
 
   // Zwei Personen ohne Adresse bei derselben Firma koennen zwei verschiedene
-  // sein — ein faelschlich verworfener Kontakt waere schlimmer als ein
+  // sein; ein faelschlich verworfener Kontakt waere schlimmer als ein
   // doppelter.
   it("wirft Zeilen ohne Adresse nie als Dublette weg", () => {
     const plan = planImport([row(null), row(null)], []);

@@ -1,6 +1,6 @@
 // Transaktionsmails ueber Resend.
 //
-// Die App verschickt selbst keine Kampagnen — das bleibt Instantly. Hier geht
+// Die App verschickt selbst keine Kampagnen; das bleibt Instantly. Hier geht
 // es ausschliesslich um Benachrichtigungen an den Betreiber, aktuell "ein Lead
 // hat geantwortet".
 //
@@ -15,12 +15,12 @@ const RESEND_URL = "https://api.resend.com/emails";
  * Absender.
  *
  * Voreingestellt ist Resends geteilte Testadresse, weil sie OHNE verifizierte
- * Domain funktioniert — im Konto ist aktuell keine hinterlegt, und mit einem
+ * Domain funktioniert: im Konto ist aktuell keine hinterlegt, und mit einem
  * eigenen Absender wuerde Resend jeden Versand ablehnen.
  *
  * Der Preis dafuer: onboarding@resend.dev darf ausschliesslich an die Adresse
  * zustellen, mit der das Resend-Konto angelegt wurde. Fuer diese
- * Benachrichtigung ist das kein Problem — sie geht ohnehin an den Betreiber
+ * Benachrichtigung ist das kein Problem: sie geht ohnehin an den Betreiber
  * selbst. Sobald sie an ein Team- oder Kundenpostfach gehen soll, muss die
  * eigene Domain in Resend verifiziert und RESEND_FROM gesetzt werden; deshalb
  * ist der Wert ueber die Umgebung ueberschreibbar und braucht keinen Deploy.
@@ -36,7 +36,7 @@ export type SendResult = { ok: true } | { ok: false; reason: string };
  *
  * Auch "Resend_API_KEY" wird akzeptiert: in Vercel ist er unter genau dieser
  * Schreibweise angelegt, und process.env unterscheidet Gross- und
- * Kleinschreibung. Ein Umbenennen haette bedeutet, den Wert neu einzutippen --
+ * Kleinschreibung. Ein Umbenennen haette bedeutet, den Wert neu einzutippen;
  * dafuer ist der Fehler zu klein und der Schluessel zu heikel. Der Kommentar
  * steht hier, damit die zweite Zeile spaeter nicht als ueberfluessig
  * weggeraeumt wird.
@@ -52,7 +52,7 @@ export async function sendEmail(
 ): Promise<SendResult> {
   const key = apiKey();
   // Kein Schluessel hinterlegt ist kein Fehler, sondern "Funktion nicht
-  // eingerichtet" — der Aufrufer soll das unterscheiden koennen.
+  // eingerichtet"; der Aufrufer soll das unterscheiden koennen.
   if (!key) return { ok: false, reason: "no_api_key" };
   try {
     const res = await fetch(RESEND_URL, {

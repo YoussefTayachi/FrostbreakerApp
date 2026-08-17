@@ -2,7 +2,7 @@
 
 Real passiert: ein DNS-Aussetzer in queue.claim_job() ("httpx.ConnectError:
 getaddrinfo failed") hat den kompletten Worker-Prozess beendet. Da der Job
-davor schon auf 'running' stand, blieb er dort haengen — genau das Muster,
+davor schon auf 'running' stand, blieb er dort haengen. Genau das Muster,
 das im Betrieb als "Worker-Container wechseln staendig" und "Jobs bleiben
 liegen" sichtbar war.
 """
@@ -39,7 +39,7 @@ def _run_loop_until(monkeypatch, claim_side_effects, max_sleeps=10):
     monkeypatch.setattr(worker_main.time, "sleep", fake_sleep)
     monkeypatch.setattr(worker_main, "process_due_schedules", lambda: None)
     # Der Herzschlag geht ueber das Netz. Ohne diese Attrappe schreiben die
-    # Tests in die echte Datenbank — passiert genau so, nachweisbar an einer
+    # Tests in die echte Datenbank; passiert genau so, nachweisbar an einer
     # Zeile mit dem Hostnamen des Entwicklungsrechners in worker_heartbeat.
     # Im Dashboard tauchte sie danach als toter Arbeitsprozess auf.
     monkeypatch.setattr(worker_main.queue, "ping", lambda: None)
@@ -72,7 +72,7 @@ def test_wiederholte_fehler_warten_zunehmend_laenger(monkeypatch):
 
 
 def test_fehler_beim_speichern_des_jobfehlers_beendet_den_worker_nicht(monkeypatch):
-    """Auch fail_job() geht ueber das Netz — scheitert es, darf der Worker
+    """Auch fail_job() geht ueber das Netz; scheitert es, darf der Worker
     nicht mitsterben. Der Job faellt dann in die Zeitueberschreitung von
     claim_job() (Migration 0047) und wird spaeter neu eingereiht."""
     import httpx

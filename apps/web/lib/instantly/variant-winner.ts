@@ -1,27 +1,27 @@
 /**
- * Welche Variante gewinnt — und wann man das ueberhaupt sagen darf.
+ * Welche Variante gewinnt, und wann man das ueberhaupt sagen darf.
  *
  * DIE SCHWIERIGE STELLE IST NICHT DAS RECHNEN, SONDERN DAS SCHWEIGEN
  *
  * Der klassische Fehler beim A/B-Test ist, den Gewinner zu frueh
  * auszurufen. Bei 40 versendeten Mails je Variante und einer Antwortquote um
  * die 3 Prozent ist der Unterschied zwischen "1 Antwort" und "3 Antworten"
- * reines Rauschen — er sieht aber aus wie eine Verdreifachung. Wer danach
+ * reines Rauschen; er sieht aber aus wie eine Verdreifachung. Wer danach
  * die andere Variante abschaltet, hat mit einiger Wahrscheinlichkeit die
  * bessere geloescht und ist trotzdem ueberzeugt, etwas gelernt zu haben.
  *
  * Deshalb gibt es hier drei Zustaende und nicht nur eine Rangliste:
  *
- *   collecting — zu wenig Daten. Es wird KEINE Empfehlung ausgesprochen.
- *   leading    — eine Variante liegt vorn, der Abstand ist aber noch im
- *                 Bereich des Zufalls. Anschauen ja, abschalten nein.
- *   winner     — der Abstand haelt einem Zweistichprobentest auf 95 Prozent
- *                 stand. Jetzt darf man die anderen abschalten.
+ *   collecting: zu wenig Daten. Es wird KEINE Empfehlung ausgesprochen.
+ *   leading:    eine Variante liegt vorn, der Abstand ist aber noch im
+ *               Bereich des Zufalls. Anschauen ja, abschalten nein.
+ *   winner:     der Abstand haelt einem Zweistichprobentest auf 95 Prozent
+ *               stand. Jetzt darf man die anderen abschalten.
  *
  * Gemessen wird an EINDEUTIGEN Antworten je versendeter Mail. Nicht an
  * Oeffnungen: die haengen an einem Zaehlpixel, der bei einem Teil der
  * Empfaenger gar nicht laedt und bei einem anderen Teil vom Sicherheitsscanner
- * automatisch geladen wird — eine Zahl, die in beide Richtungen luegt. Die
+ * automatisch geladen wird: eine Zahl, die in beide Richtungen luegt. Die
  * Antwort ist das, was zaehlt, und sie ist eindeutig.
  */
 
@@ -59,7 +59,7 @@ export type StepAssessment = {
  * 50 ist kein statistisch hergeleiteter Wert, sondern eine Anstandsgrenze:
  * darunter ist bei den ueblichen Antwortquoten im einstelligen Prozentbereich
  * jede Aussage geraten. Der Test unten entscheidet danach, ob es trotzdem
- * reicht — meist braucht es deutlich mehr.
+ * reicht; meist braucht es deutlich mehr.
  */
 export const MIN_SENDS_PER_VARIANT = 50;
 
@@ -71,7 +71,7 @@ const Z_95 = 1.96;
  *
  * Beantwortet: koennte der beobachtete Unterschied zwischen zwei Quoten auch
  * durch Zufall entstanden sein? Bewusst der einfachste Test, den es fuer
- * diese Frage gibt — er ist nachvollziehbar, und alles Feinere waere hier
+ * diese Frage gibt: er ist nachvollziehbar, und alles Feinere waere hier
  * Genauigkeit vorgetaeuscht, wo die Datenmenge sie nicht hergibt.
  */
 export function proportionsDiffer(
@@ -86,7 +86,7 @@ export function proportionsDiffer(
   const pooled = (successesA + successesB) / (totalA + totalB);
   // Ohne einen einzigen Erfolg (oder bei ausschliesslich Erfolgen) ist die
   // Streuung null und die Division waere nicht definiert. Beide Varianten
-  // haben dann dasselbe Ergebnis — es gibt nichts zu unterscheiden.
+  // haben dann dasselbe Ergebnis; es gibt nichts zu unterscheiden.
   if (pooled <= 0 || pooled >= 1) return false;
   const se = Math.sqrt(pooled * (1 - pooled) * (1 / totalA + 1 / totalB));
   if (se === 0) return false;
@@ -98,7 +98,7 @@ export function proportionsDiffer(
  *
  * Der Gewinner muss gegen JEDE andere Variante bestehen, nicht nur gegen die
  * zweitbeste. Bei drei Fassungen waere sonst der Fall moeglich, dass A gegen
- * C gewinnt, gegen B aber nicht — und man B abschaltet, obwohl sie
+ * C gewinnt, gegen B aber nicht, und man B abschaltet, obwohl sie
  * moeglicherweise die bessere ist.
  */
 export function assessStep(stats: VariantStats[]): StepAssessment {
@@ -113,7 +113,7 @@ export function assessStep(stats: VariantStats[]): StepAssessment {
 
   const missingSends = Math.max(0, MIN_SENDS_PER_VARIANT - Math.min(...rated.map((r) => r.sent), Infinity));
 
-  // Eine einzelne Variante ist kein Test. Sie bleibt bei "collecting" --
+  // Eine einzelne Variante ist kein Test. Sie bleibt bei "collecting";
   // "Gewinner" waere hier eine Aussage ueber ein Feld ohne Gegner.
   if (rated.length < 2) return { step, variants: rated, winner: null, missingSends };
 

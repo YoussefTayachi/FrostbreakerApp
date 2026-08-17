@@ -122,7 +122,7 @@ def test_is_company_name():
 
 def test_parse_persons_entdoppelt_gleiche_email():
     """Real aufgetreten: die KI lieferte in EINER Antwort zehnmal dieselbe
-    Adresse fuer eine Firma — alle zehn landeten als eigene Kontakte in der
+    Adresse fuer eine Firma; alle zehn landeten als eigene Kontakte in der
     Liste und blaehten die Zaehler im Frontend auf."""
     data = {
         "persons": [
@@ -165,7 +165,7 @@ def test_parse_persons_behaelt_verschiedene_personen():
 
 def test_build_context_prefers_company_summary():
     # Website gesetzt (und keine schwache Bewertung), damit kein Pain-Point-
-    # Signal angehaengt wird — der Test soll ausschliesslich pruefen, dass die
+    # Signal angehaengt wird; der Test soll ausschliesslich pruefen, dass die
     # Firmenbeschreibung als Kontext gewinnt.
     from worker.pipelines.personalize import build_context
 
@@ -189,8 +189,8 @@ def test_build_context_no_retry_once_research_finished_without_summary():
     """Ist die Recherche durch und hat nichts gefunden, darf build_context nicht
     weiter mit NotReadyYet auf Nachschub warten (sonst Retry-Spam).
 
-    Ohne Website bleibt dabei bewusst das Pain-Point-Signal als Kontext uebrig
-    — "hat keine Website" ist ein Verkaufsargument, kein leerer Zustand (siehe
+    Ohne Website bleibt dabei bewusst das Pain-Point-Signal als Kontext uebrig:
+    "hat keine Website" ist ein Verkaufsargument, kein leerer Zustand (siehe
     pain_point_hint und das Playbook "Restaurants ohne Website")."""
     from worker.pipelines.personalize import build_context
 
@@ -236,7 +236,7 @@ def test_sanitize_banned_punctuation_handles_double_before_single_hyphen():
 
 def test_sanitize_keeps_hyphens_inside_compound_words():
     """Real aufgetreten: "a two-decade foothold" wurde zu "a two, decade
-    foothold" — die Sanierung zerlegte echte Woerter."""
+    foothold": die Sanierung zerlegte echte Woerter."""
     from worker.pipelines.personalize import sanitize_banned_punctuation
 
     banned = ["—", "-", "--"]
@@ -341,7 +341,7 @@ def test_build_discover_body_includes_us_state():
 
 
 def test_build_discover_body_ignores_state_outside_us():
-    """Hunters Schema kennt state nur fuer die USA — bei einem anderen Land
+    """Hunters Schema kennt state nur fuer die USA; bei einem anderen Land
     wuerde das Feld die Anfrage nur unnoetig angreifbar machen."""
     from worker.pipelines.discover import build_discover_body
 
@@ -376,7 +376,7 @@ def test_build_discover_body_ignores_unusable_technology_values():
 
 def test_discover_plan_error_only_when_technology_was_requested():
     """Hunter nennt nicht, welcher Filter zu hoch gegriffen war. Ohne
-    Technologie-Filter darf deshalb keine Plan-Erklaerung erfunden werden --
+    Technologie-Filter darf deshalb keine Plan-Erklaerung erfunden werden;
     eine falsche Erklaerung ist schlechter als keine."""
     import httpx
     import pytest
@@ -453,7 +453,7 @@ def test_discover_falls_back_to_first_page_when_offset_rejected(monkeypatch):
 
 
 def test_discover_does_not_swallow_server_errors(monkeypatch):
-    """Ein 500er ist kein Plan-Problem — der darf nicht als 'kein Pagination-Recht'
+    """Ein 500er ist kein Plan-Problem; der darf nicht als 'kein Pagination-Recht'
     umgedeutet und mit einem zweiten Aufruf verschleiert werden."""
     import httpx
     import pytest
@@ -528,7 +528,7 @@ def test_validate_ignores_hyphens_inside_words():
     """Ein Bindestrich in einem zusammengesetzten Wort ist kein Verstoss.
 
     Sonst gilt jede Zeile mit "third-party" oder "NSF-certified" als
-    fehlerhaft, sobald "-" auf der Verbotsliste steht — gemessen an zwei
+    fehlerhaft, sobald "-" auf der Verbotsliste steht. Gemessen an zwei
     echten Suchen waren so 66 von 69 Zeilen als pruefbeduerftig markiert, und
     jede loeste einen zweiten, ueberfluessigen OpenAI-Aufruf aus.
     """
@@ -561,7 +561,7 @@ def test_validate_keeps_matching_normal_words():
 
 
 def test_constraint_block_nennt_die_wortgrenze():
-    """Der eigentliche Fehler war, dass die Grenze nie im Prompt stand — sie
+    """Der eigentliche Fehler war, dass die Grenze nie im Prompt stand; sie
     wurde nur hinterher geprueft. Gemessen: Median 24 Woerter bei Vorgabe 22,
     die auffaelligen lagen bei 33."""
     from worker.pipelines.personalize import constraint_block
@@ -579,7 +579,7 @@ def test_constraint_block_listet_verbotene_zeichen():
 
 
 def test_constraint_block_ohne_verbotene_zeichen():
-    """Ohne Eintraege darf keine leere Verbotszeile im Prompt stehen — eine
+    """Ohne Eintraege darf keine leere Verbotszeile im Prompt stehen; eine
     Regel ohne Inhalt ist eine Einladung, sie sich auszudenken."""
     from worker.pipelines.personalize import constraint_block
 
@@ -590,7 +590,7 @@ def test_constraint_block_ohne_verbotene_zeichen():
 
 def test_constraint_block_verbietet_das_abschreiben_der_beispiele():
     """An echten Daten endeten praktisch alle Aufhaenger mit derselben
-    Wendung — naemlich der ersten, die der Prompt als Beispiel nennt."""
+    Wendung, naemlich der ersten, die der Prompt als Beispiel nennt."""
     from worker.pipelines.personalize import constraint_block
 
     assert "NOT templates" in constraint_block(22, [])
@@ -615,7 +615,7 @@ def test_constraint_block_haengt_an_den_prompt_an_ohne_ihn_zu_verdraengen():
 def test_constraint_block_schreibt_die_sprache_vor():
     """Die Sprache gehoert in den Block und nicht nur in den Prompt darueber.
 
-    Sonst gilt sie fuer einen selbst geschriebenen Prompt nicht — und die
+    Sonst gilt sie fuer einen selbst geschriebenen Prompt nicht, und die
     Einstellung im Workspace waere eine Zusage, die niemand einloest.
     """
     from worker.pipelines.personalize import constraint_block
@@ -670,7 +670,7 @@ def _fake_workspace_row(monkeypatch, row: dict):
 def test_load_agent_config_nimmt_den_englischen_standard(monkeypatch):
     """DER gemeldete Fehler: personalization_prompt war bei allen acht
     Workspaces null, und der Worker setzte dafuer fest den deutschen Standard
-    ein — auch dort, wo die Oberflaeche den englischen anzeigte."""
+    ein, auch dort, wo die Oberflaeche den englischen anzeigte."""
     from worker.pipelines import personalize
 
     _fake_workspace_row(monkeypatch, {"personalization_language": "en"})
@@ -680,7 +680,7 @@ def test_load_agent_config_nimmt_den_englischen_standard(monkeypatch):
 
 
 def test_load_agent_config_faellt_auf_deutsch_zurueck(monkeypatch):
-    """Ohne gesetzte Sprache bleibt alles wie bisher — sonst haette die
+    """Ohne gesetzte Sprache bleibt alles wie bisher; sonst haette die
     Migration still die Sprache laufender Kampagnen umgestellt."""
     from worker.pipelines import personalize
 
@@ -698,7 +698,7 @@ def test_load_agent_config_verwirft_unbekannte_sprache(monkeypatch):
 
 
 def test_eigener_prompt_schlaegt_den_standard_aber_nicht_die_sprache(monkeypatch):
-    """Wer selbst schreibt, bekommt seinen Text — die Sprachvorgabe kommt
+    """Wer selbst schreibt, bekommt seinen Text; die Sprachvorgabe kommt
     trotzdem ueber den constraint_block dazu."""
     from worker.pipelines import personalize
 
@@ -716,7 +716,7 @@ def _run_with_existing_icebreaker(monkeypatch, payload: dict) -> list[str]:
 
     Gibt zurueck, wie weit der Lauf gekommen ist. Die Spur ist
     search_is_deleted: es ist die naechste Anweisung nach der Abkuerzung, und
-    es beendet den Lauf danach sofort — also ohne OpenAI-Aufruf und ohne
+    es beendet den Lauf danach sofort, also ohne OpenAI-Aufruf und ohne
     Schreibzugriff.
     """
     from worker.pipelines import personalize
@@ -724,7 +724,7 @@ def _run_with_existing_icebreaker(monkeypatch, payload: dict) -> list[str]:
     trace: list[str] = []
 
     class FakeResult:
-        # ClassVar, weil ruff (RUF012) veraenderliche Klassenvorgaben meldet --
+        # ClassVar, weil ruff (RUF012) veraenderliche Klassenvorgaben meldet;
         # bei einer Attrappe ist das harmlos, aber CI kennt den Unterschied nicht.
         data: ClassVar[dict] = {"personalization": "Ein alter Aufhaenger.", "name": "Testfirma"}
 
@@ -765,7 +765,7 @@ def test_pipeline_job_ueberspringt_vorhandenen_aufhaenger(monkeypatch):
 
 def test_force_erzeugt_auch_bei_vorhandenem_aufhaenger_neu(monkeypatch):
     """DER gemeldete Fehler: "neu erzeugen" wird ausschliesslich auf Zeilen
-    geklickt, die schon einen Text haben — die Abkuerzung griff also immer.
+    geklickt, die schon einen Text haben, die Abkuerzung griff also immer.
     Der Job lief an, kehrte sofort um und galt als erledigt."""
     trace = _run_with_existing_icebreaker(monkeypatch, {"business_id": "b-1", "force": True})
     assert trace == ["kam_bis_search_is_deleted"]

@@ -25,7 +25,7 @@ function replies(...ids: string[]): Set<string> {
 
 describe("Die Mindestmenge ist die eigentliche Aussage", () => {
   /**
-   * Bei 12 Mails und einer Antwort stuende da "8,3 Prozent" — eine Zahl, die
+   * Bei 12 Mails und einer Antwort stuende da "8,3 Prozent": eine Zahl, die
    * praezise aussieht und nichts bedeutet. Wer daraufhin nur noch dienstags
    * sendet, hat eine Muenze geworfen und es Strategie genannt.
    */
@@ -50,7 +50,7 @@ describe("Die Mindestmenge ist die eigentliche Aussage", () => {
 describe("Gemessen wird an Kontakten, nicht an Mails", () => {
   /**
    * Eine Sequenz schickt drei bis vier Mails an dieselbe Person. Die eine
-   * Antwort darauf gehoert nicht durch vier geteilt — sonst sinkt die Quote
+   * Antwort darauf gehoert nicht durch vier geteilt; sonst sinkt die Quote
    * genau um den Faktor der Sequenzlaenge.
    */
   it("zaehlt einen Kontakt mit vier Mails einmal", () => {
@@ -134,7 +134,7 @@ describe("byWeekday", () => {
 
 describe("byHourBlock", () => {
   /**
-   * Einzelstunden waeren 24 Zeilen mit je einem Dutzend Kontakten — also 24
+   * Einzelstunden waeren 24 Zeilen mit je einem Dutzend Kontakten, also 24
    * Zahlen, von denen keine die Mindestmenge erreicht.
    */
   it("fasst zu Dreierbloecken zusammen", () => {

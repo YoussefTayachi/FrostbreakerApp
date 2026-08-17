@@ -4,7 +4,7 @@ Stand 2026-08-05. **Zum Reviewen gedacht. Nichts davon ist umgesetzt.**
 
 Alle Zahlen über den Ist-Zustand sind an der Produktionsdatenbank gemessen,
 die Abfragen stehen jeweils dabei. Alles über den Zielzustand ist geschätzt
-und als Schätzung gekennzeichnet — wer daran weiterarbeitet, soll den
+und als Schätzung gekennzeichnet: wer daran weiterarbeitet, soll den
 Unterschied sehen können.
 
 **Getroffene Entscheidungen** (2026-08-05, Youssef):
@@ -16,7 +16,7 @@ Unterschied sehen können.
 | Erste Nische | **US E-Commerce / Shopify** |
 
 Die Gegenargumente zu Punkt 1 und 2 stehen in Abschnitt 9. Sie sind hier
-festgehalten, damit sie beim Weiterbauen nicht vergessen werden — nicht, um
+festgehalten, damit sie beim Weiterbauen nicht vergessen werden, nicht, um
 die Entscheidung noch einmal aufzumachen.
 
 ---
@@ -78,7 +78,7 @@ Regeln geprüft:
 
 **83,2 % sind mit neun Regeln erklärbar.** Und die Verteilung ist
 nischenspezifisch: `vorname@` liegt im allgemeinen B2B-Markt bei grob 20 %,
-hier bei 47. Das ist der Fingerabdruck kleiner US-DTC-Marken — ein
+hier bei 47. Das ist der Fingerabdruck kleiner US-DTC-Marken: ein
 Zehn-Personen-Team schreibt `sarah@brand.com`.
 
 Ein generischer Anbieter rät in dieser Nische systematisch falsch. Das ist
@@ -89,8 +89,8 @@ besser sein *kann* als eine gekaufte breite.
 
 - Job-Queue mit `claim_job` und `for update skip locked` (Migration 0046/0047)
 - Python-Worker mit vier Pipelines, 2 Replicas auf Railway
-- `worker/http_safety.py` — SSRF-Schutz existiert bereits
-- `worker/dedupe.py`, `worker/usage.py` — Entdopplung und Kostenerfassung
+- `worker/http_safety.py`: SSRF-Schutz existiert bereits
+- `worker/dedupe.py`, `worker/usage.py`: Entdopplung und Kostenerfassung
 - Datenbank 28 MB. Nach oben ist alles frei.
 
 ---
@@ -124,7 +124,7 @@ Land, Telefon, Kurzbeschreibung, Stichwörter, Branche.
 **Das ist die folgenreichste Entscheidung im ganzen Plan.**
 
 Heute ist jede Tabelle nach `workspace_id` geschnitten. Eine Datenbank, die
-nur einem Workspace gehört, ist keine Datenbank — sie ist eine Suchhistorie.
+nur einem Workspace gehört, ist keine Datenbank: sie ist eine Suchhistorie.
 Der Wert entsteht erst, wenn das, was Kunde A erhebt, für Kunde B da ist.
 
 Also zwei Schichten:
@@ -147,8 +147,8 @@ sie ist die Grenze zwischen „Fakt über die Welt" und „Stand meiner Akquise"
 
 **Zugriff:** die globalen Tabellen bekommen **keine** direkte Lese-Policy für
 angemeldete Nutzer. Gelesen wird ausschließlich über eine
-`security definer`-Suchfunktion, die Treffer zählt, begrenzt und protokolliert
-— sonst lädt der erste Kunde mit Neugier und einem `curl` die gesamte
+`security definer`-Suchfunktion, die Treffer zählt, begrenzt und protokolliert.
+Sonst lädt der erste Kunde mit Neugier und einem `curl` die gesamte
 Datenbank herunter, und das Produkt ist weg.
 
 **Herkunft je Zeile ist Pflicht, kein Extra.** Jede globale Zeile trägt:
@@ -166,7 +166,7 @@ Sechs Stufen. Jede kann für sich laufen und liefert für sich Wert.
 
 | Quelle | Kosten | Was sie liefert |
 |---|---|---|
-| **Certificate-Transparency-Logs** (crt.sh) | frei | Jede Domain, die je ein HTTPS-Zertifikat bekam. Der breiteste freie Zulauf, den es gibt — inklusive frisch registrierter Shops |
+| **Certificate-Transparency-Logs** (crt.sh) | frei | Jede Domain, die je ein HTTPS-Zertifikat bekam. Der breiteste freie Zulauf, den es gibt, inklusive frisch registrierter Shops |
 | **Common Crawl Host-Index** | frei | Domainliste aus dem monatlichen Crawl, ohne die Archive selbst herunterladen zu müssen |
 | **OpenStreetMap** | frei | Lokale Betriebe. Ersetzt einen Teil von Google Maps |
 | **Handelsregister / Companies House / SEC EDGAR** | frei bis günstig | Firmierung, Sitz, Geschäftsführung. Für DACH später der stärkste Hebel |
@@ -174,19 +174,19 @@ Sechs Stufen. Jede kann für sich laufen und liefert für sich Wert.
 
 Wichtig: CT-Logs sagen **nicht**, dass es ein Shopify-Shop ist. Sie sind der
 Zulauf, die Einordnung passiert in 4.2. `*.myshopify.com` läuft über ein
-Wildcard-Zertifikat und taucht deshalb *nicht* einzeln in den Logs auf —
+Wildcard-Zertifikat und taucht deshalb *nicht* einzeln in den Logs auf:
 was auftaucht, sind die eigenen Domains der Händler.
 
 ### 4.2 Shopify-Erkennung: der billigste Filter zuerst
 
-Die Reihenfolge ist der ganze Trick — jede Stufe wirft aus, was die nächste
+Die Reihenfolge ist der ganze Trick: jede Stufe wirft aus, was die nächste
 teurer machen würde.
 
 | Stufe | Verfahren | Kosten je Domain |
 |---|---|---|
 | 1 | **DNS-A-Record im Shopify-Bereich `23.227.38.0/24`**, bzw. CNAME auf `shops.myshopify.com` | eine DNS-Abfrage |
 | 2 | HTTP-Abruf der Startseite: `cdn.shopify.com`, `Shopify.theme`, `x-shopid`-Header | ein Seitenabruf |
-| 3 | `/products.json` — Produktzahl, Kategorien, Preisniveau | ein Abruf, oft offen |
+| 3 | `/products.json`: Produktzahl, Kategorien, Preisniveau | ein Abruf, oft offen |
 | 4 | Restlicher Stack: Klaviyo, Gorgias, Recharge, Yotpo, Attentive, Postscript | aus demselben HTML |
 
 Stufe 1 kostet praktisch nichts und entfernt >95 % der Kandidaten. Erst danach
@@ -195,7 +195,7 @@ wird gecrawlt.
 **Das ist der Punkt, an dem ihr Apollo schlagt, nicht nur einholt.** Apollos
 Technologie-Filter ist eine Momentaufnahme von vor Monaten. Eure Erkennung
 misst heute. Wer gestern von Klaviyo zu Attentive gewechselt hat, steht bei
-Apollo falsch und bei euch richtig — und für eine Kaltakquise-Mail ist genau
+Apollo falsch und bei euch richtig, und für eine Kaltakquise-Mail ist genau
 das der Unterschied zwischen Aufhänger und Blamage.
 
 `/products.json` liefert nebenbei einen Größenmaßstab, den Apollo nicht hat:
@@ -204,33 +204,33 @@ Kaufkraft aus als eine geschätzte Mitarbeiterzahl.
 
 ### 4.3 Firmographie: die Felder, die Apollo heute liefert
 
-- **Branche und Stichwörter** — aus dem Startseitentext. **Nicht** ein
+- **Branche und Stichwörter**: aus dem Startseitentext. **Nicht** ein
   Sprachmodellaufruf je Firma: bei einer Million Firmen sind das nach grober
   Rechnung 200 bis 1.000 $ und ein Wiedersehen mit den 128 „no credits"-Fehlern
   aus dem Produktplan. Stattdessen Einbettungen gegen eine feste Taxonomie,
   Modellaufruf nur bei Uneindeutigkeit.
-- **Ort und Land** — Impressum, Kontaktseite, Fußzeile, Versandseite,
+- **Ort und Land**: Impressum, Kontaktseite, Fußzeile, Versandseite,
   Telefonvorwahl, Währung. WHOIS ist seit der DSGVO überwiegend geschwärzt und
   taugt nicht mehr.
-- **Mitarbeiterzahl** — **die schwächste Stelle des ganzen Plans.** Es gibt
+- **Mitarbeiterzahl**: **die schwächste Stelle des ganzen Plans.** Es gibt
   keine freie, verlässliche Quelle. Ersatzsignale: Anzahl gefundener Personen,
   Zahl offener Stellen, Produktzahl, Tranco-Rang, Shopify-Plan-Signale. Das
   ergibt Größenklassen, keine Zahlen. Siehe Abschnitt 9.
 
 ### 4.4 Personen
 
-Die eigene `ai_websearch`-Pipeline liefert heute schon 2.016 Kontakte — sie
+Die eigene `ai_websearch`-Pipeline liefert heute schon 2.016 Kontakte: sie
 ist nur teuer, weil sie je Firma das `web_search`-Werkzeug bemüht. Umbau:
 erst gezielt abrufen, dann extrahieren.
 
 | Quelle | Ertrag bei US-DTC | Anmerkung |
 |---|---|---|
 | `/about`, `/our-story`, `/team`, `/pages/about-us` | hoch | Gründer stehen bei DTC-Marken fast immer namentlich da |
-| `/contact`, Fußzeile, `mailto:`-Links | mittel | liefert oft direkt eine echte Adresse — Gold für 4.5 |
+| `/contact`, Fußzeile, `mailto:`-Links | mittel | liefert oft direkt eine echte Adresse, Gold für 4.5 |
 | Stellenanzeigen | mittel | nennen häufig die einstellende Person |
 | Presseseiten, Podcast- und Konferenzlisten | mittel | |
 | GitHub-Organisationen | niedrig | für E-Com kaum relevant |
-| Impressum | — | in den USA nicht vorgeschrieben; für DACH später der stärkste Hebel |
+| Impressum | keiner | in den USA nicht vorgeschrieben; für DACH später der stärkste Hebel |
 
 **LinkedIn wird nicht automatisiert abgegriffen.** Das verstößt gegen die
 Nutzungsbedingungen, kostet im Zweifel den Account und ist in der EU
@@ -245,7 +245,7 @@ Drei Bausteine:
 1. **Mustertabelle je Domain.** Gefüttert aus bekannten Paaren. Bei zwei
    bestätigten Paaren derselben Domain ist das Muster kein Rateergebnis mehr,
    sondern eine Beobachtung.
-2. **Vorrangwerte je Nische**, wenn die Domain unbekannt ist — bei euch also
+2. **Vorrangwerte je Nische**, wenn die Domain unbekannt ist: bei euch also
    `vorname@` zuerst, nicht `vorname.nachname@`. Aus 1.401 gemessenen Paaren,
    nicht aus einer Branchenfaustregel.
 3. **Rückkopplung aus dem Versand.** Instantly meldet Zustellung und Bounce.
@@ -253,7 +253,7 @@ Drei Bausteine:
 
 **Der Kreis:** jede versendete Kampagne verbessert die Mustertabelle, die
 Mustertabelle verbessert die nächste Kampagne. Nach genügend Läufen kennt ihr
-Muster für Domains, die kein Anbieter hat — weil niemand sonst in dieser
+Muster für Domains, die kein Anbieter hat, weil niemand sonst in dieser
 Nische so viel sendet.
 
 Das ist derselbe Gedanke wie „der geschlossene Kreis" in
@@ -266,9 +266,9 @@ verschlechtert sich durch Prüfverkehr. Realistisch sind grob zwei Drittel der
 Qualität eines Fachanbieters. Empfehlung: eigene Prüfung als Vorfilter für die
 Masse, gekaufte Prüfung nur noch für die Adressen, die tatsächlich in eine
 Kampagne gehen. Das senkt die Kosten deutlich, ohne die Zustellbarkeit zu
-riskieren — und die hängt laut Torwart-Schwellen an genau dieser Zahl.
+riskieren, und die hängt laut Torwart-Schwellen an genau dieser Zahl.
 
-### 4.6 Aktualität — der eigentliche Burggraben
+### 4.6 Aktualität: der eigentliche Burggraben
 
 Kontaktdaten verfallen nach gängiger Schätzung um rund 2,5 % im Monat, weil
 Menschen die Stelle wechseln. **Das ist Apollos wirklicher Vorsprung, nicht
@@ -300,7 +300,7 @@ Struktur entgegennimmt: eine zweite Umsetzung derselben Filter gegen
 **Apollo bleibt vorerst als Rückfall stehen** und wird erst abgeschaltet, wenn
 die eigene Datenbank bei denselben Filtern vergleichbare Trefferzahlen
 liefert. Ein Vergleichslauf beider Wege auf dieselbe Suche ist das
-Abnahmekriterium — nicht ein Gefühl.
+Abnahmekriterium, nicht ein Gefühl.
 
 ---
 
@@ -320,15 +320,15 @@ Größenordnungen, geschätzt:
 
 1. **Railway läuft am 13.08. aus** ([BETRIEB.md](BETRIEB.md)). Das sind acht
    Tage. Ein Crawler-Vorhaben zu planen, während die Ausführungsumgebung
-   abläuft, ist die falsche Reihenfolge — das gehört vorher geklärt.
+   abläuft, ist die falsche Reihenfolge: das gehört vorher geklärt.
 2. **Dauerhaftes Crawlen braucht andere Rechenzeit als eine Job-Queue.**
    2 Replicas mit 5-Sekunden-Polling sind für Suchläufe gebaut, nicht für
    Millionen Abrufe. Ab Stufe 2 dieses Plans braucht es entweder mehr Worker
-   oder eine getrennte Crawl-Flotte — und bei Masse Ausgangs-IPs, die nicht
+   oder eine getrennte Crawl-Flotte, und bei Masse Ausgangs-IPs, die nicht
    nach einer Woche überall gesperrt sind.
 
 Supabase trägt die ersten Millionen Zeilen problemlos. Jenseits davon wird die
-Personentabelle der Engpass, und dann ist das eine echte Architekturfrage —
+Personentabelle der Engpass, und dann ist das eine echte Architekturfrage,
 nicht heute.
 
 ---
@@ -336,7 +336,7 @@ nicht heute.
 ## 7. Der rechtliche Apparat
 
 Weil „alles auf Vorrat" entschieden wurde, ist das kein Anhang, sondern ein
-Bauteil. **Das hier ist kein Rechtsrat und ersetzt keinen Anwalt** — es ist
+Bauteil. **Das hier ist kein Rechtsrat und ersetzt keinen Anwalt**: es ist
 die Liste dessen, was gebaut werden muss, damit ein Anwalt überhaupt etwas zu
 prüfen hat.
 
@@ -369,36 +369,36 @@ gegen die dieselbe Website mit `#ehrlich` argumentiert.
 Jede Stufe endet mit etwas Benutzbarem. Keine Stufe setzt voraus, dass die
 übernächste je gebaut wird.
 
-**Stufe 0 — Aufhören wegzuwerfen.** *(klein)*
+**Stufe 0: Aufhören wegzuwerfen.** *(klein)*
 Firmographie-Spalten anlegen, Apollos und Maps' Felder strukturiert
 speichern, Herkunftsfeld einführen. Rückfüllung der 1.710 vorhandenen Firmen,
 soweit die Rohdaten noch da sind.
 → *Ab hier kauft keine Suche mehr zurück, was schon bekannt war.*
 
-**Stufe 1 — Der globale Kern.** *(mittel)*
+**Stufe 1: Der globale Kern.** *(mittel)*
 `global_companies`, `global_people`, `email_patterns`, `do_not_collect`.
 Arbeitskopie-Verknüpfung. Suchfunktion mit Begrenzung und Protokoll.
 Erstbefüllung aus dem Bestand, Muster aus den 1.401 Paaren.
-→ *Die erste eigene Datenbank. Klein, aber echt — und ab hier wächst sie mit
+→ *Die erste eigene Datenbank. Klein, aber echt, und ab hier wächst sie mit
 jeder Nutzung statt bei null zu bleiben.*
 
-**Stufe 2 — Das Shopify-Universum.** *(groß)*
+**Stufe 2: Das Shopify-Universum.** *(groß)*
 CT-Zulauf, DNS-Vorfilter, Crawler, Technologie-Erkennung, Firmographie.
 → *Der erste Datensatz, den Apollo so nicht hat: aktive Shopify-Shops mit
 tagesaktuellem Stack. Vorzeigbar, verkaufbar, überprüfbar.*
 
-**Stufe 3 — Personen und der rechtliche Apparat.** *(groß)*
+**Stufe 3: Personen und der rechtliche Apparat.** *(groß)*
 Team- und About-Extraktion, Herkunft, Art.-14-Weg, Widerspruchsformular,
 `do_not_collect`, Löschfristen.
 → *Kontakte ohne Apollo. Der rechtliche Teil gehört in dieselbe Stufe, nicht
-danach — sonst geht ein Bestand live, für den der Löschweg noch fehlt.*
+danach: sonst geht ein Bestand live, für den der Löschweg noch fehlt.*
 
-**Stufe 4 — E-Mail-Auflösung.** *(mittel)*
+**Stufe 4: E-Mail-Auflösung.** *(mittel)*
 Musterableitung, eigene Verifizierung als Vorfilter, Bounce-Rückkopplung aus
 Instantly.
 → *Der Kreis schließt sich: ab hier verbessert jede Kampagne die Datenbank.*
 
-**Stufe 5 — Ablösung.** *(mittel)*
+**Stufe 5: Ablösung.** *(mittel)*
 Suchmaske gegen die eigene Datenbank, Vergleichslauf gegen Apollo,
 Auffrischungszyklen. Apollo abschalten, wenn der Vergleich hält.
 → *Der BYOK-Zwang für Apollo fällt weg. Das ist gleichzeitig die Antwort auf
@@ -425,13 +425,13 @@ hat in zwölf Monaten eine Datenbank, die schlechter ist als die gekaufte.
 **Die Breite.** Apollo hat rund 275 Mio. Kontakte. Außerhalb der Nischen, die
 ihr aktiv pflegt, wird eure Datenbank auf Jahre schlechter sein. „Vollständig
 ersetzen" ist deshalb realistisch als *Ablauf* zu lesen: Nische für Nische,
-und Apollo fällt weg, sobald die jeweilige Nische trägt — nicht an einem
+und Apollo fällt weg, sobald die jeweilige Nische trägt, nicht an einem
 Stichtag für alle.
 
 **Der Vorrat an Personendaten** ist die Entscheidung mit dem größten Risiko in
 diesem Dokument. Sie ist getroffen, und Abschnitt 7 ist der Preis dafür. Wenn
 der Aufwand aus Abschnitt 7 beim Bauen unangenehm wird, ist das kein Zeichen,
-ihn zu kürzen — es ist das, was die Entscheidung immer schon gekostet hat.
+ihn zu kürzen: es ist das, was die Entscheidung immer schon gekostet hat.
 
 ---
 
@@ -446,5 +446,5 @@ Aus [PRODUKTPLAN.md](PRODUKTPLAN.md) Abschnitt 12, fortgeschrieben:
 
 Der Preis rechtfertigt sich nicht dadurch, dass ihr Apollo nachbaut. Er
 rechtfertigt sich dadurch, dass **die Fremdkosten des Kunden sinken, während
-euer Anteil steigt** — und dass in eurer Nische Daten drinstehen, die Apollo
+euer Anteil steigt**, und dass in eurer Nische Daten drinstehen, die Apollo
 nicht hat.

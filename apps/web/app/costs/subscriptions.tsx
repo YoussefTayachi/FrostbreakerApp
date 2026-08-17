@@ -11,7 +11,7 @@ import { useWorkspace } from "../workspace-provider";
  * WARUM DAS EINGETRAGEN WIRD STATT GEMESSEN
  *
  * Der Verbrauch in api_usage ist der kleinere Teil der Wahrheit. Instantly
- * taucht dort ueberhaupt nicht auf — ein Abo hat keinen zaehlbaren Aufruf --
+ * taucht dort ueberhaupt nicht auf (ein Abo hat keinen zaehlbaren Aufruf),
  * und bei Apollo und Hunter steht bewusst kein Betrag, weil der Wert eines
  * Credits am gebuchten Paket haengt (siehe Migration 0054).
  *
@@ -20,11 +20,11 @@ import { useWorkspace } from "../workspace-provider";
  * sonst hier: lieber eine ehrliche Luecke als eine erfundene Zahl.
  *
  * Ausloeser war das Dashboard: dort stand "22998 EUR Nutzen bei 0,33 $
- * API-Kosten" — ein behaupteter Faktor von siebzigtausend, weil die Tarife
+ * API-Kosten": ein behaupteter Faktor von siebzigtausend, weil die Tarife
  * fehlten.
  */
 
-/** Die Anbieter mit ihrem ueblichen Einstiegstarif als Platzhalter — eine
+/** Die Anbieter mit ihrem ueblichen Einstiegstarif als Platzhalter: eine
  *  Orientierung, kein voreingetragener Wert. Wer nichts eintraegt, bekommt
  *  auch keine erfundene Zahl.
  *
@@ -32,8 +32,8 @@ import { useWorkspace } from "../workspace-provider";
  *  steht ohnehin schon in api_usage. Wer hier zusaetzlich einen Monatsbetrag
  *  eintraegt, zahlt in der Summe doppelt. Genau so passiert: 5 $/Monat fuer
  *  OpenAI eingetragen, waehrend die 0,11 $ tatsaechlicher Tokenverbrauch
- *  bereits gemessen danebenstanden. Das Feld bleibt trotzdem bedienbar --
- *  eine Grundgebuehr neben dem Verbrauch gibt es wirklich --, aber es sagt
+ *  bereits gemessen danebenstanden. Das Feld bleibt trotzdem bedienbar
+ *  (eine Grundgebuehr neben dem Verbrauch gibt es wirklich), aber es sagt
  *  jetzt dazu, was es anrichtet. */
 const PROVIDERS: { key: string; label: string; hint: string; measured?: boolean }[] = [
   { key: "instantly", label: "Instantly", hint: "~37" },
@@ -65,7 +65,7 @@ export default function Subscriptions({
   }, 0);
 
   // Anbieter, die pro Aufruf gemessen werden und trotzdem einen Monatsbetrag
-  // tragen — ihre Kosten stecken dann zweimal in der Summe.
+  // tragen; ihre Kosten stecken dann zweimal in der Summe.
   const doppelt = PROVIDERS.filter(
     (p) => p.measured && values[p.key] !== "" && Number(values[p.key]) > 0
   ).map((p) => p.label);
@@ -95,7 +95,7 @@ export default function Subscriptions({
       ? await supabase.from("provider_subscriptions").upsert(rows, { onConflict: "workspace_id,provider" })
       : { error: null };
 
-    // Geleerte Felder muessen die Zeile entfernen — sonst laesst sich ein
+    // Geleerte Felder muessen die Zeile entfernen; sonst laesst sich ein
     // gekuendigtes Abo nie wieder loswerden.
     const { error: delError } = leer.length
       ? await supabase

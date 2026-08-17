@@ -20,7 +20,7 @@ import {
  *  - `{ offerId }`            das Feld "was verkaufst du" eines Angebots (Aim,
  *                             vor dem Zuschnitt auf eine Lead-Liste)
  *  - `{ website, language }`  die eigene Website (Core, vor dem ersten
- *                             Angebotsentwurf — dann gibt es das Feld noch
+ *                             Angebotsentwurf; dann gibt es das Feld noch
  *                             nicht)
  *
  * Beurteilt wird beides mit demselben Prompt (lib/copy/offer-products.ts).
@@ -33,7 +33,7 @@ import {
  * Aufruf laeuft (api/offers/from-search bzw. api/offers/from-website): erst
  * danach zu fragen hiesse, einen bereits bezahlten Vorschlag wegzuwerfen. Als
  * Vorstufe IN der anderen Route haette diese eine zweite Antwortform gebraucht
- * ("hier sind Produkte, aber keine Vorschlaege") — eine Route, die zwei
+ * ("hier sind Produkte, aber keine Vorschlaege"): eine Route, die zwei
  * verschiedene Dinge zurueckgeben kann, ist die naechste, die jemand falsch
  * behandelt.
  *
@@ -41,14 +41,14 @@ import {
  *
  * Einen Aufruf mit rund 200 Tokens Eingabe (Website: bis rund 3.000) und einer
  * Handvoll Ausgabe. Die Oberflaeche merkt sich die Antwort je Angebotsstand
- * bzw. je Adresse (siehe offers-editor.tsx) — ein zweiter Klick auf denselben
+ * bzw. je Adresse (siehe offers-editor.tsx); ein zweiter Klick auf denselben
  * Stand loest keinen zweiten Aufruf aus.
  *
  * Auf dem Website-Weg wird die Seite zweimal geholt: einmal hier, einmal
  * gleich danach in api/offers/from-website. Das kostet keine fremden Credits,
  * nur einen zweiten GET auf die eigene Seite. Die Alternativen waeren die
  * oben verworfene Doppel-Antwortform oder 12.000 Zeichen Seitentext durch den
- * Browser zu reichen — den der Client dann veraendert zurueckschicken
+ * Browser zu reichen, den der Client dann veraendert zurueckschicken
  * koennte, in einen bezahlten Prompt hinein.
  *
  * Ein leeres `products` heisst "eindeutig". Das ist auch die Antwort, wenn es
@@ -81,20 +81,20 @@ export async function POST(req: Request) {
     const url = normalizeWebsiteUrl(website);
     if (!url) return NextResponse.json({ error: "Keine gültige Adresse." }, { status: 400 });
     // Die Sprache kommt vom Formular, weil es das Angebot noch nicht geben
-    // muss — Core legt es ja erst an.
+    // muss; Core legt es ja erst an.
     language = body?.language === "en" ? "en" : "de";
     const seite = await fetchWebsiteContent(url);
     // Eine Seite, die sich nicht lesen laesst, ist hier keine Fehlermeldung
     // wert: der Hauptaufruf laeuft gleich danach auf dieselbe Seite und meldet
     // es mit dem Satz, der dem Nutzer sagt, was zu tun ist. Zweimal derselbe
-    // Fehler waere einmal zu viel — und eine Zwischenfrage, die nicht
+    // Fehler waere einmal zu viel, und eine Zwischenfrage, die nicht
     // gestellt werden kann, darf den Entwurf nicht verhindern.
     if (!seite.ok) return NextResponse.json({ products: [] });
     source = { kind: "website", content: seite.content };
   } else {
     if (!offerId) return NextResponse.json({ error: "offerId oder website fehlt" }, { status: 400 });
     // Workspace-Filter zusaetzlich zur RLS: RLS regelt, auf welche Accounts
-    // jemand zugreifen darf — nicht, welcher der eigenen Workspaces gemeint
+    // jemand zugreifen darf, nicht, welcher der eigenen Workspaces gemeint
     // ist (siehe CLAUDE.md).
     const { data: offer } = await supabase
       .from("offers")
@@ -111,7 +111,7 @@ export async function POST(req: Request) {
     };
   }
 
-  // Kein Material, keine Frage — und vor allem kein bezahlter Aufruf dafuer.
+  // Kein Material, keine Frage, und vor allem kein bezahlter Aufruf dafuer.
   if (!hasProductMaterial(source)) return NextResponse.json({ products: [] });
 
   const openaiKey = await getApiKey(supabase, workspaceId, "openai");

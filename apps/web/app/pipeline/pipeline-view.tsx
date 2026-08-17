@@ -20,7 +20,7 @@ import DealBoard from "./deal-board";
  * Klammer um beide Pipeline-Ansichten.
  *
  * Pipedrive haelt Liste und Board nebeneinander, statt sich fuer eine zu
- * entscheiden — aus gutem Grund: sie beantworten verschiedene Fragen. Das
+ * entscheiden, aus gutem Grund: sie beantworten verschiedene Fragen. Das
  * Board zeigt, wie der Trichter steht. Die Liste zeigt, wen man als naechstes
  * anfasst und wie man ihn erreicht. Beides wegzunehmen waere ein Rueckschritt,
  * also gibt es einen Umschalter.
@@ -33,9 +33,9 @@ import DealBoard from "./deal-board";
 /**
  * Drei Ansichten auf denselben Trichter, aus unterschiedlicher Hoehe:
  *
- *   list   die Arbeitsliste  — wen mache ich als naechstes, wie erreiche ich ihn
- *   board  der Kontakt-Trichter — wo stehen meine Ansprachen
- *   deals  die Deal-Pipeline — was kommt an Geld zurueck
+ *   list   die Arbeitsliste: wen mache ich als naechstes, wie erreiche ich ihn
+ *   board  der Kontakt-Trichter: wo stehen meine Ansprachen
+ *   deals  die Deal-Pipeline: was kommt an Geld zurueck
  *
  * Die dritte kam dazu, weil ein Pipedrive-Umsteiger unter "Pipeline" genau
  * sie erwartet: Spalten mit Wertsummen und Abschlussdatum. Unsere ersten
@@ -150,7 +150,7 @@ export default function PipelineView({
           // Ein Deal hat keinen eigenen Drawer: Verlauf, Notizen und die
           // Gewonnen/Verloren-Knoepfe haengen am Kontakt bzw. an der Firma und
           // sind dort laengst da. Die Karte oeffnet deshalb denselben Drawer
-          // wie ueberall sonst — eine zweite Detailansicht mit denselben
+          // wie ueberall sonst; eine zweite Detailansicht mit denselben
           // Inhalten waere doppelte Pflege.
           onOpenContact={(businessId, contactId) => {
             const match = contactId

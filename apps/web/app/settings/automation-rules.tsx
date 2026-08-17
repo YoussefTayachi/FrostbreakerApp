@@ -44,7 +44,7 @@ const STALE_DAY_OPTIONS = [14, 30, 60, 90] as const;
  * Wartezeiten der Kettenregeln.
  *
  * Kurz gehalten und getrennt je Regel: 2 bis 3 Tage sind bei LinkedIn
- * ueblich, beim Anruf ist mehr Abstand angebracht — wer am dritten Tag nach
+ * ueblich, beim Anruf ist mehr Abstand angebracht: wer am dritten Tag nach
  * einer kalten Mail anruft, wirkt wie ein Verfolger. Die Voreinstellungen (3
  * und 7) stehen in der Datenbankfunktion und gelten, solange hier nichts
  * gewaehlt wurde.
@@ -88,7 +88,7 @@ export default function AutomationRules() {
    *
    * upsert statt insert-oder-update im Code: die Zeile existiert erst, wenn
    * die Regel zum ersten Mal eingeschaltet wird. Ein Workspace startet ohne
-   * jede Regel — Automatisierungen, die ungefragt laufen, sind das Gegenteil
+   * jede Regel; Automatisierungen, die ungefragt laufen, sind das Gegenteil
    * von Vertrauen.
    */
   async function toggle(kind: RuleKind, enabled: boolean, config?: { days?: number }) {

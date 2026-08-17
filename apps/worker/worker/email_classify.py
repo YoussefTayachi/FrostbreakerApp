@@ -1,11 +1,11 @@
 """Klassifiziert eine gefundene E-Mail als 'personal' (echte Person) oder
 'generic' (Rollen-Adresse wie info@/office@). Nur personenbezogene Treffer
-sind fuer Cold-Outreach wirklich verwertbar — eine generische Adresse landet
+sind fuer Cold-Outreach wirklich verwertbar; eine generische Adresse landet
 meist in einem geteilten Postfach, das niemand konsequent liest.
 
 Zwei Quellen fuer die Einordnung:
 - Hunter liefert das Feld direkt mit ('personal'/'generic' im Domain-Search-
-  Response) — wird bevorzugt, wenn vorhanden.
+  Response); wird bevorzugt, wenn vorhanden.
 - Sonst per Praefix-Heuristik gegen bekannte Rollen-Postfaecher (KI-Websuche
   liefert kein eigenes type-Feld).
 """
@@ -18,7 +18,7 @@ GENERIC_LOCAL_PARTS = {
     "noreply", "webmaster", "postmaster", "enquiries", "inquiries", "general",
     "reception", "empfang", "marketing", "press", "presse", "jobs", "career",
     "careers", "bewerbung",
-    # Agentur-typische Sammelpostfaecher — real aufgetreten: sayhello@ wurde
+    # Agentur-typische Sammelpostfaecher, real aufgetreten: sayhello@ wurde
     # als personenbezogen durchgewinkt und landete so in einer Lead-Liste.
     "hi", "hey", "hola", "moin", "connect", "letstalk", "weare", "ask", "talk",
     "intouch", "touch", "inquiry", "newbusiness", "business", "studio", "agency", "work", "projects",

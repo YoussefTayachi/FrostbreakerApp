@@ -16,7 +16,7 @@ import Subscriptions from "./subscriptions";
 //
 // Diese Seite trennt bewusst zwischen MENGE und BETRAG. Die Menge ist
 // gemessen. Der Betrag existiert nur dort, wo ein Stueckpreis oeffentlich und
-// tarifunabhaengig ist — bei Apollo und Hunter haengt der Wert eines Credits
+// tarifunabhaengig ist; bei Apollo und Hunter haengt der Wert eines Credits
 // am gebuchten Paket, deshalb steht dort bewusst kein Euro-Betrag statt eines
 // geratenen.
 
@@ -73,7 +73,7 @@ export default async function CostsPage({
   const summary = (data as Summary | null) ?? { total_usd: 0, providers: [] };
 
   // Die eingetragenen Monatstarife (Migration 0077). Sie sind der Teil der
-  // Kosten, den kein Zaehler messen kann — Instantly hat gar keinen Aufruf,
+  // Kosten, den kein Zaehler messen kann: Instantly hat gar keinen Aufruf,
   // und was ein Apollo-Credit wert ist, haengt am gebuchten Paket.
   const { data: subsRows } = await supabase
     .from("provider_subscriptions")
@@ -88,13 +88,13 @@ export default async function CostsPage({
   const subsMonthly = Object.values(subs).reduce((a, b) => a + b, 0);
 
   /**
-   * Anteilig auf denselben Zeitraum wie der gemessene Verbrauch darueber --
+   * Anteilig auf denselben Zeitraum wie der gemessene Verbrauch darueber;
    * sonst stuenden in einer Summe ein Monat und sieben Tage nebeneinander.
    *
    * Gedeckelt am Alter des Workspace, aus demselben Grund wie in Migration
    * 0088: ein sechs Stunden altes Konto hat kein Abo fuer dreissig Tage
    * bezahlt. Ohne die Deckelung zeigte der Knopf "30 Tage" hier 70,00 $ fuer
-   * einen Tag Arbeit, und "1 Jahr" haette daraus 850 $ gemacht — allein
+   * einen Tag Arbeit, und "1 Jahr" haette daraus 850 $ gemacht, allein
    * durch das Umschalten eines Filters.
    */
   const { data: wsRow } = await supabase
@@ -113,7 +113,7 @@ export default async function CostsPage({
    * Credits pro geliefertem Lead.
    *
    * Die Frage, die diese Zeile beantwortet, lautete: "133 Credits bei 63
-   * Kontakten — wurden da Credits verschwendet?" Die Antwort steckt in der
+   * Kontakten: wurden da Credits verschwendet?" Die Antwort steckt in der
    * Rechenart der Anbieter: Apollo und Prospeo berechnen die Adresse der
    * Person UND den Firmendatensatz, also rund zwei Credits je Lead. Das stand
    * bisher nur in einem Kommentar im Worker.
@@ -224,7 +224,7 @@ export default async function CostsPage({
                       </span>
                     ) : (
                       // Kein Betrag heisst nicht "kostenlos", sondern "haengt
-                      // am Tarif" — das muss dastehen, sonst liest sich eine
+                      // am Tarif": das muss dastehen, sonst liest sich eine
                       // leere Zelle wie eine Null.
                       <span className="text-xs text-mute">{C.tariffDependent}</span>
                     )}

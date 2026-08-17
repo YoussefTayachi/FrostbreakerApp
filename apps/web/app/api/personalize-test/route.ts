@@ -15,7 +15,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 const MAX_SITE_CHARS = 6000;
 
 function stripHtml(html: string): string {
-  // Leichtgewichtige Vorschau-Extraktion (kein Aequivalent zu trafilatura im Worker) --
+  // Leichtgewichtige Vorschau-Extraktion (kein Aequivalent zu trafilatura im Worker);
   // ausreichend fuer den Live-Test, nicht fuer die Produktions-Pipeline.
   return html
     .replace(/<script[\s\S]*?<\/script>/gi, " ")
@@ -32,7 +32,7 @@ function stripHtml(html: string): string {
  * supabase und workspaceId stehen hier fuer die Kostenzeile: der Live-Test
  * kostet echtes Geld, und bei einem Regelverstoss kostet er es zweimal (der
  * Korrektur-Versuch weiter unten). Bis zum 2026-08-12 schrieb diese Route
- * nichts nach api_usage — der Verbrauch war unsichtbar, obwohl er derselbe
+ * nichts nach api_usage; der Verbrauch war unsichtbar, obwohl er derselbe
  * ist wie beim Worker.
  */
 async function callModel(
@@ -134,7 +134,7 @@ export async function POST(req: Request) {
   const userContent = `Unternehmen: ${biz.name}\n\n${context}`;
   // Derselbe Anhang, den auch der Worker an JEDEN Prompt haengt. Fehlte er
   // hier, pruefte der Live-Test einen anderen Prompt als den, der spaeter
-  // laeuft — und genau daran war der Sprachfehler so schwer zu sehen: der
+  // laeuft, und genau daran war der Sprachfehler so schwer zu sehen: der
   // Test bekam den angezeigten englischen Prompt und lieferte Englisch,
   // waehrend der Worker aus der Datenbank Deutsch nahm.
   const effectivePrompt = systemPrompt + constraintBlock(maxWords, bannedWords, outputLang);
@@ -148,7 +148,7 @@ export async function POST(req: Request) {
   // Spiegelt exakt den Korrektur-Versuch aus worker/pipelines/personalize.py
   // (generate() mit correction-Parameter): sonst zeigt der Live-Test nur den
   // unkorrigierten Rohentwurf und suggeriert, ein erkannter Regelverstoss
-  // (z.B. verbotenes Wort) wuerde bei echten Leads einfach so gespeichert --
+  // (z.B. verbotenes Wort) wuerde bei echten Leads einfach so gespeichert;
   // dabei greift dort immer dieser zweite Versuch.
   if (problems.length > 0) {
     const correctionNote =

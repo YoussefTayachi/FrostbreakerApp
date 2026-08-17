@@ -32,7 +32,7 @@ export async function listWorkspaces(supabase: SupabaseClient): Promise<Workspac
  * Zeilen aus ALLEN Workspaces des Users zurueck, nicht nur aus dem aktuell
  * ausgewaehlten.
  *
- * Gibt null zurueck, wenn der User (noch) keinen Workspace hat — sollte durch
+ * Gibt null zurueck, wenn der User (noch) keinen Workspace hat; sollte durch
  * den Signup-Trigger (handle_new_user) praktisch nie vorkommen.
  */
 export async function getCurrentWorkspace(

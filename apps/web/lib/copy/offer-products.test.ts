@@ -21,16 +21,16 @@ const EIN_PRODUKT_VIELE_VORTEILE =
   "Produktseiten, automatische Groessenberatung, monatliches Reporting und ein " +
   "Onboarding fuer das Team.";
 
-/** Das Feld "was verkaufst du" als Quelle — der Weg von Aim. */
+/** Das Feld "was verkaufst du" als Quelle: der Weg von Aim. */
 const feld = (offering: string, icp = "") => ({ kind: "offering" as const, offering, icp });
 
-/** Eine Seite als Quelle — der Weg von Core. */
+/** Eine Seite als Quelle: der Weg von Core. */
 const seite = (text: string, title: string | null = null, description: string | null = null) => ({
   kind: "website" as const,
   content: { title, description, text } satisfies WebsiteContent,
 });
 
-/** Dieselben zwei Apps, aber so, wie sie auf einer Startseite stehen --
+/** Dieselben zwei Apps, aber so, wie sie auf einer Startseite stehen,
  *  einschliesslich der fremden Namen, die keine eigenen Produkte sind. */
 const WEBSITE_ZWEI_PRODUKTE =
   "Chatarmin ist die WhatsApp-Marketing-App fuer Shopify-Shops. Newsletter, " +
@@ -56,7 +56,7 @@ describe("buildProductDetectPrompt", () => {
     const p = buildProductDetectPrompt(feld(ZWEI_PRODUKTE, "Onlineshops und Agenturen"), "de");
     expect(p).toContain("Onlineshops und Agenturen");
     expect(p).toContain("never a reason to split");
-    // Zwei Branchen sind zwei Listen, nicht zwei Produkte — genau dafuer gibt
+    // Zwei Branchen sind zwei Listen, nicht zwei Produkte; genau dafuer gibt
     // es den Listen-Zuschnitt.
     expect(p).toContain("Selling the same thing to two audiences or industries is NOT two products");
   });
@@ -101,7 +101,7 @@ describe("buildProductDetectPrompt (Website)", () => {
     expect(p).toContain("Title: Chatarmin");
     expect(p).toContain("Description: WhatsApp-Marketing und Support");
     expect(p).toContain("Armincx");
-    // Das Angebotsfeld gibt es an dieser Stelle noch gar nicht — seine
+    // Das Angebotsfeld gibt es an dieser Stelle noch gar nicht; seine
     // Ueberschrift darf also auch nicht im Prompt stehen.
     expect(p).not.toContain("WHAT THEY SELL:");
     expect(p).not.toContain("WHO THEY SELL TO");
@@ -116,7 +116,7 @@ describe("buildProductDetectPrompt (Website)", () => {
   it("beurteilt nach denselben Regeln wie das Angebotsfeld", () => {
     // Eine Seite zu EINEM Produkt zaehlt immer mehrere Bausteine und Pakete
     // auf. Der Satz, der genau das vom zweiten Produkt trennt, muss auch auf
-    // diesem Weg im Prompt stehen — sonst zerlegt das Modell jede Startseite.
+    // diesem Weg im Prompt stehen; sonst zerlegt das Modell jede Startseite.
     const p = buildProductDetectPrompt(seite(WEBSITE_EIN_PRODUKT), "de");
     expect(p).toContain("are NOT several");
     expect(p).toContain("If you are unsure, answer with one");
@@ -134,7 +134,7 @@ describe("buildProductDetectPrompt (Website)", () => {
   });
 
   it("liest die Antwort zur Seite mit derselben Funktion", () => {
-    // Die Antwortform ist quellenunabhaengig — ausdruecklich geprueft, weil
+    // Die Antwortform ist quellenunabhaengig, ausdruecklich geprueft, weil
     // sonst irgendwann jemand fuer die Website eine zweite Auswertung baut.
     const zwei =
       '{"multiple":true,"products":[{"name":"Chatarmin","description":"WhatsApp-Marketing fuer Shops"},' +
@@ -203,7 +203,7 @@ describe("parseProductDetection", () => {
   it("gilt erst ab zwei -- eine 'Mehrfachantwort' mit einem Eintrag ist keine", () => {
     // Der wichtigste Fehlalarm: EIN Produkt mit vielen Vorteilen. Antwortet das
     // Modell trotzdem mit multiple, aber nur einem Eintrag, hat es die Frage
-    // nicht beantwortet, sondern das Feld wiederholt — den Nutzer dafuer zu
+    // nicht beantwortet, sondern das Feld wiederholt; den Nutzer dafuer zu
     // fragen waere eine Auswahl ohne Wahl.
     const raw =
       '{"multiple":true,"products":[{"name":"Retourensenkung","description":"Analyse, Umbau, Reporting"}]}';

@@ -10,7 +10,7 @@ import {
   type Severity,
 } from "./campaign-readiness";
 
-/** Ein Zustand, bei dem nichts zu beanstanden ist — die Tests aendern je einen Punkt daran. */
+/** Ein Zustand, bei dem nichts zu beanstanden ist; die Tests aendern je einen Punkt daran. */
 function facts(patch: Partial<ReadinessFacts> = {}): ReadinessFacts {
   return {
     sendableLeads: 200,
@@ -85,7 +85,7 @@ describe("Blocker", () => {
 describe("Warnungen", () => {
   // DMARC bewusst keine Blockade: seit 2024 von Google/Yahoo bei
   // Massenversand verlangt, aber eine Mail ohne DMARC wird nicht zwingend
-  // abgewiesen — anders als eine, die am SPF-Abgleich scheitert.
+  // abgewiesen, anders als eine, die am SPF-Abgleich scheitert.
   it("fehlendes DMARC blockiert nicht", () => {
     const f = facts({ domains: [{ domain: "acme.de", spf: true, dkim: true, dmarc: false }] });
     expect(severityOf(f, "dmarc")).toBe("warning");
@@ -150,7 +150,7 @@ describe("estimateWords", () => {
 
   /**
    * Der Aufhaenger wird so lang, wie die Vorgabe erlaubt. Ihn als ein Wort zu
-   * zaehlen wuerde jede Mail kuerzer rechnen, als sie ankommt — und die
+   * zaehlen wuerde jede Mail kuerzer rechnen, als sie ankommt, und die
    * Laengenpruefung damit wertlos machen.
    */
   it("rechnet den Aufhaenger mit seiner erlaubten Laenge", () => {

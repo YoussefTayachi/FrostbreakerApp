@@ -17,14 +17,14 @@
  *
  * Kein zweiter Website-Abruf, keine neue Tonbestimmung, kein neuer Micro-Yes.
  * offering/proof/preview_asset/review_time/cta/tone werden aus dem Angebot
- * UEBERNOMMEN, nicht neu erzeugt — sie stehen hier nur als Kontext im Prompt,
+ * UEBERNOMMEN, nicht neu erzeugt; sie stehen hier nur als Kontext im Prompt,
  * damit die erzeugten Felder in derselben Welt und im selben Ton landen.
  *
  * DIE ENTSCHEIDENDE EINSCHRAENKUNG
  *
  * Dieselbe wie bei offer-from-website.ts: was nicht im Material steht, bleibt
  * leer. Das Material ist hier kein Schaufenster, sondern die Filter der Suche
- * und die recherchierten Firmenbeschreibungen (businesses.company_summary) --
+ * und die recherchierten Firmenbeschreibungen (businesses.company_summary),
  * also Saetze ueber die EMPFAENGER. Genau deshalb darf hier `friction_reason`
  * mitlaufen, das aus der Website ausdruecklich ausgeschlossen ist: eine
  * Verhaltensbeobachtung ueber den Kaeufer kann in einer Firmenbeschreibung
@@ -38,14 +38,14 @@ import { parseSuggestionFields, type OfferSuggestion } from "./offer-from-websit
 import type { OfferProduct } from "./offer-products";
 
 /**
- * Die Felder, die sich von Liste zu Liste unterscheiden — in zwei Sorten.
+ * Die Felder, die sich von Liste zu Liste unterscheiden, in zwei Sorten.
  *
  * NEU GESCHRIEBEN werden problem, friction und friction_reason: woran diese
  * Empfaenger haengen, steht in ihren Firmenbeschreibungen und nirgends sonst.
  *
  * UMFORMULIERT werden outcome und mechanism. Das Ergebnis und der Weg dorthin
  * aendern sich nicht, wenn der Absender statt Zahnarztpraxen Shopify-Shops
- * anschreibt — was sich aendert, ist, welcher Teil davon zuerst genannt
+ * anschreibt. Was sich aendert, ist, welcher Teil davon zuerst genannt
  * gehoert und in wessen Worten. Der Prompt sagt deshalb ausdruecklich
  * "reframe", nicht "write": neue Tatsachen sind hier verboten, eine andere
  * Betonung ist der ganze Zweck.
@@ -61,14 +61,14 @@ import type { OfferProduct } from "./offer-products";
  * `proof` ist die einzige Tatsachenbehauptung ueber den ABSENDER in diesem
  * Satz Felder: Referenzen, Jahre, Antwortquoten, Kundennamen. Ein Modell, das
  * daran je Liste "die Betonung anpasst", schreibt in der zweiten Fassung eine
- * andere Zahl hin — und die steht danach als Beleg in jeder Mail an diese
+ * andere Zahl hin, und die steht danach als Beleg in jeder Mail an diese
  * Liste. Das ist keine Formulierungsfrage mehr, sondern eine erfundene
  * Behauptung ueber das Geschaeft des Absenders.
  *
  * Dieselbe Grenze wie in lib/offers.ts (proof ist bewusst keine Pflicht) und
  * in lib/copy/offer-from-website.ts (dort darf proof nur enthalten, was
  * woertlich auf der Seite steht): was nicht belegt ist, bleibt leer. Der
- * Ausschluss gilt an drei Stellen zugleich — proof fehlt in dieser Liste,
+ * Ausschluss gilt an drei Stellen zugleich: proof fehlt in dieser Liste,
  * der Prompt verbietet es ausdruecklich, und parseSuggestionFields wirft das
  * Feld weg, falls das Modell es trotzdem liefert.
  */
@@ -86,7 +86,7 @@ export const SEARCH_SUGGESTED_FIELDS: OfferTextField[] = [
  *
  * Eine Stichprobe, keine Liste: 25 Beschreibungen zu je ~400 Zeichen sind rund
  * 2.500 Tokens Eingabe und damit ein Bruchteil eines Cents. Alle 500 Firmen
- * einer Liste mitzuschicken wuerde daran nichts verbessern — was die Nische
+ * einer Liste mitzuschicken wuerde daran nichts verbessern; was die Nische
  * ausmacht, steht in den ersten zwanzig genauso.
  */
 export const SUMMARY_SAMPLE_SIZE = 25;
@@ -109,7 +109,7 @@ export type LeadListContext = {
   /** Die Stichprobe. Leer heisst: es gibt nichts zu lesen, und dann wird gar
    *  nicht erst gefragt (siehe api/offers/from-search). */
   summaries: { name: string; summary: string }[];
-  /** Wie viele Firmen der Liste ueberhaupt eine Beschreibung haben — damit im
+  /** Wie viele Firmen der Liste ueberhaupt eine Beschreibung haben, damit im
    *  Prompt steht, dass es eine Stichprobe ist und keine Vollzaehlung. */
   totalWithSummary: number;
 };
@@ -119,7 +119,7 @@ const LANGUAGE_NAMES: Record<string, string> = { de: "German", en: "English" };
 /**
  * Ein Angebotsfeld als Kontextzeile, oder null.
  *
- * Leere Felder fallen ganz weg statt als "(nicht angegeben)" dazustehen — im
+ * Leere Felder fallen ganz weg statt als "(nicht angegeben)" dazustehen, im
  * Unterschied zu sequence-prompt.ts, wo ein leeres Feld ein ausdrueckliches
  * Verbot ausloest. Hier wird zu diesen Feldern gar nichts erzeugt, sie sind
  * nur Hintergrund; ein Verbot waere eine Anweisung ohne Gegenstand.
@@ -147,7 +147,7 @@ function kontext(label: string, value: string): string | null {
  * `produkt` ist gesetzt, wenn das Angebot mehr als eine Sache beschreibt und
  * der Nutzer gesagt hat, um welche es bei DIESER Liste geht (siehe
  * offer-products.ts). Ohne den Wert bleibt der Prompt Wort fuer Wort der von
- * vorher — der eindeutige Fall ist der Normalfall und darf sich nicht
+ * vorher: der eindeutige Fall ist der Normalfall und darf sich nicht
  * aendern.
  */
 export function buildOfferFromSearchPrompt(
@@ -169,7 +169,7 @@ export function buildOfferFromSearchPrompt(
     "  The one exception is the sender's own outcome and mechanism: those are given below and you may",
     "  only rephrase them, never extend them.",
     // Nur wenn das Angebot mehr als eine Sache beschreibt UND der Nutzer
-    // entschieden hat, welche gemeint ist. Der Satz steht doppelt — hier als
+    // entschieden hat, welche gemeint ist. Der Satz steht doppelt, hier als
     // Regel und unten am Produkt selbst: was hier als Aufzaehlungspunkt
     // zwischen zehn anderen steht, wird sonst mit ueberlesen.
     produkt
@@ -182,7 +182,7 @@ export function buildOfferFromSearchPrompt(
     // und mechanism handeln naturgemaess davon, was der Absender tut.
     "- For problem, friction and friction_reason: these describe the RECIPIENTS. Write about what THEY",
     "  struggle with, never about what the sender does.",
-    // proof steht bewusst NICHT in der Feldliste weiter unten — diese Zeile
+    // proof steht bewusst NICHT in der Feldliste weiter unten; diese Zeile
     // sagt es zusaetzlich, weil ein Modell sonst gelegentlich "hilfsbereit"
     // einen Beleg mitliefert. Warum das hier dauerhaft verboten ist, steht bei
     // SEARCH_SUGGESTED_FIELDS.
@@ -248,7 +248,7 @@ export function buildOfferFromSearchPrompt(
 
   // Was heute in den drei NEU geschriebenen Feldern steht, kommt ausdruecklich
   // als "das ist die allgemeine Fassung" mit. Ohne diesen Block schreibt das
-  // Modell sie gelegentlich einfach ab — und der ganze Aufruf haette nichts
+  // Modell sie gelegentlich einfach ab, und der ganze Aufruf haette nichts
   // gebracht. outcome und mechanism fehlen hier mit Absicht: sie stehen schon
   // oben beim Absender, und dort sind sie die Vorlage und nicht das, was
   // ersetzt wird.
@@ -293,7 +293,7 @@ export function buildOfferFromSearchPrompt(
   return zeilen.filter((l): l is string => l !== null).join("\n");
 }
 
-/** Die Antwort des Modells — mit derselben Strenge wie bei der Website:
+/** Die Antwort des Modells, mit derselben Strenge wie bei der Website:
  *  unbekannte Schluessel raus, Ausreden ("nicht angegeben") gelten als leer. */
 export function parseOfferFromSearch(raw: string): OfferSuggestion {
   return parseSuggestionFields(raw, SEARCH_SUGGESTED_FIELDS);

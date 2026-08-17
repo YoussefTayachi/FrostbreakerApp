@@ -44,7 +44,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
 
   const ws = await getCurrentWorkspace(supabase);
 
-  // Sollte durch den Signup-Trigger (handle_new_user) praktisch nie vorkommen --
+  // Sollte durch den Signup-Trigger (handle_new_user) praktisch nie vorkommen;
   // trotzdem sauber abfangen statt mit einem undefined-Zugriff abzustuerzen.
   if (!ws) {
     return (

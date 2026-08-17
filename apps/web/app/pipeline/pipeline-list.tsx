@@ -20,11 +20,11 @@ import {
 } from "@/lib/crm/pipeline";
 
 /**
- * Die Pipeline als Arbeitsliste, nach Lead-Liste gruppiert — dasselbe Muster
+ * Die Pipeline als Arbeitsliste, nach Lead-Liste gruppiert: dasselbe Muster
  * wie unter /linkedin.
  *
  * Das Board beantwortet "wie steht mein Trichter". Diese Ansicht beantwortet
- * "wen mache ich als naechstes und wie erreiche ich ihn" — und dafuer war das
+ * "wen mache ich als naechstes und wie erreiche ich ihn", und dafuer war das
  * Board das falsche Werkzeug: es zeigte Name, Titel und Firma, sonst nichts.
  * Wer anrufen wollte, musste die Nummer woanders suchen.
  *
@@ -58,7 +58,7 @@ export default function PipelineList({
   const [stageFilter, setStageFilter] = useState<string>("");
   const [listFilter, setListFilter] = useState<string>("");
   /**
-   * Welche Gruppen sind AUFgeklappt — bewusst herum statt "welche sind zu".
+   * Welche Gruppen sind AUFgeklappt, bewusst herum statt "welche sind zu".
    * Vorher waren alle offen, und man musste bei 21 Lead-Listen erst zwanzigmal
    * zuklappen, um ueberhaupt eine Uebersicht zu bekommen. Zugeklappt ist der
    * nuetzlichere Ausgangspunkt: erst sehen, was es gibt, dann eines oeffnen.
@@ -70,7 +70,7 @@ export default function PipelineList({
    *
    * "needsStep" ist die Frage, die ein Pipedrive-Nutzer als erstes stellt:
    * wo habe ich nichts geplant? Gemessen am 2026-08-03 traf das auf 569 von
-   * 570 Kontakten zu — ohne diesen Filter ist die Antwort unbrauchbar, mit
+   * 570 Kontakten zu; ohne diesen Filter ist die Antwort unbrauchbar, mit
    * ihm ist sie die Arbeitsliste des Tages.
    */
   const [focus, setFocus] = useState<"" | "needsStep" | "stale">("");
@@ -101,11 +101,11 @@ export default function PipelineList({
   }, [rows, overrides, query, stageFilter, listFilter, focus]);
 
   // Zaehler an den Reitern: eine Schaltflaeche, die auf 0 fuehrt, ist eine
-  // Sackgasse — die Zahl davor beantwortet, ob sich der Klick lohnt.
+  // Sackgasse; die Zahl davor beantwortet, ob sich der Klick lohnt.
   const needsStepCount = useMemo(() => rows.filter(hasNoNextStep).length, [rows]);
   const staleCount = useMemo(() => rows.filter((r) => isStale(r)).length, [rows]);
 
-  /** Gruppiert, Reihenfolge nach Groesse — wo am meisten liegt, steht oben. */
+  /** Gruppiert, Reihenfolge nach Groesse: wo am meisten liegt, steht oben. */
   const groups = useMemo(() => {
     const map = new Map<string, { id: string; name: string; location: string | null; rows: PipelineRow[] }>();
     for (const r of filtered) {
@@ -134,7 +134,7 @@ export default function PipelineList({
   const filtersActive = Boolean(query.trim() || stageFilter || focus);
 
   /**
-   * Rueckruf planen. Legt genau die Aktivitaet an, die /calls anzeigt --
+   * Rueckruf planen. Legt genau die Aktivitaet an, die /calls anzeigt:
    * offen, mit Faelligkeit. Damit ist die Verbindung zwischen den beiden
    * Ansichten nicht nur behauptet, sondern dieselbe Zeile in derselben
    * Tabelle.

@@ -6,7 +6,7 @@
  * Am 2026-08-04 lagen 8 eingegangene Mails im Posteingang und 0 vereinbarte
  * Termine. Zwischen "hat geantwortet" und "hat gekauft" liegt genau eine
  * Stelle, und dort passierte bisher nichts: die Antwort kam an, wurde
- * eingestuft — und dann musste der Nutzer selbst formulieren, meist Stunden
+ * eingestuft, und dann musste der Nutzer selbst formulieren, meist Stunden
  * spaeter. Bei Kaltakquise ist das genau das Zeitfenster, in dem eine
  * Antwort noch warm ist.
  *
@@ -47,7 +47,7 @@ const MAX_CHARS = 1200;
  *   Satzes waeren ein Vorschlag mit zwei Kopien.
  * - KEIN Terminlink, wenn keiner hinterlegt ist. Ein Modell, das eine
  *   plausible Calendly-Adresse erfindet, produziert einen toten Link in einer
- *   echten Geschaeftsmail — der Fehler faellt erst dem Empfaenger auf.
+ *   echten Geschaeftsmail; der Fehler faellt erst dem Empfaenger auf.
  * - Kurz. Eine lange Antwort auf eine kurze Antwort wirkt wie ein Automat.
  * - Die Sprache des Gespraechs, nicht die der Oberflaeche. Wer auf Englisch
  *   schreibt, bekommt Englisch zurueck.
@@ -88,7 +88,7 @@ export function buildReplyPrompt(thread: ThreadMessage[], ctx: SuggestionContext
   return lines.join("\n");
 }
 
-/** Nur die letzten Nachrichten, jede gekuerzt — ein zitierter Verlauf blaeht sonst alles auf. */
+/** Nur die letzten Nachrichten, jede gekuerzt; ein zitierter Verlauf blaeht sonst alles auf. */
 export function formatThread(thread: ThreadMessage[]): string {
   return thread
     .slice(-MAX_MESSAGES)
@@ -104,13 +104,13 @@ export function formatThread(thread: ThreadMessage[]): string {
  * Die Antwort des Modells in benutzbare Entwuerfe verwandeln.
  *
  * Bewusst nachsichtig: GPT liefert das angeforderte JSON meistens, aber nicht
- * immer — mal in einem ```json-Block, mal mit einem Satz davor. Daran zu
+ * immer: mal in einem ```json-Block, mal mit einem Satz davor. Daran zu
  * scheitern hiesse, dem Nutzer eine Fehlermeldung zu zeigen, obwohl die
  * Antwort direkt davor steht.
  *
  * Was NICHT nachsichtig ist: leere Entwuerfe und uebrig gebliebene
  * Platzhalter fliegen raus. Ein Vorschlag mit "[Dein Name]" darin ist keine
- * Zeitersparnis, sondern eine Falle — genau so etwas geht versehentlich raus.
+ * Zeitersparnis, sondern eine Falle: genau so etwas geht versehentlich raus.
  */
 export function parseSuggestions(raw: string): ReplySuggestion[] {
   const json = extractJsonArray(raw);
@@ -135,12 +135,12 @@ export function parseSuggestions(raw: string): ReplySuggestion[] {
     .slice(0, 3);
 }
 
-/** [Dein Name], {{firstName}}, <Firma> — alles, was noch ausgefuellt werden muesste. */
+/** [Dein Name], {{firstName}}, <Firma>: alles, was noch ausgefuellt werden muesste. */
 export function hasPlaceholder(text: string): boolean {
   return /\[[^\]]{2,40}\]|\{\{[^}]{1,40}\}\}|<[A-Za-zÄÖÜäöü][^>]{1,40}>/.test(text);
 }
 
-/** Das erste JSON-Array im Text — auch wenn ein Satz oder ein Codeblock drumherum steht. */
+/** Das erste JSON-Array im Text, auch wenn ein Satz oder ein Codeblock drumherum steht. */
 function extractJsonArray(raw: string): string | null {
   const start = raw.indexOf("[");
   const end = raw.lastIndexOf("]");

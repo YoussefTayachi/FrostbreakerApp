@@ -31,7 +31,7 @@ describe("buildCoachPrompt", () => {
   });
 
   it("markiert leere Felder als leer statt sie wegzulassen", () => {
-    // Weglassen hiesse, das Modell muesste aus der Abwesenheit schliessen --
+    // Weglassen hiesse, das Modell muesste aus der Abwesenheit schliessen,
     // und es schliesst dann meistens, dass es sich das Feld ausdenken soll.
     expect(buildCoachPrompt(angebot)).toContain("mechanism: (empty)");
   });
@@ -62,7 +62,7 @@ describe("buildCoachPrompt", () => {
   });
 
   it("schweigt weiter, wenn kein Pflichtfeld leer ist", () => {
-    // mechanism, friction_reason und tone sind im Angebot leer — optional,
+    // mechanism, friction_reason und tone sind im Angebot leer: optional,
     // und dazu bleibt Schweigen richtig.
     expect(buildCoachPrompt(angebot)).not.toContain("THEY ARE EMPTY AND REQUIRED");
   });
@@ -128,7 +128,7 @@ describe("parseCoachFindings", () => {
 
   it("wirft einen Micro-Yes weg, den die App selbst bemaengeln wuerde", () => {
     // Am Live-Stand aufgefallen (2026-08-13): der erste Vorschlag fuer das
-    // leere cta war fachlich richtig hergeleitet und 30 Woerter lang — die
+    // leere cta war fachlich richtig hergeleitet und 30 Woerter lang; die
     // Anzeige unter dem Feld haette ihn sofort als "zu lang" gemeldet. Ein
     // Coach, dessen Vorschlag durch seine eigene Pruefung faellt, schickt den
     // Nutzer im Kreis.
@@ -156,7 +156,7 @@ describe("parseCoachFindings", () => {
     expect(befunde[0].field).toBe("cta");
   });
 
-  // Diese beiden pruefen die Buchfuehrung des Parsers, nicht den Inhalt --
+  // Diese beiden pruefen die Buchfuehrung des Parsers, nicht den Inhalt,
   // deshalb ein Feld ohne eigene Formregeln. Mit "cta" wuerde stattdessen die
   // Micro-Yes-Pruefung greifen, und der Test haette nichts mehr mit seinem
   // Namen zu tun.

@@ -21,7 +21,7 @@ const CATEGORY_WEIGHTS: Record<SpamCategory, number> = {
   "trust-manipulation": 10,
 };
 
-/** Treffer in der Betreffzeile wiegen schwerer — Filter schauen dort genauer hin. */
+/** Treffer in der Betreffzeile wiegen schwerer; Filter schauen dort genauer hin. */
 const SUBJECT_MULTIPLIER = 1.5;
 
 const CAPS_RATIO_LIMIT = 0.1;
@@ -31,7 +31,7 @@ const BODY_EXCLAMATION_LIMIT = 3;
 const PENALTY = { allCaps: 12, exclamation: 8, punctuationCluster: 10, unfilledPlaceholder: 25 };
 
 // Eckige Klammern wie "[First Name]" oder "[Company Name]" sind kein
-// Instantly-Syntax (das sind "{{firstName}}", geschweifte Klammern) --
+// Instantly-Syntax (das sind "{{firstName}}", geschweifte Klammern);
 // tauchen sie trotzdem auf, sind es liegen gebliebene Platzhalter aus einer
 // KI-Vorlage, die unveraendert an echte Empfaenger gehen wuerden. Kaum ein
 // anderes Signal ist so eindeutig, deshalb das hohe Gewicht: schon zwei, drei

@@ -11,7 +11,7 @@ describe("isSendableEmail", () => {
     expect(isSendableEmail("valid")).toBe(true);
     expect(isSendableEmail("catchall")).toBe(true);
     expect(isSendableEmail("accept_all")).toBe(true);
-    // Unklar heisst nicht ungueltig — ein Ausschluss waere eine Wette, keine Aussage.
+    // Unklar heisst nicht ungueltig: ein Ausschluss waere eine Wette, keine Aussage.
     expect(isSendableEmail("unknown")).toBe(true);
   });
 

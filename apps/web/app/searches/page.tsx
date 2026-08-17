@@ -65,7 +65,7 @@ export default async function SearchesPage() {
   // drueben als leeres Objekt an.
   const errorBySearch: Record<string, string> = {};
   // Ein fehlgeschlagener Job kennt nur die Teilsuche. Angezeigt wird aber die
-  // Gruppe — ohne diese Umrechnung bliebe ihre Zeile kommentarlos rot.
+  // Gruppe; ohne diese Umrechnung bliebe ihre Zeile kommentarlos rot.
   const elternVon = parentByChild(groupLinksRes.data ?? []);
   for (const job of failedJobsRes.data ?? []) {
     const jobSearchId = (job.payload as { search_id?: string } | null)?.search_id;

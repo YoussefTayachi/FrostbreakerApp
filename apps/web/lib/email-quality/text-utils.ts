@@ -2,7 +2,7 @@ import type { Lang } from "./types";
 
 // Gemeinsame Textzerlegung fuer alle drei Pruefungen. Bewusst an einer Stelle:
 // Lesbarkeit (durchschnittliche Satzlaenge) und KI-Klang (Varianz der
-// Satzlaengen) rechnen beide auf Saetzen — zwei eigene Implementierungen
+// Satzlaengen) rechnen beide auf Saetzen; zwei eigene Implementierungen
 // wuerden sich frueher oder spaeter still uneinig darueber, wie viele Saetze
 // derselbe Text hat, und das Panel zeigt dann widerspruechliche Zahlen.
 
@@ -10,7 +10,7 @@ export type Span = { text: string; start: number; end: number };
 
 /**
  * Instantly-Platzhalter neutralisieren: `{{firstName}}` ist beim Versand ein
- * kurzer, normaler Name — als Rohtoken wuerde es die Wort-/Silbenstatistik
+ * kurzer, normaler Name; als Rohtoken wuerde es die Wort-/Silbenstatistik
  * verzerren (13 Zeichen, keine Vokalgruppen im Sinne der Formel). Ersetzt wird
  * laengengleich (Platzhalterwort + Leerzeichen), damit alle Zeichen-Offsets
  * weiterhin auf den Originaltext passen und spaeteres Inline-Highlighting
@@ -42,7 +42,7 @@ const ABBREVIATIONS: Record<Lang, Set<string>> = {
 /**
  * Satzsegmentierung per Heuristik. Zeilenumbrueche zaehlen als Satzgrenze:
  * In E-Mail-Text sind Umbrueche gesetzt, nicht umgebrochen (Anrede, Gruss,
- * Aufzaehlungen stehen oft ganz ohne Satzzeichen) — ohne diese Regel wuerde
+ * Aufzaehlungen stehen oft ganz ohne Satzzeichen); ohne diese Regel wuerde
  * "Hallo Name," mit dem folgenden Absatz zu einem Riesensatz verschmelzen und
  * jede Lesbarkeitszahl waere Unsinn.
  */
@@ -93,7 +93,7 @@ export function splitWords(text: string): Span[] {
 }
 
 /**
- * Silbenzaehlung per Vokalgruppen — die uebliche Naeherung, auf der auch die
+ * Silbenzaehlung per Vokalgruppen: die uebliche Naeherung, auf der auch die
  * Flesch-Implementierungen der gaengigen Bibliotheken beruhen. Fuer Deutsch
  * genuegt das Zaehlen der Vokalgruppen (Diphthonge wie "ei"/"eu" fallen dabei
  * korrekt zu einer Silbe zusammen), fuer Englisch kommt die Korrektur fuer

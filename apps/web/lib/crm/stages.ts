@@ -2,7 +2,7 @@
  * Die Outreach-Pipeline (contacts.outreach_status) an genau einer Stelle.
  *
  * Lag vorher als STATUS_ORDER/statusRank/STATUS_SELECT_CLS lokal in
- * leads-table.tsx — mit dem Pipeline-Board und der Timeline waeren daraus drei
+ * leads-table.tsx; mit dem Pipeline-Board und der Timeline waeren daraus drei
  * Kopien geworden. Labels bleiben absichtlich draussen (dict.ts, zweisprachig),
  * hier steht nur, was sprachunabhaengig ist: Reihenfolge, Rang und Farben.
  *

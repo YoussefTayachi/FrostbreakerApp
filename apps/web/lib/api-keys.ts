@@ -3,7 +3,7 @@ import { fernetDecrypt } from "./fernet";
 
 /** Holt und entschluesselt den fuer diesen Workspace hinterlegten BYOK-Key
  *  eines Providers (google_maps/openai/hunter/neverbounce/instantly/...).
- *  Einzige Stelle, die api_keys.key_ciphertext liest — vorher gab es dafuer
+ *  Einzige Stelle, die api_keys.key_ciphertext liest. Vorher gab es dafuer
  *  eine fest auf "instantly" verdrahtete Kopie in lib/instantly.ts und eine
  *  zweite, inline, in app/api/personalize-test/route.ts fuer "openai". */
 export async function getApiKey(

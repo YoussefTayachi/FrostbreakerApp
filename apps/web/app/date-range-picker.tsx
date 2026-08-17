@@ -11,7 +11,7 @@ import { useT } from "./language-provider";
  * gefragt, wenn man wissen will, was eine bestimmte Aussendung gebracht hat.
  *
  * Der Zustand liegt in der URL, nicht in React: das Dashboard ist eine Server
- * Component, die ihre Zahlen selbst laedt — ein Client-State koennte sie
+ * Component, die ihre Zahlen selbst laedt; ein Client-State koennte sie
  * nicht neu berechnen. Nebeneffekt: der Zeitraum bleibt teilbar und
  * ueberlebt einen Reload.
  *

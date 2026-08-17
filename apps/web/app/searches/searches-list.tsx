@@ -21,14 +21,14 @@ import { CancelButton, TrashButton } from "./search-actions";
  * WARUM ES DAS GIBT
  * ═══════════════════════════════════════════════════════════════════════
  *
- * Ein Kunde am 2026-08-10 wollte aufraeumen und griff zum Loeschen — und
+ * Ein Kunde am 2026-08-10 wollte aufraeumen und griff zum Loeschen, und
  * merkte dann, dass die Listen danach fuer LinkedIn und Instantly weg sind.
  * Was er nicht sehen konnte: eine geloeschte Suche nimmt auch ihre Firmen aus
  * dem Dublettenschutz, jede unkontaktierte davon ist danach wieder einkaufbar
  * (siehe Migration 0089). Aufraeumen kostete Geld.
  *
  * Deshalb drei Dinge, die es vorher nicht gab: archivieren statt loeschen,
- * Ordner fuer viele Listen, und eine Filterleiste — bei dreissig Listen ist
+ * Ordner fuer viele Listen, und eine Filterleiste: bei dreissig Listen ist
  * die Textsuche mehr wert als jede Struktur.
  *
  * Client-Komponente, weil Filtern und Umsortieren ohne Serverrunde laufen
@@ -89,7 +89,7 @@ export default function SearchesList({
   }
 
   /**
-   * Eine Aenderung auf die ausgewaehlten Listen — und auf ihre Teilsuchen.
+   * Eine Aenderung auf die ausgewaehlten Listen, und auf ihre Teilsuchen.
    *
    * groupScopeFilter statt .in("id", ids): eine gebuendelte Mehrfach-Suche ist
    * eine Zeile in der Anzeige, aber n+1 Zeilen in der Datenbank (Migration
@@ -119,7 +119,7 @@ export default function SearchesList({
    *
    * Eine Liste, die man aus den Augen haben will und die nachts weiter
    * Credits verbraucht, waere die unangenehmste Ueberraschung dieser
-   * Funktion. Anders als beim Loeschen steht das hier aber in der Meldung --
+   * Funktion. Anders als beim Loeschen steht das hier aber in der Meldung,
    * und beim Zurueckholen sagt die Zeile, dass das Abo aus ist.
    */
   const archivieren = (ids: string[]) =>
@@ -136,12 +136,12 @@ export default function SearchesList({
    * Mehrere Listen in einem Zug in den Papierkorb.
    *
    * Auswaehlen konnte man hier schon immer, loeschen nur einzeln ueber den
-   * Knopf in der Zeile — bei zwoelf Listen also zwoelf Klicks und zwoelf
+   * Knopf in der Zeile: bei zwoelf Listen also zwoelf Klicks und zwoelf
    * Rueckfragen. Gemeldet am 2026-08-14.
    *
    * Dieselbe Wirkung wie TrashButton (search-actions.tsx), inklusive
    * schedule: "none": eine Abo-Suche im Papierkorb wuerde sonst nachts
-   * weiterlaufen und Credits verbrauchen. Die Rueckfrage nennt die Anzahl --
+   * weiterlaufen und Credits verbrauchen. Die Rueckfrage nennt die Anzahl;
    * der Unterschied zwischen 2 und 40 Listen sollte vor dem Klick klar sein.
    */
   async function loeschen(ids: string[]) {
@@ -461,11 +461,11 @@ function SearchRow({
   const bounceRate =
     stat && stat.emails_sent_count > 0 ? (stat.bounced_count / stat.emails_sent_count) * 100 : null;
   const folder = folders.find((f) => f.id === s.folder_id);
-  /** Gruppe, bei der einzelne Teilsuchen ausgefallen sind — der Rest der
+  /** Gruppe, bei der einzelne Teilsuchen ausgefallen sind; der Rest der
    *  Liste ist vollstaendig und soll nicht wie ein Totalausfall aussehen. */
   const teilausfall = s.is_search_group && s.children_failed > 0 && s.status !== "failed";
 
-  // Die ganze Zeile bleibt ein Link auf die Liste — das ist der Weg, den
+  // Die ganze Zeile bleibt ein Link auf die Liste: das ist der Weg, den
   // jemand neunmal von zehn geht. Alles, was daneben klickbar ist, muss den
   // Klick deshalb ausdruecklich anhalten.
   const stop = (e: React.MouseEvent) => {
@@ -575,7 +575,7 @@ function SearchRow({
           ) : s.status !== "completed" ? (
             // Bei einer Gruppe sagt "Firmen werden gesucht" allein nichts: das
             // steht bei sechzig Teilsuchen unter Umstaenden eine Stunde lang
-            // da. Der Balken zaehlt die fertigen Teilsuchen — die einzige
+            // da. Der Balken zaehlt die fertigen Teilsuchen: die einzige
             // Zahl, die sich hier sichtbar bewegt.
             s.is_search_group && s.child_count > 0 ? (
               <div title={S.groupProgress(s.children_done, s.child_count)}>

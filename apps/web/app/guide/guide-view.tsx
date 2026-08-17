@@ -9,7 +9,7 @@ import type { Dictionary } from "@/lib/i18n/dict";
  * Warmup ist, soll nicht an acht anderen Kapiteln vorbeiscrollen. Der erste
  * Abschnitt ist offen, damit die Seite nicht wie eine leere Liste wirkt.
  *
- * Der Zustand liegt absichtlich nicht in der URL — es ist ein Nachschlagewerk,
+ * Der Zustand liegt absichtlich nicht in der URL: es ist ein Nachschlagewerk,
  * kein Zustand, den man teilen oder zurueckspringen will.
  */
 export default function GuideView({
@@ -22,7 +22,7 @@ export default function GuideView({
   const [openId, setOpenId] = useState<string | null>(sections[0]?.id ?? null);
 
   // Tiefe Verlinkung (/guide#warmup) aus der App heraus: ohne das landet man
-  // auf der Seite, aber der gemeinte Abschnitt ist zugeklappt — und ein
+  // auf der Seite, aber der gemeinte Abschnitt ist zugeklappt, und ein
   // Sprunganker greift nicht, weil der Inhalt dann gar nicht gerendert ist.
   // Erst oeffnen, dann scrollen (nach dem Render, daher der Timeout-freie
   // Umweg ueber einen zweiten Effekt-Durchlauf).

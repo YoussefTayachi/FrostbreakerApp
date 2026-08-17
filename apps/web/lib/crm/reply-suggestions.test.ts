@@ -92,7 +92,7 @@ describe("parseSuggestions", () => {
 
   /**
    * Ein Vorschlag mit "[Dein Name]" ist keine Zeitersparnis, sondern eine
-   * Falle — genau so etwas geht versehentlich raus.
+   * Falle: genau so etwas geht versehentlich raus.
    */
   it("wirft Entwuerfe mit uebrig gebliebenen Platzhaltern weg", () => {
     const s = parseSuggestions(

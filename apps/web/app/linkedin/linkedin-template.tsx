@@ -15,13 +15,13 @@ import { useToast } from "../toast-provider";
 import { useWorkspace } from "../workspace-provider";
 
 /**
- * Der Vorlagen-Editor — bewusst nach dem Vorbild des Kampagnen-Schritts
+ * Der Vorlagen-Editor, bewusst nach dem Vorbild des Kampagnen-Schritts
  * (instantly/campaigns/campaign-step-card.tsx) gebaut, damit sich beides
  * gleich anfuehlt: Variablen als Knoepfe, die an der Cursor-Position
  * einfuegen, farbig markiert im Text, darunter eine Vorschau.
  *
  * Der wesentliche Unterschied zum Kampagnen-Editor: dort faerbt
- * HighlightedTextarea Qualitaetsbefunde ein, hier die Variablen selbst --
+ * HighlightedTextarea Qualitaetsbefunde ein, hier die Variablen selbst:
  * blau, wenn sie ersetzt werden, rot, wenn sie sich niemand ausdenken kann
  * und der Text so beim Empfaenger landet.
  *
@@ -31,8 +31,8 @@ import { useWorkspace } from "../workspace-provider";
  *
  * Bis dahin gab es genau EINE Vorlage je Workspace, in einer Textspalte am
  * Workspace. Sie galt fuer jeden Kontakt in jeder Liste. Wer Agenturen anders
- * anschreiben wollte als Shops — der Normalfall, die Mail-Sequenzen sind ja
- * auch je Kampagne verschieden --, musste den Text vor jeder Liste von Hand
+ * anschreiben wollte als Shops (der Normalfall, die Mail-Sequenzen sind ja
+ * auch je Kampagne verschieden), musste den Text vor jeder Liste von Hand
  * austauschen und danach zurueckaendern.
  *
  * Die Auswahl steht bewusst UEBER dem Textfeld und nicht daneben: sie
@@ -83,7 +83,7 @@ export default function LinkedInTemplate({
    *
    * Der billigste zusaetzliche Kanal, den es gibt: die Kontakte sind schon
    * gekauft, ein zweiter Anlauf ueber LinkedIn kostet keinen Credit. Gefehlt
-   * hat immer nur der Text — die Arbeitsliste startete mit einem leeren
+   * hat immer nur der Text: die Arbeitsliste startete mit einem leeren
    * Feld, genau wie die Mail-Kampagne vor dem Sequenzgenerator.
    *
    * Genommen wird das Standardangebot. Wer mehrere hat, waehlt sie unter
@@ -118,7 +118,7 @@ export default function LinkedInTemplate({
     if (!res.ok) return push(t.common.error + (body.error ?? res.status), "error");
     onTemplateChange(body.message as string);
     // Die geschaetzte Endlaenge zaehlt den eingesetzten Aufhaenger mit, nicht
-    // die 19 Zeichen des Platzhalters — sonst gilt eine Nachricht als kurz,
+    // die 19 Zeichen des Platzhalters; sonst gilt eine Nachricht als kurz,
     // die LinkedIn spaeter mitten im Satz abschneidet.
     if (body.estimatedLength > body.maxLength) {
       push(L.templateTooLong(body.estimatedLength, body.maxLength), "error");
@@ -147,7 +147,7 @@ export default function LinkedInTemplate({
 
   /**
    * Einfuegen an der Cursor-Position, wie im Kampagnen-Editor. Ohne das muesste
-   * man die geschweiften Klammern von Hand tippen — und genau dabei entsteht
+   * man die geschweiften Klammern von Hand tippen, und genau dabei entsteht
    * der Fehler, den die rote Markierung hinterher anzeigt.
    */
   function insertVariable(token: string) {
@@ -182,7 +182,7 @@ export default function LinkedInTemplate({
     /**
      * Noch gar keine Vorlage? Dann ist Speichern zugleich das Anlegen der
      * ersten. Sonst muesste der Nutzer erst "Neu" druecken, um etwas zu
-     * sichern, das er gerade geschrieben hat — und der Knopf, den er
+     * sichern, das er gerade geschrieben hat, und der Knopf, den er
      * intuitiv sucht, waere der falsche.
      */
     if (!current) {
@@ -269,7 +269,7 @@ export default function LinkedInTemplate({
   }
 
   /**
-   * Standard umschalten — erst die alte loeschen, dann die neue setzen.
+   * Standard umschalten: erst die alte loeschen, dann die neue setzen.
    *
    * Der Teilindex aus Migration 0080 laesst hoechstens eine Standardvorlage
    * je Workspace zu. Die umgekehrte Reihenfolge liefe in eine
@@ -295,7 +295,7 @@ export default function LinkedInTemplate({
   }
 
   /** Wechseln mit ungesicherten Aenderungen wuerde sie stillschweigend
-   *  wegwerfen — deshalb einmal nachfragen. */
+   *  wegwerfen, deshalb einmal nachfragen. */
   function switchTo(id: string) {
     if (dirty && !window.confirm(L.templateSwitchUnsaved)) return;
     const next = templates.find((x) => x.id === id);

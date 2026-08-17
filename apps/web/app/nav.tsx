@@ -48,7 +48,7 @@ function useUnreadReplies(workspaceId: string): number {
   useEffect(() => {
     refresh();
     const timer = setInterval(refresh, UNREAD_POLL_MS);
-    // Die Inbox meldet sofort, wenn sie etwas als gelesen markiert hat --
+    // Die Inbox meldet sofort, wenn sie etwas als gelesen markiert hat;
     // sonst haengt das Badge bis zu einer Minute hinterher.
     window.addEventListener(UNREAD_CHANGED_EVENT, refresh);
     return () => {
@@ -91,7 +91,7 @@ export default function Nav() {
    * Ueberschrift, die nichts tut, kostet eine Zeile und gibt nichts zurueck.
    *
    * Untereinträge sind IMMER sichtbar und nicht einklappbar. Ein Klappmenue
-   * spart Platz, kostet aber bei jedem Wechsel einen zusaetzlichen Klick --
+   * spart Platz, kostet aber bei jedem Wechsel einen zusaetzlichen Klick;
    * in einem Werkzeug, das den ganzen Tag offen ist, ist das der schlechtere
    * Tausch. Die Einrueckung allein macht die Liste lesbar.
    */
@@ -117,7 +117,7 @@ export default function Nav() {
       //
       // Das Angebot steht als erster Untereintrag und nicht hinter dem
       // Aufhaenger: es ist die Grundlage fuer alles, was in dieser Gruppe
-      // geschrieben wird — Mail-Sequenz, LinkedIn-Vorlage, Nachschaerfen.
+      // geschrieben wird: Mail-Sequenz, LinkedIn-Vorlage, Nachschaerfen.
       // Der Aufhaenger ist ein Satz, das Angebot ist die Sache.
       parent: { href: "/ai-agent", label: t.nav.aiAgent, icon: IconAgent },
       children: [

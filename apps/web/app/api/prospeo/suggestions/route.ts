@@ -12,7 +12,7 @@ import { getApiKey } from "@/lib/api-keys";
  * NUR Werte aus seiner eigenen Suggestions-API ("Location values must be
  * obtained from the Search Suggestions API"). Eine hier hinterlegte Liste
  * waere im Moment des Schreibens eine Vermutung und beim naechsten
- * Prospeo-Update falsch — und der Fehler waere nicht laut, sondern ein
+ * Prospeo-Update falsch, und der Fehler waere nicht laut, sondern ein
  * leeres Suchergebnis.
  *
  * Genau das ist bei Apollo schon einmal passiert: am 2026-08-02 lief eine
@@ -20,7 +20,7 @@ import { getApiKey } from "@/lib/api-keys";
  * nicht existierten. Apollo meldete keinen Fehler, es lieferte still null.
  * Diese Route ist die Lehre daraus.
  *
- * Der Endpunkt ist laut Doku KOSTENLOS und verbraucht keine Credits — er
+ * Der Endpunkt ist laut Doku KOSTENLOS und verbraucht keine Credits; er
  * darf deshalb bei jedem Tastendruck laufen, anders als der Trefferzaehler.
  *
  * Der Schluessel bleibt serverseitig. Das Formular schickt nur Typ und
@@ -99,7 +99,7 @@ export async function POST(request: Request) {
 
     /**
      * Orte kommen als {name, type}, alles andere als flache Zeichenketten.
-     * Beides auf eine Form bringen, damit das Formular nur einen Fall kennt --
+     * Beides auf eine Form bringen, damit das Formular nur einen Fall kennt:
      * `label` ist, was der Nutzer sieht, `value` ist, was an Prospeo
      * zurueckgeht. Bei Orten sind beide gleich; der Typ ("City", "Country")
      * wandert in `hint`, weil "Berlin" als Stadt und als Bundesland zweimal

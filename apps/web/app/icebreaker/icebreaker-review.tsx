@@ -11,16 +11,16 @@ import type { IcebreakerState, IcebreakerVerdict, ReviewSummary } from "@/lib/pe
  *
  * DIE DREI HANDGRIFFE, UND WARUM ES GENAU DIESE SIND
  *
- *   Sammelaktion  — die veralteten Markierungen in einem Zug abraeumen. Nach
- *                    der Bindestrich-Korrektur vom 2026-08-02 ist der
- *                    Grossteil davon gegenstandslos; die einzeln
- *                    wegzuklicken waere Beschaeftigung, keine Arbeit.
- *   Neu erzeugen  — der Regelfall bei "zu lang". Kostet einen Modellaufruf,
- *                    deshalb auswaehlbar und nicht automatisch.
- *   Selbst schreiben — die Antwort auf "das Modell kriegt es nicht hin".
+ *   Sammelaktion: die veralteten Markierungen in einem Zug abraeumen. Nach
+ *                 der Bindestrich-Korrektur vom 2026-08-02 ist der
+ *                 Grossteil davon gegenstandslos; die einzeln
+ *                 wegzuklicken waere Beschaeftigung, keine Arbeit.
+ *   Neu erzeugen: der Regelfall bei "zu lang". Kostet einen Modellaufruf,
+ *                 deshalb auswaehlbar und nicht automatisch.
+ *   Selbst schreiben: die Antwort auf "das Modell kriegt es nicht hin".
  *
  * Bewusst NICHT gebaut: ein automatisches Kuerzen. Ein Aufhaenger, den ein
- * Programm auf 22 Woerter stutzt, endet mitten im Gedanken — und geht dann
+ * Programm auf 22 Woerter stutzt, endet mitten im Gedanken, und geht dann
  * genau so an einen Fremden raus.
  */
 type ReviewResponse = {
@@ -36,8 +36,8 @@ const STATES: IcebreakerState[] = ["failing", "stale", "clean"];
  *  braucht ueblicherweise zwei bis fuenf Sekunden. */
 const POLL_MS = 4000;
 /** Nach so vielen Durchlaeufen (= 4 Minuten) wird aufgegeben. Ohne Grenze
- *  bliebe eine Zeile, die der Worker nie anfasst — etwa weil das
- *  OpenAI-Guthaben leer ist — fuer immer als "wird erzeugt" stehen. */
+ *  bliebe eine Zeile, die der Worker nie anfasst (etwa weil das
+ *  OpenAI-Guthaben leer ist) fuer immer als "wird erzeugt" stehen. */
 const POLL_LIMIT = 60;
 
 const STATE_CLS: Record<IcebreakerState, string> = {
@@ -66,13 +66,13 @@ export default function IcebreakerReview() {
    * ═══════════════════════════════════════════════════════════════════════
    *
    * "Neu erzeugen" reiht einen Job ein, den ein Worker ein paar Sekunden
-   * spaeter abarbeitet. Die Liste lud aber SOFORT nach dem Klick neu — also
+   * spaeter abarbeitet. Die Liste lud aber SOFORT nach dem Klick neu, also
    * zu einem Zeitpunkt, an dem noch der alte Text in der Datenbank stand.
    * Sichtbar aenderte sich nichts, und ein erfolgreicher Klick sah aus wie
    * ein wirkungsloser. Genau so wurde es auch gemeldet.
    *
    * Der alte Text ist die Abbruchbedingung: sobald ein anderer dasteht, ist
-   * der Job durch. Das ist verlaesslicher als den Job-Status abzufragen --
+   * der Job durch. Das ist verlaesslicher als den Job-Status abzufragen:
    * die Zeile zeigt dann garantiert schon das Ergebnis und nicht nur ein
    * "fertig", dem die Anzeige noch hinterherhinkt.
    */
@@ -104,7 +104,7 @@ export default function IcebreakerReview() {
    * Vier Sekunden, weil ein Modellaufruf ueblicherweise zwei bis fuenf
    * braucht: haeufiger fragen belastet nur, seltener fuehlt sich haengend an.
    * Der Takt endet von selbst, sobald die letzte Zeile einen neuen Text
-   * traegt — kein Zaehler, kein Zeitlimit, das man raten muesste.
+   * traegt; kein Zaehler, kein Zeitlimit, das man raten muesste.
    *
    * Zeilen, die der Worker gar nicht anfasst (kein OpenAI-Guthaben, Firma
    * ohne Datenbasis), blieben so allerdings ewig als "wird erzeugt" stehen.
@@ -148,7 +148,7 @@ export default function IcebreakerReview() {
    * Der Zustand einer Zeile haengt an den Vorgaben des Workspaces, und die
    * koennen sich in einem anderen Tab geaendert haben. Eine Liste, die aus
    * dem Ergebnis der eigenen Klicks weitergerechnet wird, driftet dabei
-   * langsam von der Wahrheit weg — und zwar genau in der Ansicht, deren
+   * langsam von der Wahrheit weg, und zwar genau in der Ansicht, deren
    * einziger Zweck es ist, die Wahrheit zu zeigen.
    */
   async function act(body: Record<string, unknown>, done: (n: number) => void) {
@@ -165,7 +165,7 @@ export default function IcebreakerReview() {
         return;
       }
       done(result.queued ?? result.accepted ?? 0);
-      // Eingereihte Neuerzeugungen merken, BEVOR neu geladen wird — der
+      // Eingereihte Neuerzeugungen merken, BEVOR neu geladen wird: der
       // alte Text ist danach nicht mehr zu haben.
       if (Array.isArray(result.ids) && result.ids.length > 0 && data) {
         const byId = new Map(data.items.map((v) => [v.id, v.text]));
@@ -200,7 +200,7 @@ export default function IcebreakerReview() {
         push(t.common.error + (result.error ?? res.status), "error");
         return;
       }
-      // Ehrlich melden, wenn der eigene Text die Vorgaben auch nicht haelt --
+      // Ehrlich melden, wenn der eigene Text die Vorgaben auch nicht haelt;
       // sonst verschwindet die Zeile scheinbar und taucht beim Neuladen wieder auf.
       push(result.problems?.length ? R.savedWithProblems : R.saved, result.problems?.length ? "error" : "success");
       setEditing(null);
@@ -215,7 +215,7 @@ export default function IcebreakerReview() {
     [data, filter]
   );
 
-  // Auswaehlbar sind nur die sichtbaren — eine Sammelaktion darf nichts
+  // Auswaehlbar sind nur die sichtbaren: eine Sammelaktion darf nichts
   // anfassen, was gerade nicht auf dem Schirm steht.
   const selectedVisible = visible.filter((v) => selected.has(v.id));
   // Was "Alle neu erzeugen" treffen wuerde: genau die Menge hinter dem

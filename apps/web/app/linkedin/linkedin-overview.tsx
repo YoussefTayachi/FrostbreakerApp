@@ -10,7 +10,7 @@ import type { LeadListSummary, LinkedInLead } from "./types";
  * Erste Stufe: welche Lead-Listen gibt es und wie viel Arbeit steckt darin.
  *
  * Bewusst Zahlen statt einer Vorschau der Namen. Vor dem Hineinklicken ist
- * genau eine Frage relevant — "lohnt sich diese Liste als naechstes" — und
+ * genau eine Frage relevant ("lohnt sich diese Liste als naechstes"), und
  * die beantwortet sich aus: wie viel ist offen, wie viel davon ist ohne
  * E-Mail-Adresse ausschliesslich hier erreichbar, wie viel hat schon einen
  * fertigen Icebreaker und kostet damit nur noch einen Klick.
@@ -28,7 +28,7 @@ export default function LinkedInOverview({
   template: string;
   templates: LinkedInTemplateRow[];
   initialTemplateId: string | null;
-  /** Fuer die Live-Vorschau im Vorlagen-Editor — echte Daten statt erfundener Beispielperson. */
+  /** Fuer die Live-Vorschau im Vorlagen-Editor: echte Daten statt erfundener Beispielperson. */
   firstLead: LinkedInLead | null;
   truncated: boolean;
   maxRows: number;

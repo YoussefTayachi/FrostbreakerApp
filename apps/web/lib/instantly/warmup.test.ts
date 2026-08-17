@@ -18,7 +18,7 @@ describe("warmupDays", () => {
   });
 
   it("bleibt bei einer Startzeit in der Zukunft bei Tag 1", () => {
-    // Uhren zwischen Instantly und uns koennen leicht auseinanderliegen --
+    // Uhren zwischen Instantly und uns koennen leicht auseinanderliegen;
     // "Tag -0" waere Unsinn auf dem Bildschirm.
     const future = new Date(NOW.getTime() + 60_000).toISOString();
     expect(warmupDays(future, NOW)).toBe(1);
@@ -74,7 +74,7 @@ describe("warmupInfo", () => {
 
 describe("readyDate", () => {
   it("richtet sich nach dem zuletzt gestarteten Postfach", () => {
-    // Die Frage lautet "ab wann kann ich senden?" — und das entscheidet das
+    // Die Frage lautet "ab wann kann ich senden?", und das entscheidet das
     // juengste Postfach, nicht das aelteste.
     const date = readyDate(
       [

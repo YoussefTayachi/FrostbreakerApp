@@ -4,7 +4,7 @@ import { getStripe, planFromPriceId } from "@/lib/billing";
 import { createServiceClient } from "@/lib/supabase/service";
 import { sendSlackNotification } from "@/lib/notify";
 
-// Stripe-Webhook. Braucht den RAW Request-Body fuer die Signaturpruefung --
+// Stripe-Webhook. Braucht den RAW Request-Body fuer die Signaturpruefung:
 // req.text() liefert den unangetasteten Body, solange hier kein bodyParser
 // dazwischenhaengt (App-Router-Routen parsen den Body nicht automatisch).
 export async function POST(req: Request) {

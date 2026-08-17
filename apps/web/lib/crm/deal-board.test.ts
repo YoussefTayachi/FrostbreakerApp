@@ -44,7 +44,7 @@ function deal(patch: Partial<DealBoardRow> = {}): DealBoardRow {
 describe("dealValue", () => {
   // Der eigentliche Grund fuer diese Funktion: PostgREST liefert numeric als
   // String. Ungeprueft addiert waere "1000" + "2000" die Zeichenkette
-  // "10002000" — eine Spaltensumme, die plausibel aussieht und falsch ist.
+  // "10002000", eine Spaltensumme, die plausibel aussieht und falsch ist.
   it("rechnet einen String aus PostgREST in eine Zahl um", () => {
     expect(dealValue({ value: "1500.50" })).toBe(1500.5);
   });

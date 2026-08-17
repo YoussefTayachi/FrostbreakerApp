@@ -1,4 +1,4 @@
-"""Prospeo — Firmen UND Entscheider samt verifizierter E-Mail in einem Lauf.
+"""Prospeo: Firmen UND Entscheider samt verifizierter E-Mail in einem Lauf.
 
 Vierter Suchweg neben maps, corporate und apollo. Der Aufbau entspricht
 bewusst pipelines/apollo.py: Personensuche liefert Person plus Firma, diese
@@ -11,7 +11,7 @@ WARUM ES DIESEN WEG NEBEN APOLLO GIBT
 
 Apollos API haengt am Tarif: Free und Basic haben gar keinen Zugang, der
 Master-Key ist an die Organization-Stufe gebunden (ab $119 je Nutzer, mind.
-drei Sitze). Fuer BYOK ist das die teuerste Stelle der Einstiegshuerde --
+drei Sitze). Fuer BYOK ist das die teuerste Stelle der Einstiegshuerde:
 der Kunde muss einen Tarif buchen, der ein Vielfaches von Frostbreaker
 kostet. Der 403 steht seit Wochen in apollo.py:421 dokumentiert.
 
@@ -32,7 +32,7 @@ Aus prospeo.io/api-docs und dem eingeloggten Konto, Stand 2026-08-05:
   * Die SUCHE kostet Credits: 1 Credit je 25 Treffer, also 1 je Seite. Das
     ist der wichtigste Unterschied zu Apollo, wo die Suche gratis ist und nur
     das Freischalten kostet. Ein zu grosser Kandidaten-Puffer waere hier also
-    nicht mehr umsonst — SEARCH_OVERSHOOT ist deshalb klein.
+    nicht mehr umsonst; SEARCH_OVERSHOOT ist deshalb klein.
   * Das ANREICHERN kostet 1 Credit je gefundener Adresse, 10 je Mobilnummer.
     Mobilnummern fragen wir bewusst nicht ab (enrich_mobile bleibt aus).
   * Kein Treffer kostet nichts. Und: derselbe Datensatz innerhalb von 90
@@ -43,7 +43,7 @@ Aus prospeo.io/api-docs und dem eingeloggten Konto, Stand 2026-08-05:
         Suche    Starter 1  · Growth 2  · Pro 5
         Enrich   Starter 5  · Growth 5  · Pro 30
     Die Pausen unten sind auf den KLEINSTEN Tarif ausgelegt. Wer mehr hat,
-    wartet unnoetig — das ist der richtige Fehler: zu langsam ist ein
+    wartet unnoetig, und das ist der richtige Fehler: zu langsam ist ein
     laengerer Lauf, zu schnell ist ein 429 und ein abgebrochener Job.
   * Der Schluessel gehoert in den X-KEY-Header.
 
@@ -58,7 +58,7 @@ ZWEI SCHRITTE, WEIL DIE SUCHE KEINE ADRESSEN HERGIBT
 search-person liefert die Felder email und mobile mit, aber IMMER unrevealed
 (`revealed: false`). Die Adresse kommt ausschliesslich aus einem zweiten
 Aufruf. Dieselbe Zweiteilung wie bei Apollo (api_search + bulk_match), nur
-mit anderen Namen — und mit dem Unterschied, dass hier schon der erste
+mit anderen Namen, und mit dem Unterschied, dass hier schon der erste
 Schritt Credits kostet.
 
 Docs: https://prospeo.io/api-docs
@@ -77,7 +77,7 @@ log = logging.getLogger(__name__)
 
 SEARCH_URL = "https://api.prospeo.io/search-person"
 BULK_ENRICH_URL = "https://api.prospeo.io/bulk-enrich-person"
-# Kostet laut Doku keine Credits und beruehrt keine Suchdaten — reiner
+# Kostet laut Doku keine Credits und beruehrt keine Suchdaten: reiner
 # Lebenszeichen-Test fuer einen Schluessel (siehe app/api/prospeo/health).
 SUGGESTIONS_URL = "https://api.prospeo.io/search-suggestions"
 
@@ -110,7 +110,7 @@ MAX_SUMMARY_CHARS = 2000
 
 # Spiegeln PROSPEO_HEADCOUNT_RANGES und PROSPEO_REVENUE_TIERS in
 # apps/web/lib/prospeo-query.ts. Prospeos oberste Groessenstufe heisst
-# "10000+" — Apollo schreibt "10001+". Eine gemeinsame Konstante fuer beide
+# "10000+"; Apollo schreibt "10001+". Eine gemeinsame Konstante fuer beide
 # Anbieter waere deshalb bei genau einer der beiden Suchen ein stiller Fehler.
 HEADCOUNT_RANGES = [
     "1-10", "11-20", "21-50", "51-100", "101-200", "201-500",
@@ -125,7 +125,7 @@ REVENUE_TIERS = [
 #
 # Die Doku schreibt "contains (default) or exact". Die API lehnt beides klein
 # ab: "Invalid match_mode. Must be one of: CONTAINS, EXACT, SIMILAR, STRICT."
-# Am 2026-08-05 gegen die echte API gemessen — ohne diesen Testlauf waere
+# Am 2026-08-05 gegen die echte API gemessen; ohne diesen Testlauf waere
 # jede Suche mit Positionsangabe an einem 400 gescheitert.
 MATCH_MODES = ["CONTAINS", "EXACT", "SIMILAR", "STRICT"]
 DEFAULT_MATCH_MODE = "CONTAINS"
@@ -155,14 +155,14 @@ class ProspeoDailyCapReached(Exception):
 class ProspeoRateLimited(Exception):
     """Prospeos Ratengrenze (429).
 
-    Eigene Klasse und ausdruecklich WIEDERHOLBAR — anders als
+    Eigene Klasse und ausdruecklich WIEDERHOLBAR, anders als
     ProspeoPlanError. Der Unterschied ist wesentlich:
 
       Tarifsperre   aendert sich nicht durch Warten. Sofort aufgeben und
                     erklaeren.
       Ratengrenze   ist per Definition voruebergehend. Der Suchendpunkt
                     erlaubt auf dem kleinsten Tarif EINE Anfrage pro
-                    Sekunde — da ist ein 429 keine Stoerung, sondern der
+                    Sekunde; da ist ein 429 keine Stoerung, sondern der
                     Normalfall bei Gleichzeitigkeit.
 
     Vorher fuehrte jeder 429 dazu, dass der ganze Job einen seiner drei
@@ -173,13 +173,13 @@ class ProspeoRateLimited(Exception):
 
 
 def _headers(api_key: str) -> dict:
-    # Schluessel im Header, nicht als Query-Parameter — so kann er gar nicht
+    # Schluessel im Header, nicht als Query-Parameter, so kann er gar nicht
     # erst in einer Fehler-URL landen (vgl. worker/http_safety.py).
     return {"X-KEY": api_key, "Content-Type": "application/json", "Accept": "application/json"}
 
 
 def _is_retryable(exc: BaseException) -> bool:
-    """Netzfehler, 5xx und die Ratengrenze erneut versuchen — 4xx nicht.
+    """Netzfehler, 5xx und die Ratengrenze erneut versuchen, 4xx aber nicht.
 
     429 IST wiederholbar (siehe ProspeoRateLimited). Vor dem erneuten Versuch
     wird die von Prospeo genannte Wartezeit abgesessen, es laeuft also nicht
@@ -208,7 +208,7 @@ def raise_for_filter_error(response: httpx.Response) -> None:
          "filter_error": "Filters not available on your plan: company_technology (STARTER+)"}
 
     Wer nur auf 403 prueft (so stand es hier zuerst), verbucht das als
-    gewoehnlichen HTTP-Fehler — in der Oberflaeche stand "Prospeo ist gerade
+    gewoehnlichen HTTP-Fehler; in der Oberflaeche stand "Prospeo ist gerade
     nicht erreichbar", obwohl Prospeo praezise geantwortet hatte.
 
     filter_error wird woertlich weitergegeben: Prospeo nennt darin den
@@ -255,7 +255,7 @@ def _header_int(response: httpx.Response, name: str, default: int = 0) -> int:
 
 
 def _sleep_for_rate_limit(response: httpx.Response) -> None:
-    """Warten, bevor die Grenze zuschlaegt — nicht danach.
+    """Warten, bevor die Grenze zuschlaegt, nicht danach.
 
     Prospeo gibt bei jeder Antwort mit, wie viele Anfragen in dieser Sekunde,
     Minute und an diesem Tag noch frei sind. Ist eines der Fenster
@@ -265,7 +265,7 @@ def _sleep_for_rate_limit(response: httpx.Response) -> None:
     Die SEKUNDE gehoert unbedingt dazu: der Suchendpunkt erlaubt auf dem
     kleinsten Tarif genau eine Anfrage pro Sekunde, und nach jedem
     erfolgreichen Aufruf steht dort x-second-request-left: 0. Ohne diese
-    Wartezeit laeuft der naechste Aufruf zuverlaessig in einen 429 — das war
+    Wartezeit laeuft der naechste Aufruf zuverlaessig in einen 429; das war
     der Grund, warum der erste Testlauf am 2026-08-05 dreimal hintereinander
     scheiterte.
     """
@@ -328,7 +328,7 @@ def build_search_filters(f: dict) -> dict:
 
     Grundregel wie dort: ein nicht gesetzter Filter taucht GAR NICHT auf. Ein
     leeres include-Array ist bei Prospeo keine fehlende Bedingung, sondern
-    eine, die nichts erfuellt — der Fehler erschiene als "keine Treffer".
+    eine, die nichts erfuellt; der Fehler erschiene als "keine Treffer".
     """
     out: dict = {}
 
@@ -399,7 +399,7 @@ def build_search_filters(f: dict) -> dict:
         out["company_job_posting_hiring_for"] = {
             # Dieselbe Schreibweise wie bei match_mode. Nicht gegen die echte
             # API geprueft, weil der Filter den Starter-Tarif braucht und der
-            # Testschluessel auf Free lief — die Grossschreibung ist hier die
+            # Testschluessel auf Free lief; die Grossschreibung ist hier die
             # sichere Annahme, weil Prospeo sie bei match_mode erzwingt.
             "include": hiring,
             "match_type": _match_mode(f.get("hiring_match")),
@@ -415,7 +415,7 @@ def build_search_filters(f: dict) -> dict:
         out["company_job_posting_quantity"] = quantity
 
     # Website-Traffic. Laut Doku muss mindestens eines der drei Kriterien
-    # gesetzt sein (Besuche, Veraenderung, Laender) — ein Objekt aus nur
+    # gesetzt sein (Besuche, Veraenderung, Laender): ein Objekt aus nur
     # einem Zeitraum waere eine ungueltige Anfrage.
     traffic: dict = {}
     min_visits, max_visits = num(f.get("traffic_min_visits")), num(f.get("traffic_max_visits"))
@@ -488,7 +488,7 @@ def _website_of(company: dict) -> str | None:
     """Website oder aus der Domain gebaut.
 
     Die Website ist der Entdopplungsschluessel dieser Pipeline (Prospeo kennt
-    keine Google-place_id). Ohne sie ist ein Datensatz unbrauchbar — er
+    keine Google-place_id). Ohne sie ist ein Datensatz unbrauchbar: er
     liesse sich weder entdoppeln noch spaeter personalisieren.
     """
     website = (company.get("website") or "").strip()
@@ -499,7 +499,7 @@ def _website_of(company: dict) -> str | None:
 
 
 def _address_of(company: dict) -> str | None:
-    """Anschrift. Prospeo liefert eine fertige raw_address mit — die ist
+    """Anschrift. Prospeo liefert eine fertige raw_address mit, und die ist
     vollstaendiger als alles, was wir aus den Einzelteilen zusammensetzen
     (sie enthaelt die Strasse). Rueckfall auf Stadt/Region/Land, weil laut
     Doku jedes Feld null sein kann."""
@@ -523,7 +523,7 @@ def _phone_of(company: dict) -> str | None:
          "phone_hq_international": "+16165759676", ...}
 
     Am 2026-08-05 im Testlauf gesehen. Ohne diese Funktion waere ein dict in
-    die Textspalte businesses.phone_national gewandert — entweder ein
+    die Textspalte businesses.phone_national gewandert: entweder ein
     Datenbankfehler oder, schlimmer, ein gespeichertes "{'phone_hq': ...}".
     """
     phone = company.get("phone_hq")
@@ -541,7 +541,7 @@ def _phone_of(company: dict) -> str | None:
 def _current_job(person: dict) -> dict:
     """Der aktuelle Eintrag aus der Job-Historie.
 
-    Senioritaet und Abteilung stehen NICHT oben auf dem Person-Objekt --
+    Senioritaet und Abteilung stehen NICHT oben auf dem Person-Objekt,
     dort sind sie durchgaengig null. Sie haengen am einzelnen Job in
     job_history, wo current=true steht. Ebenfalls erst im Testlauf am
     2026-08-05 aufgefallen; vorher haette jeder Kontakt seniority=None
@@ -560,7 +560,7 @@ def _current_job(person: dict) -> dict:
 def _map_pair(person: dict, company: dict, email: str | None, email_status: str | None) -> dict | None:
     """Person plus Firma in unsere beiden Zeilen uebersetzen.
 
-    Gibt None zurueck, wenn Website oder Name fehlen — dieselbe Regel wie bei
+    Gibt None zurueck, wenn Website oder Name fehlen; dieselbe Regel wie bei
     Apollo: ohne Website kein Entdopplungsschluessel, ohne Namen kein
     Ansprechpartner.
     """
@@ -658,7 +658,7 @@ def collect_people(
         return []
 
     # Anreichern in 50er-Bloecken. Der identifier ist Pflicht und ordnet die
-    # Antwort dem Eingang zu — Prospeo garantiert keine Reihenfolge.
+    # Antwort dem Eingang zu; Prospeo garantiert keine Reihenfolge.
     by_identifier: dict[str, tuple[dict, dict]] = {}
     payload: list[dict] = []
     for person, company in candidates[:budget]:
@@ -679,7 +679,7 @@ def collect_people(
             # gegen den Kampagnenstart haelt.
             "only_verified_email": True,
             # Mobilnummern kosten das Zehnfache und werden hier nicht
-            # gebraucht — der Anrufkanal arbeitet mit der Firmennummer.
+            # gebraucht; der Anrufkanal arbeitet mit der Firmennummer.
             "enrich_mobile": False,
         }
         data = _post(BULK_ENRICH_URL, body, api_key).json()
@@ -690,7 +690,7 @@ def collect_people(
             if not source:
                 continue
             # Person und Firma aus der Anreicherung sind vollstaendiger als
-            # aus der Suche — deshalb vorrangig, mit Rueckfall auf die
+            # aus der Suche, deshalb vorrangig, mit Rueckfall auf die
             # Suchdaten, falls ein Feld fehlt.
             person = {**source[0], **(match.get("person") or {})}
             company = {**source[1], **(match.get("company") or {})}
@@ -720,7 +720,7 @@ def explain_empty_result(filters: dict, api_key: str) -> str:
     """Warum kam nichts zurueck?
 
     "Fertig, 0 Leads" ohne Begruendung ist die frustrierendste Auskunft, die
-    eine Suche geben kann — der Nutzer sieht acht Filter und weiss nicht,
+    eine Suche geben kann: der Nutzer sieht acht Filter und weiss nicht,
     welcher schuld war. Dieselbe Ueberlegung wie in apollo.explain_empty_result.
 
     Die Pruefung laeuft nur auf dem Null-Pfad und kostet je Versuch eine
@@ -746,7 +746,7 @@ def explain_empty_result(filters: dict, api_key: str) -> str:
             continue
         try:
             data = search_page(probe, api_key, 1)
-        except Exception:  # noqa: BLE001 — Diagnose, kein Arbeitsschritt
+        except Exception:  # noqa: BLE001 (Diagnose, kein Arbeitsschritt)
             break
         total = (data.get("pagination") or {}).get("total_count") or 0
         if total > 0:

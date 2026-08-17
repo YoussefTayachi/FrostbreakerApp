@@ -1,7 +1,7 @@
 /**
  * Einordnung der Leads einer Kampagne.
  *
- * Reine Logik, damit die Zuordnung "wer gilt als kontaktiert" pruefbar ist --
+ * Reine Logik, damit die Zuordnung "wer gilt als kontaktiert" pruefbar ist:
  * sie ist der Kern dieser Ansicht und beruht auf einer Entscheidung, die man
  * falsch treffen kann.
  *
@@ -43,7 +43,7 @@ export function isContacted(lead: CampaignLead): boolean {
  *
  * Fuer die Arbeit mit der Liste sind sie derselbe Fall: an diese Adresse geht
  * nichts mehr raus, und man sollte hinschauen. Getrennt aufzufuehren waere
- * eine Unterscheidung ohne Konsequenz — welcher der beiden es war, steht in
+ * eine Unterscheidung ohne Konsequenz; welcher der beiden es war, steht in
  * der Zeile selbst.
  */
 export function hasProblem(lead: CampaignLead): boolean {
@@ -68,7 +68,7 @@ export function matchesFilter(lead: CampaignLead, filter: LeadFilter): boolean {
 
 export type LeadCounts = Record<LeadFilter, number>;
 
-/** Zahlen fuer die Filterleiste — eine Schaltflaeche, die auf 0 fuehrt, ist eine Sackgasse. */
+/** Zahlen fuer die Filterleiste; eine Schaltflaeche, die auf 0 fuehrt, ist eine Sackgasse. */
 export function countLeads(leads: CampaignLead[]): LeadCounts {
   return {
     all: leads.length,
@@ -82,7 +82,7 @@ export function countLeads(leads: CampaignLead[]): LeadCounts {
 /**
  * Arbeitsreihenfolge: was Aufmerksamkeit braucht, steht oben.
  *
- * Antworten zuerst — sie sind der Grund, warum die Kampagne laeuft. Dann
+ * Antworten zuerst: sie sind der Grund, warum die Kampagne laeuft. Dann
  * Probleme, weil sie die Zustellbarkeit betreffen. Danach die noch
  * Ausstehenden, und ganz unten die bereits Kontaktierten, bei denen gerade
  * nichts zu tun ist.

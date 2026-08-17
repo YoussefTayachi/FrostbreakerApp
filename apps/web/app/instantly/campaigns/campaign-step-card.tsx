@@ -14,7 +14,7 @@ import type { Step } from "./campaign-form";
 // Eine Karte der Sequenz: Betreff, Text, Variablen-Buttons und die
 // Qualitaetspruefung. Eigene Komponente, weil Textfeld und Pruef-Panel sich
 // den Analysestand teilen (die Markierungen im Text kommen aus demselben
-// Befund wie die Liste darunter) — in der Schleife ueber alle Schritte in
+// Befund wie die Liste darunter); in der Schleife ueber alle Schritte in
 // campaign-form.tsx liesse sich dafuer kein State halten.
 
 export default function CampaignStepCard({
@@ -30,7 +30,7 @@ export default function CampaignStepCard({
   onChange: (patch: Partial<Step>) => void;
   onRemove: () => void;
   canRemove: boolean;
-  /** Zusammenhang fuers Nachschaerfen. Optional — ohne Angebot kennt das
+  /** Zusammenhang fuers Nachschaerfen. Optional: ohne Angebot kennt das
    *  Modell nur den vorhandenen Text. */
   offerId?: string | null;
 }) {
@@ -44,7 +44,7 @@ export default function CampaignStepCard({
    * Nachschaerfen: eine Anweisung, eine Fassung zurueck.
    *
    * `vorher` haelt den letzten Stand fuer den Zurueck-Schritt. Ohne ihn traut
-   * sich niemand, eine fertige Fassung noch einmal anzufassen — und genau
+   * sich niemand, eine fertige Fassung noch einmal anzufassen, und genau
    * dann bleibt der erste Entwurf stehen, obwohl er besser sein koennte.
    */
   const [anweisung, setAnweisung] = useState("");
@@ -60,7 +60,7 @@ export default function CampaignStepCard({
    *
    * Reiter statt untereinander: zwei Fassungen desselben Schritts sind
    * Alternativen, keine Fortsetzung. Untereinander gestellt liest man sie
-   * unwillkuerlich als zwei aufeinanderfolgende Mails — und genau das sind
+   * unwillkuerlich als zwei aufeinanderfolgende Mails, und genau das sind
    * sie nicht.
    */
   const [activeVariant, setActiveVariant] = useState(0);
@@ -75,7 +75,7 @@ export default function CampaignStepCard({
 
   function addVariant() {
     // Leer statt als Kopie: eine kopierte Fassung, an der man zwei Woerter
-    // aendert, misst nichts — der Sinn des Vergleichs ist ein echter
+    // aendert, misst nichts; der Sinn des Vergleichs ist ein echter
     // Gegenentwurf.
     onChange({ variants: [...step.variants, { subject: "", body: "" }] });
     setActiveVariant(step.variants.length);
@@ -87,7 +87,7 @@ export default function CampaignStepCard({
   }
 
   /**
-   * Abschalten statt loeschen — der Handgriff, wenn ein Gewinner feststeht.
+   * Abschalten statt loeschen: der Handgriff, wenn ein Gewinner feststeht.
    *
    * Eine geloeschte Verliererin nimmt ihre Zahlen mit ins Grab, und die
    * naechste Kampagne wiederholt denselben Fehler. Abgeschaltet bleibt sie in
@@ -125,7 +125,7 @@ export default function CampaignStepCard({
   // die URL geschrieben, nur {{email}} bleibt als echtes Instantly-Merge-Tag
   // stehen (das ersetzt Instantly beim Versand pro Empfaenger). Der Klick
   // landet auf /api/unsubscribe, das die Adresse ohne Login in die Sperrliste
-  // eintraegt — CAN-SPAM verlangt einen Opt-out ohne zusaetzliche Huerden.
+  // eintraegt; CAN-SPAM verlangt einen Opt-out ohne zusaetzliche Huerden.
   function optOutLink(): string {
     return `${window.location.origin}/api/unsubscribe?ws=${workspaceId}&email={{email}}`;
   }

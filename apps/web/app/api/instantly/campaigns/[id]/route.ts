@@ -24,7 +24,7 @@ function toHhMm(t: string) {
  * Kampagnen-Detailseite: laedt live von Instantly (Status/Sequenz/Zeitplan
  * koennen sich dort aendern, z.B. wenn jemand direkt in Instantly etwas
  * anpasst), zaehlt aber den lokalen campaign_leads-Bestand fuer "wie viele
- * der verfuegbaren Leads sind schon drin" — das kennt Instantly so nicht.
+ * der verfuegbaren Leads sind schon drin"; das kennt Instantly so nicht.
  */
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -59,7 +59,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
    * sichtbar wurde: "406 von 98 verfuegbaren Leads hinzugefuegt". Die 406
    * stimmten, die 98 waren eine von fuenf Listen.
    *
-   * Dieselbe Korrektur wie in api/instantly/campaigns fuer die Uebersicht --
+   * Dieselbe Korrektur wie in api/instantly/campaigns fuer die Uebersicht:
    * dort fiel es zuerst auf, hier stand sie noch aus.
    */
   const { data: links } = await supabase
@@ -108,7 +108,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
   // live von Instantly (dort kann sie jemand direkt bearbeitet haben), aber
   // wenn ein Text dort leer ist, gewinnt die lokale Kopie. Sonst zeigt die
   // Oberflaeche ein leeres Feld und ueberschreibt es beim naechsten Speichern
-  // auch noch mit Leere — der Text waere endgueltig weg, obwohl er in
+  // auch noch mit Leere: der Text waere endgueltig weg, obwohl er in
   // campaign_steps noch vollstaendig vorliegt.
   const { data: mirroredSteps } = await supabase
     .from("campaign_steps")
@@ -189,7 +189,7 @@ type UpdateCampaignBody = {
   dailyLimit?: number | null;
 };
 
-/** Bearbeitet Name/Sequenz/Zeitplan/Mailboxen einer bestehenden Kampagne — der Suchen-Bezug (search_id) ist bewusst nicht editierbar, siehe Kampagnen-Formular. */
+/** Bearbeitet Name/Sequenz/Zeitplan/Mailboxen einer bestehenden Kampagne; der Suchen-Bezug (search_id) ist bewusst nicht editierbar, siehe Kampagnen-Formular. */
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const supabase = await createClient();
@@ -210,7 +210,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   const timezone = body.timezone || local.timezone;
   const dailyLimit = body.dailyLimit !== undefined ? body.dailyLimit : local.daily_limit;
   // Ohne Angabe bleibt der gespiegelte Zustand. Null (vor Migration 0071
-  // angelegt) wird dabei zu false — damit steht ab dem ersten Speichern
+  // angelegt) wird dabei zu false; damit steht ab dem ersten Speichern
   // fest, was gilt, statt weiter "unbekannt" zu sein.
   const openTracking = body.openTracking !== undefined ? body.openTracking : local.open_tracking === true;
   const linkTracking = body.linkTracking !== undefined ? body.linkTracking : local.link_tracking === true;
@@ -287,7 +287,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
 }
 
 /**
- * Loescht eine Kampagne komplett — lokal und (falls vorhanden) auch bei
+ * Loescht eine Kampagne komplett: lokal und (falls vorhanden) auch bei
  * Instantly. Bewusst tolerant, wenn Instantly die Kampagne schon nicht mehr
  * kennt (z.B. direkt dort geloescht, oder die Anlage ist beim ersten Schritt
  * fehlgeschlagen): das darf das Aufraeumen der lokalen Zeile nicht blockieren,

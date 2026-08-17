@@ -10,7 +10,7 @@ import { STATUS_BADGE_CLS } from "@/lib/ui";
  * zeigt nur noch den Link-Status und fuehrt dorthin. Drei Zustaende:
  *  1. Keine Kampagne verknuepft -> Button zum Anlegen (vorausgefuellt mit dieser Suche)
  *  2. Nativ angelegte Kampagne (lokale campaigns-Zeile vorhanden) -> Status-Badge + Link ins Kampagnen-Detail
- *  3. Nur manuell per ID verknuepft (searches.instantly_campaign_id gesetzt, aber keine lokale Zeile --
+ *  3. Nur manuell per ID verknuepft (searches.instantly_campaign_id gesetzt, aber keine lokale Zeile;
  *     der alte manuelle Weg aus SearchSettings) -> unveraendert wie bisher, Hinweis auf Instantly direkt
  */
 export default async function CampaignLinkCard({

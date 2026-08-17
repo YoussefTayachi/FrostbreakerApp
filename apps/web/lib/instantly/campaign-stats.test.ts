@@ -19,7 +19,7 @@ describe("campaignStats", () => {
   /**
    * Der Fehler, um den es geht. Am 2026-08-04 zeigte die Liste fuer eine
    * Kampagne mit fuenf Suchen 2030 Leads statt 406 und 85 Kontaktierte statt
-   * 17 — genau der Faktor fuenf, weil aufaddiert wurde.
+   * 17, genau der Faktor fuenf, weil aufaddiert wurde.
    */
   it("multipliziert NICHT mit der Zahl der Suchen", () => {
     const s = campaignStats(rows(5))!;
@@ -49,7 +49,7 @@ describe("campaignStats", () => {
 describe("campaignStatsRow", () => {
   /**
    * Alle Zeilen treffen dieselbe Aussage, werden aber zu unterschiedlichen
-   * Zeitpunkten abgeholt — jede Suche hat ihren eigenen Poll-Termin. Die
+   * Zeitpunkten abgeholt: jede Suche hat ihren eigenen Poll-Termin. Die
    * juengste ist der frischeste Stand derselben Wahrheit.
    */
   it("nimmt die zuletzt aktualisierte Zeile", () => {

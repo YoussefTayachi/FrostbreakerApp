@@ -3,7 +3,7 @@
  *
  * Die Werte liegen als jsonb am Objekt (Migration 0067), nicht in einer
  * eigenen Wertetabelle. Das heisst: die Datenbank prueft sie NICHT. Ein
- * Zahlenfeld, in dem "abc" steht, faellt dort nicht auf — es faellt auf,
+ * Zahlenfeld, in dem "abc" steht, faellt dort nicht auf. Es faellt auf,
  * wenn jemand danach sortiert oder summiert.
  *
  * Deshalb sitzt die Pruefung hier, als reine Funktion mit Tests, und wird an
@@ -33,7 +33,7 @@ export type CustomValues = Record<string, string | number | null>;
 /**
  * Aus einer Beschriftung einen technischen Schluessel bilden.
  *
- * Der Schluessel ist unveraenderlich, das Label nicht — wer "Branche" spaeter
+ * Der Schluessel ist unveraenderlich, das Label nicht: wer "Branche" spaeter
  * in "Wirtschaftszweig" umbenennt, soll nicht die vorhandenen Werte verlieren.
  * Deshalb wird er einmal beim Anlegen erzeugt und danach nie wieder berechnet.
  *
@@ -51,7 +51,7 @@ export function keyFromLabel(label: string): string {
     .replace(/_+/g, "_")
     .replace(/^_|_$/g, "");
   // Rueckfall VOR dem Voranstellen pruefen: bleibt von der Beschriftung nichts
-  // uebrig ("!!!"), ergaebe das Voranstellen sonst den Schluessel "f_" — der
+  // uebrig ("!!!"), ergaebe das Voranstellen sonst den Schluessel "f_"; der
   // erfuellt zwar den Constraint, sagt aber nichts.
   if (!base) return "feld";
   // Der Constraint verlangt einen Buchstaben am Anfang: ein Feld namens "2024"
@@ -65,7 +65,7 @@ export function uniqueKey(label: string, taken: readonly string[]): string {
   const base = keyFromLabel(label);
   if (!taken.includes(base)) return base;
   for (let i = 2; i < 100; i++) {
-    // Auf 40 Zeichen kuerzen, BEVOR der Zaehler drankommt — sonst faellt er
+    // Auf 40 Zeichen kuerzen, BEVOR der Zaehler drankommt; sonst faellt er
     // bei einem langen Label wieder weg und die Kollision bleibt.
     const candidate = base.slice(0, 37) + "_" + i;
     if (!taken.includes(candidate)) return candidate;
@@ -89,7 +89,7 @@ export function coerceValue(
 
   switch (def.field_type) {
     case "number": {
-      // Komma als Dezimaltrennzeichen zulassen — in einer deutschsprachigen
+      // Komma als Dezimaltrennzeichen zulassen: in einer deutschsprachigen
       // Oberflaeche tippt niemand einen Punkt.
       const n = Number(text.replace(",", "."));
       return Number.isFinite(n) ? { value: n } : { error: "not_a_number" };
@@ -112,7 +112,7 @@ export function coerceValue(
  *
  * Felder, deren Definition inzwischen geloescht wurde, tauchen hier NICHT auf.
  * Der Wert bleibt im jsonb liegen (siehe Entwurfsentscheidung in Migration
- * 0067) — er soll nur nicht ohne Beschriftung angezeigt werden, denn eine
+ * 0067); er soll nur nicht ohne Beschriftung angezeigt werden, denn eine
  * Zahl ohne Feldnamen ist keine Information.
  */
 export function visibleValues(
@@ -125,7 +125,7 @@ export function visibleValues(
     .map((def) => ({ def, value: values?.[def.key] ?? null }));
 }
 
-/** Werte ohne zugehoerige Definition — fuer einen Hinweis beim Aufraeumen. */
+/** Werte ohne zugehoerige Definition, fuer einen Hinweis beim Aufraeumen. */
 export function orphanedKeys(defs: CustomFieldDef[], values: CustomValues): string[] {
   const known = new Set(defs.map((d) => d.key));
   return Object.keys(values ?? {}).filter((k) => !known.has(k));

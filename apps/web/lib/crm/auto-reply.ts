@@ -3,21 +3,21 @@
  *
  * Warum das eine eigene Kategorie braucht: Die KI-Einstufung kannte nur
  * 'interested', 'not_interested' und 'question'. Eine Abwesenheitsnotiz passt
- * in keine davon und landete deshalb bei 'not_interested' — gemessen am
+ * in keine davon und landete deshalb bei 'not_interested'. Gemessen am
  * 2026-08-03 traf das beide vorhandenen Auto-Antworten:
  *
  *   "Automatic reply: after-hours product questions"       -> not_interested
  *   "BA SLOW TO RESPOND Re: customer support costs"        -> not_interested
  *
  * Das ist inhaltlich falsch und praktisch teuer. Wer im Urlaub ist, hat nicht
- * abgelehnt — man kann ihn in zwei Wochen wieder anschreiben. Als
+ * abgelehnt; man kann ihn in zwei Wochen wieder anschreiben. Als
  * "kein Interesse" gefuehrt faellt er dagegen dauerhaft aus jeder kuenftigen
  * Kampagne heraus (api/instantly/campaigns schliesst diesen Status aus).
  *
  * WARUM MUSTER STATT KI:
  * Auto-Antworten kuendigen sich im Betreff an, und zwar in einer ueberschaubaren
  * Zahl von Formulierungen. Ein Mustervergleich ist dabei nicht nur billiger als
- * ein Modellaufruf, sondern auch verlaesslicher — und er spart den Aufruf ganz,
+ * ein Modellaufruf, sondern auch verlaesslicher, und er spart den Aufruf ganz,
  * statt ihn nur zu korrigieren. Die KI bleibt fuer alles zustaendig, was sich
  * nicht am Muster erkennen laesst.
  */
@@ -51,7 +51,7 @@ const SUBJECT_PATTERNS: RegExp[] = [
 
 /**
  * Kopfzeilen, die eine Auto-Antwort eindeutig ausweisen. Instantly liefert sie
- * uns derzeit nicht mit, deshalb ungenutzt — aber dokumentiert, weil es der
+ * uns derzeit nicht mit, deshalb ungenutzt, aber dokumentiert, weil es der
  * technisch saubere Weg waere, falls die Felder je verfuegbar werden:
  *   Auto-Submitted: auto-replied
  *   X-Autoreply / X-Autorespond
@@ -60,7 +60,7 @@ const SUBJECT_PATTERNS: RegExp[] = [
 
 /**
  * Formulierungen im TEXT, aber nur die eindeutigen. Sie greifen erst, wenn der
- * Betreff nichts hergibt — deshalb bewusst enger gefasst als die Liste oben.
+ * Betreff nichts hergibt, deshalb bewusst enger gefasst als die Liste oben.
  */
 const BODY_PATTERNS: RegExp[] = [
   /\bthis\s+is\s+an\s+auto[\s-]?(matic\s+)?(reply|response|responder)\b/i,
@@ -89,7 +89,7 @@ export function detectAutoReply(
   // Nur der Anfang des Textes: eine zitierte Originalmail weiter unten kann
   // dieselben Wendungen enthalten, ohne dass die Antwort selbst automatisch
   // waere. Dieselbe Ueberlegung wie bei der Abmeldeerkennung in opt-out.ts,
-  // hier aber ohne vollen Zitat-Schnitt — Auto-Antworten stehen immer oben.
+  // hier aber ohne vollen Zitat-Schnitt: Auto-Antworten stehen immer oben.
   const head = (body ?? "").slice(0, 500);
   for (const pattern of BODY_PATTERNS) {
     const m = pattern.exec(head);

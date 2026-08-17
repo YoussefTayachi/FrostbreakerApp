@@ -13,7 +13,7 @@ type Row = { id: string; email: string | null; domain: string | null; reason: st
  * angeschrieben wurde und dessen Lead-Liste danach geloescht wurde.
  *
  * Steht hier und nicht auf einer eigenen Seite, weil es dieselbe Frage
- * beantwortet wie die Blockliste — "wen schreibe ich nicht (mehr) an" — nur
+ * beantwortet wie die Blockliste ("wen schreibe ich nicht (mehr) an"), nur
  * eben ohne Zutun des Nutzers. Getrennte Tabelle bleibt es trotzdem: die
  * Blockliste ist eine Entscheidung, das Archiv ist ein Protokoll.
  */
@@ -66,7 +66,7 @@ export default function BlocklistPage() {
    * Bewusst moeglich: nach einem Jahr denselben Betrieb noch einmal
    * anzuschreiben ist ein legitimer Vorgang, und ohne diesen Knopf waere die
    * einzige Loesung, in der Datenbank zu loeschen. Ohne Ruecknahme, weil die
-   * Zeile danach ihren urspruenglichen Zeitpunkt verloren haette — eine
+   * Zeile danach ihren urspruenglichen Zeitpunkt verloren haette; eine
    * Rueckgaengig-Schaltflaeche, die etwas Falsches wiederherstellt, ist
    * schlimmer als keine.
    */

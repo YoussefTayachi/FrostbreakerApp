@@ -14,7 +14,7 @@ import { useWorkspace } from "../../workspace-provider";
  * ═══════════════════════════════════════════════════════════════════════
  *
  * Bis Migration 0081 war workspaces.owner_id = auth.uid() die einzige
- * Zugriffsregel der App. Ein Workspace gehoerte genau einem Konto — fuer
+ * Zugriffsregel der App. Ein Workspace gehoerte genau einem Konto; fuer
  * eine Agentur mit einem Team hiess das in der Praxis: ein geteiltes
  * Passwort. Kein Nachvollziehen, wer was getan hat, kein Entzug beim
  * Ausscheiden, keine Abstufung fuer Freie.
@@ -32,13 +32,13 @@ import { useWorkspace } from "../../workspace-provider";
  *
  * Der Preis: die eingeladene Person muss selbst erfahren, dass sie
  * eingeladen wurde. Deshalb steht neben jeder offenen Einladung, was zu tun
- * ist — und nicht ein "Einladung versendet", das nirgends ankommt.
+ * ist, und nicht ein "Einladung versendet", das nirgends ankommt.
  *
  * 2. ZWEI ROLLEN, NICHT FUENF
  *
  * Admin darf einladen, Rollen aendern, entfernen und die API-Schluessel
  * sehen. Mitglied darf alles Operative. Eine Rollenmatrix, die niemand
- * erklaeren kann, wird auf Verdacht hoch vergeben — und dann ist sie keine.
+ * erklaeren kann, wird auf Verdacht hoch vergeben, und dann ist sie keine.
  *
  * 3. DIE SEITE VERSTECKT NICHTS VOR MITGLIEDERN
  *
@@ -47,7 +47,7 @@ import { useWorkspace } from "../../workspace-provider";
  *
  * Die Regeln stehen nicht hier, sondern in der Datenbank (Policies plus
  * trg_guard_last_admin). Diese Seite blendet nur aus, was ohnehin abgelehnt
- * wuerde — ein Formular, das der Server verweigert, ist kein Schutz.
+ * wuerde; ein Formular, das der Server verweigert, ist kein Schutz.
  */
 
 type Member = {
@@ -94,7 +94,7 @@ export default function TeamPage() {
     void load();
   }, [load]);
 
-  // Ob ich hier Admin bin, steht in der Liste selbst — eine zweite Abfrage
+  // Ob ich hier Admin bin, steht in der Liste selbst; eine zweite Abfrage
   // (is_workspace_admin) waere ein zweiter Rundgang fuer dieselbe Auskunft.
   const isAdmin = members.some((m) => m.user_id === meId && m.role === "admin");
   const adminCount = members.filter((m) => m.role === "admin").length;

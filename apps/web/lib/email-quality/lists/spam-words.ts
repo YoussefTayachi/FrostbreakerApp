@@ -1,7 +1,7 @@
 import type { Lang, SpamCategory } from "../types";
 
 // Klassische Spam-Trigger, nach Motiv gruppiert. Kein Filter entscheidet heute
-// noch allein an Stichwoertern — in Kombination mit einer kalten Domain und
+// noch allein an Stichwoertern; in Kombination mit einer kalten Domain und
 // vielen Empfaengern kippen sie die Zustellung aber sehr wohl, und genau diese
 // Kombination ist bei Kaltakquise der Normalfall. Die Gruppierung nach Motiv
 // ist wichtiger als Vollstaendigkeit: sie sagt dem Nutzer, *warum* eine

@@ -39,7 +39,7 @@ describe("keyFromLabel", () => {
     expect(keyFromLabel("Umsatz (in €) / Jahr")).toBe("umsatz_in_jahr");
   });
 
-  // Der Constraint verlangt einen Buchstaben am Anfang — ein Feld "2024"
+  // Der Constraint verlangt einen Buchstaben am Anfang; ein Feld "2024"
   // waere sonst schlicht nicht anlegbar.
   it("stellt einen Buchstaben voran, wenn es mit einer Ziffer beginnt", () => {
     expect(keyFromLabel("2024 Ziel")).toBe("f_2024_ziel");
@@ -126,7 +126,7 @@ describe("visibleValues", () => {
     expect(visibleValues([def()], {})).toEqual([{ def: def(), value: null }]);
   });
 
-  // Ein Wert ohne Feldnamen ist keine Information — deshalb wird er nicht
+  // Ein Wert ohne Feldnamen ist keine Information; deshalb wird er nicht
   // angezeigt, bleibt aber in der Datenbank stehen.
   it("zeigt Werte ohne Definition nicht an", () => {
     const shown = visibleValues([def({ key: "branche" })], { branche: "Handel", alt: "x" });

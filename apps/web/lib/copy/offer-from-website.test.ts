@@ -34,7 +34,7 @@ describe("buildOfferPrompt", () => {
 
   it("bleibt ohne gewaehltes Produkt Wort fuer Wort der alte", () => {
     // Die eindeutige Seite ist der Normalfall. Weder null noch ein fehlender
-    // Wert darf am Prompt etwas aendern — sonst haette die Erkennung den
+    // Wert darf am Prompt etwas aendern; sonst haette die Erkennung den
     // Entwurf jeder anderen Seite mitverschoben.
     expect(buildOfferPrompt(seite, "de", null)).toBe(buildOfferPrompt(seite, "de"));
     expect(buildOfferPrompt(seite, "de")).not.toContain("THE ONE PRODUCT");
@@ -79,7 +79,7 @@ describe("parseOfferSuggestion", () => {
 
   it("schlaegt den Micro-Yes NICHT aus der Website vor", () => {
     // Auf fast jeder Seite steht "Termin buchen". Genau das ist der Micro-Yes
-    // nicht — solange dieses Feld mitlief, hat die Uebernahme dem Nutzer die
+    // nicht. Solange dieses Feld mitlief, hat die Uebernahme dem Nutzer die
     // Terminbitte ins Angebot geschrieben.
     expect(SUGGESTED_FIELDS).not.toContain("cta");
     expect(parseOfferSuggestion('{"cta":"Kostenloses Erstgespräch buchen"}')).toEqual({});

@@ -15,7 +15,7 @@ import Herkunft from "./herkunft";
  * sind aber ein Gefuege: die Friction ist die konkrete Stelle des Problems,
  * der Grund erklaert die Friction, die Pruefzeit gehoert zum Preview, das
  * Preview zur Frage. Am 2026-08-13 hat genau diese Unsichtbarkeit einen Fehler
- * erzeugt — derselbe Termin stand in drei Feldern, die drei verschiedene
+ * erzeugt: derselbe Termin stand in drei Feldern, die drei verschiedene
  * Fragen stellen.
  *
  * ═══════════════════════════════════════════════════════════════════════
@@ -26,20 +26,20 @@ import Herkunft from "./herkunft";
  * und sofort verworfen: neben der 340 Pixel breiten Statusspalte blieben je
  * Spalte rund 250 Pixel, und darin brach "What does the customer struggle
  * with beforehand?" auf vier Zeilen um. Aus einer Erleichterung wurde eine
- * Zumutung — schmaler als das Formular, das sie ersetzen sollte.
+ * Zumutung, schmaler als das Formular, das sie ersetzen sollte.
  *
  * Jetzt: vier Felder in den Ecken, THAW in der Mitte, und die Statusspalte
- * ist weg. Damit ist jeder Knoten rund 470 statt 250 Pixel breit — die Frage
+ * ist weg. Damit ist jeder Knoten rund 470 statt 250 Pixel breit: die Frage
  * steht auf einer Zeile, die Antwort auf zweien.
  *
  * ═══════════════════════════════════════════════════════════════════════
- * WOHER DIE BREITE KOMMT — UND WOHIN SIE GEHT
+ * WOHER DIE BREITE KOMMT, UND WOHIN SIE GEHT
  * ═══════════════════════════════════════════════════════════════════════
  *
- * Am 2026-08-13 gemeldet: "es gibt rechts und links noch genug platz --
+ * Am 2026-08-13 gemeldet: "es gibt rechts und links noch genug platz,
  * breite es aus." Am Live-Stand nachgemessen, 1920er Fenster: die Karte war
  * 1024 Pixel breit und lag linksbuendig in einem 1216 Pixel breiten `main`.
- * Links blieben 224 Pixel leer, rechts 416 — und die Fragen brachen trotzdem
+ * Links blieben 224 Pixel leer, rechts 416, und die Fragen brachen trotzdem
  * um. Zwei Deckel lagen uebereinander: max-w-5xl auf der Seite (weg, siehe
  * page.tsx) und max-w-7xl auf `main` (fuer diese Seite gehoben, siehe
  * .fb-weit in globals.css). Die Karte selbst war nie das Problem.
@@ -47,7 +47,7 @@ import Herkunft from "./herkunft";
  * Der gewonnene Platz geht vollstaendig in die KNOTEN, nicht in die Luecke
  * dazwischen: gap-x bleibt bei 19rem, weil dort THAW steht (17rem) und sonst
  * nichts. Das ist auch der Grund, warum die Bezierkurven zwischen den Spalten
- * unveraendert aussehen — ihr Kontrollpunkt-Abstand (dx in `pfad`) haengt an
+ * unveraendert aussehen: ihr Kontrollpunkt-Abstand (dx in `pfad`) haengt an
  * genau dieser Luecke, nicht an der Knotenbreite. Wer die Luecke doch einmal
  * vergroessert, muss dx deckeln: sehr flache, lange S-Kurven liest man als
  * Zeichenfehler.
@@ -59,7 +59,7 @@ import Herkunft from "./herkunft";
  *
  * Die Reihenfolge laeuft IM UHRZEIGERSINN: oben links, oben rechts, unten
  * rechts, unten links. Das ist kein Geschmack, sondern der Grund, warum es
- * ueberhaupt lesbar ist — so liegt jede Gruppe neben der, aus der sie folgt,
+ * ueberhaupt lesbar ist: so liegt jede Gruppe neben der, aus der sie folgt,
  * und keine einzige Kante muss quer durch die Mitte.
  *
  * ═══════════════════════════════════════════════════════════════════════
@@ -75,7 +75,7 @@ import Herkunft from "./herkunft";
  * zwischen beiden Knoten. Das kann ein Formular strukturell nicht.
  */
 
-/** Was ein gemessener Knoten ist — Koordinaten relativ zur Karte. */
+/** Was ein gemessener Knoten ist: Koordinaten relativ zur Karte. */
 type Box = { x: number; y: number; w: number; h: number };
 
 /** Bis zu welchem senkrechten Abstand zwei Knoten als "direkt untereinander"
@@ -96,7 +96,7 @@ const NACHBAR_ABSTAND = 44;
  * Am Live-Bauteil durchgemessen (2026-08-13, ueber jeden Knoten gefahren,
  * damit alle acht Beschriftungen wirklich gezeichnet werden): bei den vorher
  * eingestellten 24 Pixeln ragten "goes away" um 22, "backs it" um 19 und
- * "for that" um 19 Pixel aus der Zeichenflaeche und wurden abgeschnitten --
+ * "for that" um 19 Pixel aus der Zeichenflaeche und wurden abgeschnitten;
  * dazu fehlte dem Befund-Pfeil sein aeusseres Stueck. Bei 40 Pixeln blieb es
  * dabei, bei 48 war nichts mehr abgeschnitten. Wird die Fahrbahn wieder
  * schmaler, kommt das Abschneiden zurueck.
@@ -114,7 +114,7 @@ const VERSATZ_COACH = 26;
  * Die Reihenfolge im Array IST die Reihenfolge im Raster (zeilenweise), also
  * oben-links, oben-rechts, unten-links, unten-rechts. Damit "unten rechts"
  * die dritte Station wird, steht `value` an dritter Stelle im Uhrzeigersinn,
- * aber an vierter im Raster — deshalb die getrennte `nummer`.
+ * aber an vierter im Raster; deshalb die getrennte `nummer`.
  */
 const ECKEN: { id: OfferStageId; nummer: number; felder: OfferTextField[] }[] = [
   { id: "who", nummer: 1, felder: ["offering", "icp", "tone"] },
@@ -124,7 +124,7 @@ const ECKEN: { id: OfferStageId; nummer: number; felder: OfferTextField[] }[] = 
 ];
 
 /**
- * Die Kanten. Jede verbindet nur BENACHBARTE Ecken — keine laeuft quer durch
+ * Die Kanten. Jede verbindet nur BENACHBARTE Ecken: keine laeuft quer durch
  * die Mitte, wo THAW steht.
  *
  * mechanism und tone haben absichtlich keine: der Mechanismus kommt in Mail 1
@@ -142,7 +142,7 @@ export const KANTEN: { von: OfferTextField; nach: OfferTextField; regel: string 
   { von: "preview_asset", nach: "cta", regel: "forThat" },
 ];
 
-/** Die beiden Knoten, die das Playbook als tragend bezeichnet — und genau
+/** Die beiden Knoten, die das Playbook als tragend bezeichnet, und genau
  *  die beiden, die am 2026-08-13 schiefgingen. */
 const TRAGEND: OfferTextField[] = ["friction", "cta"];
 
@@ -156,7 +156,7 @@ type Texte = {
    * Der Vorschlagskasten. `label` und `farbe` haengen an der HERKUNFT: Website
    * (Frost) oder Lead-Liste (--fb-aim, dann mit dem Namen der Liste). Beides
    * kommt fertig von aussen, damit in der Karte und in der Abschnittsansicht
-   * garantiert dasselbe steht — zweimal derselbe Vorschlag mit zwei
+   * garantiert dasselbe steht; zweimal derselbe Vorschlag mit zwei
    * verschiedenen Herkuenften waere schlimmer als gar keine Angabe.
    */
   suggestion: { label: string; farbe: string; apply: string; discard: string };
@@ -190,7 +190,7 @@ export default function OfferMap({
   /**
    * Die Feldvorschlaege aus Website oder Lead-Liste.
    *
-   * Derselbe Zustand wie in der Abschnittsansicht — die Karte zeigt ihn nur
+   * Derselbe Zustand wie in der Abschnittsansicht; die Karte zeigt ihn nur
    * an einer anderen Stelle. Ohne diesen Weg waeren Vorschlaege ab 1500 Pixel
    * Fensterbreite unsichtbar: dort steht die Karte statt der Abschnitte, und
    * der Aufruf haette Geld gekostet, ohne dass etwas erscheint.
@@ -261,7 +261,7 @@ export default function OfferMap({
     // Der seitliche Rand ist kein Abstand, sondern die Fahrbahn: die aussen
     // herum gefuehrten Kanten, ihre Beschriftungen und der Befund-Pfeil laufen
     // darin. Ist sie zu schmal, enden sie ausserhalb der Zeichenflaeche und
-    // werden abgeschnitten — am Standbild gesehen. Warum ausgerechnet 48
+    // werden abgeschnitten, am Standbild gesehen. Warum ausgerechnet 48
     // Pixel, steht bei AUSSEN.
     <div ref={karte} className="relative px-12">
       {/* ── Die Kanten ─────────────────────────────────────────────────
@@ -326,7 +326,7 @@ export default function OfferMap({
             const a = boxen[c.field];
             const b = boxen[c.relatedField!];
             if (!a || !b) return null;
-            // Versetzt neben der Struktur-Kante — warum, steht bei
+            // Versetzt neben der Struktur-Kante. Warum, steht bei
             // VERSATZ_COACH.
             return (
               <path
@@ -591,7 +591,7 @@ function pfad(a: Box, b: Box, breite: number, versatz = 0): string {
     // Sonst AUSSEN HERUM.
     //
     // Am Standbild gefunden: eine gerade Linie durch die Spaltenmitte laeuft
-    // mitten durch die Knoten, die dazwischen liegen — "faellt weg" und
+    // mitten durch die Knoten, die dazwischen liegen: "faellt weg" und
     // "belegt" durchschnitten die Karten 06 und 07, und die Beschriftung lag
     // auf fremdem Text. Aussen ist Platz: die Luecke zur Mitte ist 300 Pixel
     // breit, nach aussen steht der Seitenrand.
