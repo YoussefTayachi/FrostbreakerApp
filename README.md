@@ -181,4 +181,6 @@ cd apps/worker && pip install -e ".[dev]" && python -m pytest
 ## Zu den Bildern
 
 Echte Bildschirme aus dem laufenden Betrieb. Alle Namen, Firmen, Domains und
-Adressen darin sind ersetzt — auf keinem Bild steht ein echter Kontakt.
+Adressen darin sind ersetzt — auf keinem Bild steht ein echter Kontakt. Die
+Lead-Einträge und die Zahl der gebuchten Termine sind zusätzlich unscharf:
+sichtbar bleibt, *was* dort steht, nicht *wer*.
