@@ -1,64 +1,184 @@
-# Frostbreaker — B2B Lead-Gen & Cold-Outreach (BYOK)
+# Frostbreaker
 
-SaaS: Firmen per Nische finden (Google Maps oder Apollo) → Entscheider
-identifizieren (OpenAI Web Search) → E-Mail-Adressen finden (Hunter/Apollo) →
-Adressen verifizieren (NeverBounce) → personalisierte Eröffnungszeile pro Lead
-(OpenAI) → Kampagne **über Instantly** versenden.
+**Frostbreaker findet Entscheider in Firmen, die zu meinem Angebot passen,
+schreibt jedem eine eigene E-Mail und verfolgt, wer geantwortet hat.** Was
+sonst mehrere Leute erledigen — recherchieren, texten, versenden, nachfassen,
+auswerten — läuft hier in einem Werkzeug.
 
-**BYOK-Prinzip:** Der Nutzer hinterlegt eigene API-Keys (Google Maps, Apollo,
-OpenAI, Hunter, NeverBounce, Instantly). Keys werden serverseitig
-Fernet-verschlüsselt in Supabase gespeichert und zur Laufzeit mit
-`APP_ENCRYPTION_KEY` entschlüsselt.
+Ich habe es gebaut, weil ich Kaltakquise selbst betreibe und die vorhandenen
+Werkzeuge jeweils nur ein Stück davon abdecken: Lead-Datenbanken kennen die
+Firmen, aber nicht meinen Text. Sendetools kennen den Versand, aber nicht die
+Antwort. Erst wenn beides in derselben Datenbank liegt, lässt sich sagen,
+**welche Formulierung Termine gebracht hat.**
 
-> **Wichtig, weil der PROJEKTPLAN etwas anderes sagt:** Eine eigene
-> Sende-Engine (Phase 3) wurde bewusst **nicht** gebaut. Instantly ist und
-> bleibt die Sende-Infrastruktur. `docs/PROJEKTPLAN.md` ist das
-> Ursprungsdokument von Juli 2026 und in diesem Punkt überholt.
+![Dashboard](docs/screenshots/01-dashboard.png)
 
-## Struktur
+---
 
-```
-apps/
-  web/     Next.js-Frontend + alle API-Routen  → Vercel (fra1)
-  worker/  Python-Pipelines (get_businesses, find_decisionmaker,
-           hunt_persons, personalize)          → Railway (US West)
-  api/     TOT. FastAPI, wird von nirgendwo aufgerufen, siehe docs/BETRIEB.md
-supabase/
-  migrations/  SQL, Source of Truth fürs Schema (via Supabase MCP/CLI)
-docs/
-  BETRIEB.md              was wo läuft, Umgebungsvariablen, Störungssuche
-  PROJEKTPLAN.md          Ursprungsplan Juli 2026, teilweise überholt
-  KALTAKQUISE-VORLAGEN.md erprobte Mail-Sequenzen
-  CASE-STUDY-FROSTBREAKER.md
-  TESTLAUF.md
-```
+## Was drinsteckt — und warum
 
-**`docs/BETRIEB.md` zuerst lesen**, wenn du wissen willst, wo etwas läuft.
-Der Code beschreibt die Absicht, diese Datei den tatsächlichen Betrieb.
+Jede Funktion unten ist eine Entscheidung über Kaltakquise. Der zweite Satz
+ist jeweils der wichtigere.
 
-## Entwicklung
+### 1 · Zielgruppe: Entscheider statt Sammeladressen
+
+Suchen nach Nische, Ort, Größe — oder nach der **eingesetzten Technik** und
+nach **offenen Stellen**.
+
+> Wer gerade jemanden für ein Problem sucht, hat es *jetzt* und nicht
+> irgendwann. Das trifft besser als jede Branchenliste. Und Adressen wie
+> `info@` fallen automatisch raus: an eine Adresse, für die niemand zuständig
+> ist, schreibt man nicht kalt an.
+
+![Neue Suche](docs/screenshots/02-suche.png)
+
+### 2 · Aus der Suche wird eine Liste mit Namen
+
+Name, Rolle, geprüfte E-Mail-Adresse, Telefon und LinkedIn — soweit
+öffentlich. Adressen werden vor dem Versand verifiziert.
+
+> Jede unzustellbare Mail zählt auf die Bounce-Rate, und die entscheidet, ob
+> die nächsten Mails überhaupt ankommen. Prüfen ist billiger als zurückbekommen.
+
+![Alle Leads](docs/screenshots/03-leads.png)
+
+### 3 · Das Angebot als Grundlage, nicht der Text
+
+Zwölf Fragen: was verkaufst du, an wen, welches Problem hat der Empfänger
+vorher, was ist danach anders, womit belegst du das, worum bittest du. Sieben
+Antworten liest die App aus der eigenen Website vor.
+
+> Die meisten Kaltmails scheitern nicht am Text, sondern am unklaren Angebot.
+> Wer diese zwölf Fragen nicht beantworten kann, schreibt zwangsläufig
+> Allgemeinplätze — egal wie gut formuliert.
+
+![Angebot](docs/screenshots/04-angebot.png)
+
+### 4 · Ein eigener Aufhänger je Firma
+
+Die KI liest, was die Firma tut, und schreibt daraus den ersten Satz. Quelle,
+Tonfall und verbotene Wörter sind einstellbar; getestet wird an einer echten
+Firma, bevor etwas gespeichert wird.
+
+> Ein eingesetzter Firmenname ist keine Personalisierung, sondern ein
+> Serienbrief mit Platzhalter. Der Empfänger merkt den Unterschied in der
+> ersten Zeile — und entscheidet dort, ob er weiterliest.
+
+![KI-Agent](docs/screenshots/05-agent.png)
+
+### 5 · Sequenz statt Einzelmail
+
+Aus dem Angebot entstehen mehrere Stufen mit je zwei Fassungen zum Vergleich:
+Erstkontakt, anderer Blickwinkel, kurze Nachfrage, Abschied. Alles änderbar.
+
+> Eine einzelne Mail ist ein Los. Und jede Stufe endet bei einer kleinen
+> Frage, nicht bei einer Terminbitte: „Kostenloses Erstgespräch vereinbaren"
+> steht auf fast jeder Website — am Ende einer Kaltmail ist das die größte
+> Bitte, die es gibt.
+
+![Kampagne](docs/screenshots/06-kampagne.png)
+
+### 6 · Elf Prüfungen, bevor etwas rausgeht
+
+Technik und Text: SPF, DKIM, Bounce-Quote, sendbare Adressen, dazu Länge,
+Spam-Wörter und KI-Klang. Vier der elf können den Start aufhalten.
+
+> Nicht als Gängelung. Eine verbrannte Absender-Domain kostet mehr als eine
+> verschobene Kampagne — und man merkt es erst, wenn nichts mehr ankommt.
+
+![Startprüfung](docs/screenshots/07-startpruefung.png)
+
+### 7 · Postfächer mit Aufwärmphase
+
+Mehrere Absender-Postfächer, jedes mit eigenem Warmup-Stand und Tagesmenge.
+
+> Zustellbarkeit ist kein Zufall, sondern Mengenplanung. Ein neues Postfach,
+> das sofort hundert Mails am Tag schickt, landet im Spam — und nimmt die
+> Domain mit.
+
+![Postfächer](docs/screenshots/08-postfaecher.png)
+
+### 8 · Drei Kanäle als eine Kette
+
+Antwortet jemand nicht auf die Mails, steht die LinkedIn-Nachricht bereit.
+Antwortet er darauf nicht, kommt der Anruf — mit Nummer und Vorbereitung. Wer
+antwortet, bekommt im selben Moment nichts mehr.
+
+> Ein gekaufter Lead kostet gleich viel, egal über wie viele Kanäle man ihn
+> anspricht. Das Meiste aus einem Kontakt zu holen ist billiger, als einen
+> neuen zu kaufen.
+
+### 9 · Gemessen wird an Terminen, nicht an Antworten
+
+Je Stufe und je Textfassung: Antworten, Absagen, Termine. Unter 30 Kontakten
+bleibt das Prozentfeld leer.
+
+> Die Antwortquote ist das falsche Ziel — eine Fassung kann vorn liegen und
+> nur Absagen sammeln. Und eine Quote aus zwölf Mails ist ein Münzwurf mit
+> Nachkommastelle.
+
+![Wirkung](docs/screenshots/09-wirkung.png)
+
+### 10 · Was es kostet, steht daneben
+
+Jeder bezahlte Abruf wird mit Menge und Betrag erfasst — Lead-Daten,
+Adressprüfung, KI-Texte.
+
+> Erst wenn der Preis pro Lead dasteht, ist Kaltakquise eine Rechnung statt
+> eines Bauchgefühls. Ist ein Preis unbekannt, bleibt das Feld leer statt
+> geschätzt.
+
+![Kosten](docs/screenshots/10-kosten.png)
+
+---
+
+## Womit ich es selbst betreibe
+
+Zahlen aus dem laufenden Betrieb, Stand 17.08.2026:
+
+| | |
+|---|---|
+| Firmen in der Datenbank | 3.081 |
+| Kontakte, davon mit geprüfter Adresse | 3.007 / 1.650 |
+| Personalisierte Aufhänger | 2.161 |
+| Versendete Mails | 840 |
+| Bounce-Rate | 0,2 % |
+| Absender-Postfächer | 19 |
+| Abfragekosten gesamt | 62,62 $ |
+
+Die Zeitrechnung im Dashboard (rund 364 Stunden Recherche in 14 Tagen) ist
+eine Hochrechnung mit offengelegter Formel, keine Messung — sie steht dort
+mit ihrer Rechnung daneben.
+
+---
+
+## Wie es gebaut ist
+
+Für alle, die es interessiert — es ist nicht der Punkt dieser Seite.
+
+| Teil | Was | Wo |
+|---|---|---|
+| `apps/web` | Next.js 15, React 19, Tailwind v4 — Oberfläche und alle API-Routen | Vercel |
+| `apps/worker` | Python-Daemon, führt die Lead-Pipelines aus | Railway |
+| `supabase/` | Postgres: Schema, Warteschlange, Zugriffsregeln | Supabase |
+
+Versendet wird über **Instantly**; eine eigene Sende-Engine gibt es bewusst
+nicht. Lead-Quellen sind Google Maps, Hunter, Apollo und Prospeo — jeder Nutzer
+hinterlegt seine eigenen Zugänge, verschlüsselt gespeichert.
+
+96 Migrationen · 41 API-Routen · 34 Bildschirme · 823 Frontend-Tests · 201
+Worker-Tests · rund 60.000 Zeilen.
 
 ```bash
-# Frontend
 cd apps/web && npm install && npm run dev
-cd apps/web && npm test          # vitest, 167 Tests
-cd apps/web && npx tsc --noEmit
-
-# Worker
-cd apps/worker && pip install -e ".[dev]" && python -m worker.main
-cd apps/worker && python -m pytest
+cd apps/worker && pip install -e ".[dev]" && python -m pytest
 ```
 
-Der Worker läuft produktiv auf Railway. Lokal starten ist nur zum Debuggen
-nötig — er würde sonst als dritter Worker gegen dieselbe Queue laufen (was
-dank `for update skip locked` in `claim_job` gefahrlos, aber nutzlos ist).
+`docs/BETRIEB.md` beschreibt, was tatsächlich wo läuft.
 
-## Konventionen
+---
 
-- Python 3.11+, ruff (Lint+Format), pytest
-- Migrations: fortlaufend nummeriert, **niemals editieren**, nur neue anlegen
-- Secrets nur in `.env` / Deployment-Env, nie committen
-- Kommentare halten *gemessenes* Verhalten fremder APIs fest, keine
-  Vermutungen. Wenn eine Zeile existiert, weil Instantly/Apollo sich
-  unerwartet verhält, gehört das Messergebnis danebengeschrieben — sonst
-  entfernt es die nächste Person als vermeintlich überflüssig.
+## Zu den Bildern
+
+Echte Bildschirme aus dem laufenden Betrieb. Alle Namen, Firmen, Domains und
+Adressen darin sind ersetzt — auf keinem Bild steht ein echter Kontakt.
