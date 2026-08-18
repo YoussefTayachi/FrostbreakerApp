@@ -64,9 +64,11 @@ den Text, sondern ob jedes Feld seine Frage überhaupt beantwortet.
 
 Vier Felder bleiben bewusst leer, weil sie nicht auf der Website stehen,
 sondern Entscheidungen sind: was ich schicke, wie lange es dauert, meine eine
-Frage und der Ton. Der Ring rechts zeigt, wie weit das Angebot gefüllt ist,
-und Cores Prüfung meldet sich direkt unter dem Feld: *„Dein Kernsatz hat 102
-Wörter, in 15 Sekunden sagt man rund 38."*
+Frage und der Ton.
+
+Die zwölf Felder liegen als Karte in vier Gruppen, nicht als Formular
+untereinander. Die Linien dazwischen zeigen, welches Feld für welches gilt,
+und der Ring in der Mitte sagt, wie weit das Angebot gefüllt ist.
 
 ![Angebot](docs/screenshots/04-angebot.png)
 
@@ -92,9 +94,11 @@ umformuliert. **Zahlen und Beleg bleiben unangetastet.**
 Beide halten dieselbe Grenze ein: **was im Material nicht steht, bleibt leer.**
 Kein Modell erfindet hier eine Referenz oder eine Zahl.
 
-Unten der echte Lauf gegen eine meiner Listen. Der Vorschlag steht unter
-seinem Feld, mit der Liste als Quelle daneben, und ich entscheide einzeln:
-*Übernehmen* oder *Verwerfen*. Nichts wird automatisch geändert.
+Unten ein echter Lauf gegen die Liste *Recruiting & Lead-Gen-Agenturen*.
+Die violetten Punkte markieren die Felder, für die Aim etwas vorschlägt.
+Aufgeklappt steht der Vorschlag unter dem heutigen Text, mit der Liste als
+Quelle daneben, und ich entscheide einzeln: *Übernehmen* oder *Verwerfen*.
+Nichts wird automatisch geändert.
 
 ![Aim](docs/screenshots/05-aim.png)
 
