@@ -22,8 +22,10 @@ Satz ist jeweils der wichtigere.
 
 ### 1 · Zielgruppe: Entscheider statt Sammeladressen
 
-Suchen nach Nische, Ort, Größe, oder nach der **eingesetzten Technik** und
-nach **offenen Stellen**. Vier Quellen, je nachdem was gesucht wird.
+Vier Quellen als Reiter, je nachdem was gesucht wird: **Google Maps** für
+alles mit Adresse, **Hunter** für Firmen, **Apollo** für Entscheider,
+**Prospeo** für den Anlass. Gefiltert wird nach Nische, Marktsegment,
+Position, Hierarchiestufe, Land, Firmengröße und der **eingesetzten Technik**.
 
 > Wer gerade jemanden für ein Problem sucht, hat es *jetzt* und nicht
 > irgendwann. Das trifft besser als jede Branchenliste. Und Adressen wie
@@ -31,6 +33,11 @@ nach **offenen Stellen**. Vier Quellen, je nachdem was gesucht wird.
 > ist, schreibt man nicht kalt an.
 
 ![Neue Suche](docs/screenshots/02-suche.png)
+
+Jede Suche wird eine eigene Liste, mit Trefferzahl, Adressquote und
+Bounce-Rate daneben.
+
+![Lead-Listen](docs/screenshots/02b-listen.png)
 
 ### 2 · Aus der Suche wird eine Liste mit Namen
 
@@ -57,7 +64,9 @@ den Text, sondern ob jedes Feld seine Frage überhaupt beantwortet.
 
 Vier Felder bleiben bewusst leer, weil sie nicht auf der Website stehen,
 sondern Entscheidungen sind: was ich schicke, wie lange es dauert, meine eine
-Frage und der Ton.
+Frage und der Ton. Der Ring rechts zeigt, wie weit das Angebot gefüllt ist,
+und Cores Prüfung meldet sich direkt unter dem Feld: *„Dein Kernsatz hat 102
+Wörter, in 15 Sekunden sagt man rund 38."*
 
 ![Angebot](docs/screenshots/04-angebot.png)
 
@@ -82,6 +91,10 @@ umformuliert. **Zahlen und Beleg bleiben unangetastet.**
 
 Beide halten dieselbe Grenze ein: **was im Material nicht steht, bleibt leer.**
 Kein Modell erfindet hier eine Referenz oder eine Zahl.
+
+Unten der echte Lauf gegen eine meiner Listen. Der Vorschlag steht unter
+seinem Feld, mit der Liste als Quelle daneben, und ich entscheide einzeln:
+*Übernehmen* oder *Verwerfen*. Nichts wird automatisch geändert.
 
 ![Aim](docs/screenshots/05-aim.png)
 

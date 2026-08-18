@@ -39,9 +39,9 @@ Anbieter-Lock-in, jeder zahlt nur echte Nutzung.
 
 ## Technik
 
-- **Next.js**-Frontend, **FastAPI**-Backend, eigener **Python-Worker** für
-  asynchrone Pipelines mit eigener Postgres-basierter Job-Queue (kein Redis
-  nötig: eine Kostenentscheidung, keine Notlösung)
+- **Next.js**-Frontend samt aller API-Routen, dazu ein eigener
+  **Python-Worker** für asynchrone Pipelines mit eigener Postgres-basierter
+  Job-Queue (kein Redis nötig: eine Kostenentscheidung, keine Notlösung)
 - **Supabase** (Postgres + Auth + Row-Level-Security), EU-Hosting
   (Frankfurt), 49 Schema-Migrationen in drei Wochen, sauber versioniert
 - Verschlüsselte Speicherung nutzerspezifischer API-Keys
