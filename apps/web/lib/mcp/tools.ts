@@ -174,6 +174,11 @@ function readCount(
 
 const MAX_LIMIT = 100;
 const DEFAULT_LIMIT = 25;
+/** Deckel fuer die beiden Werkzeuge ohne eigene Blaetterung (Listen-Uebersicht
+ *  und Kampagnenzahlen). Beide liefern je Zeile nur Zahlen und kurze Namen,
+ *  keine Freitexte -- 200 Zeilen davon bleiben deutlich unter der
+ *  Ausgabegrenze, waehrend 200 LEADS sie reissen wuerden. */
+const LIST_CAP = 200;
 /** Offsets darueber sind kein sinnvoller Aufruf mehr, sondern ein Modell, das
  *  sich verzaehlt hat. Eine Obergrenze verhindert, dass Postgres dafuer eine
  *  Million Zeilen ueberspringt. */
@@ -291,17 +296,39 @@ export const TOOLS: Record<ToolName, McpTool> = {
         .from("searches")
         // businesses(count) ist die Aggregat-Form von PostgREST: eine Zeile je
         // Suche mit der Anzahl der daran haengenden Firmen, statt N+1 Abfragen.
+        //
+        // NICHT gegen den Produktivstand geprueft (2026-08-22): dafuer fehlte
+        // lokal der Service-Role-Schluessel. Sollte PostgREST die Form nicht
+        // annehmen, scheitert die GANZE Abfrage sichtbar (dbFail), sie liefert
+        // keine stillen Nullen. Der Ausweg waere dann eine Zaehlabfrage je
+        // Zeile mit { count: "exact", head: true } -- durch LIST_CAP gedeckelt
+        // und parallel abgesetzt derselbe Aufwand, den die Suchen-Seite
+        // ohnehin bei jedem Laden erzeugt.
         .select("id, name, query, location, source, status, created_at, archived_at, instantly_campaign_id, businesses(count)")
         .eq("workspace_id", tor.workspaceId)
         // Der Papierkorb (Migration 0010) ist in der App unsichtbar und soll
         // es hier auch sein.
         .is("deleted_at", null)
+        // Teilsuchen einer gebuendelten Mehrfach-Suche (Migration 0096) sind
+        // fuer den Nutzer keine eigenen Listen; search_overview blendet sie aus
+        // demselben Grund aus. Ohne diese Zeile stuenden hier sechzig
+        // Eintraege fuer das, was in der App EINE Liste ist -- und das Modell
+        // wuerde sechzigmal get_leads aufrufen.
+        .is("parent_search_id", null)
         .order("created_at", { ascending: false })
-        .limit(200);
+        .limit(LIST_CAP);
       if (error) return dbFail("list_lead_lists", error);
 
+      const listen = data ?? [];
       return okJson({
-        lead_lists: (data ?? []).map((s) => ({
+        // Ohne offset in diesem Werkzeug: waere der Deckel erreicht, fehlten
+        // Listen, ohne dass es jemandem auffiele. Der Hinweis sagt es.
+        ...(listen.length >= LIST_CAP
+          ? {
+              note: `Only the ${LIST_CAP} most recent lead lists are shown. Older ones exist in Frostbreaker.`,
+            }
+          : {}),
+        lead_lists: listen.map((s) => ({
           search_id: s.id,
           // searches.name ist optional; die App zeigt dann die Suchanfrage,
           // und ein Modell braucht denselben Ersatz.
@@ -489,7 +516,7 @@ export const TOOLS: Record<ToolName, McpTool> = {
         )
         .eq("workspace_id", tor.workspaceId)
         .order("updated_at", { ascending: false })
-        .limit(200);
+        .limit(LIST_CAP);
       if (error) return dbFail("get_campaign_stats", error);
 
       return okJson({

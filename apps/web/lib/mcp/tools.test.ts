@@ -159,6 +159,16 @@ describe("Workspace-Zuschnitt", () => {
     expect(hatFilter(aufrufe, "businesses", "search_id", "s1")).toBe(true);
   });
 
+  it("list_lead_lists blendet Papierkorb und Teilsuchen aus", async () => {
+    // Ohne den parent_search_id-Filter stuenden hier sechzig Eintraege fuer
+    // das, was in der App EINE gebuendelte Liste ist (Migration 0096) -- und
+    // das Modell riefe sechzigmal get_leads auf.
+    const { supabase, aufrufe } = stubSupabase({ searches: { data: [] } });
+    await callTool(supabase, ctx(), "list_lead_lists", { workspace_id: WS });
+    const isFilter = aufrufe.filter((a) => a.table === "searches" && a.method === "is");
+    expect(isFilter.map((a) => a.args[0])).toEqual(["deleted_at", "parent_search_id"]);
+  });
+
   it("get_replies filtert auf workspace_id und holt nur Eingaenge", async () => {
     const { supabase, aufrufe } = stubSupabase({ messages: { data: [], count: 0 } });
     await callTool(supabase, ctx(), "get_replies", { workspace_id: WS });
