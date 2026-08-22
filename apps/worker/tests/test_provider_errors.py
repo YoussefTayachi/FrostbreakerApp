@@ -24,6 +24,46 @@ PARSE_ERROR = "'email\\xa0protected' does not appear to be an IPv4 or IPv6 addre
 
 MISSING_KEY = "Kein API-Key fuer Provider 'google_maps' hinterlegt"
 
+# Anthropic. Woertlich aus der Doku, nachgesehen am 2026-08-22 auf
+# https://platform.claude.com/docs/en/api/errors (402) und
+# https://platform.claude.com/docs/en/api/rate-limits (400 und 429), in der
+# Form, in der das Python-SDK sie als Fehlertext ausgibt.
+#
+# Der springende Punkt: bei Anthropic sind es DREI verschiedene Codes fuer
+# dasselbe Geldproblem, und einer davon ist ein 429 mit demselben Typ wie eine
+# gewoehnliche Drosselung.
+ANTHROPIC_BILLING = (
+    "Error code: 402 - {'type': 'error', 'error': {'type': 'billing_error', "
+    "'message': \"There's an issue with your billing or payment information.\"}}"
+)
+
+ANTHROPIC_OWN_SPEND_LIMIT = (
+    "Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', "
+    "'message': 'You have reached your specified API usage limits. You will regain "
+    "access on 2026-09-01 at 00:00 UTC.'}}"
+)
+
+ANTHROPIC_WORKSPACE_SPEND_LIMIT = (
+    "Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', "
+    "'message': 'You have reached your specified workspace API usage limits. You will "
+    "regain access on 2026-09-01 at 00:00 UTC.'}}"
+)
+
+ANTHROPIC_TIER_SPEND_CAP = (
+    "Error code: 429 - {'type': 'error', 'error': {'type': 'rate_limit_error', "
+    "'message': \"You have reached your API usage limits: your organization has "
+    "crossed its monthly API usage threshold, set based on your organization's API "
+    "tier. You will regain access on 2026-09-01 at 00:00 UTC.\", "
+    "'details': {'error_code': 'enforced_spend_limit_reached'}}, "
+    "'request_id': 'req_018EeWyXxfu5pfWkrYcMdjWG'}"
+)
+
+# Eine echte Drosselung bei Anthropic, also der Fall, der sich von allein loest.
+ANTHROPIC_RATE_LIMIT = (
+    "Error code: 429 - {'type': 'error', 'error': {'type': 'rate_limit_error', "
+    "'message': 'Number of request tokens has exceeded your per-minute rate limit'}}"
+)
+
 
 class TestClassifyError:
     def test_openai_ohne_guthaben_ist_kein_ratelimit(self):
@@ -56,6 +96,41 @@ class TestClassifyError:
     def test_nacktes_429_gilt_als_drosselung(self):
         assert classify_error("Server returned 429") == "rate_limited"
 
+    def test_429_nur_als_eigenstaendige_zahl(self):
+        """Eine request_id, in der zufaellig '429' steckt, ist keine Drosselung.
+
+        Anthropic haengt an jeden Fehler eine request_id der Form
+        'req_018EeWyXxfu5pfWkrYcMdjWG'. Der frueher hier stehende blanke
+        Teilstring '429' haette darin getroffen und einen gewoehnlichen Fehler
+        still zurueckgestellt, statt ihn zu melden.
+        """
+        assert classify_error("req_011CS429abc parse failed") is None
+        assert classify_error("read 1429 rows") is None
+
+
+class TestAnthropicGuthaben:
+    """Bei Anthropic ist die Guthaben-Meldung nicht ein Fall, sondern drei."""
+
+    def test_402_billing_error(self):
+        assert classify_error(ANTHROPIC_BILLING) == "out_of_credit"
+
+    def test_400_eigenes_ausgabelimit(self):
+        assert classify_error(ANTHROPIC_OWN_SPEND_LIMIT) == "out_of_credit"
+        assert classify_error(ANTHROPIC_WORKSPACE_SPEND_LIMIT) == "out_of_credit"
+
+    def test_429_monatsdeckel_ist_kein_ratelimit(self):
+        """Der gefaehrlichste Fall: Code UND Typ sind die einer Drosselung.
+
+        Laut Doku scheitert Wiederholen hier bis zum Monatswechsel, und es
+        kommt kein retry-after-Header. Als 'rate_limited' eingestuft wuerde
+        der Job seine Versuche gegen eine Wand fahren, genau wie am
+        2026-08-03 bei OpenAI.
+        """
+        assert classify_error(ANTHROPIC_TIER_SPEND_CAP) == "out_of_credit"
+
+    def test_echte_drosselung_bleibt_drosselung(self):
+        assert classify_error(ANTHROPIC_RATE_LIMIT) == "rate_limited"
+
 
 class TestProviderFromError:
     def test_aus_der_url(self):
@@ -80,3 +155,37 @@ class TestProviderFromError:
     def test_ohne_hinweis_keine_zuordnung(self):
         assert provider_from_error("irgendein fehler") is None
         assert provider_from_error("") is None
+
+    def test_hinweis_der_pipeline_schlaegt_den_job_typ(self):
+        """personalize kann seit Migration 0097 auch ueber Claude laufen.
+
+        Der Fehlertext des Anthropic-SDK traegt keine URL, der Job-Typ sagt
+        weiterhin 'openai'. Ohne den Hinweis der Pipeline ginge der
+        Guthaben-Alarm eines Claude-Workspaces an den falschen Anbieter, und
+        der Nutzer wuerde ein OpenAI-Konto aufladen, das gar nicht leer ist.
+        """
+        assert (
+            provider_from_error(ANTHROPIC_BILLING, "personalize", provider_hint="anthropic")
+            == "anthropic"
+        )
+        assert (
+            provider_from_error(ANTHROPIC_TIER_SPEND_CAP, "personalize", provider_hint="anthropic")
+            == "anthropic"
+        )
+
+    def test_url_schlaegt_auch_den_hinweis(self):
+        """Die URL steht direkt im Fehler und kann deshalb nicht veralten."""
+        assert (
+            provider_from_error(HUNTER_RATE_LIMIT, "personalize", provider_hint="anthropic")
+            == "hunter"
+        )
+
+    def test_anthropic_url_wird_erkannt(self):
+        """Verbindungsfehler meldet httpx mit URL, anders als das SDK."""
+        assert provider_from_error("ConnectError for https://api.anthropic.com/v1/messages") == (
+            "anthropic"
+        )
+
+    def test_ohne_hinweis_bleibt_openai_die_voreinstellung(self):
+        """Der Regelfall darf seinen Alarm nicht verlieren."""
+        assert provider_from_error(OPENAI_NO_CREDITS, "personalize") == "openai"

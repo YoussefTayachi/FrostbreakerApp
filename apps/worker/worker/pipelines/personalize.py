@@ -10,11 +10,25 @@ ohne eigene Vorgabe gilt DEFAULT_PROMPT. Wortzahl und verbotene Woerter werden n
 der Generierung geprueft; bei Verstoss gibt es genau einen Korrektur-Versuch mit
 Hinweis auf das Problem. Schlaegt auch der zweite Versuch fehl, wird das Ergebnis
 trotzdem gespeichert, aber als personalization_needs_review markiert.
+
+ZWEI MODELLE, EIN STANDARD
+
+workspaces.personalization_model (Migration 0097) waehlt zwischen 'openai'
+(Voreinstellung, unveraendert der Standardweg) und 'claude'. Der OpenAI-Pfad in
+generate() bleibt Byte fuer Byte, wie er war.
+
+Der Claude-Pfad kann zusaetzlich etwas, das der OpenAI-Pfad hier nicht tut:
+hinterlegte Beispiel-Paare (personalization_examples) gehen als abwechselnde
+user/assistant-Turns VOR die echte Anfrage. Das Modell lernt den Stil damit an
+Beispielen statt an einer Regelliste. Alles andere, also constraint_block, die
+Wortzahl- und Verbotswort-Pruefung, die EINE Korrekturrunde und
+sanitize_banned_punctuation, gilt fuer beide Pfade unveraendert.
 """
 import re
 
 import httpx
 import trafilatura
+from anthropic import Anthropic
 from openai import OpenAI
 from tenacity import retry, stop_after_attempt, wait_exponential
 
@@ -23,7 +37,42 @@ from worker.db import sb
 from worker.search_state import BUSINESS_WITH_SEARCH, search_is_deleted
 
 MODEL = "gpt-4.1-mini"
+
+# Das Claude-Modell. Als benannte Konstante und nicht inline, weil daran zwei
+# Dinge haengen, die sonst auseinanderlaufen: die Preise in
+# worker/usage.py (ANTHROPIC_USD_PER_1M_*, dort steht der Hinweis) und die
+# Mindestlaenge fuer einen zwischengespeicherten Vorspann (siehe
+# generate_claude).
+CLAUDE_MODEL = "claude-opus-5"
+
+# Reichlich bemessen, obwohl die Antwort ein einziger Satz ist: bei Claude
+# denkt das Modell standardmaessig mit (adaptives Denken), und diese
+# Denk-Tokens zaehlen gegen max_tokens. Ein zu knapper Wert schneidet die
+# Antwort mitten im Denken ab, und heraus kaeme eine leere Zeile. Abgerechnet
+# wird nur, was tatsaechlich erzeugt wurde, ein hoher Deckel kostet also
+# nichts.
+CLAUDE_MAX_TOKENS = 8000
+
 MAX_SITE_CHARS = 6000
+
+DEFAULT_MODEL_CHOICE = "openai"
+VALID_MODEL_CHOICES = {"openai", "claude"}
+
+# Wie viele Beispiel-Paare hoechstens in den Prompt gehen.
+#
+# Die Zahl ist eine Kostengrenze, keine Qualitaetsgrenze: der Beispielblock
+# steht in JEDER Anfrage fuer JEDEN Lead. Ein Beispiel traegt den Kontexttext
+# einer Firma, in der Praxis ein paar tausend Zeichen; zehn davon landen grob
+# im Bereich 5.000 bis 10.000 Tokens Vorspann. Gecacht kostet das je Lead
+# wenig, ungecacht das Zehnfache, und beides multipliziert sich mit der Anzahl
+# Leads einer Suche. Zum Anlernen eines Schreibstils saettigt Few-Shot
+# ohnehin lange vorher.
+#
+# Muss mit MAX_PERSONALIZATION_EXAMPLES in
+# apps/web/lib/personalization-defaults.ts uebereinstimmen: die Oberflaeche
+# laesst nur so viele anlegen, hier wird dieselbe Grenze noch einmal
+# durchgesetzt, damit ein anderer Schreibweg sie nicht umgehen kann.
+MAX_EXAMPLES = 10
 
 DEFAULT_PROMPT_DE = (
     "Deine Aufgabe ist es, einen einzelnen, vertrieblich messerscharfen Aufhänger "
@@ -404,6 +453,192 @@ def generate(
     return resp.output_text.strip().strip('"')
 
 
+class ClaudeRefused(Exception):
+    """Claude hat die Anfrage aus Sicherheitsgruenden abgelehnt.
+
+    Kommt als HTTP 200 mit stop_reason='refusal' zurueck, nicht als Fehler
+    (https://platform.claude.com/docs/en/api/errors, nachgesehen 2026-08-22).
+    Ohne diese Pruefung wuerde eine Ablehnung als leerer Icebreaker gespeichert
+    und saehe aus wie ein geglueckter Lauf.
+    """
+
+
+def _claude_text(response: object) -> str:
+    """Den reinen Text aus einer Anthropic-Antwort holen.
+
+    response.content ist eine LISTE von Bloecken, nicht ein String. Neben
+    text-Bloecken koennen dort thinking-Bloecke stehen; die gehoeren nicht in
+    den Icebreaker. Deshalb wird auf block.type geprueft statt blind der erste
+    Block genommen.
+    """
+    chunks = [
+        getattr(block, "text", "")
+        for block in (getattr(response, "content", None) or [])
+        if getattr(block, "type", None) == "text"
+    ]
+    return "".join(chunks).strip().strip('"')
+
+
+@retry(stop=stop_after_attempt(3), wait=wait_exponential(min=5, max=60), reraise=True)
+def generate_claude(
+    company_name: str,
+    context: str,
+    api_key: str,
+    system_prompt: str,
+    correction: str | None = None,
+    workspace_id: str | None = None,
+    search_id: str | None = None,
+    examples: list[dict] | None = None,
+) -> str:
+    """Wie generate(), nur ueber Anthropic und mit Few-Shot-Beispielen.
+
+    ═══════════════════════════════════════════════════════════════════════
+    WIE DIE BEISPIELE IN DEN PROMPT KOMMEN
+    ═══════════════════════════════════════════════════════════════════════
+
+    Als echte Gespraechs-Turns, nicht als Aufzaehlung im System-Prompt. Ein
+    Beispiel ist ein user-Turn (der Kontext) und der darauf folgende
+    assistant-Turn (die handgeschriebene Zeile), und danach kommt die echte
+    Anfrage als letzter user-Turn. Das Modell sieht damit genau die Abbildung,
+    die es nachmachen soll, an derselben Stelle, an der es sie spaeter
+    anwenden muss.
+
+    Der assistant-Turn ist die blanke Zeile: keine Anfuehrungszeichen, kein
+    Label, kein "Icebreaker:". Alles, was dort zusaetzlich steht, waere Teil
+    des Musters und taeuchte in den Ergebnissen wieder auf.
+
+    ZUR FORM DES BEISPIEL-USER-TURNS
+
+    Die echte Anfrage lautet "Unternehmen: <Name>\\n\\n<Kontext>". Ein
+    Beispiel hat keinen Firmennamen: personalization_examples speichert nur
+    input_context und icebreaker. Es gibt also drei Moeglichkeiten, und zwei
+    davon sind schlechter:
+
+      - Einen erfundenen Platzhalternamen einsetzen. Das waere die schlimmste
+        Variante, weil derselbe Name dann in JEDEM Beispiel steht und damit
+        selbst zum Muster wird. Genau dieser Effekt ist an echten Daten schon
+        gemessen worden und steht in constraint_block dokumentiert: die
+        erzeugten Zeilen endeten praktisch alle mit derselben Wendung, weil
+        der Prompt sie einmal als Beispiel nannte.
+      - Bei manchen Beispielen die Zeile setzen und bei anderen nicht. Dann
+        ist die Form nicht einmal untereinander gleich.
+
+    Deshalb ist der Beispiel-User-Turn der input_context, wie er hinterlegt
+    ist, unveraendert und ohne Zusatz. Das ist untereinander konsistent, und
+    der Unterschied zur echten Anfrage ist genau eine Kopfzeile. Die
+    Oberflaeche zeigt im Eingabefeld einen Platzhalter, der diese Kopfzeile
+    vormacht; wer sie mit einfuegt, hat auch diesen Unterschied nicht mehr.
+
+    DER KORREKTUR-VERSUCH
+
+    haengt am LETZTEN user-Turn, also an der echten Anfrage. An ein Beispiel
+    gehaengt wuerde er zum Bestandteil des gelernten Musters, und das Modell
+    lernte, dass zu jedem Kontext eine Ruege gehoert.
+
+    PROMPT-CACHING
+
+    System-Prompt und Beispielblock sind ueber alle Leads eines Workspaces
+    byte-identisch; nur der letzte user-Turn wechselt. Das ist woertlich das
+    Muster "Shared prefix, varying suffix" aus der Anthropic-Doku: der
+    cache_control-Punkt gehoert ans ENDE des geteilten Teils, nicht ans Ende
+    der Anfrage, sonst schreibt jede Anfrage einen eigenen Eintrag und liest
+    nie einen.
+
+    Belegt am 2026-08-22 auf
+    https://platform.claude.com/docs/en/build-with-claude/prompt-caching und
+    https://platform.claude.com/docs/en/about-claude/pricing:
+      - Reihenfolge tools, system, messages. Ein Punkt am Ende des letzten
+        Beispiels umfasst deshalb System-Prompt UND Beispiele.
+      - cache_control ohne ttl ist die 5-Minuten-Form: Schreiben kostet das
+        1,25fache, Lesen ein Zehntel des Eingangspreises. Ab dem zweiten Lead
+        innerhalb von fuenf Minuten rechnet sich das.
+      - Mindestlaenge des zwischengespeicherten Vorspanns bei Claude Opus 5:
+        512 Tokens. Darunter passiert schlicht nichts, ohne Fehlermeldung und
+        ohne Aufschlag (cache_creation_input_tokens bleibt 0). Der Punkt wird
+        deshalb immer gesetzt und nicht an eine geratene Laengenschwelle
+        gebunden.
+    """
+    client = Anthropic(api_key=api_key)
+
+    # Genau EIN cache_control-Punkt, am Ende des geteilten Vorspanns. Ohne
+    # Beispiele ist das der System-Prompt, mit Beispielen der letzte
+    # assistant-Turn.
+    cache_here = {"type": "ephemeral"}
+    valid_examples = list(examples or [])
+
+    system_block: dict = {"type": "text", "text": system_prompt}
+    if not valid_examples:
+        system_block["cache_control"] = cache_here
+
+    messages: list[dict] = []
+    for i, ex in enumerate(valid_examples):
+        messages.append({"role": "user", "content": ex["input_context"]})
+        answer: dict = {"type": "text", "text": ex["icebreaker"]}
+        if i == len(valid_examples) - 1:
+            answer["cache_control"] = cache_here
+        messages.append({"role": "assistant", "content": [answer]})
+
+    user_content = f"Unternehmen: {company_name}\n\n{context}"
+    if correction:
+        user_content += (
+            f"\n\nDein letzter Versuch hat folgende Regel(n) verletzt: {correction}. "
+            "Bitte korrigiere und antworte erneut nur mit dem Text selbst."
+        )
+    messages.append({"role": "user", "content": user_content})
+
+    resp = client.messages.create(
+        model=CLAUDE_MODEL,
+        max_tokens=CLAUDE_MAX_TOKENS,
+        # Ein Satz von hoechstens 35 Woertern ist keine Denkaufgabe. Niedriger
+        # Aufwand statt abgeschaltetem Denken: abgeschaltet neigt das Modell
+        # laut Anthropic-Doku dazu, interne Marken in die sichtbare Antwort zu
+        # schreiben, und die Antwort ist hier der Rohtext, der so in eine Mail
+        # geht.
+        output_config={"effort": "low"},
+        system=[system_block],
+        messages=messages,
+    )
+    # Wie bei generate(): direkt hier festhalten und nicht beim Aufrufer, damit
+    # ein Korrektur-Versuch als zweiter echter Aufruf auch zweimal zaehlt.
+    if workspace_id:
+        usage.record_claude(workspace_id, "personalize", resp, search_id=search_id)
+    if getattr(resp, "stop_reason", None) == "refusal":
+        raise ClaudeRefused(f"Claude hat die Anfrage abgelehnt (Firma: {company_name})")
+    return _claude_text(resp)
+
+
+def load_examples(workspace_id: str) -> list[dict]:
+    """Die hinterlegten Few-Shot-Paare, in der Reihenfolge der Oberflaeche.
+
+    Halbe Paare fliegen raus. Ein Beispiel, bei dem der Kontext ODER die Zeile
+    fehlt, bringt dem Modell nicht ein halbes Muster bei, sondern ein falsches:
+    einmal "zu diesem Kontext gehoert nichts", einmal "diese Zeile kommt aus
+    dem Nichts". Beides ist schlechter als das Beispiel wegzulassen. In der
+    Oberflaeche entstehen solche Zeilen zwangslaeufig, weil ein neues Paar
+    zuerst leer angelegt und dann gefuellt wird.
+    """
+    rows = (
+        sb()
+        .table("personalization_examples")
+        .select("input_context, icebreaker, sort_order")
+        .eq("workspace_id", workspace_id)
+        .order("sort_order")
+        .order("created_at")
+        .limit(MAX_EXAMPLES)
+        .execute()
+        .data
+        or []
+    )
+    examples = []
+    for row in rows:
+        context = (row.get("input_context") or "").strip()
+        icebreaker = (row.get("icebreaker") or "").strip()
+        if not context or not icebreaker:
+            continue
+        examples.append({"input_context": context, "icebreaker": icebreaker})
+    return examples
+
+
 def load_agent_config(workspace_id: str) -> dict:
     row = (
         sb()
@@ -411,7 +646,7 @@ def load_agent_config(workspace_id: str) -> dict:
         .select(
             "personalization_prompt, personalization_source, "
             "personalization_max_words, personalization_banned_words, "
-            "personalization_language"
+            "personalization_language, personalization_model"
         )
         .eq("id", workspace_id)
         .single()
@@ -431,6 +666,12 @@ def load_agent_config(workspace_id: str) -> dict:
     language = row.get("personalization_language") or DEFAULT_LANGUAGE
     if language not in VALID_LANGUAGES:
         language = DEFAULT_LANGUAGE
+    # Wie bei source und language: ein unbekannter Wert faellt auf den
+    # Standard zurueck, statt den Job scheitern zu lassen. Der Standard ist
+    # hier OpenAI, also der Weg, der ohne jedes Zutun schon lief.
+    model_choice = row.get("personalization_model") or DEFAULT_MODEL_CHOICE
+    if model_choice not in VALID_MODEL_CHOICES:
+        model_choice = DEFAULT_MODEL_CHOICE
     return {
         # Ohne eigenen Prompt gilt der Standard IN DER GEWAEHLTEN SPRACHE.
         # Vorher stand hier fest DEFAULT_PROMPT (deutsch), daher kamen
@@ -442,6 +683,7 @@ def load_agent_config(workspace_id: str) -> dict:
         "max_words": row.get("personalization_max_words") or DEFAULT_MAX_WORDS,
         "banned_words": banned_words,
         "language": language,
+        "model": model_choice,
     }
 
 
@@ -465,11 +707,19 @@ def run(job: dict) -> None:
         return  # Suche im Papierkorb, keine OpenAI-Kosten fuer unsichtbare Leads
 
     cfg = load_agent_config(ws)
+    use_claude = cfg["model"] == "claude"
+    # Vermerk fuer den Guthaben-Alarm, siehe queue.fail_job. Muss VOR dem
+    # ersten kostenpflichtigen Aufruf stehen: die SDK-Fehler beider Anbieter
+    # tragen keine URL, und der Job-Typ allein sagt seit dieser Wahlmoeglichkeit
+    # nur noch, was die Voreinstellung ist.
+    job["resolved_provider"] = "anthropic" if use_claude else "openai"
+
     context = build_context(biz, cfg["source"])  # kann NotReadyYet werfen -> Queue retried spaeter
     if not context:
         return  # keine Datenbasis vorhanden und Recherche bereits abgeschlossen -> kein Retry-Spam
 
-    api_key = get_api_key(ws, "openai")
+    api_key = get_api_key(ws, "anthropic" if use_claude else "openai")
+    examples = load_examples(ws) if use_claude else []
     # Direkt vom Datensatz: das eingebettete searches(...) liefert nur
     # deleted_at, keine id (siehe BUSINESS_WITH_SEARCH).
     search_id = biz.get("search_id")
@@ -478,17 +728,31 @@ def run(job: dict) -> None:
     system_prompt = cfg["system_prompt"] + constraint_block(
         cfg["max_words"], cfg["banned_words"], cfg["language"]
     )
-    line = generate(
-        biz["name"], context, api_key, system_prompt,
-        workspace_id=ws, search_id=search_id,
-    )
+
+    def write_line(correction: str | None = None) -> str:
+        """Ein Modellaufruf, egal welches Modell.
+
+        Bewusst als eine Stelle: die Wortzahl- und Verbotswort-Pruefung samt
+        der EINEN Korrekturrunde darunter gilt fuer beide Wege gleich. Zwei
+        parallele Bloecke wuerden frueher oder spaeter auseinanderlaufen, und
+        gerade an dieser Nachbehandlung haengen mehrere gemessene Befunde.
+        """
+        if use_claude:
+            return generate_claude(
+                biz["name"], context, api_key, system_prompt,
+                correction=correction, workspace_id=ws, search_id=search_id,
+                examples=examples,
+            )
+        return generate(
+            biz["name"], context, api_key, system_prompt,
+            correction=correction, workspace_id=ws, search_id=search_id,
+        )
+
+    line = write_line()
     problems = validate(line, cfg["max_words"], cfg["banned_words"])
     needs_review = False
     if problems:
-        line = generate(
-            biz["name"], context, api_key, system_prompt,
-            correction="; ".join(problems), workspace_id=ws, search_id=search_id,
-        )
+        line = write_line(correction="; ".join(problems))
         line = sanitize_banned_punctuation(line, cfg["banned_words"])
         needs_review = bool(validate(line, cfg["max_words"], cfg["banned_words"]))
 

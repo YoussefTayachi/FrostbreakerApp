@@ -4,7 +4,10 @@ import { createClient } from "@/lib/supabase/client";
 import {
   DEFAULT_BANNED_WORDS,
   DEFAULT_MAX_WORDS,
+  MAX_PERSONALIZATION_EXAMPLES,
+  PERSONALIZATION_MODELS,
   getDefaultPrompt,
+  type PersonalizationModel,
 } from "@/lib/personalization-defaults";
 import { useT } from "../language-provider";
 import { useToast } from "../toast-provider";
@@ -12,13 +15,28 @@ import { useWorkspace } from "../workspace-provider";
 import HelpLink from "../help-link";
 
 type BusinessOption = { id: string; name: string; company_summary: string | null; website: string | null };
-type TestResult = { text: string; problems: string[]; wordCount: number; corrected: boolean };
+type TestResult = {
+  text: string;
+  problems: string[];
+  wordCount: number;
+  corrected: boolean;
+  model?: string;
+  exampleCount?: number;
+};
 type CustomTemplate = {
   id: string;
   name: string;
   prompt: string;
   max_words: number;
   banned_words: string;
+};
+
+/** Ein hinterlegtes Few-Shot-Paar (personalization_examples, Migration 0097). */
+type Example = {
+  id: string;
+  input_context: string;
+  icebreaker: string;
+  sort_order: number;
 };
 
 const MAX_CUSTOM_TEMPLATES = 5;
@@ -52,10 +70,21 @@ export default function AiAgentPage() {
    * Zielkunden sind der Normalfall, nicht die Ausnahme.
    */
   const [outputLang, setOutputLang] = useState<"de" | "en">("de");
+  /**
+   * Welches Modell den Icebreaker schreibt (workspaces.personalization_model).
+   *
+   * "openai" ist und bleibt der Standard. "claude" ist die zweite Wahl
+   * daneben, und nur dort greifen die Beispiel-Paare weiter unten: der
+   * OpenAI-Pfad im Worker liest sie gar nicht.
+   */
+  const [personalizationModel, setPersonalizationModel] = useState<PersonalizationModel>("openai");
   const [source, setSource] = useState<string>("company_summary");
   const [maxWords, setMaxWords] = useState(DEFAULT_MAX_WORDS);
   const [bannedWordsText, setBannedWordsText] = useState(DEFAULT_BANNED_WORDS.join(", "));
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>("default");
+
+  const [examples, setExamples] = useState<Example[]>([]);
+  const [savingExample, setSavingExample] = useState(false);
 
   const [customTemplates, setCustomTemplates] = useState<CustomTemplate[]>([]);
   const [addingTemplate, setAddingTemplate] = useState(false);
@@ -74,7 +103,7 @@ export default function AiAgentPage() {
       .select(
         // Ein Literal, keine Konkatenation: Supabase leitet die Feldtypen aus
         // dem String ab und faellt sonst auf GenericStringError zurueck.
-        "personalization_prompt, personalization_source, personalization_max_words, personalization_banned_words, personalization_language"
+        "personalization_prompt, personalization_source, personalization_max_words, personalization_banned_words, personalization_language, personalization_model"
       )
       .eq("id", wsId)
       .single()
@@ -82,6 +111,7 @@ export default function AiAgentPage() {
         if (!data) return;
         const saved: "de" | "en" = data.personalization_language === "en" ? "en" : "de";
         setOutputLang(saved);
+        setPersonalizationModel(data.personalization_model === "claude" ? "claude" : "openai");
         setSource(data.personalization_source || "company_summary");
         setMaxWords(data.personalization_max_words || DEFAULT_MAX_WORDS);
         setBannedWordsText(data.personalization_banned_words || DEFAULT_BANNED_WORDS.join(", "));
@@ -104,6 +134,7 @@ export default function AiAgentPage() {
       .limit(100)
       .then(({ data }) => setBusinesses(data ?? []));
     loadTemplates();
+    loadExamples();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [wsId]);
 
@@ -134,6 +165,104 @@ export default function AiAgentPage() {
       .eq("workspace_id", wsId)
       .order("created_at", { ascending: true });
     setCustomTemplates(data ?? []);
+  }
+
+  /**
+   * Die Beispiel-Paare.
+   *
+   * ═══════════════════════════════════════════════════════════════════════
+   * JEDE Abfrage hier filtert zusaetzlich auf workspace_id.
+   * ═══════════════════════════════════════════════════════════════════════
+   *
+   * RLS entscheidet nur, auf welche ACCOUNTS jemand zugreifen darf, nicht,
+   * welcher der eigenen Workspaces gemeint ist. Ohne den Filter kaemen die
+   * Beispiele aller Workspaces desselben Kontos zurueck, und sie landeten
+   * ungefragt im Prompt jedes Leads.
+   *
+   * Zeilenoperationen (anlegen, loeschen, umsortieren) schreiben sofort, weil
+   * sie Zeilen sind und nicht Formularinhalt. Die beiden Textfelder speichern
+   * beim Verlassen des Feldes. Ein gemischtes Modell mit einem
+   * Sammel-Speichern-Knopf haette bedeutet, dass ein geloeschtes Beispiel weg
+   * ist, ein geaenderter Text aber nicht.
+   */
+  async function loadExamples() {
+    const supabase = createClient();
+    const { data } = await supabase
+      .from("personalization_examples")
+      .select("id, input_context, icebreaker, sort_order")
+      .eq("workspace_id", wsId)
+      .order("sort_order", { ascending: true })
+      .order("created_at", { ascending: true });
+    setExamples(data ?? []);
+  }
+
+  async function addExample() {
+    if (examples.length >= MAX_PERSONALIZATION_EXAMPLES) return;
+    setSavingExample(true);
+    const supabase = createClient();
+    const nextOrder = examples.length ? Math.max(...examples.map((e) => e.sort_order)) + 1 : 0;
+    const { error } = await supabase.from("personalization_examples").insert({
+      workspace_id: wsId,
+      input_context: "",
+      icebreaker: "",
+      sort_order: nextOrder,
+    });
+    setSavingExample(false);
+    if (error) {
+      push(t.common.error + error.message, "error");
+      return;
+    }
+    loadExamples();
+  }
+
+  async function saveExample(id: string, patch: Partial<Pick<Example, "input_context" | "icebreaker">>) {
+    const supabase = createClient();
+    const { error } = await supabase
+      .from("personalization_examples")
+      .update(patch)
+      .eq("id", id)
+      .eq("workspace_id", wsId);
+    if (error) push(t.common.error + error.message, "error");
+  }
+
+  async function deleteExample(id: string) {
+    const supabase = createClient();
+    const { error } = await supabase
+      .from("personalization_examples")
+      .delete()
+      .eq("id", id)
+      .eq("workspace_id", wsId);
+    if (error) {
+      push(t.common.error + error.message, "error");
+      return;
+    }
+    loadExamples();
+  }
+
+  /**
+   * Ein Beispiel um eine Position verschieben. Die Reihenfolge ist nicht nur
+   * Anzeige: sie bestimmt die Reihenfolge der Turns im Prompt.
+   *
+   * Es werden ALLE Zeilen neu durchnummeriert, nicht nur die beiden
+   * getauschten. Sonst passiert bei zwei zufaellig gleichen sort_order-Werten
+   * nichts sichtbares: die Anzeige faellt dann auf created_at zurueck, der
+   * Tausch schreibt zweimal denselben Wert, und der Knopf wirkt kaputt.
+   * Zehn Zeilen sind das Maximum, der Aufwand ist also gedeckelt.
+   */
+  async function moveExample(index: number, direction: -1 | 1) {
+    const other = index + direction;
+    if (other < 0 || other >= examples.length) return;
+    const reordered = [...examples];
+    [reordered[index], reordered[other]] = [reordered[other], reordered[index]];
+    const supabase = createClient();
+    for (let i = 0; i < reordered.length; i++) {
+      await supabase
+        .from("personalization_examples")
+        .update({ sort_order: i })
+        .eq("id", reordered[i].id)
+        .eq("workspace_id", wsId);
+    }
+    loadExamples();
   }
 
   function selectDefault() {
@@ -203,6 +332,7 @@ export default function AiAgentPage() {
         personalization_prompt:
           systemPrompt.trim() === getDefaultPrompt(outputLang).trim() ? null : systemPrompt.trim(),
         personalization_language: outputLang,
+        personalization_model: personalizationModel,
         personalization_source: source,
         personalization_max_words: maxWords,
         personalization_banned_words:
@@ -248,6 +378,10 @@ export default function AiAgentPage() {
         // Ungespeichert mitgeschickt: der Test soll zeigen, was die aktuelle
         // Auswahl bewirkt, nicht was zuletzt gespeichert wurde.
         output_lang: outputLang,
+        // Ebenso das Modell. Ohne diese Zeile wuerde der Test weiter OpenAI
+        // aufrufen, waehrend die Seite "Claude" anzeigt, und damit etwas
+        // anderes pruefen als der Worker spaeter tut.
+        model: personalizationModel,
       }),
     });
     const body = await res.json();
@@ -260,6 +394,20 @@ export default function AiAgentPage() {
   }
 
   const selectedBusiness = businesses.find((b) => b.id === testBusinessId);
+  // Nur zaehlen und Zeichen zaehlen, KEINE Token-Schaetzung. Ein
+  // Umrechnungsfaktor waere hier eine erfundene Zahl: er haengt an Sprache und
+  // Inhalt, und die einzige belastbare Antwort gaebe ein eigener Aufruf gegen
+  // Anthropics count_tokens, also ein Netzaufruf fuer eine Anzeige.
+  const exampleChars = examples.reduce(
+    (sum, e) => sum + e.input_context.length + e.icebreaker.length,
+    0
+  );
+  // Halbe Paare werden von Worker UND Live-Test aussortiert. Das gehoert
+  // hierhin gesagt, sonst wundert sich jemand, warum sein achtes Beispiel
+  // nichts bewirkt.
+  const incompleteExamples = examples.filter(
+    (e) => !e.input_context.trim() || !e.icebreaker.trim()
+  ).length;
 
   return (
     <div className="fade-up max-w-3xl space-y-6">
@@ -270,6 +418,164 @@ export default function AiAgentPage() {
           <HelpLink section="agent" label={t.guide.helpLink} />
         </p>
       </div>
+
+      {/* Ganz oben, weil diese Auswahl entscheidet, welcher der beiden Wege
+          ueberhaupt laeuft, und weil der Abschnitt "Beispiele" direkt darunter
+          an ihr haengt. */}
+      <div className="rounded-lg border border-edge/60 bg-panel p-6">
+        <h2 className="mb-1 font-medium text-ink">{t.aiAgent.modelHeading}</h2>
+        <p className="mb-3 text-sm text-faint">{t.aiAgent.modelSubtitle}</p>
+        <div className="grid gap-2 sm:grid-cols-2">
+          {PERSONALIZATION_MODELS.map((code) => (
+            <label
+              key={code}
+              className={
+                "cursor-pointer rounded-lg border p-3 text-sm transition-colors " +
+                (personalizationModel === code
+                  ? "border-sky-500/60 bg-sky-500/5"
+                  : "border-edge2 hover:border-edge3")
+              }
+            >
+              <div className="flex items-center gap-2">
+                <input
+                  type="radio"
+                  name="personalizationModel"
+                  checked={personalizationModel === code}
+                  onChange={() => setPersonalizationModel(code)}
+                  className="h-3.5 w-3.5 accent-sky-500"
+                />
+                <span className="font-medium text-ink">{t.aiAgent.modelOptions[code].label}</span>
+              </div>
+              <p className="mt-1 text-xs text-faint">{t.aiAgent.modelOptions[code].hint}</p>
+            </label>
+          ))}
+        </div>
+        <p className="mt-2 text-xs text-mute">{t.aiAgent.modelKeyHint}</p>
+      </div>
+
+      {/* Nur bei Claude sichtbar, nicht deaktiviert daneben.
+          Der OpenAI-Pfad im Worker liest personalization_examples ueberhaupt
+          nicht. Ein bedienbar aussehender Abschnitt, dessen gespeicherter
+          Inhalt folgenlos bleibt, laedt genau zu dem Missverstaendnis ein, er
+          wirke trotzdem; und ein grau hinterlegter Block waere auf einer Seite
+          mit sechs Karten nur weiteres Rauschen. Entdeckbar bleibt die
+          Funktion ueber den Hinweis in der Claude-Karte darueber. */}
+      {personalizationModel === "claude" && (
+        <div className="rounded-lg border border-edge/60 bg-panel p-6">
+          <h2 className="mb-1 font-medium text-ink">{t.aiAgent.examplesHeading}</h2>
+          <p className="mb-3 text-sm text-faint">{t.aiAgent.examplesSubtitle}</p>
+
+          <div className="mb-4 flex flex-wrap items-center gap-3 text-xs">
+            <span className="rounded-full border border-edge2 px-2.5 py-0.5 text-soft">
+              {t.aiAgent.examplesCount(examples.length, MAX_PERSONALIZATION_EXAMPLES)}
+            </span>
+            <span className="rounded-full border border-edge2 px-2.5 py-0.5 text-soft">
+              {t.aiAgent.examplesChars(exampleChars)}
+            </span>
+            {incompleteExamples > 0 && (
+              <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-2.5 py-0.5 text-amber-700 dark:text-amber-300">
+                {t.aiAgent.examplesIncomplete(incompleteExamples)}
+              </span>
+            )}
+          </div>
+
+          {examples.length === 0 && (
+            <p className="mb-4 text-sm text-faint">{t.aiAgent.examplesEmpty}</p>
+          )}
+
+          <div className="space-y-4">
+            {examples.map((ex, i) => (
+              <div key={ex.id} className="rounded-lg border border-edge2 p-4">
+                <div className="mb-2 flex items-center justify-between">
+                  <span className="text-xs font-medium text-faint">
+                    {t.aiAgent.exampleNumber(i + 1)}
+                  </span>
+                  <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() => moveExample(i, -1)}
+                      disabled={i === 0}
+                      aria-label={t.aiAgent.exampleMoveUp}
+                      title={t.aiAgent.exampleMoveUp}
+                      className="rounded px-1.5 text-faint hover:text-ink disabled:opacity-30"
+                    >
+                      ↑
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => moveExample(i, 1)}
+                      disabled={i === examples.length - 1}
+                      aria-label={t.aiAgent.exampleMoveDown}
+                      title={t.aiAgent.exampleMoveDown}
+                      className="rounded px-1.5 text-faint hover:text-ink disabled:opacity-30"
+                    >
+                      ↓
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => deleteExample(ex.id)}
+                      aria-label={t.common.delete}
+                      title={t.common.delete}
+                      className="rounded px-1.5 text-faint hover:text-red-500"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                </div>
+
+                <label className="mb-1 block text-xs font-medium text-faint">
+                  {t.aiAgent.exampleContextLabel}
+                </label>
+                <textarea
+                  value={ex.input_context}
+                  rows={5}
+                  placeholder={t.aiAgent.exampleContextPlaceholder}
+                  onChange={(e) =>
+                    setExamples((list) =>
+                      list.map((x) => (x.id === ex.id ? { ...x, input_context: e.target.value } : x))
+                    )
+                  }
+                  onBlur={(e) => saveExample(ex.id, { input_context: e.target.value })}
+                  className={inputCls + " w-full resize-y font-mono text-[13px] leading-relaxed"}
+                />
+
+                <label className="mb-1 mt-3 block text-xs font-medium text-faint">
+                  {t.aiAgent.exampleIcebreakerLabel}
+                </label>
+                <textarea
+                  value={ex.icebreaker}
+                  rows={2}
+                  placeholder={t.aiAgent.exampleIcebreakerPlaceholder}
+                  onChange={(e) =>
+                    setExamples((list) =>
+                      list.map((x) => (x.id === ex.id ? { ...x, icebreaker: e.target.value } : x))
+                    )
+                  }
+                  onBlur={(e) => saveExample(ex.id, { icebreaker: e.target.value })}
+                  className={inputCls + " w-full resize-y text-[13px] leading-relaxed"}
+                />
+              </div>
+            ))}
+          </div>
+
+          {examples.length < MAX_PERSONALIZATION_EXAMPLES ? (
+            <button
+              type="button"
+              onClick={addExample}
+              disabled={savingExample}
+              className={ghostBtnCls + " mt-4"}
+            >
+              + {t.aiAgent.addExample}
+            </button>
+          ) : (
+            <p className="mt-4 text-xs text-mute">
+              {t.aiAgent.examplesLimitReached(MAX_PERSONALIZATION_EXAMPLES)}
+            </p>
+          )}
+
+          <p className="mt-3 text-xs text-mute">{t.aiAgent.examplesSaveHint}</p>
+        </div>
+      )}
 
       {/* Vor der Datenquelle, weil diese Auswahl den Prompt-Text weiter unten
           umschaltet — eine Einstellung, die sichtbar etwas anderes veraendert,
@@ -516,8 +822,19 @@ export default function AiAgentPage() {
         {testResult && (
           <div className="lock-pop mt-4 rounded-lg border-l-2 border-sky-500/50 bg-sky-500/5 p-4">
             <p className="text-sm italic leading-relaxed text-ink">{testResult.text}</p>
-            <div className="mt-2 flex items-center gap-2 text-xs">
+            <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
               <span className="text-faint">{testResult.wordCount} {t.aiAgent.words}</span>
+              {/* Bei zwei Modellen muss der Test dazusagen, WAS er geprueft
+                  hat. Sonst sieht ein Lauf ueber OpenAI genauso aus wie einer
+                  ueber Claude mit sieben Beispielen. */}
+              {testResult.model && (
+                <span className="rounded-full border border-edge2 px-2 py-0.5 text-soft">
+                  {t.aiAgent.testRanWith(
+                    t.aiAgent.modelOptions[testResult.model]?.label ?? testResult.model,
+                    testResult.exampleCount ?? 0
+                  )}
+                </span>
+              )}
               {testResult.corrected && (
                 <span className="rounded-full border border-sky-500/30 bg-sky-500/10 px-2 py-0.5 text-sky-600 dark:text-sky-300">
                   {t.aiAgent.correctedNote}

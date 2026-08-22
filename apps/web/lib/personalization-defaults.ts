@@ -1,5 +1,11 @@
 // Muss inhaltlich mit apps/worker/worker/pipelines/personalize.py (DEFAULT_*) uebereinstimmen:
 // beide Seiten (Worker-Produktion, Web-Live-Test) sollen mit denselben Vorgaben rechnen.
+//
+// Die Bindung gilt in BEIDE Richtungen: personalize.py verweist an den
+// entsprechenden Stellen hierher zurueck. Wer eine der Zahlen oder einen der
+// Texte aendert und nur eine Seite anfasst, erzeugt einen Live-Test, der
+// etwas anderes prueft als der Worker spaeter tut. Genau daran war der
+// gemeldete Sprachfehler so schwer zu sehen (siehe constraintBlock unten).
 
 export const DEFAULT_PROMPT_DE = `Deine Aufgabe ist es, einen einzelnen, vertrieblich messerscharfen Aufhänger (Icebreaker) für eine Cold-Email zu generieren, der beweist, dass du die Welt des potenziellen Kunden tatsächlich verstehst.
 Regeln für den Icebreaker:
@@ -122,6 +128,28 @@ export const DEFAULT_MAX_WORDS = 35;
 export const DEFAULT_BANNED_WORDS = ["—", "–", "--", "-"];
 
 export const SOURCE_VALUES = ["company_summary", "website_text", "both"] as const;
+
+export const PERSONALIZATION_MODELS = ["openai", "claude"] as const;
+export type PersonalizationModel = (typeof PERSONALIZATION_MODELS)[number];
+
+/**
+ * Wie viele Few-Shot-Beispiele hoechstens hinterlegt werden koennen.
+ *
+ * Muss mit MAX_EXAMPLES in apps/worker/worker/pipelines/personalize.py
+ * uebereinstimmen; der Worker setzt dieselbe Grenze noch einmal durch.
+ *
+ * Die Zahl ist eine Kostengrenze, keine Qualitaetsgrenze: der Beispielblock
+ * steht in JEDER Anfrage fuer JEDEN Lead. Ein Beispiel traegt den Kontexttext
+ * einer Firma, in der Praxis ein paar tausend Zeichen; zehn davon landen grob
+ * bei 5.000 bis 10.000 Tokens Vorspann, und das multipliziert sich mit der
+ * Anzahl Leads einer Suche. Zum Anlernen eines Schreibstils saettigt Few-Shot
+ * ohnehin lange vorher.
+ *
+ * Dieselbe Bauform wie MAX_CUSTOM_TEMPLATES (5) im AI-Agent-Tab: Konstante
+ * hier, Durchsetzung in der Oberflaeche ueber ein ausgeblendetes
+ * Hinzufuegen-Feld.
+ */
+export const MAX_PERSONALIZATION_EXAMPLES = 10;
 
 export function wordCount(text: string): number {
   return text.trim().split(/\s+/).filter(Boolean).length;

@@ -3,7 +3,19 @@ import { createClient } from "@/lib/supabase/server";
 import { getCurrentWorkspace } from "@/lib/workspace/server";
 import { fernetEncrypt } from "@/lib/fernet";
 
-const PROVIDERS = ["google_maps", "openai", "hunter", "apollo", "neverbounce", "instantly", "prospeo"];
+// Muss mit api_keys_provider_check in der Datenbank uebereinstimmen
+// (zuletzt Migration 0097, 'anthropic'): ein hier erlaubter, dort fehlender
+// Wert scheitert erst beim Speichern.
+const PROVIDERS = [
+  "google_maps",
+  "openai",
+  "hunter",
+  "apollo",
+  "neverbounce",
+  "instantly",
+  "prospeo",
+  "anthropic",
+];
 
 /**
  * Kurzer, nicht-sensibler Hinweis auf den Key (z.B. "sk-a1b2...9xZ3"), damit

@@ -1228,6 +1228,9 @@ const de = {
     providerHints: {
       google_maps: "Geocoding API + Places API (New) aktivieren",
       openai: "Key beginnt mit sk-",
+      // PLATZHALTER, muss noch formuliert werden (copywriter).
+      anthropic:
+        "Nur nötig, wenn im AI-Agent-Tab Claude als Modell gewählt ist. Key beginnt mit sk-ant-",
       hunter: "Für E-Mail-Suche nach Entscheidern",
       apollo: "Für die Apollo-Massensuche (Firma + Entscheider + verifizierte E-Mail in einem Schritt). Braucht mindestens Apollos Basic-Plan. Der Free-Plan sperrt die Personensuche über die API.",
       prospeo: "Für die Prospeo-Suche (Firma + Entscheider + verifizierte E-Mail in einem Schritt). Der API-Zugang ist schon im kostenlosen Tarif dabei. Technologie-Filter und Stellenausschreibungen brauchen Starter, der Website-Traffic-Filter Pro.",
@@ -1928,6 +1931,47 @@ const de = {
   aiAgent: {
     title: "AI Agent",
     subtitle: "Steuere, wie der Icebreaker generiert wird: Datenquelle, Regeln und Ton vollständig anpassbar.",
+    // PLATZHALTER, muss noch formuliert werden (copywriter). Inhaltlich
+    // korrekt, aber nicht auf Wirkung geschrieben.
+    modelHeading: "Modell",
+    modelSubtitle: "Welches Modell schreibt den Icebreaker?",
+    modelOptions: {
+      openai: {
+        label: "OpenAI",
+        hint: "Der Standard. Schnell und günstig, folgt dem System-Prompt weiter unten.",
+      },
+      claude: {
+        label: "Claude (Anthropic)",
+        hint: "Zweite Wahl. Zusätzlich lernbar an eigenen Beispiel-Paaren, dafür deutlich teurer pro Lead.",
+      },
+    } as Record<string, { label: string; hint: string }>,
+    modelKeyHint:
+      "Für das gewählte Modell muss unter Einstellungen › API-Keys ein Schlüssel hinterlegt sein.",
+    examplesHeading: "Beispiele",
+    examplesSubtitle:
+      "Zeig dem Modell deinen Stil an fertigen Paaren: links der Text, den es über die Firma sieht, rechts der Icebreaker, den du selbst dazu geschrieben hättest.",
+    examplesEmpty: "Noch kein Beispiel hinterlegt. Ohne Beispiele folgt Claude nur dem Prompt.",
+    addExample: "Beispiel hinzufügen",
+    exampleNumber: (n: number) => `Beispiel ${n}`,
+    exampleContextLabel: "Kontext, den das Modell sieht",
+    exampleContextPlaceholder:
+      "Unternehmen: Muster GmbH\n\nHier den Website- oder Recherchetext einfügen, so wie das Modell ihn später sehen würde.",
+    exampleIcebreakerLabel: "Dein Icebreaker dazu",
+    exampleIcebreakerPlaceholder: "Die Zeile, die du selbst geschrieben hättest. Ohne Anführungszeichen.",
+    exampleMoveUp: "Nach oben",
+    exampleMoveDown: "Nach unten",
+    examplesCount: (n: number, max: number) => `${n} von ${max} Beispielen`,
+    examplesChars: (n: number) => `${n.toLocaleString("de-DE")} Zeichen insgesamt`,
+    examplesIncomplete: (n: number) =>
+      n === 1
+        ? "1 Beispiel ist unvollständig und wird übersprungen"
+        : `${n} Beispiele sind unvollständig und werden übersprungen`,
+    examplesLimitReached: (max: number) =>
+      `Mehr als ${max} Beispiele sind nicht vorgesehen: der Block steht in jeder Anfrage für jeden Lead und kostet entsprechend.`,
+    examplesSaveHint:
+      "Änderungen an den Textfeldern werden beim Verlassen des Feldes gespeichert. Hinzufügen, Löschen und Sortieren wirkt sofort.",
+    testRanWith: (model: string, examples: number) =>
+      examples > 0 ? `${model}, ${examples} Beispiele` : model,
     languageHeading: "Sprache der Icebreaker",
     languageSubtitle: "In welcher Sprache sollen die Aufhänger geschrieben werden?",
     languageOptions: { de: "Deutsch", en: "Englisch" } as Record<string, string>,
@@ -3510,6 +3554,9 @@ const en: Dictionary = {
     providerHints: {
       google_maps: "Enable the Geocoding API + Places API (New)",
       openai: "Key starts with sk-",
+      // PLACEHOLDER, still needs proper wording (copywriter).
+      anthropic:
+        "Only needed if Claude is selected as the model in the AI Agent tab. Key starts with sk-ant-",
       hunter: "For email search of decision makers",
       apollo: "For Apollo bulk search (company + decision maker + verified email in one step). Requires at least Apollo's Basic plan: the Free plan blocks people search over the API.",
       prospeo: "For Prospeo search (company + decision maker + verified email in one step). API access is included even on the free tier. The technology filter and job postings need Starter, the website traffic filter needs Pro.",
@@ -4179,6 +4226,43 @@ const en: Dictionary = {
   aiAgent: {
     title: "AI Agent",
     subtitle: "Control how the icebreaker is generated: data source, rules and tone fully customizable.",
+    // PLACEHOLDER, still needs proper wording (copywriter).
+    modelHeading: "Model",
+    modelSubtitle: "Which model writes the icebreaker?",
+    modelOptions: {
+      openai: {
+        label: "OpenAI",
+        hint: "The default. Fast and cheap, follows the system prompt below.",
+      },
+      claude: {
+        label: "Claude (Anthropic)",
+        hint: "Second option. Can additionally be taught from your own example pairs, but costs noticeably more per lead.",
+      },
+    } as Record<string, { label: string; hint: string }>,
+    modelKeyHint: "The selected model needs a key saved under Settings › API keys.",
+    examplesHeading: "Examples",
+    examplesSubtitle:
+      "Show the model your style with finished pairs: the text it sees about the company, and the icebreaker you would have written for it.",
+    examplesEmpty: "No example saved yet. Without examples, Claude only follows the prompt.",
+    addExample: "Add example",
+    exampleNumber: (n: number) => `Example ${n}`,
+    exampleContextLabel: "Context the model sees",
+    exampleContextPlaceholder:
+      "Unternehmen: Muster GmbH\n\nPaste the website or research text here, the way the model would see it later.",
+    exampleIcebreakerLabel: "Your icebreaker for it",
+    exampleIcebreakerPlaceholder: "The line you would have written yourself. No quotation marks.",
+    exampleMoveUp: "Move up",
+    exampleMoveDown: "Move down",
+    examplesCount: (n: number, max: number) => `${n} of ${max} examples`,
+    examplesChars: (n: number) => `${n.toLocaleString("en-US")} characters in total`,
+    examplesIncomplete: (n: number) =>
+      n === 1 ? "1 example is incomplete and will be skipped" : `${n} examples are incomplete and will be skipped`,
+    examplesLimitReached: (max: number) =>
+      `More than ${max} examples are not supported: the block goes into every request for every lead and is billed accordingly.`,
+    examplesSaveHint:
+      "Changes to the text fields are saved when you leave the field. Adding, deleting and reordering takes effect immediately.",
+    testRanWith: (model: string, examples: number) =>
+      examples > 0 ? `${model}, ${examples} examples` : model,
     languageHeading: "Icebreaker language",
     languageSubtitle: "Which language should the opening lines be written in?",
     languageOptions: { de: "German", en: "English" } as Record<string, string>,
