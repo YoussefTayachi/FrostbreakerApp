@@ -8,17 +8,13 @@ import {
   loadOwnedCampaign,
   sequenceFromInstantly,
   scheduleFromInstantly,
+  toHhMm,
   toLocalStatus,
   type InstantlyCampaign,
   primaryVariant,
   type SequenceStep,
   type StepVariant,
 } from "@/lib/instantly/campaigns";
-
-/** Kuerzt Postgres' "HH:MM:SS"-Zeitformat auf "HH:MM" fuer <input type="time">. */
-function toHhMm(t: string) {
-  return t.slice(0, 5);
-}
 
 /**
  * Kampagnen-Detailseite: laedt live von Instantly (Status/Sequenz/Zeitplan

@@ -13,6 +13,7 @@ import {
   type SequenceStep,
   type InstantlyCampaign,
 } from "@/lib/instantly/campaigns";
+import { isCampaignDraft, planDraftTakeover, type CampaignDraftRow } from "@/lib/instantly/campaign-draft";
 
 type CreateCampaignBody = {
   searchIds: string[];
@@ -26,7 +27,15 @@ type CreateCampaignBody = {
   to: string; // "17:00"
   timezone: string; // z.B. "Europe/Vienna"
   dailyLimit?: number;
+  /** Der Entwurf, der hier fertig wird: eine campaigns-Zeile ohne
+   *  Instantly-Zwilling, angelegt ueber den MCP-Server (create_campaign).
+   *  Das Formular schickt ihn mit, wenn es ueber ?draft= geoeffnet wurde. */
+  draftId?: string;
 };
+
+/** Die Spalten, an denen haengt, ob eine Kampagne noch ein Entwurf ist
+ *  (lib/instantly/campaign-draft.ts). */
+const DRAFT_COLUMNS = "id, name, status, instantly_campaign_id, activated_at";
 
 /**
  * Legt eine neue Instantly-Kampagne an (als Draft; Instantly startet nichts
@@ -81,6 +90,85 @@ export async function POST(req: Request) {
   if (alreadyLinked) {
     return NextResponse.json(
       { error: `Suche "${alreadyLinked.name ?? alreadyLinked.query}" hat bereits eine verknuepfte Kampagne.` },
+      { status: 409 }
+    );
+  }
+
+  /**
+   * ═════════════════════════════════════════════════════════════════════
+   * DER ENTWURF, DER HIER FERTIG WIRD
+   * ═════════════════════════════════════════════════════════════════════
+   *
+   * Seit dem MCP-Werkzeug create_campaign (2026-08-22) kann an einer
+   * Lead-Liste eine campaigns-Zeile OHNE Instantly-Zwilling haengen. Die
+   * Pruefung oben sieht sie nicht: ein Entwurf setzt
+   * searches.instantly_campaign_id bewusst nicht.
+   *
+   * Ohne das Folgende entstuende hier eine ZWEITE Zeile, und die erste bliebe
+   * als Karteileiche mit einer Sequenz darin liegen -- anlegen liesse sie sich
+   * nie mehr, weil die Suche ab jetzt verknuepft ist (HTTP 409 oben).
+   *
+   * Deshalb wird die vorhandene Zeile weiterverwendet statt geloescht: die
+   * campaign_id, die Claude dem Nutzer genannt hat, bleibt gueltig, und die
+   * Protokollzeilen in mcp_write_log (Migration 0101) zeigen weiter auf eine
+   * Kampagne, die es gibt.
+   */
+  const draftId = typeof body.draftId === "string" && body.draftId ? body.draftId : null;
+  let requestedDraft: CampaignDraftRow | null = null;
+  if (draftId) {
+    const { data } = await supabase
+      .from("campaigns")
+      .select(DRAFT_COLUMNS)
+      .eq("id", draftId)
+      .eq("workspace_id", workspaceId)
+      .maybeSingle();
+    if (!data) {
+      return NextResponse.json(
+        { error: "Dieser Entwurf existiert nicht mehr. Lege die Kampagne ohne ihn an." },
+        { status: 404 }
+      );
+    }
+    requestedDraft = data as unknown as CampaignDraftRow;
+    if (!isCampaignDraft(requestedDraft)) {
+      return NextResponse.json(
+        {
+          error: `"${requestedDraft.name}" ist kein Entwurf mehr, die Kampagne wurde bereits angelegt. Du findest sie unter Instantly > Kampagnen.`,
+        },
+        { status: 409 }
+      );
+    }
+  }
+
+  // Alles, was ueber campaign_searches an diesen Listen haengt. Die
+  // Zwischentabelle traegt keine workspace_id (Migration 0050); der Zaun ist
+  // deshalb der Workspace-Filter auf campaigns, nicht die IDs von dort.
+  const { data: existingLinks } = await supabase
+    .from("campaign_searches")
+    .select("campaign_id")
+    .in("search_id", searchIds);
+  const linkedIds = [...new Set((existingLinks ?? []).map((l) => l.campaign_id as string))];
+  let linkedCampaigns: CampaignDraftRow[] = [];
+  if (linkedIds.length > 0) {
+    const { data } = await supabase
+      .from("campaigns")
+      .select(DRAFT_COLUMNS)
+      .eq("workspace_id", workspaceId)
+      .in("id", linkedIds)
+      // Aeltester zuerst: bei zwei Entwuerfen soll immer derselbe gewinnen.
+      .order("created_at", { ascending: true });
+    linkedCampaigns = (data ?? []) as unknown as CampaignDraftRow[];
+  }
+  const draftCandidates =
+    requestedDraft && !linkedCampaigns.some((c) => c.id === requestedDraft!.id)
+      ? [...linkedCampaigns, requestedDraft]
+      : linkedCampaigns;
+  const draftPlan = planDraftTakeover(draftCandidates, draftId);
+  if (draftPlan.blocked) {
+    // Dieselbe Auskunft wie oben, nur ueber den anderen Weg gefunden: eine
+    // echte Kampagne haengt an dieser Liste, obwohl searches noch nichts davon
+    // weiss (etwa weil das Setzen dort einmal fehlgeschlagen ist).
+    return NextResponse.json(
+      { error: `Diese Lead-Liste speist bereits die Kampagne "${draftPlan.blocked.name}".` },
       { status: 409 }
     );
   }
@@ -202,35 +290,59 @@ export async function POST(req: Request) {
   // Lokalen Spiegel anlegen. Fehler hier duerfen die Instantly-Seite nicht
   // rueckgaengig machen (die Kampagne existiert dort bereits echt), daher
   // best-effort mit klarer Fehlermeldung statt Transaktion ueber zwei Systeme.
-  const { data: localCampaign, error: campaignInsertError } = await supabase
-    .from("campaigns")
-    .insert({
-      workspace_id: workspaceId,
-      // Primaere Suche fuer Analytics-Polling (instantly_campaign_stats haengt
-      // an genau einer search_id); welche der mehreren Suchen egal, die
-      // Kampagnen-Metriken bei Instantly sind ohnehin ueber alle gemeinsam.
-      search_id: searchIds[0],
-      instantly_campaign_id: instantlyCampaign.id,
-      name: name.trim(),
-      status: toLocalStatus(instantlyCampaign.status),
-      send_window_start: from,
-      send_window_end: to,
-      timezone,
-      mailboxes,
-      days,
-      daily_limit: dailyLimit || null,
-      open_tracking: openTracking,
-      link_tracking: linkTracking,
-    })
-    .select("id")
-    .single();
+  const mirror = {
+    // Primaere Suche fuer Analytics-Polling (instantly_campaign_stats haengt
+    // an genau einer search_id); welche der mehreren Suchen egal, die
+    // Kampagnen-Metriken bei Instantly sind ohnehin ueber alle gemeinsam.
+    search_id: searchIds[0],
+    instantly_campaign_id: instantlyCampaign.id,
+    name: name.trim(),
+    status: toLocalStatus(instantlyCampaign.status),
+    send_window_start: from,
+    send_window_end: to,
+    timezone,
+    mailboxes,
+    days,
+    daily_limit: dailyLimit || null,
+    open_tracking: openTracking,
+    link_tracking: linkTracking,
+  };
 
-  if (campaignInsertError || !localCampaign) {
+  let localCampaignId: string;
+  let mirrorError: string | null = null;
+  if (draftPlan.reuse) {
+    // Aus dem Entwurf wird die Kampagne: dieselbe Zeile, jetzt mit
+    // Instantly-Zwilling. Ab hier ist sie kein Entwurf mehr, und der
+    // MCP-Server weist Schreibvorgaenge darauf ab (ladeEntwurf).
+    localCampaignId = draftPlan.reuse.id;
+    const { error } = await supabase
+      .from("campaigns")
+      .update(mirror)
+      .eq("id", localCampaignId)
+      // Beide Bedingungen: die id allein kaeme aus dem Request.
+      .eq("workspace_id", workspaceId);
+    mirrorError = error?.message ?? null;
+    // Verknuepfungen und Schritte werden unten neu geschrieben; im Formular
+    // kann inzwischen eine andere Liste angehakt und die Sequenz umgeschrieben
+    // worden sein. Was der Entwurf mitbrachte, ist damit erledigt.
+    if (!mirrorError) {
+      await supabase.from("campaign_searches").delete().eq("campaign_id", localCampaignId);
+      await supabase.from("campaign_steps").delete().eq("campaign_id", localCampaignId);
+    }
+  } else {
+    const { data: localCampaign, error } = await supabase
+      .from("campaigns")
+      .insert({ workspace_id: workspaceId, ...mirror })
+      .select("id")
+      .single();
+    mirrorError = error?.message ?? (localCampaign ? null : "unbekannter Fehler");
+    localCampaignId = localCampaign?.id ?? "";
+  }
+
+  if (mirrorError) {
     return NextResponse.json(
       {
-        error:
-          "Kampagne wurde bei Instantly angelegt, konnte aber nicht lokal gespeichert werden: " +
-          (campaignInsertError?.message ?? "unbekannter Fehler"),
+        error: "Kampagne wurde bei Instantly angelegt, konnte aber nicht lokal gespeichert werden: " + mirrorError,
         instantly_campaign_id: instantlyCampaign.id,
       },
       { status: 500 }
@@ -239,7 +351,7 @@ export async function POST(req: Request) {
 
   await supabase.from("campaign_steps").insert(
     steps.map((s, i) => ({
-      campaign_id: localCampaign.id,
+      campaign_id: localCampaignId,
       step_order: i,
       wait_days: s.delayDays ?? 0,
       // subject/body fuehren weiterhin Variante A (Migration 0071): alles,
@@ -252,12 +364,12 @@ export async function POST(req: Request) {
   );
 
   await supabase.from("campaign_leads").upsert(
-    rows.map((c) => ({ campaign_id: localCampaign.id, contact_id: c.id })),
+    rows.map((c) => ({ campaign_id: localCampaignId, contact_id: c.id })),
     { onConflict: "campaign_id,contact_id", ignoreDuplicates: true }
   );
 
   await supabase.from("campaign_searches").insert(
-    searchIds.map((id) => ({ campaign_id: localCampaign.id, search_id: id }))
+    searchIds.map((id) => ({ campaign_id: localCampaignId, search_id: id }))
   );
 
   // searches.instantly_campaign_id bleibt die Quelle, die der Sync-Cron
@@ -266,9 +378,26 @@ export async function POST(req: Request) {
   // damit jede von ihnen im UI korrekt als "verknuepft" erscheint.
   await supabase.from("searches").update({ instantly_campaign_id: instantlyCampaign.id }).in("id", searchIds).eq("workspace_id", workspaceId);
 
+  // Weitere Entwuerfe derselben Listen wegraeumen. Sie koennten ab jetzt nie
+  // mehr eine Kampagne werden (die Suchen sind verknuepft) und wuerden in der
+  // Kampagnenliste als Zeile stehen bleiben, die nichts mehr tun kann.
+  // "delete" laeuft auf campaigns und nimmt campaign_steps/campaign_searches
+  // per on delete cascade mit (Migration 0001/0050).
+  if (draftPlan.obsolete.length > 0) {
+    await supabase
+      .from("campaigns")
+      .delete()
+      .in("id", draftPlan.obsolete.map((d) => d.id))
+      .eq("workspace_id", workspaceId);
+  }
+
   return NextResponse.json({
     ok: true,
-    campaign_id: localCampaign.id,
+    campaign_id: localCampaignId,
+    // Damit das Formular weiss, dass sein Entwurf aufgegangen ist -- und der
+    // Bericht in der Konsole/im Support nachvollziehbar bleibt.
+    from_draft: draftPlan.reuse?.id ?? null,
+    discarded_drafts: draftPlan.obsolete.length,
     instantly_campaign_id: instantlyCampaign.id,
     // Aussortierte ungueltige Adressen mitgeben statt sie stillschweigend zu
     // schlucken: der Nutzer soll sehen, dass die Verifizierung gewirkt hat.
@@ -306,7 +435,10 @@ export async function GET() {
       "id, name, status, instantly_campaign_id, search_id, mailboxes, daily_limit, created_at, activated_at, searches!campaigns_search_id_fkey(name, query, location)"
     )
     .eq("workspace_id", ctx.workspace.id)
-    .not("instantly_campaign_id", "is", null)
+    // MIT den Entwuerfen, die es nur bei uns gibt (MCP-Werkzeug
+    // create_campaign). Diese Liste ist der einzige Ort, an dem der Nutzer sie
+    // ueberhaupt zu sehen bekommt: ohne sie waere ein in Claude vorbereiteter
+    // Entwurf in der App unauffindbar und damit wertlos.
     .order("created_at", { ascending: false });
 
   if (campaignsError) {
@@ -373,7 +505,21 @@ export async function GET() {
     return campaignStats(rows);
   }
 
+  const items = withLiveStatus.map((c) => {
+    const istEntwurf = !c.instantly_campaign_id;
+    return {
+      ...c,
+      is_draft: istEntwurf,
+      // Ein Entwurf hat nie etwas versendet. Zahlen, die aus einer frueher
+      // geloeschten Kampagne derselben Liste stehengeblieben sind, waeren
+      // neben ihm gelesen als seine eigenen -- also gar keine.
+      stats: istEntwurf ? null : statsFor(c.id, c.search_id ?? null),
+    };
+  });
+
   return NextResponse.json({
-    items: withLiveStatus.map((c) => ({ ...c, stats: statsFor(c.id, c.search_id ?? null) })),
+    // Entwuerfe nach oben: sie sind das Einzige in dieser Liste, das auf eine
+    // Handlung wartet, und der Rest ist nach Datum sortiert.
+    items: [...items.filter((i) => i.is_draft), ...items.filter((i) => !i.is_draft)],
   });
 }

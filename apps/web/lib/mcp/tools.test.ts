@@ -1294,7 +1294,17 @@ describe("create_campaign", () => {
     const { supabase, aufrufe } = stubSupabase({
       searches: { data: suche },
       campaign_searches: { data: [{ campaign_id: "c9" }] },
-      campaigns: { data: [{ id: "c9", name: "Erster Entwurf", status: "draft" }] },
+      campaigns: {
+        data: [
+          {
+            id: "c9",
+            name: "Erster Entwurf",
+            status: "draft",
+            instantly_campaign_id: null,
+            activated_at: null,
+          },
+        ],
+      },
     });
     const ergebnis = await callTool(supabase, ctx({ scope: "read_write" }), "create_campaign", {
       workspace_id: WS,
@@ -1302,11 +1312,49 @@ describe("create_campaign", () => {
       search_id: "s1",
     });
     expect(ergebnis.isError).toBe(true);
+    // Mit der campaign_id, damit das Modell set_campaign_sequence darauf
+    // anwenden kann, statt einen zweiten Entwurf fuer dieselben Empfaenger
+    // anzulegen.
     expect(ergebnis.content[0].text).toContain("c9");
+    expect(ergebnis.content[0].text).toContain("set_campaign_sequence");
     expect(aufrufe.some((a) => a.method === "insert")).toBe(false);
     // Die Zwischentabelle traegt keine workspace_id: das Ergebnis MUSS ueber
     // campaigns mit Workspace-Filter aufgeloest werden.
     expect(hatFilter(aufrufe, "campaigns", "workspace_id", WS)).toBe(true);
+  });
+
+  it("haengt an der Liste eine echte Kampagne, verweist die Meldung in die App", async () => {
+    /**
+     * Der Fall, den searches.instantly_campaign_id nicht faengt: die Kampagne
+     * existiert bei Instantly, aber das Setzen auf der Suche ist einmal
+     * fehlgeschlagen (api/instantly/campaigns schreibt es zuletzt und
+     * best-effort). set_campaign_sequence waere hier die falsche Auskunft --
+     * ein Schreibvorgang im Spiegel erreicht Instantly nicht.
+     */
+    const { supabase, aufrufe } = stubSupabase({
+      searches: { data: suche },
+      campaign_searches: { data: [{ campaign_id: "c9" }] },
+      campaigns: {
+        data: [
+          {
+            id: "c9",
+            name: "Laeuft schon",
+            status: "active",
+            instantly_campaign_id: "inst-1",
+            activated_at: "2026-08-20T09:00:00Z",
+          },
+        ],
+      },
+    });
+    const ergebnis = await callTool(supabase, ctx({ scope: "read_write" }), "create_campaign", {
+      workspace_id: WS,
+      name: "Zweiter",
+      search_id: "s1",
+    });
+    expect(ergebnis.isError).toBe(true);
+    expect(ergebnis.content[0].text).toContain("Instantly > Campaigns");
+    expect(ergebnis.content[0].text).not.toContain("set_campaign_sequence");
+    expect(aufrufe.some((a) => a.method === "insert")).toBe(false);
   });
 
   it("eine unbekannte Liste klingt wie eine fremde", async () => {

@@ -9,6 +9,7 @@ import { TOOL_DESCRIPTIONS, type ToolName } from "@/lib/mcp/tool-descriptions";
 import { wrapUntrusted } from "@/lib/mcp/untrusted";
 import { loadFieldDefs } from "@/lib/offer-field-defs";
 import { instantlyHtmlToPlainText, normalizeInstantlyTimezone } from "@/lib/instantly/campaigns";
+import { classifyLinkedCampaigns, type CampaignDraftRow } from "@/lib/instantly/campaign-draft";
 import { OFFER_COLUMNS, OFFER_TEXT_FIELDS, type OfferTextField } from "@/lib/offers";
 
 /**
@@ -2365,15 +2366,27 @@ export const TOOLS: Record<ToolName, McpTool> = {
       if (kampagnenIds.length > 0) {
         const { data: vorhanden, error: vorhandenFehler } = await supabase
           .from("campaigns")
-          .select("id, name, status")
+          .select("id, name, status, instantly_campaign_id, activated_at")
           .eq("workspace_id", tor.workspaceId)
           .in("id", kampagnenIds)
-          .limit(1);
+          // Kein .limit(1): ob die gefundene Zeile ein Entwurf ist oder eine
+          // laufende Kampagne, entscheidet ueber die Auskunft, und die erste
+          // beliebige waere die falsche. Es sind hoechstens eine Handvoll.
+          .order("created_at", { ascending: true });
         if (vorhandenFehler) return dbFail("create_campaign", vorhandenFehler);
-        const erste = (vorhanden ?? [])[0];
-        if (erste) {
+        const { draft, live } = classifyLinkedCampaigns((vorhanden ?? []) as unknown as CampaignDraftRow[]);
+        // Zuerst der Entwurf: er ist der Fall, aus dem das Modell selbst
+        // weiterkommt. Die campaign_id steht in der Meldung, damit es
+        // set_campaign_sequence darauf anwenden kann, statt einen zweiten
+        // Entwurf fuer dieselben Empfaenger anzulegen.
+        if (draft) {
           return fail(
-            `This lead list already has a campaign ("${erste.name}", campaign_id ${erste.id}, status ${erste.status}). Change that one with set_campaign_sequence or update_campaign instead of creating a second.`
+            `This lead list already has a campaign draft ("${draft.name}", campaign_id ${draft.id}). Write its emails with set_campaign_sequence or rename it with update_campaign instead of creating a second draft; two drafts for one list would end up as two campaigns to the same people.`
+          );
+        }
+        if (live) {
+          return fail(
+            `This lead list already feeds a campaign that exists in Instantly ("${live.name}", status ${live.status}). Open it in Frostbreaker under Instantly > Campaigns; its text lives in Instantly and no tool here can change it.`
           );
         }
       }
@@ -2453,7 +2466,7 @@ export const TOOLS: Record<ToolName, McpTool> = {
         },
         written: true,
         next_steps:
-          "Write the emails with set_campaign_sequence. Choosing the mailboxes, creating the campaign in Instantly and starting it happen in Frostbreaker under Instantly > Campaigns; nothing is sent until someone does that there.",
+          "Write the emails with set_campaign_sequence. After that the draft waits under Instantly > Campaigns in Frostbreaker, where it opens in the campaign form: choosing the mailboxes, creating the campaign in Instantly and starting it happen there and nowhere else, and nothing is sent until someone does it.",
       });
     },
   },

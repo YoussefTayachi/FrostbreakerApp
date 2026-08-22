@@ -1463,9 +1463,22 @@ const de = {
       columnBounced: "Bounces",
       mailboxCount: (n: number) => (n === 1 ? "1 Postfach" : `${n} Postfächer`),
       manage: "Verwalten",
+      /** Kampagnen, die über den Claude-Zugang als Entwurf entstanden sind
+       *  (MCP-Werkzeug create_campaign): sie liegen nur in Frostbreaker, bei
+       *  Instantly gibt es sie noch nicht. */
+      mcpDraftBadge: "Entwurf aus Claude",
+      mcpDraftReview: "Prüfen und anlegen",
+      mcpDraftsHint: (n: number) =>
+        n === 1
+          ? "1 Entwurf aus Claude wartet auf deine Prüfung. Beim Anlegen entscheidest du über Postfächer und Start."
+          : `${n} Entwürfe aus Claude warten auf deine Prüfung. Beim Anlegen entscheidest du über Postfächer und Start.`,
       delete: "Löschen",
       deleteConfirm: (name: string) =>
         `"${name}" wirklich löschen? Die Kampagne wird auch bei Instantly entfernt, das lässt sich nicht rückgängig machen.`,
+      /** Für einen Entwurf gilt der Satz oben nicht: bei Instantly gibt es ihn
+       *  noch gar nicht. */
+      mcpDraftDeleteConfirm: (name: string) =>
+        `Entwurf "${name}" wirklich löschen? Es verschwinden die vorbereiteten Texte, bei Instantly gibt es die Kampagne noch nicht.`,
       deleted: "Kampagne gelöscht.",
       deleteError: "Löschen fehlgeschlagen: ",
       activate: "Starten",
@@ -1532,6 +1545,11 @@ const de = {
         draftRestored: "Entwurf von deinem letzten Besuch wiederhergestellt.",
         draftDiscard: "Von vorn anfangen",
         draftDismiss: "Hinweis ausblenden",
+        /** Der Entwurf aus dem Claude-Zugang, geöffnet über ?draft=. */
+        mcpDraftLoaded: "Entwurf aus Claude geladen. Lies ihn durch, wähle die Postfächer und leg die Kampagne dann an.",
+        mcpDraftReplacedLocal:
+          "Dein hier zuletzt begonnener Entwurf wurde dabei verworfen: es kann nur einer im Formular stehen.",
+        mcpDraftMissing: "Dieser Entwurf wurde nicht gefunden. Vielleicht ist die Kampagne bereits angelegt.",
         quality: {
           heading: "Textqualität",
           showDetails: "Details",
@@ -3891,9 +3909,17 @@ const en: Dictionary = {
       columnBounced: "Bounced",
       mailboxCount: (n: number) => (n === 1 ? "1 mailbox" : `${n} mailboxes`),
       manage: "Manage",
+      mcpDraftBadge: "Draft from Claude",
+      mcpDraftReview: "Review and create",
+      mcpDraftsHint: (n: number) =>
+        n === 1
+          ? "1 draft from Claude is waiting for your review. You pick the mailboxes and the start when you create it."
+          : `${n} drafts from Claude are waiting for your review. You pick the mailboxes and the start when you create them.`,
       delete: "Delete",
       deleteConfirm: (name: string) =>
         `Really delete "${name}"? This also removes the campaign on Instantly and can't be undone.`,
+      mcpDraftDeleteConfirm: (name: string) =>
+        `Really delete the draft "${name}"? The prepared copy goes away; the campaign doesn't exist in Instantly yet.`,
       deleted: "Campaign deleted.",
       deleteError: "Delete failed: ",
       activate: "Start",
@@ -3960,6 +3986,10 @@ const en: Dictionary = {
         draftRestored: "Draft restored from your last visit.",
         draftDiscard: "Start over",
         draftDismiss: "Dismiss notice",
+        mcpDraftLoaded: "Draft from Claude loaded. Read it through, pick the mailboxes, then create the campaign.",
+        mcpDraftReplacedLocal:
+          "The draft you started here was discarded: the form can only hold one at a time.",
+        mcpDraftMissing: "This draft wasn't found. The campaign may already have been created.",
         quality: {
           heading: "Copy quality",
           showDetails: "Details",

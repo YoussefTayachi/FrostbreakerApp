@@ -4,6 +4,12 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { pickPrimaryContactPerBusiness, splitByEngagement, splitBySendability } from "@/lib/contacts";
 import { groupPickerOptions } from "@/lib/search-group";
+import {
+  campaignFormValueFromDraft,
+  isCampaignDraft,
+  type CampaignDraftSettings,
+  type CampaignDraftStep,
+} from "@/lib/instantly/campaign-draft";
 import { filterSuppressed } from "@/lib/suppression";
 import { useT } from "../../../language-provider";
 import { useToast } from "../../../toast-provider";
@@ -84,6 +90,8 @@ export default function NewCampaignPage() {
    * haelt die Abhaengigkeit der Effekte unten stabil: getAll() gibt bei
    * jedem Rendern ein neues Array zurueck und wuerde sie endlos ausloesen.
    */
+  /** Der in Claude vorbereitete Entwurf, den diese Seite pruefen soll. */
+  const draftId = searchParams.get("draft");
   const preselectedRaw = searchParams.getAll("searchId").join(",");
   const preselected = useMemo(
     () => (preselectedRaw ? preselectedRaw.split(",") : []),
@@ -117,6 +125,19 @@ export default function NewCampaignPage() {
    */
   const [restoredFor, setRestoredFor] = useState<string | null>(null);
   const [restoreNotice, setRestoreNotice] = useState(false);
+  /**
+   * Der Entwurf aus dem Claude-Zugang, geoeffnet ueber ?draft=.
+   *
+   * "geladen" heisst: die Felder sind aus einer campaigns-Zeile vorbelegt, die
+   * der MCP-Server angelegt hat (create_campaign). Er GEWINNT gegen den
+   * localStorage-Stand, weil er das Einzige ist, das der Nutzer hier gerade
+   * absichtlich geoeffnet hat -- der lokale Rest kann Wochen alt sein. Dass er
+   * dabei verworfen wurde, steht im Hinweis: still passieren darf das nicht,
+   * es ist Arbeit, die verschwindet.
+   */
+  const [mcpDraft, setMcpDraft] = useState<
+    { state: "loaded"; replacedLocal: boolean } | { state: "missing" } | null
+  >(null);
 
   const handleReadiness = useCallback((r: ReadinessResult | null) => {
     setReadiness((prev) => {
@@ -159,25 +180,101 @@ export default function NewCampaignPage() {
   // ohne diese Reihenfolge ueberschreibt der leere Anfangszustand das
   // Gespeicherte, bevor es im Formular ankommt.
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem(DRAFT_KEY + workspaceId);
-      const draft = raw ? (JSON.parse(raw) as CampaignDraft) : null;
-      if (draft?.value) {
-        // Fehlende Felder aus dem Leerwert auffuellen: ein Entwurf von vor
-        // einer Formularerweiterung darf kein undefined ins Formular tragen.
-        setValue({ ...emptyCampaignFormValue(), ...draft.value });
-        // Eine per ?searchId= mitgebrachte Liste schlaegt den Entwurf nicht,
-        // sie kommt dazu: wer aus einer Liste heraus hierher klickt, meint sie.
-        const ids = draft.searchIds ?? [];
-        setSearchIds(Array.from(new Set([...ids, ...preselected])));
-        setRestoreNotice(true);
+    let abgebrochen = false;
+
+    /** Der Entwurf aus dem Browser, der bisherige Weg. */
+    function ausSpeicher() {
+      try {
+        const raw = localStorage.getItem(DRAFT_KEY + workspaceId);
+        const draft = raw ? (JSON.parse(raw) as CampaignDraft) : null;
+        if (draft?.value) {
+          // Fehlende Felder aus dem Leerwert auffuellen: ein Entwurf von vor
+          // einer Formularerweiterung darf kein undefined ins Formular tragen.
+          setValue({ ...emptyCampaignFormValue(), ...draft.value });
+          // Eine per ?searchId= mitgebrachte Liste schlaegt den Entwurf nicht,
+          // sie kommt dazu: wer aus einer Liste heraus hierher klickt, meint sie.
+          const ids = draft.searchIds ?? [];
+          setSearchIds(Array.from(new Set([...ids, ...preselected])));
+          setRestoreNotice(true);
+        }
+      } catch {
+        // Kaputter oder gesperrter Storage (Privatmodus): dann eben ohne
+        // Entwurf. Ein leeres Formular ist hier kein Fehlerfall.
       }
-    } catch {
-      // Kaputter oder gesperrter Storage (Privatmodus): dann eben ohne
-      // Entwurf. Ein leeres Formular ist hier kein Fehlerfall.
+      setRestoredFor(workspaceId);
     }
-    setRestoredFor(workspaceId);
-  }, [workspaceId, preselected]);
+
+    if (!draftId) {
+      ausSpeicher();
+      return;
+    }
+
+    /**
+     * Der Entwurf aus dem Claude-Zugang.
+     *
+     * Direkt ueber den Browser-Client wie die Suchen und Kontakte weiter
+     * unten, mit demselben ausdruecklichen .eq("workspace_id", …): RLS
+     * entscheidet nur, auf welche Accounts jemand zugreifen darf, nicht,
+     * welcher der eigenen Workspaces gerade gemeint ist. campaign_steps und
+     * campaign_searches tragen keine workspace_id (Migration 0001/0050);
+     * ihr Zaun ist die campaign_id, die gerade geprueft wurde.
+     */
+    (async () => {
+      const supabase = createClient();
+      const { data: campaign } = await supabase
+        .from("campaigns")
+        .select(
+          "id, name, status, instantly_campaign_id, activated_at, mailboxes, days, send_window_start, send_window_end, timezone, daily_limit, open_tracking, link_tracking"
+        )
+        .eq("id", draftId)
+        .eq("workspace_id", workspaceId)
+        .maybeSingle();
+      if (abgebrochen) return;
+      // Kein Entwurf mehr (oder nie einer gewesen): dann wenigstens der lokale
+      // Stand statt eines leeren Formulars ohne Erklaerung.
+      if (!campaign || !isCampaignDraft(campaign)) {
+        setMcpDraft({ state: "missing" });
+        ausSpeicher();
+        return;
+      }
+      const [{ data: steps }, { data: links }] = await Promise.all([
+        supabase
+          .from("campaign_steps")
+          .select("wait_days, subject, body, variants")
+          .eq("campaign_id", draftId)
+          .order("step_order", { ascending: true }),
+        supabase.from("campaign_searches").select("search_id").eq("campaign_id", draftId),
+      ]);
+      if (abgebrochen) return;
+
+      setValue(
+        campaignFormValueFromDraft(
+          campaign as unknown as CampaignDraftSettings,
+          (steps ?? []) as unknown as CampaignDraftStep[],
+          emptyCampaignFormValue()
+        )
+      );
+      // Die Listen des Entwurfs, nicht die aus ?searchId=: der Entwurf ist
+      // fuer genau die gemacht worden, und ein zusaetzlicher Haken waere eine
+      // Kampagne an Empfaenger, deren Texte niemand gelesen hat.
+      const ids = (links ?? []).map((l) => l.search_id as string);
+      if (ids.length > 0) setSearchIds(ids);
+
+      let hatteLokalen = false;
+      try {
+        hatteLokalen = localStorage.getItem(DRAFT_KEY + workspaceId) !== null;
+        localStorage.removeItem(DRAFT_KEY + workspaceId);
+      } catch {
+        // Gesperrter Storage: dann gab es auch nichts zu verdraengen.
+      }
+      setMcpDraft({ state: "loaded", replacedLocal: hatteLokalen });
+      setRestoredFor(workspaceId);
+    })();
+
+    return () => {
+      abgebrochen = true;
+    };
+  }, [workspaceId, preselected, draftId]);
 
   // Entwurf sichern. Verzoegert, weil er einen Seitenwechsel ueberleben muss
   // und nicht jeden Tastendruck.
@@ -301,6 +398,11 @@ export default function NewCampaignPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         searchIds,
+        // Der geoeffnete Entwurf wird zu DIESER Kampagne: die Route
+        // aktualisiert seine Zeile, statt eine zweite anzulegen. Ohne ihn
+        // findet sie ihn ueber campaign_searches trotzdem, das hier ist der
+        // direkte Weg.
+        draftId: draftId ?? undefined,
         name: value.name,
         mailboxes: value.mailboxes,
         steps: value.steps,
@@ -334,6 +436,21 @@ export default function NewCampaignPage() {
       <div>
         <h1 className="text-2xl font-semibold tracking-tight text-ink">{t.instantly.campaigns.newPageTitle}</h1>
       </div>
+
+      {/* Wie beim wiederhergestellten Entwurf darunter: es erklaert, warum in
+          den Feldern schon etwas steht. Der zweite Satz erscheint nur, wenn
+          dabei tatsaechlich ein hier begonnener Entwurf weichen musste. */}
+      {mcpDraft?.state === "loaded" && (
+        <div className="rounded-lg border border-sky-500/40 bg-sky-500/5 px-3 py-2 text-xs text-faint">
+          <p>{F.mcpDraftLoaded}</p>
+          {mcpDraft.replacedLocal && <p className="mt-1">{F.mcpDraftReplacedLocal}</p>}
+        </div>
+      )}
+      {mcpDraft?.state === "missing" && (
+        <div className="rounded-lg border border-amber-500/40 bg-amber-500/5 px-3 py-2 text-xs text-faint">
+          {F.mcpDraftMissing}
+        </div>
+      )}
 
       {/* Steht ganz oben, weil es erklaert, warum in den Feldern schon etwas
           steht. Ohne den Hinweis waere das Wiederherstellen eine stille

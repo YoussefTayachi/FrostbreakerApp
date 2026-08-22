@@ -146,15 +146,26 @@ löscht: der schmale Schreibbereich ist der eigentliche Schutz gegen
 Anweisungen, die in fremdem Website- oder Mailtext stecken. Jeder
 Schreibvorgang landet in `mcp_write_log`.
 
-**Offen (Stand 2026-08-22):** Ein solcher Entwurf ist in der App noch nicht zu
-öffnen. `GET /api/instantly/campaigns` filtert auf
-`instantly_campaign_id is not null`, und die Detailroute antwortet ohne diese
-ID mit „Kampagne nicht gefunden", weil die Kampagnenseite ihren Zustand live
-von Instantly liest. Die Suchen-Detailseite blendet Entwürfe deshalb bewusst aus
-(sonst ersetzte ein Entwurf den Knopf „Kampagne anlegen" durch einen toten
-Link). Lesbar ist er über MCP (`get_sequence`). Was fehlt, ist ein Weg, einen
-Entwurf im Kampagnenformular zu öffnen und von dort wie gewohnt bei Instantly
-anzulegen.
+**Der Weg eines Entwurfs durch die App (seit 2026-08-22):** Er steht in der
+Kampagnenliste unter Instantly > Kampagnen, mit eigenem Abzeichen („Entwurf aus
+Claude") und einem Hinweis darüber, wie viele auf Prüfung warten; die
+Suchen-Detailseite verlinkt ihn ebenfalls. Der Link führt **nicht** ins
+Kampagnen-Detail (dessen Route braucht die Instantly-ID und antwortet ohne sie
+mit „Kampagne nicht gefunden", weil sie live von Instantly liest), sondern nach
+`/instantly/campaigns/new?draft=<campaign_id>`. Das Formular belegt Name,
+Lead-Listen, Sequenz und Zeitplan daraus vor und legt beim Absenden über den
+ganz normalen Weg an: erst Instantly, dann der Spiegel. Der Entwurf wird dabei
+**weiterverwendet**, nicht gelöscht und neu angelegt: dieselbe `campaign_id`
+bleibt gültig, und `mcp_write_log` zeigt weiter auf eine existierende Kampagne.
+Der URL-Entwurf schlägt den halbfertigen Entwurf aus dem `localStorage` des
+Formulars; dass dieser dabei verworfen wurde, sagt der Hinweis darüber.
+
+Zwei Stellen sichern das ab: `create_campaign` lehnt einen zweiten Entwurf für
+dieselbe Liste ab und nennt die vorhandene `campaign_id` (`campaigns` mit
+leerer `instantly_campaign_id`, gefunden über `campaign_searches`), und
+`POST /api/instantly/campaigns` räumt beim Anlegen zurückgebliebene Entwürfe
+derselben Listen weg. Ohne das zweite könnte ein Entwurf nie mehr angelegt
+werden, sobald seine Suche eine `instantly_campaign_id` trägt.
 
 **Achtung bei Umgebungsvariablen:** Der Resend-Schlüssel heißt in Vercel
 `Resend_API_KEY`, nicht `RESEND_API_KEY`. `process.env` unterscheidet Groß-

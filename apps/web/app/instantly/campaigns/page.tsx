@@ -10,6 +10,14 @@ type CampaignListItem = {
   name: string;
   status: string;
   mailboxes: string[];
+  /**
+   * Eine Kampagne, die es nur in Frostbreaker gibt: angelegt ueber den
+   * Claude-Zugang (MCP-Werkzeug create_campaign), bei Instantly noch nicht
+   * vorhanden. Sie steht hier, weil das der einzige Ort ist, an dem sie
+   * jemand findet, und fuehrt ins vorbefuellte Kampagnenformular statt ins
+   * Kampagnen-Detail: dessen Route braucht die Instantly-ID.
+   */
+  is_draft: boolean;
   searches: { name: string | null; query: string; location: string } | null;
   /** Ueber ALLE verknuepften Suchen aufaddiert, siehe api/instantly/campaigns. */
   stats: {
@@ -31,7 +39,7 @@ export default function InstantlyCampaignsPage() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   async function deleteCampaign(c: CampaignListItem) {
-    if (!confirm(C.deleteConfirm(c.name))) return;
+    if (!confirm(c.is_draft ? C.mcpDraftDeleteConfirm(c.name) : C.deleteConfirm(c.name))) return;
     setDeletingId(c.id);
     try {
       const res = await fetch(`/api/instantly/campaigns/${c.id}`, { method: "DELETE" });
@@ -60,6 +68,8 @@ export default function InstantlyCampaignsPage() {
       .catch(() => setError(C.loadError));
   }, [C.loadError]);
 
+  const entwuerfe = (items ?? []).filter((c) => c.is_draft).length;
+
   return (
     <div className="max-w-4xl space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -85,6 +95,14 @@ export default function InstantlyCampaignsPage() {
               {t.instantly.subnav.connection} →
             </Link>
           </p>
+        </div>
+      )}
+
+      {/* Steht ueber der Tabelle, weil er der Grund ist, warum in ihr etwas
+          Neues steht, das der Nutzer nie selbst angelegt hat. */}
+      {!error && entwuerfe > 0 && (
+        <div className="rounded-lg border border-sky-500/40 bg-sky-500/5 px-4 py-3 text-sm text-faint">
+          {C.mcpDraftsHint(entwuerfe)}
         </div>
       )}
 
@@ -124,9 +142,20 @@ export default function InstantlyCampaignsPage() {
                     </p>
                   </td>
                   <td className="px-4 py-3">
-                    <span className={"rounded-full border px-2 py-0.5 text-[11px] " + (STATUS_BADGE_CLS[c.status] ?? "")}>
-                      {t.instantly.statusLabels[c.status as keyof typeof t.instantly.statusLabels] ?? c.status}
-                    </span>
+                    {/* Eigenes Abzeichen und nicht statusLabels.draft: eine
+                        Kampagne, die bei Instantly liegt und noch nicht
+                        gestartet ist, steht dort ebenfalls auf "Entwurf". Die
+                        beiden sind aber nicht dasselbe, und nur eine davon
+                        muss noch angelegt werden. */}
+                    {c.is_draft ? (
+                      <span className="rounded-full border border-sky-500/40 px-2 py-0.5 text-[11px] text-sky-600 dark:text-sky-400">
+                        {C.mcpDraftBadge}
+                      </span>
+                    ) : (
+                      <span className={"rounded-full border px-2 py-0.5 text-[11px] " + (STATUS_BADGE_CLS[c.status] ?? "")}>
+                        {t.instantly.statusLabels[c.status as keyof typeof t.instantly.statusLabels] ?? c.status}
+                      </span>
+                    )}
                   </td>
                   {/* Fortschritt wie bei Instantly: wie viel der Liste ist
                       durch. Die Zahl allein ("115 von 260") beantwortet das
@@ -175,8 +204,11 @@ export default function InstantlyCampaignsPage() {
                   </td>
                   <td className="px-4 py-3 text-right">
                     <span className="flex items-center justify-end gap-3">
-                      <Link href={`/instantly/campaigns/${c.id}`} className="text-xs font-medium text-sky-600 hover:text-sky-500 dark:text-sky-400">
-                        {C.manage}
+                      <Link
+                        href={c.is_draft ? `/instantly/campaigns/new?draft=${c.id}` : `/instantly/campaigns/${c.id}`}
+                        className="text-xs font-medium text-sky-600 hover:text-sky-500 dark:text-sky-400"
+                      >
+                        {c.is_draft ? C.mcpDraftReview : C.manage}
                       </Link>
                       <button
                         type="button"

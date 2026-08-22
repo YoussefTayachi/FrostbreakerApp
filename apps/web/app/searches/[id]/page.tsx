@@ -67,25 +67,19 @@ export default async function SearchDetailPage({
     supabase.from("api_keys").select("provider").eq("workspace_id", workspaceId).eq("provider", "instantly").maybeSingle(),
     supabase
       .from("campaigns")
-      .select("id, status")
-      .eq("search_id", id)
-      .eq("workspace_id", workspaceId)
       /**
-       * Nur Kampagnen, die es auch bei Instantly gibt.
+       * instantly_campaign_id und activated_at gehoeren dazu, weil daran
+       * haengt, WOHIN die Karte verlinkt.
        *
        * Seit dem MCP-Werkzeug create_campaign (2026-08-22) kann eine
        * campaigns-Zeile existieren, die NUR bei uns liegt: ein Entwurf ohne
-       * instantly_campaign_id. Die Karte darunter kann damit nichts anfangen
-       * -- sie verlinkt auf /instantly/campaigns/[id], und diese Route
-       * antwortet ohne Instantly-ID mit "Kampagne nicht gefunden". Ohne diese
-       * Zeile haette der Entwurf also den Knopf "Kampagne anlegen" durch einen
-       * toten Link ersetzt.
-       *
-       * Bis ein solcher Entwurf in der App geoeffnet werden kann, bleibt er
-       * hier unsichtbar. Das ist der ehrlichere von zwei unfertigen
-       * Zustaenden, nicht der Endzustand.
+       * Instantly-Zwilling. /instantly/campaigns/[id] antwortet fuer ihn mit
+       * "Kampagne nicht gefunden"; er wird deshalb im Kampagnenformular
+       * geoeffnet (?draft=), siehe campaign-link-card.tsx.
        */
-      .not("instantly_campaign_id", "is", null)
+      .select("id, name, status, instantly_campaign_id, activated_at")
+      .eq("search_id", id)
+      .eq("workspace_id", workspaceId)
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle(),
@@ -150,13 +144,10 @@ export default async function SearchDetailPage({
         // zweite Kampagne fuer dieselben Leads anzulegen.
         supabase
           .from("campaigns")
-          .select("id, status")
+          // Wie oben: mit den Spalten, an denen haengt, ob das ein Entwurf ist.
+          .select("id, name, status, instantly_campaign_id, activated_at")
           .in("search_id", leadIds)
           .eq("workspace_id", workspaceId)
-          // Wie oben: ein reiner MCP-Entwurf ohne Instantly-ID kann von der
-          // Karte nicht geoeffnet werden und wuerde den Anlegen-Knopf durch
-          // einen toten Link ersetzen.
-          .not("instantly_campaign_id", "is", null)
           .order("created_at", { ascending: false })
           .limit(1)
           .maybeSingle(),

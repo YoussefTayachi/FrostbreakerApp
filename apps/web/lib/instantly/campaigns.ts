@@ -304,6 +304,13 @@ export const INSTANTLY_CAMPAIGN_STATUS = {
   ACCOUNT_SUSPENDED: -99,
 } as const;
 
+/** Kuerzt Postgres' "HH:MM:SS"-Zeitformat auf "HH:MM" fuer <input type="time">.
+ *  Steht hier und nicht mehr nur in api/instantly/campaigns/[id]: die
+ *  Entwurfs-Vorbelegung braucht dieselbe Umrechnung. */
+export function toHhMm(t: string): string {
+  return t.slice(0, 5);
+}
+
 /** Lokaler Status-String (Check-Constraint auf public.campaigns), aus Instantlys Zahlencode abgeleitet. */
 export type LocalCampaignStatus = "draft" | "active" | "paused" | "completed" | "error";
 
