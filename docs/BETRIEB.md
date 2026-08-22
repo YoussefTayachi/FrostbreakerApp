@@ -125,7 +125,7 @@ jeder Abfrage, siehe `apps/web/lib/mcp/authorize.ts`. Neunzehn Werkzeuge, davon
 zehn lesend. Schreibend sind `set_lead_icebreaker`, `set_lead_icebreakers`,
 `set_contact_status`, `add_note`, `set_offer_field`, `create_campaign`,
 `set_campaign_sequence`, `update_campaign` und `undo_writes`; jedes davon fasst
-genau einen Datensatz je Aufruf an — mit einer Ausnahme.
+genau einen Datensatz je Aufruf an. Mit einer Ausnahme.
 
 Die Ausnahme ist `set_lead_icebreakers` (seit 2026-08-22): bis zu **50** Leads
 je Aufruf, jeder einzeln über seine `business_id` benannt (keine Filterform),
@@ -149,8 +149,8 @@ Schreibvorgang landet in `mcp_write_log`.
 **Offen (Stand 2026-08-22):** Ein solcher Entwurf ist in der App noch nicht zu
 öffnen. `GET /api/instantly/campaigns` filtert auf
 `instantly_campaign_id is not null`, und die Detailroute antwortet ohne diese
-ID mit „Kampagne nicht gefunden" — die Kampagnenseite liest ihren Zustand live
-von Instantly. Die Suchen-Detailseite blendet Entwürfe deshalb bewusst aus
+ID mit „Kampagne nicht gefunden", weil die Kampagnenseite ihren Zustand live
+von Instantly liest. Die Suchen-Detailseite blendet Entwürfe deshalb bewusst aus
 (sonst ersetzte ein Entwurf den Knopf „Kampagne anlegen" durch einen toten
 Link). Lesbar ist er über MCP (`get_sequence`). Was fehlt, ist ein Weg, einen
 Entwurf im Kampagnenformular zu öffnen und von dort wie gewohnt bei Instantly
