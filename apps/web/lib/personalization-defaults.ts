@@ -129,9 +129,6 @@ export const DEFAULT_BANNED_WORDS = ["—", "–", "--", "-"];
 
 export const SOURCE_VALUES = ["company_summary", "website_text", "both"] as const;
 
-export const PERSONALIZATION_MODELS = ["openai", "claude"] as const;
-export type PersonalizationModel = (typeof PERSONALIZATION_MODELS)[number];
-
 /**
  * Wie viele Few-Shot-Beispiele hoechstens hinterlegt werden koennen.
  *

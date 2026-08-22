@@ -3,9 +3,14 @@ import { createClient } from "@/lib/supabase/server";
 import { getCurrentWorkspace } from "@/lib/workspace/server";
 import { fernetEncrypt } from "@/lib/fernet";
 
-// Muss mit api_keys_provider_check in der Datenbank uebereinstimmen
-// (zuletzt Migration 0097, 'anthropic'): ein hier erlaubter, dort fehlender
-// Wert scheitert erst beim Speichern.
+// Muss mit api_keys_provider_check in der Datenbank uebereinstimmen: ein hier
+// erlaubter, dort fehlender Wert scheitert erst beim Speichern.
+//
+// Umgekehrt darf der Constraint mehr zulassen als diese Liste. 'anthropic'
+// (Migration 0097) ist so ein Fall: der Claude-Pfad der Personalisierung ist
+// am 2026-08-22 wieder entfallen, der Wert bleibt absichtlich im Constraint
+// stehen. Es gibt 0 Zeilen damit, und eine Migration, die einen Constraint
+// zurueckbaut, ist mehr Risiko als Nutzen.
 const PROVIDERS = [
   "google_maps",
   "openai",
@@ -14,7 +19,6 @@ const PROVIDERS = [
   "neverbounce",
   "instantly",
   "prospeo",
-  "anthropic",
 ];
 
 /**

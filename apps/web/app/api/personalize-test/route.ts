@@ -3,20 +3,13 @@ import { createClient } from "@/lib/supabase/server";
 import { getCurrentWorkspace } from "@/lib/workspace/server";
 import { getApiKey } from "@/lib/api-keys";
 import {
-  MAX_PERSONALIZATION_EXAMPLES,
   constraintBlock,
   sanitizeBannedPunctuation,
   validateIcebreaker,
   wordCount,
 } from "@/lib/personalization-defaults";
 import { OPENAI_MODEL, extractOutputText } from "@/lib/openai";
-import {
-  buildClaudeMessages,
-  buildClaudeSystem,
-  callClaude,
-  type ClaudeExample,
-} from "@/lib/anthropic";
-import { recordClaudeUsage, recordOpenAiUsage } from "@/lib/usage";
+import { recordOpenAiUsage } from "@/lib/usage";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 const MAX_SITE_CHARS = 6000;
@@ -69,41 +62,6 @@ async function callModel(
   return { text: extractOutputText(json) };
 }
 
-/**
- * Ein Modellaufruf des Live-Tests ueber Claude.
- *
- * WARUM ES DAS GEBEN MUSS
- *
- * Diese Route rief bis dahin fest OpenAI auf. Sobald der AI-Agent-Tab
- * "Claude" anzeigt, wuerde die Seite damit luegen: der Test prueft dann ein
- * anderes Modell, einen anderen Nachrichtenaufbau und ohne die hinterlegten
- * Beispiele, waehrend der Worker spaeter genau die benutzt. Der Live-Test ist
- * aber die einzige Stelle, an der jemand VOR einer teuren Suche sieht, was
- * seine Einstellungen bewirken.
- *
- * Der Nachrichtenaufbau kommt deshalb aus lib/anthropic.ts, das ausdruecklich
- * an generate_claude() in personalize.py gebunden ist.
- */
-async function callClaudeModel(
-  supabase: SupabaseClient,
-  workspaceId: string,
-  apiKey: string,
-  systemPrompt: string,
-  companyName: string,
-  context: string,
-  examples: ClaudeExample[],
-  correction?: string | null
-): Promise<{ text?: string; error?: string }> {
-  const result = await callClaude(
-    apiKey,
-    buildClaudeSystem(systemPrompt, examples.length),
-    buildClaudeMessages(companyName, context, examples, correction)
-  );
-  if (!result.ok) return { error: result.error };
-  await recordClaudeUsage(supabase, workspaceId, "personalize_test", result.json);
-  return { text: result.text };
-}
-
 async function fetchWebsiteText(url: string): Promise<string | null> {
   try {
     const res = await fetch(url, {
@@ -137,10 +95,6 @@ export async function POST(req: Request) {
   // vermengen war der gemeldete Fehler (siehe Migration 0083).
   const lang: "de" | "en" = body.lang === "en" ? "en" : "de";
   const outputLang: "de" | "en" = body.output_lang === "en" ? "en" : "de";
-  // Wie output_lang ungespeichert mitgeschickt: der Test soll zeigen, was die
-  // aktuelle Auswahl bewirkt. Alles ausser "claude" ist OpenAI, also der
-  // Standard; ein unbekannter Wert faellt genauso zurueck wie im Worker.
-  const useClaude: boolean = body.model === "claude";
 
   if (!businessId || !systemPrompt) {
     return NextResponse.json({ error: "business_id und system_prompt sind Pflicht" }, { status: 400 });
@@ -172,41 +126,12 @@ export async function POST(req: Request) {
     );
   }
 
-  const provider = useClaude ? "anthropic" : "openai";
-  const apiKey = await getApiKey(supabase, ws.workspace.id, provider);
+  const apiKey = await getApiKey(supabase, ws.workspace.id, "openai");
   if (!apiKey) {
     return NextResponse.json(
-      {
-        error: useClaude
-          ? "Kein Anthropic-Key in den Einstellungen hinterlegt."
-          : "Kein OpenAI-Key in den Einstellungen hinterlegt.",
-      },
+      { error: "Kein OpenAI-Key in den Einstellungen hinterlegt." },
       { status: 400 }
     );
-  }
-
-  // Die Beispiele kommen aus der Datenbank und nicht aus dem Request: sie
-  // werden im AI-Agent-Tab sofort gespeichert, und der Worker liest sie
-  // genauso. .eq("workspace_id", ...) ist Pflicht, RLS entscheidet nur, auf
-  // welche Accounts jemand zugreifen darf, nicht welcher der eigenen
-  // Workspaces gemeint ist.
-  let examples: ClaudeExample[] = [];
-  if (useClaude) {
-    const { data: rows } = await supabase
-      .from("personalization_examples")
-      .select("input_context, icebreaker")
-      .eq("workspace_id", ws.workspace.id)
-      .order("sort_order", { ascending: true })
-      .order("created_at", { ascending: true })
-      .limit(MAX_PERSONALIZATION_EXAMPLES);
-    // Dieselbe Aussortierung wie load_examples() im Worker: ein halbes Paar
-    // bringt dem Modell die falsche Abbildung bei.
-    examples = (rows ?? [])
-      .map((r) => ({
-        input_context: (r.input_context ?? "").trim(),
-        icebreaker: (r.icebreaker ?? "").trim(),
-      }))
-      .filter((r) => r.input_context && r.icebreaker);
   }
 
   const userContent = `Unternehmen: ${biz.name}\n\n${context}`;
@@ -220,24 +145,11 @@ export async function POST(req: Request) {
   // Feste Bindungen fuer die Closure darunter: TypeScript traegt die
   // Null-Pruefungen von oben nicht in eine verschachtelte Funktion hinein.
   const workspaceId = ws.workspace.id;
-  const companyName: string = biz.name;
   const key: string = apiKey;
 
-  /** Ein Aufruf, egal welches Modell. Eine Stelle, damit die Nachbehandlung
-   *  darunter fuer beide Wege gleich bleibt, genau wie in personalize.py. */
+  /** Ein Aufruf. Eine Stelle, damit der erste Versuch und die Korrekturrunde
+   *  darunter nicht auseinander laufen koennen, genau wie in personalize.py. */
   async function runModel(correction?: string | null) {
-    if (useClaude) {
-      return callClaudeModel(
-        supabase,
-        workspaceId,
-        key,
-        effectivePrompt,
-        companyName,
-        context,
-        examples,
-        correction
-      );
-    }
     return callModel(
       supabase,
       workspaceId,
@@ -255,7 +167,7 @@ export async function POST(req: Request) {
   let corrected = false;
 
   // Spiegelt exakt den Korrektur-Versuch aus worker/pipelines/personalize.py
-  // (generate()/generate_claude() mit correction-Parameter): sonst zeigt der
+  // (generate() mit correction-Parameter): sonst zeigt der
   // Live-Test nur den unkorrigierten Rohentwurf und suggeriert, ein erkannter
   // Regelverstoss (z.B. verbotenes Wort) wuerde bei echten Leads einfach so
   // gespeichert; dabei greift dort immer dieser zweite Versuch.
@@ -278,10 +190,5 @@ export async function POST(req: Request) {
     source,
     wordCount: wordCount(text),
     corrected,
-    // Damit die Oberflaeche sagen kann, WAS da geprueft wurde. Ein Testlauf,
-    // der nicht dazusagt, welches Modell und wie viele Beispiele er benutzt
-    // hat, ist bei zwei Modellen nur halb so viel wert.
-    model: useClaude ? "claude" : "openai",
-    exampleCount: examples.length,
   });
 }

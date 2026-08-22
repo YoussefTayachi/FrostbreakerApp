@@ -37,36 +37,12 @@ export function openaiCostUsd(inputTokens: number, outputTokens: number): number
   );
 }
 
-// Muss mit ANTHROPIC_USD_PER_1M_* in apps/worker/worker/usage.py
-// uebereinstimmen. Listenpreise fuer CLAUDE_MODEL (Claude Sonnet 5), Stand der
-// letzten Pruefung 2026-08-22.
-//
-// Bewusst die REGULAeren Preise, nicht der bis 2026-08-31 laufende
-// Einfuehrungspreis ($2/$10) -- die Begruendung steht im Gegenstueck in
-// worker/usage.py.
-//
-// Cache-Tokens haben eigene Preise, weil Anthropic sie getrennt meldet und
-// getrennt abrechnet: Schreiben das 1,25fache, Lesen ein Zehntel des
-// Eingangspreises. Der 5-Minuten-Preis, weil lib/anthropic.ts cache_control
-// ohne ttl setzt.
-export const ANTHROPIC_USD_PER_1M_INPUT = 3.0;
-export const ANTHROPIC_USD_PER_1M_OUTPUT = 15.0;
-export const ANTHROPIC_USD_PER_1M_CACHE_WRITE = 3.75;
-export const ANTHROPIC_USD_PER_1M_CACHE_READ = 0.3;
-
-export function anthropicCostUsd(
-  inputTokens: number,
-  outputTokens: number,
-  cacheWriteTokens = 0,
-  cacheReadTokens = 0
-): number {
-  return (
-    (inputTokens / 1_000_000) * ANTHROPIC_USD_PER_1M_INPUT +
-    (outputTokens / 1_000_000) * ANTHROPIC_USD_PER_1M_OUTPUT +
-    (cacheWriteTokens / 1_000_000) * ANTHROPIC_USD_PER_1M_CACHE_WRITE +
-    (cacheReadTokens / 1_000_000) * ANTHROPIC_USD_PER_1M_CACHE_READ
-  );
-}
+// Anthropic hatte hier am 2026-08-22 kurzzeitig vier eigene Preise (Claude als
+// zweiter Personalisierungs-Anbieter). Der Weg ist noch am selben Tag wieder
+// entfallen, die Preise sind mit ihm gegangen. Der Wert 'anthropic' bleibt
+// absichtlich im CHECK-Constraint von api_usage stehen (Migration 0097): er
+// stoert nicht, es gibt 0 Zeilen damit (gemessen am 2026-08-22), und eine
+// Migration, die einen Constraint zurueckbaut, ist mehr Risiko als Nutzen.
 
 /** Was die Responses-API im usage-Feld meldet. */
 type ResponsesUsage = { input_tokens?: number; output_tokens?: number };
@@ -135,56 +111,3 @@ export async function recordOpenAiUsage(
   });
 }
 
-/** Was die Messages-API im usage-Feld meldet. */
-type ClaudeUsage = {
-  input_tokens?: number;
-  output_tokens?: number;
-  cache_creation_input_tokens?: number;
-  cache_read_input_tokens?: number;
-};
-
-export function claudeTokensFromResponse(
-  json: unknown
-): { input: number; output: number; cacheWrite: number; cacheRead: number } | null {
-  const usage = (json as { usage?: ClaudeUsage } | null)?.usage;
-  if (!usage) return null;
-  const input = Number(usage.input_tokens ?? 0);
-  const output = Number(usage.output_tokens ?? 0);
-  const cacheWrite = Number(usage.cache_creation_input_tokens ?? 0);
-  const cacheRead = Number(usage.cache_read_input_tokens ?? 0);
-  const all = [input, output, cacheWrite, cacheRead];
-  if (all.some((n) => !Number.isFinite(n))) return null;
-  if (input + output + cacheWrite + cacheRead <= 0) return null;
-  return { input, output, cacheWrite, cacheRead };
-}
-
-/**
- * Tokenverbrauch aus einer Anthropic-Antwort uebernehmen.
- *
- * Gegenstueck zu record_claude() in apps/worker/worker/usage.py, gleiche
- * Regel: gezaehlt wird, was die Antwort meldet, und fehlt das usage-Feld,
- * wird nichts geschrieben statt geraten.
- *
- * Die beiden Cache-Felder muessen mitgezaehlt werden. Anthropic zaehlt sie
- * NEBEN input_tokens, nicht darin (total = cache_read + cache_creation +
- * input_tokens, siehe die Doku zu "Cache-aware ITPM"). Wer sie weglaesst,
- * meldet bei einem gecachten Vorspann fast keinen Verbrauch, obwohl die
- * Tokens abgerechnet werden.
- */
-export async function recordClaudeUsage(
-  supabase: SupabaseClient,
-  workspaceId: string,
-  operation: string,
-  responseJson: unknown
-): Promise<void> {
-  const t = claudeTokensFromResponse(responseJson);
-  if (!t) return;
-  await recordUsage(supabase, {
-    workspaceId,
-    provider: "anthropic",
-    operation,
-    units: t.input + t.output + t.cacheWrite + t.cacheRead,
-    unitKind: "tokens",
-    costUsd: anthropicCostUsd(t.input, t.output, t.cacheWrite, t.cacheRead),
-  });
-}

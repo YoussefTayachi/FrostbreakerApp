@@ -1233,8 +1233,6 @@ const de = {
     providerHints: {
       google_maps: "Geocoding API + Places API (New) aktivieren",
       openai: "Key beginnt mit sk-",
-      anthropic:
-        "Nur nötig, wenn im AI-Agent-Tab Claude als Modell gewählt ist. Ein Claude-Pro- oder Max-Abo reicht dafür nicht, du brauchst einen eigenen Anthropic-API-Schlüssel, der mit sk-ant- beginnt.",
       hunter: "Für E-Mail-Suche nach Entscheidern",
       apollo: "Für die Apollo-Massensuche (Firma + Entscheider + verifizierte E-Mail in einem Schritt). Braucht mindestens Apollos Basic-Plan. Der Free-Plan sperrt die Personensuche über die API.",
       prospeo: "Für die Prospeo-Suche (Firma + Entscheider + verifizierte E-Mail in einem Schritt). Der API-Zugang ist schon im kostenlosen Tarif dabei. Technologie-Filter und Stellenausschreibungen brauchen Starter, der Website-Traffic-Filter Pro.",
@@ -2056,24 +2054,10 @@ const de = {
   aiAgent: {
     title: "AI Agent",
     subtitle: "Steuere, wie der Icebreaker generiert wird: Datenquelle, Regeln und Ton vollständig anpassbar.",
-    modelHeading: "Modell",
-    modelSubtitle: "Welches Modell schreibt den Icebreaker?",
-    modelOptions: {
-      openai: {
-        label: "OpenAI",
-        hint: "Der Standard. Schnell und günstig, folgt dem System-Prompt weiter unten.",
-      },
-      claude: {
-        label: "Claude (Anthropic)",
-        hint: "Lernt deinen Stil aus echten Beispielen statt nur aus dem Prompt, kostet dafür merklich mehr pro Lead.",
-      },
-    } as Record<string, { label: string; hint: string }>,
-    modelKeyHint:
-      "Für das gewählte Modell muss unter Einstellungen › API-Keys ein Schlüssel hinterlegt sein.",
     examplesHeading: "Beispiele",
     examplesSubtitle:
       "Bring dem Modell deinen Stil an echten Paaren bei, statt ihn in Regeln zu fassen: der Text, den es über eine Firma sieht, und der Icebreaker, den du selbst dazu geschrieben hättest. Jedes Beispiel geht bei jedem Lead als Eingabe mit, wähle also lieber wenige gute als viele halbe.",
-    examplesEmpty: "Noch kein Beispiel hinterlegt. Füg eins hinzu, dann lernt Claude deinen Stil daran statt nur am Prompt.",
+    examplesEmpty: "Noch kein Beispiel hinterlegt. Füg eins hinzu, dann lernt das Modell deinen Stil daran statt nur am Prompt.",
     addExample: "Beispiel hinzufügen",
     exampleNumber: (n: number) => `Beispiel ${n}`,
     exampleContextLabel: "Kontext, den das Modell sieht",
@@ -2093,8 +2077,6 @@ const de = {
       `Mehr als ${max} Beispiele sind nicht vorgesehen: der Block steht in jeder Anfrage für jeden Lead und kostet entsprechend.`,
     examplesSaveHint:
       "Änderungen an den Textfeldern werden beim Verlassen des Feldes gespeichert. Hinzufügen, Löschen und Sortieren wirkt sofort.",
-    testRanWith: (model: string, examples: number) =>
-      examples > 0 ? `${model}, ${examples} Beispiele` : model,
     languageHeading: "Sprache der Icebreaker",
     languageSubtitle: "In welcher Sprache sollen die Aufhänger geschrieben werden?",
     languageOptions: { de: "Deutsch", en: "Englisch" } as Record<string, string>,
@@ -3682,8 +3664,6 @@ const en: Dictionary = {
     providerHints: {
       google_maps: "Enable the Geocoding API + Places API (New)",
       openai: "Key starts with sk-",
-      anthropic:
-        "Only needed if Claude is selected as the model in the AI Agent tab. A Claude Pro or Max subscription does not work here: you need a separate Anthropic API key, which starts with sk-ant-.",
       hunter: "For email search of decision makers",
       apollo: "For Apollo bulk search (company + decision maker + verified email in one step). Requires at least Apollo's Basic plan: the Free plan blocks people search over the API.",
       prospeo: "For Prospeo search (company + decision maker + verified email in one step). API access is included even on the free tier. The technology filter and job postings need Starter, the website traffic filter needs Pro.",
@@ -4465,23 +4445,10 @@ const en: Dictionary = {
   aiAgent: {
     title: "AI Agent",
     subtitle: "Control how the icebreaker is generated: data source, rules and tone fully customizable.",
-    modelHeading: "Model",
-    modelSubtitle: "Which model writes the icebreaker?",
-    modelOptions: {
-      openai: {
-        label: "OpenAI",
-        hint: "The default. Fast and cheap, follows the system prompt below.",
-      },
-      claude: {
-        label: "Claude (Anthropic)",
-        hint: "Learns your style from real examples instead of just the prompt, but costs noticeably more per lead.",
-      },
-    } as Record<string, { label: string; hint: string }>,
-    modelKeyHint: "The selected model needs a key saved under Settings › API keys.",
     examplesHeading: "Examples",
     examplesSubtitle:
       "Teach the model your style with real pairs instead of writing more rules: the text it sees about a company, and the icebreaker you would have written for it. Every example rides along on every lead, so a few strong ones beat a long list of average ones.",
-    examplesEmpty: "No example saved yet. Add one, and Claude learns your style from it instead of the prompt alone.",
+    examplesEmpty: "No example saved yet. Add one, and the model learns your style from it instead of the prompt alone.",
     addExample: "Add example",
     exampleNumber: (n: number) => `Example ${n}`,
     exampleContextLabel: "Context the model sees",
@@ -4499,8 +4466,6 @@ const en: Dictionary = {
       `More than ${max} examples are not supported: the block goes into every request for every lead and is billed accordingly.`,
     examplesSaveHint:
       "Changes to the text fields are saved when you leave the field. Adding, deleting and reordering takes effect immediately.",
-    testRanWith: (model: string, examples: number) =>
-      examples > 0 ? `${model}, ${examples} examples` : model,
     languageHeading: "Icebreaker language",
     languageSubtitle: "Which language should the opening lines be written in?",
     languageOptions: { de: "German", en: "English" } as Record<string, string>,

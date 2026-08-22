@@ -80,16 +80,7 @@ def fail_job(job: dict, error: str) -> None:
     kind = classify_error(error)
 
     if kind == "out_of_credit":
-        # job["resolved_provider"] ist KEINE Spalte der Tabelle jobs, sondern
-        # ein Vermerk, den eine Pipeline waehrend des Laufs in das (von
-        # main.py an handler UND fail_job durchgereichte) Job-Dict setzt, wenn
-        # sie den benutzten Anbieter kennt, er aber nicht aus dem Fehlertext
-        # hervorgeht. personalize.py tut das, seit dort OpenAI oder Claude
-        # laufen kann; ohne den Vermerk ginge der Guthaben-Alarm eines
-        # Claude-Workspaces an OpenAI.
-        provider = provider_from_error(
-            error, job.get("type"), provider_hint=job.get("resolved_provider")
-        )
+        provider = provider_from_error(error, job.get("type"))
         if provider:
             try:
                 sb().rpc(

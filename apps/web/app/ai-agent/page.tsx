@@ -5,9 +5,7 @@ import {
   DEFAULT_BANNED_WORDS,
   DEFAULT_MAX_WORDS,
   MAX_PERSONALIZATION_EXAMPLES,
-  PERSONALIZATION_MODELS,
   getDefaultPrompt,
-  type PersonalizationModel,
 } from "@/lib/personalization-defaults";
 import { cardCls, inputCls, primaryBtnCls, secondaryBtnCls } from "@/lib/ui";
 import { useT } from "../language-provider";
@@ -21,8 +19,6 @@ type TestResult = {
   problems: string[];
   wordCount: number;
   corrected: boolean;
-  model?: string;
-  exampleCount?: number;
 };
 type CustomTemplate = {
   id: string;
@@ -72,14 +68,6 @@ export default function AiAgentPage() {
    * Zielkunden sind der Normalfall, nicht die Ausnahme.
    */
   const [outputLang, setOutputLang] = useState<"de" | "en">("de");
-  /**
-   * Welches Modell den Icebreaker schreibt (workspaces.personalization_model).
-   *
-   * "openai" ist und bleibt der Standard. "claude" ist die zweite Wahl
-   * daneben, und nur dort greifen die Beispiel-Paare weiter unten: der
-   * OpenAI-Pfad im Worker liest sie gar nicht.
-   */
-  const [personalizationModel, setPersonalizationModel] = useState<PersonalizationModel>("openai");
   const [source, setSource] = useState<string>("company_summary");
   const [maxWords, setMaxWords] = useState(DEFAULT_MAX_WORDS);
   const [bannedWordsText, setBannedWordsText] = useState(DEFAULT_BANNED_WORDS.join(", "));
@@ -120,7 +108,7 @@ export default function AiAgentPage() {
       .select(
         // Ein Literal, keine Konkatenation: Supabase leitet die Feldtypen aus
         // dem String ab und faellt sonst auf GenericStringError zurueck.
-        "personalization_prompt, personalization_source, personalization_max_words, personalization_banned_words, personalization_language, personalization_model"
+        "personalization_prompt, personalization_source, personalization_max_words, personalization_banned_words, personalization_language"
       )
       .eq("id", wsId)
       .single()
@@ -128,7 +116,6 @@ export default function AiAgentPage() {
         if (!data) return;
         const saved: "de" | "en" = data.personalization_language === "en" ? "en" : "de";
         setOutputLang(saved);
-        setPersonalizationModel(data.personalization_model === "claude" ? "claude" : "openai");
         setSource(data.personalization_source || "company_summary");
         setMaxWords(data.personalization_max_words || DEFAULT_MAX_WORDS);
         setBannedWordsText(data.personalization_banned_words || DEFAULT_BANNED_WORDS.join(", "));
@@ -349,7 +336,10 @@ export default function AiAgentPage() {
         personalization_prompt:
           systemPrompt.trim() === getDefaultPrompt(outputLang).trim() ? null : systemPrompt.trim(),
         personalization_language: outputLang,
-        personalization_model: personalizationModel,
+        // personalization_model wird bewusst nicht mehr geschrieben: die
+        // Spalte gibt es weiter (Migration 0097), der Claude-Pfad dahinter ist
+        // am 2026-08-22 entfallen. Wer Claude will, verbindet sein eigenes Abo
+        // ueber den MCP-Zugang.
         personalization_source: source,
         personalization_max_words: maxWords,
         personalization_banned_words:
@@ -395,10 +385,6 @@ export default function AiAgentPage() {
         // Ungespeichert mitgeschickt: der Test soll zeigen, was die aktuelle
         // Auswahl bewirkt, nicht was zuletzt gespeichert wurde.
         output_lang: outputLang,
-        // Ebenso das Modell. Ohne diese Zeile wuerde der Test weiter OpenAI
-        // aufrufen, waehrend die Seite "Claude" anzeigt, und damit etwas
-        // anderes pruefen als der Worker spaeter tut.
-        model: personalizationModel,
       }),
     });
     const body = await res.json();
@@ -413,8 +399,8 @@ export default function AiAgentPage() {
   const selectedBusiness = businesses.find((b) => b.id === testBusinessId);
   // Nur zaehlen und Zeichen zaehlen, KEINE Token-Schaetzung. Ein
   // Umrechnungsfaktor waere hier eine erfundene Zahl: er haengt an Sprache und
-  // Inhalt, und die einzige belastbare Antwort gaebe ein eigener Aufruf gegen
-  // Anthropics count_tokens, also ein Netzaufruf fuer eine Anzeige.
+  // Inhalt, und belastbar waere nur, den Text wirklich durch den Tokenizer des
+  // Modells zu schicken, also Rechenaufwand fuer eine Anzeige.
   const exampleChars = examples.reduce(
     (sum, e) => sum + e.input_context.length + e.icebreaker.length,
     0
@@ -438,290 +424,230 @@ export default function AiAgentPage() {
         </p>
       </div>
 
-      {/* Ganz oben, weil diese Auswahl entscheidet, welcher der beiden Wege
-          ueberhaupt laeuft, und weil der Abschnitt "Beispiele" direkt darunter
-          an ihr haengt.
-
-          Bewusst dieselbe Kartenform wie Sprache, Datenquelle und Vorlage und
-          keine groessere: die Folge dieser Auswahl zeigt sich unmittelbar
-          darunter, indem ein ganzer Abschnitt erscheint oder verschwindet.
-          Das ist ein staerkeres Signal als eine lautere Karte, und die Seite
-          bleibt eine Reihe gleichrangiger Einstellungen statt einer Rangfolge
-          aus Kastengroessen. */}
+      {/* Steht immer da. Bis zum 2026-08-22 hing dieser Abschnitt an der Wahl
+          "Claude"; die Wahl gibt es nicht mehr, und die Beispiele gehen jetzt
+          bei jedem Lead in den OpenAI-Aufruf (siehe generate() in
+          worker/pipelines/personalize.py). */}
       <div className={cardCls}>
-        <h2 className="mb-1 font-medium text-ink">{t.aiAgent.modelHeading}</h2>
-        <p className="mb-3 text-sm text-faint">{t.aiAgent.modelSubtitle}</p>
-        <div className="grid gap-2 sm:grid-cols-2">
-          {PERSONALIZATION_MODELS.map((code) => (
-            <label
-              key={code}
-              className={
-                "cursor-pointer rounded-lg border p-3 text-sm transition-colors " +
-                // Der Ring liegt auf der Karte, nicht nur auf dem kleinen
-                // Radioknopf: mit der Tastatur sieht man sonst nicht, welche
-                // der beiden Flaechen gerade gemeint ist.
-                "has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-sky-500 " +
-                (personalizationModel === code
-                  ? "border-sky-500/60 bg-sky-500/5"
-                  : "border-edge2 hover:border-edge3")
-              }
-            >
-              <div className="flex items-center gap-2">
-                <input
-                  type="radio"
-                  name="personalizationModel"
-                  checked={personalizationModel === code}
-                  onChange={() => setPersonalizationModel(code)}
-                  className="h-3.5 w-3.5 accent-sky-500"
-                />
-                <span className="font-medium text-ink">{t.aiAgent.modelOptions[code].label}</span>
-              </div>
-              <p className="mt-1 text-xs leading-relaxed text-faint">
-                {t.aiAgent.modelOptions[code].hint}
-              </p>
-            </label>
-          ))}
-        </div>
-        <p className="mt-3 text-xs leading-relaxed text-faint">{t.aiAgent.modelKeyHint}</p>
-      </div>
+        <h2 className="mb-1 font-medium text-ink">{t.aiAgent.examplesHeading}</h2>
+        <p className="mb-3 max-w-[68ch] text-sm leading-relaxed text-faint">
+          {t.aiAgent.examplesSubtitle}
+        </p>
 
-      {/* Nur bei Claude sichtbar, nicht deaktiviert daneben.
-          Der OpenAI-Pfad im Worker liest personalization_examples ueberhaupt
-          nicht. Ein bedienbar aussehender Abschnitt, dessen gespeicherter
-          Inhalt folgenlos bleibt, laedt genau zu dem Missverstaendnis ein, er
-          wirke trotzdem; und ein grau hinterlegter Block waere auf einer Seite
-          mit sechs Karten nur weiteres Rauschen. Entdeckbar bleibt die
-          Funktion ueber den Hinweis in der Claude-Karte darueber. */}
-      {personalizationModel === "claude" && (
-        <div className={cardCls + " fade-up"}>
-          <div className="mb-1 flex flex-wrap items-center gap-2">
-            <h2 className="font-medium text-ink">{t.aiAgent.examplesHeading}</h2>
-            {/* Woran dieser Abschnitt haengt, steht an ihm dran. Sonst ist er
-                eine Karte, die beim Umschalten auf OpenAI ohne Erklaerung
-                verschwindet. */}
-            <span className="rounded-full bg-sky-500/10 px-2 py-0.5 text-[11px] font-medium text-sky-600 dark:text-sky-400">
-              {t.aiAgent.modelOptions.claude.label}
+        {/* Anzahl und Zeichen sind Fakten und stehen als Text da; nur der
+            Befund "unvollstaendig" bekommt eine Plakette, weil er etwas
+            verlangt. Drei gleich aussehende Plaketten haetten alle drei
+            gleich laut gemacht.
+
+            Gezaehlt wird nur, was wirklich gezaehlt wurde: Beispiele und
+            Zeichen. Keine Token, keine Kosten, beides waere geraten. */}
+        <div className="mb-4 flex flex-wrap items-center gap-x-2 gap-y-2 text-xs text-faint">
+          <span>{t.aiAgent.examplesCount(examples.length, MAX_PERSONALIZATION_EXAMPLES)}</span>
+          <span aria-hidden className="text-mute">·</span>
+          <span>{t.aiAgent.examplesChars(exampleChars)}</span>
+          {incompleteExamples > 0 && (
+            <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-2.5 py-0.5 text-amber-700 dark:text-amber-300">
+              {t.aiAgent.examplesIncomplete(incompleteExamples)}
             </span>
+          )}
+        </div>
+
+        {examples.length === 0 ? (
+          /* Der leere Zustand traegt seinen naechsten Schritt selbst: Satz
+             und Knopf in einem gestrichelten Feld, statt eines Hinweises
+             oben und eines Knopfes irgendwo darunter. */
+          <div className="rounded-lg border border-dashed border-edge2 px-4 py-6 text-center">
+            <p className="mx-auto max-w-[52ch] text-sm leading-relaxed text-faint">
+              {t.aiAgent.examplesEmpty}
+            </p>
+            <button
+              type="button"
+              onClick={async () => {
+                await addExample();
+                setOpenExample("letztes");
+              }}
+              disabled={savingExample}
+              className={secondaryBtnCls + " mt-4"}
+            >
+              + {t.aiAgent.addExample}
+            </button>
           </div>
-          <p className="mb-3 max-w-[68ch] text-sm leading-relaxed text-faint">
-            {t.aiAgent.examplesSubtitle}
-          </p>
-
-          {/* Anzahl und Zeichen sind Fakten und stehen als Text da; nur der
-              Befund "unvollstaendig" bekommt eine Plakette, weil er etwas
-              verlangt. Drei gleich aussehende Plaketten haetten alle drei
-              gleich laut gemacht.
-
-              Gezaehlt wird nur, was wirklich gezaehlt wurde: Beispiele und
-              Zeichen. Keine Token, keine Kosten, beides waere geraten. */}
-          <div className="mb-4 flex flex-wrap items-center gap-x-2 gap-y-2 text-xs text-faint">
-            <span>{t.aiAgent.examplesCount(examples.length, MAX_PERSONALIZATION_EXAMPLES)}</span>
-            <span aria-hidden className="text-mute">·</span>
-            <span>{t.aiAgent.examplesChars(exampleChars)}</span>
-            {incompleteExamples > 0 && (
-              <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-2.5 py-0.5 text-amber-700 dark:text-amber-300">
-                {t.aiAgent.examplesIncomplete(incompleteExamples)}
-              </span>
-            )}
-          </div>
-
-          {examples.length === 0 ? (
-            /* Der leere Zustand traegt seinen naechsten Schritt selbst: Satz
-               und Knopf in einem gestrichelten Feld, statt eines Hinweises
-               oben und eines Knopfes irgendwo darunter. */
-            <div className="rounded-lg border border-dashed border-edge2 px-4 py-6 text-center">
-              <p className="mx-auto max-w-[52ch] text-sm leading-relaxed text-faint">
-                {t.aiAgent.examplesEmpty}
-              </p>
-              <button
-                type="button"
-                onClick={async () => {
-                  await addExample();
-                  setOpenExample("letztes");
-                }}
-                disabled={savingExample}
-                className={secondaryBtnCls + " mt-4"}
-              >
-                + {t.aiAgent.addExample}
-              </button>
-            </div>
-          ) : (
-            /* Kein overflow-hidden am Rahmen: der Fokusring des ersten und
-               letzten Aufklappers liegt sonst genau auf der Kante und wird
-               abgeschnitten. Stattdessen 6 Pixel Luft nach innen (px-1.5),
-               damit der Ring Platz hat. */
-            <ul className="divide-y divide-edge rounded-lg border border-edge2">
-              {examples.map((ex, i) => {
-                const offen = openExampleId === ex.id;
-                const vorschau = ex.icebreaker.trim();
-                return (
-                  <li key={ex.id}>
-                    <div className="flex items-center gap-1 px-1.5">
-                      {/* Der Aufklapper ist ein eigener Knopf und umschliesst
-                          die drei Zeilenknoepfe NICHT: ein button im button
-                          waere ungueltiges HTML, und ein Klick auf Loeschen
-                          soll die Zeile nicht auch noch aufklappen. */}
+        ) : (
+          /* Kein overflow-hidden am Rahmen: der Fokusring des ersten und
+             letzten Aufklappers liegt sonst genau auf der Kante und wird
+             abgeschnitten. Stattdessen 6 Pixel Luft nach innen (px-1.5),
+             damit der Ring Platz hat. */
+          <ul className="divide-y divide-edge rounded-lg border border-edge2">
+            {examples.map((ex, i) => {
+              const offen = openExampleId === ex.id;
+              const vorschau = ex.icebreaker.trim();
+              return (
+                <li key={ex.id}>
+                  <div className="flex items-center gap-1 px-1.5">
+                    {/* Der Aufklapper ist ein eigener Knopf und umschliesst
+                        die drei Zeilenknoepfe NICHT: ein button im button
+                        waere ungueltiges HTML, und ein Klick auf Loeschen
+                        soll die Zeile nicht auch noch aufklappen. */}
+                    <button
+                      type="button"
+                      onClick={() => setOpenExample(offen ? null : ex.id)}
+                      aria-expanded={offen}
+                      aria-controls={`example-body-${ex.id}`}
+                      className="flex min-w-0 flex-1 items-center gap-2.5 rounded-lg py-2.5 pl-1.5 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500"
+                    >
+                      <span
+                        aria-hidden
+                        // text-faint und nicht text-mute: die Spitze sagt,
+                        // ob die Zeile offen ist, und ein Bedienhinweis
+                        // braucht 3:1 gegen seinen Grund.
+                        className="shrink-0 text-faint transition-transform duration-200"
+                        style={{ transform: offen ? "rotate(90deg)" : "none" }}
+                      >
+                        ›
+                      </span>
+                      {/* Die Nummer ist keine Zierde: die Reihenfolge der
+                          Beispiele ist die Reihenfolge im Prompt. */}
+                      <span className="shrink-0 text-xs font-medium text-faint">
+                        {t.aiAgent.exampleNumber(i + 1)}
+                      </span>
+                      {/* Erkannt wird ein Beispiel an der Zeile, die man
+                          selbst geschrieben hat, nicht am Rohtext. Fehlt
+                          sie, tritt der Kontext ein, blasser, weil er
+                          nicht das ist, was hier stehen sollte. */}
+                      {vorschau ? (
+                        <span className="truncate text-sm text-soft">{vorschau}</span>
+                      ) : (
+                        <span className="truncate text-sm text-faint">
+                          {ex.input_context.trim()}
+                        </span>
+                      )}
+                    </button>
+                    <div className="flex shrink-0 items-center gap-0.5">
                       <button
                         type="button"
-                        onClick={() => setOpenExample(offen ? null : ex.id)}
-                        aria-expanded={offen}
-                        aria-controls={`example-body-${ex.id}`}
-                        className="flex min-w-0 flex-1 items-center gap-2.5 rounded-lg py-2.5 pl-1.5 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500"
+                        onClick={() => moveExample(i, -1)}
+                        disabled={i === 0}
+                        aria-label={t.aiAgent.exampleMoveUp}
+                        title={t.aiAgent.exampleMoveUp}
+                        className={iconBtnCls}
                       >
-                        <span
-                          aria-hidden
-                          // text-faint und nicht text-mute: die Spitze sagt,
-                          // ob die Zeile offen ist, und ein Bedienhinweis
-                          // braucht 3:1 gegen seinen Grund.
-                          className="shrink-0 text-faint transition-transform duration-200"
-                          style={{ transform: offen ? "rotate(90deg)" : "none" }}
-                        >
-                          ›
-                        </span>
-                        {/* Die Nummer ist keine Zierde: die Reihenfolge der
-                            Beispiele ist die Reihenfolge im Prompt. */}
-                        <span className="shrink-0 text-xs font-medium text-faint">
-                          {t.aiAgent.exampleNumber(i + 1)}
-                        </span>
-                        {/* Erkannt wird ein Beispiel an der Zeile, die man
-                            selbst geschrieben hat, nicht am Rohtext. Fehlt
-                            sie, tritt der Kontext ein, blasser, weil er
-                            nicht das ist, was hier stehen sollte. */}
-                        {vorschau ? (
-                          <span className="truncate text-sm text-soft">{vorschau}</span>
-                        ) : (
-                          <span className="truncate text-sm text-faint">
-                            {ex.input_context.trim()}
-                          </span>
-                        )}
+                        ↑
                       </button>
-                      <div className="flex shrink-0 items-center gap-0.5">
-                        <button
-                          type="button"
-                          onClick={() => moveExample(i, -1)}
-                          disabled={i === 0}
-                          aria-label={t.aiAgent.exampleMoveUp}
-                          title={t.aiAgent.exampleMoveUp}
-                          className={iconBtnCls}
+                      <button
+                        type="button"
+                        onClick={() => moveExample(i, 1)}
+                        disabled={i === examples.length - 1}
+                        aria-label={t.aiAgent.exampleMoveDown}
+                        title={t.aiAgent.exampleMoveDown}
+                        className={iconBtnCls}
+                      >
+                        ↓
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => deleteExample(ex.id)}
+                        aria-label={t.common.delete}
+                        title={t.common.delete}
+                        className={iconBtnCls + " hover:text-red-600 dark:hover:text-red-400"}
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  </div>
+
+                  {offen && (
+                    <div
+                      id={`example-body-${ex.id}`}
+                      // Nur eine Linie und Abstand, keine zweite Flaeche: die
+                      // gedrehte Spitze und der Inhalt selbst sagen schon,
+                      // welche Zeile offen ist.
+                      className="fade-up space-y-3 border-t border-edge px-3 pb-4 pt-3.5"
+                    >
+                      <div>
+                        <label
+                          htmlFor={`example-context-${ex.id}`}
+                          className="mb-1 block text-xs font-medium text-faint"
                         >
-                          ↑
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => moveExample(i, 1)}
-                          disabled={i === examples.length - 1}
-                          aria-label={t.aiAgent.exampleMoveDown}
-                          title={t.aiAgent.exampleMoveDown}
-                          className={iconBtnCls}
+                          {t.aiAgent.exampleContextLabel}
+                        </label>
+                        {/* Monoschrift, weil das hier kein geschriebener
+                            Satz ist, sondern der Rohtext, den das Modell
+                            vorgelegt bekommt. Der Icebreaker darunter steht
+                            in der Schrift der Oberflaeche: er ist Prosa.
+                            Dieser Unterschied traegt das Paar, ohne dass
+                            eine zusaetzliche Linie oder ein Pfeil noetig
+                            waere. */}
+                        <textarea
+                          id={`example-context-${ex.id}`}
+                          value={ex.input_context}
+                          rows={5}
+                          placeholder={t.aiAgent.exampleContextPlaceholder}
+                          onChange={(e) =>
+                            setExamples((list) =>
+                              list.map((x) =>
+                                x.id === ex.id ? { ...x, input_context: e.target.value } : x
+                              )
+                            )
+                          }
+                          onBlur={(e) => saveExample(ex.id, { input_context: e.target.value })}
+                          className={inputCls + " w-full resize-y font-mono text-[13px] leading-relaxed"}
+                        />
+                      </div>
+
+                      <div>
+                        <label
+                          htmlFor={`example-icebreaker-${ex.id}`}
+                          className="mb-1 block text-xs font-medium text-faint"
                         >
-                          ↓
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => deleteExample(ex.id)}
-                          aria-label={t.common.delete}
-                          title={t.common.delete}
-                          className={iconBtnCls + " hover:text-red-600 dark:hover:text-red-400"}
-                        >
-                          ✕
-                        </button>
+                          {t.aiAgent.exampleIcebreakerLabel}
+                        </label>
+                        <textarea
+                          id={`example-icebreaker-${ex.id}`}
+                          value={ex.icebreaker}
+                          rows={2}
+                          placeholder={t.aiAgent.exampleIcebreakerPlaceholder}
+                          onChange={(e) =>
+                            setExamples((list) =>
+                              list.map((x) =>
+                                x.id === ex.id ? { ...x, icebreaker: e.target.value } : x
+                              )
+                            )
+                          }
+                          onBlur={(e) => saveExample(ex.id, { icebreaker: e.target.value })}
+                          className={inputCls + " w-full resize-y text-[13px] leading-relaxed"}
+                        />
                       </div>
                     </div>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        )}
 
-                    {offen && (
-                      <div
-                        id={`example-body-${ex.id}`}
-                        // Nur eine Linie und Abstand, keine zweite Flaeche: die
-                        // gedrehte Spitze und der Inhalt selbst sagen schon,
-                        // welche Zeile offen ist.
-                        className="fade-up space-y-3 border-t border-edge px-3 pb-4 pt-3.5"
-                      >
-                        <div>
-                          <label
-                            htmlFor={`example-context-${ex.id}`}
-                            className="mb-1 block text-xs font-medium text-faint"
-                          >
-                            {t.aiAgent.exampleContextLabel}
-                          </label>
-                          {/* Monoschrift, weil das hier kein geschriebener
-                              Satz ist, sondern der Rohtext, den das Modell
-                              vorgelegt bekommt. Der Icebreaker darunter steht
-                              in der Schrift der Oberflaeche: er ist Prosa.
-                              Dieser Unterschied traegt das Paar, ohne dass
-                              eine zusaetzliche Linie oder ein Pfeil noetig
-                              waere. */}
-                          <textarea
-                            id={`example-context-${ex.id}`}
-                            value={ex.input_context}
-                            rows={5}
-                            placeholder={t.aiAgent.exampleContextPlaceholder}
-                            onChange={(e) =>
-                              setExamples((list) =>
-                                list.map((x) =>
-                                  x.id === ex.id ? { ...x, input_context: e.target.value } : x
-                                )
-                              )
-                            }
-                            onBlur={(e) => saveExample(ex.id, { input_context: e.target.value })}
-                            className={inputCls + " w-full resize-y font-mono text-[13px] leading-relaxed"}
-                          />
-                        </div>
+        {examples.length > 0 &&
+          (examples.length < MAX_PERSONALIZATION_EXAMPLES ? (
+            <button
+              type="button"
+              onClick={async () => {
+                await addExample();
+                setOpenExample("letztes");
+              }}
+              disabled={savingExample}
+              className={secondaryBtnCls + " mt-4"}
+            >
+              + {t.aiAgent.addExample}
+            </button>
+          ) : (
+            <p className="mt-4 max-w-[68ch] text-xs leading-relaxed text-faint">
+              {t.aiAgent.examplesLimitReached(MAX_PERSONALIZATION_EXAMPLES)}
+            </p>
+          ))}
 
-                        <div>
-                          <label
-                            htmlFor={`example-icebreaker-${ex.id}`}
-                            className="mb-1 block text-xs font-medium text-faint"
-                          >
-                            {t.aiAgent.exampleIcebreakerLabel}
-                          </label>
-                          <textarea
-                            id={`example-icebreaker-${ex.id}`}
-                            value={ex.icebreaker}
-                            rows={2}
-                            placeholder={t.aiAgent.exampleIcebreakerPlaceholder}
-                            onChange={(e) =>
-                              setExamples((list) =>
-                                list.map((x) =>
-                                  x.id === ex.id ? { ...x, icebreaker: e.target.value } : x
-                                )
-                              )
-                            }
-                            onBlur={(e) => saveExample(ex.id, { icebreaker: e.target.value })}
-                            className={inputCls + " w-full resize-y text-[13px] leading-relaxed"}
-                          />
-                        </div>
-                      </div>
-                    )}
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-
-          {examples.length > 0 &&
-            (examples.length < MAX_PERSONALIZATION_EXAMPLES ? (
-              <button
-                type="button"
-                onClick={async () => {
-                  await addExample();
-                  setOpenExample("letztes");
-                }}
-                disabled={savingExample}
-                className={secondaryBtnCls + " mt-4"}
-              >
-                + {t.aiAgent.addExample}
-              </button>
-            ) : (
-              <p className="mt-4 max-w-[68ch] text-xs leading-relaxed text-faint">
-                {t.aiAgent.examplesLimitReached(MAX_PERSONALIZATION_EXAMPLES)}
-              </p>
-            ))}
-
-          <p className="mt-3 max-w-[68ch] text-xs leading-relaxed text-faint">
-            {t.aiAgent.examplesSaveHint}
-          </p>
-        </div>
-      )}
+        <p className="mt-3 max-w-[68ch] text-xs leading-relaxed text-faint">
+          {t.aiAgent.examplesSaveHint}
+        </p>
+      </div>
 
       {/* Vor der Datenquelle, weil diese Auswahl den Prompt-Text weiter unten
           umschaltet — eine Einstellung, die sichtbar etwas anderes veraendert,
@@ -970,17 +896,6 @@ export default function AiAgentPage() {
             <p className="text-sm italic leading-relaxed text-ink">{testResult.text}</p>
             <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
               <span className="text-faint">{testResult.wordCount} {t.aiAgent.words}</span>
-              {/* Bei zwei Modellen muss der Test dazusagen, WAS er geprueft
-                  hat. Sonst sieht ein Lauf ueber OpenAI genauso aus wie einer
-                  ueber Claude mit sieben Beispielen. */}
-              {testResult.model && (
-                <span className="rounded-full border border-edge2 px-2 py-0.5 text-soft">
-                  {t.aiAgent.testRanWith(
-                    t.aiAgent.modelOptions[testResult.model]?.label ?? testResult.model,
-                    testResult.exampleCount ?? 0
-                  )}
-                </span>
-              )}
               {testResult.corrected && (
                 <span className="rounded-full border border-sky-500/30 bg-sky-500/10 px-2 py-0.5 text-sky-600 dark:text-sky-300">
                   {t.aiAgent.correctedNote}

@@ -19,10 +19,6 @@ import HelpLink from "../../help-link";
 const PROVIDER_IDS = [
   "google_maps",
   "openai",
-  // Zweite Wahl fuer die Icebreaker-Personalisierung, siehe AI-Agent-Tab.
-  // Steht direkt hinter OpenAI, weil es dieselbe Aufgabe erfuellt und nur
-  // gebraucht wird, wenn dort Claude gewaehlt ist.
-  "anthropic",
   "hunter",
   "apollo",
   "prospeo",
@@ -30,11 +26,10 @@ const PROVIDER_IDS = [
 ] as const;
 
 /** Anbieter mit einem kostenlosen Endpunkt, an dem sich ein Key pruefen
- *  laesst. Alle drei sagen ausdruecklich nur "Key gueltig"; ob der TARIF die
- *  Personensuche bzw. die einzelnen Filter freigibt und ob ueberhaupt noch
- *  Guthaben da ist, beantwortet keiner von ihnen (siehe die jeweilige
- *  health-Route). */
-const TESTABLE: readonly string[] = ["apollo", "prospeo", "anthropic"];
+ *  laesst. Beide sagen ausdruecklich nur "Key gueltig"; ob der TARIF die
+ *  Personensuche bzw. die einzelnen Filter freigibt, beantwortet keiner von
+ *  beiden (siehe die jeweilige health-Route). */
+const TESTABLE: readonly string[] = ["apollo", "prospeo"];
 
 export default function ApiKeysPage() {
   const { t } = useT();
@@ -63,7 +58,6 @@ export default function ApiKeysPage() {
 
   const providerLabels: Record<string, string> = {
     google_maps: "Google Maps", openai: "OpenAI", hunter: "Hunter.io", apollo: "Apollo.io",
-    anthropic: "Anthropic (Claude)",
     prospeo: "Prospeo",
     neverbounce: "NeverBounce",
   };

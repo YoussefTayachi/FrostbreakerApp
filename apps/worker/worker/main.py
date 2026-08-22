@@ -74,22 +74,11 @@ HEARTBEAT_INTERVAL_S = 30
 # Quelle der Suche Google Maps, Hunter oder Apollo zustaendig ist und ein
 # falsch aufgeloester Alarm schlimmer waere als ein stehengebliebener.
 # Spiegelt _JOB_TYPE_PROVIDERS in worker/provider_errors.py.
-#
-# Bei personalize ist das nur noch die Voreinstellung: der Workspace kann auf
-# Claude umstellen. Die Pipeline vermerkt dann den tatsaechlich benutzten
-# Anbieter unter job["resolved_provider"], und der schlaegt diese Tabelle
-# (siehe resolved_provider_of unten). Sonst wuerde ein geglueckter
-# Claude-Auftrag den OpenAI-Alarm aufloesen, also genau den falschen.
 PROVIDER_BY_JOB_TYPE = {
     "find_decisionmaker": "openai",
     "personalize": "openai",
     "hunt_persons": "hunter",
 }
-
-
-def resolved_provider_of(job: dict) -> str | None:
-    """Welcher Anbieter hat diesen Job bedient? Vermerk der Pipeline zuerst."""
-    return job.get("resolved_provider") or PROVIDER_BY_JOB_TYPE.get(job["type"])
 
 
 def main() -> None:
@@ -158,7 +147,7 @@ def main() -> None:
             # Geglueckt heisst: der Anbieter antwortet wieder. Einen offenen
             # Guthaben-Alarm dafuer aufloesen, damit der Nutzer nichts
             # wegklicken muss (siehe queue.clear_provider_alert).
-            provider = resolved_provider_of(job)
+            provider = PROVIDER_BY_JOB_TYPE.get(job["type"])
             if provider:
                 try:
                     queue.clear_provider_alert(job["workspace_id"], provider)

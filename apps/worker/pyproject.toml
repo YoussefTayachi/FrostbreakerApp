@@ -6,10 +6,6 @@ dependencies = [
   "supabase>=2.6",
   "httpx>=0.27",
   "openai>=1.40",
-  # Zweiter Personalisierungs-Anbieter neben OpenAI, siehe
-  # worker/pipelines/personalize.py. Version 1.0.0 ist der Stand auf PyPI am
-  # 2026-08-22 und die erste stabile Hauptversion.
-  "anthropic>=1.0",
   "cryptography>=43.0",
   "pydantic-settings>=2.4",
   "trafilatura>=1.12",
