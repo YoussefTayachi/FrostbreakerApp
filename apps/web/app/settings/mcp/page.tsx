@@ -247,6 +247,21 @@ export default function McpPage() {
           <div className="mt-5">
             <p className="text-xs font-medium text-ink">{T.setupClaudeDesktopLabel}</p>
             <p className="mt-0.5 text-xs leading-relaxed text-faint">{T.setupClaudeDesktopHint}</p>
+            {/* Nummerierte Schritte statt eines Fliesstextes: der Weg hat vier
+                Stationen, und an zweien davon ist der Nutzer beim ersten
+                Einrichten am 2026-08-22 tatsaechlich haengengeblieben -- er
+                suchte die Konfigurationsdatei am dokumentierten Pfad (die
+                Store-Fassung legt sie woanders ab) und schloss danach nur das
+                Fenster, waehrend die alte Instanz mit der alten Konfiguration
+                weiterlief. Beides steht deshalb ausdruecklich hier. */}
+            <ol className="mt-2 list-decimal space-y-1.5 pl-4 text-xs leading-relaxed text-soft">
+              {T.setupClaudeDesktopSteps.map((schritt) => (
+                <li key={schritt}>{schritt}</li>
+              ))}
+            </ol>
+            <p className="mt-2 rounded-md border border-amber-500/30 bg-amber-500/5 px-2.5 py-1.5 text-[11px] leading-relaxed text-amber-700 dark:text-amber-500">
+              {T.setupClaudeDesktopQuitWarning}
+            </p>
             <pre className="mt-2 overflow-x-auto rounded-md bg-panel2 px-3 py-2 font-mono text-[11px] leading-relaxed text-ink">
               {claudeDesktopSnippet}
             </pre>

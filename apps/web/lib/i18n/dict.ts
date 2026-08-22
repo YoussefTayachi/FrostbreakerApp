@@ -1342,7 +1342,15 @@ const de = {
       setupClaudeCodeHint: "Claude Code verbindet sich direkt mit einem entfernten MCP-Server: Adresse und Token in die Konfiguration eintragen, fertig.",
       setupClaudeDesktopLabel: "Claude Desktop",
       setupClaudeDesktopHint:
-        "Claude Desktop kann einen entfernten Server nicht direkt eintragen. Die Brücke mcp-remote, gestartet über npx, übernimmt die Verbindung stellvertretend für dich.",
+        "Claude Desktop kann einen entfernten Server nicht direkt eintragen. Die Brücke mcp-remote, gestartet über npx, übernimmt die Verbindung stellvertretend für dich. Node.js muss dafür installiert sein.",
+      setupClaudeDesktopSteps: [
+        "In Claude Desktop: Einstellungen → Entwickler → Konfiguration bearbeiten. Das öffnet die richtige Datei, egal wo sie liegt — such sie nicht selbst, der Pfad unterscheidet sich je nach Installationsart.",
+        "Den Block unten hineinkopieren. Steht dort schon ein mcpServers-Abschnitt, kommt frostbreaker als weiterer Eintrag hinein.",
+        "Speichern.",
+        "Claude Desktop VOLLSTÄNDIG beenden, nicht nur das Fenster schließen: Rechtsklick auf das Symbol im Infobereich neben der Uhr, dann Beenden. Danach neu öffnen.",
+      ] as string[],
+      setupClaudeDesktopQuitWarning:
+        "Schritt 4 ist der, an dem die meisten scheitern. Claude Desktop läuft nach dem Schließen des Fensters im Hintergrund weiter und liest die Konfiguration dann nicht neu — es sieht so aus, als hätte der Eintrag nicht funktioniert.",
       setupWebNote: "Über claude.ai im Browser geht das bewusst noch nicht, weil das eine OAuth-Anbindung voraussetzt.",
       emptyTitle: "Noch kein Token",
       emptyBody: "Hier stehen deine Zugriffstoken für Claude, sobald du den ersten erzeugt hast.",
@@ -3762,7 +3770,15 @@ const en: Dictionary = {
       setupClaudeCodeHint: "Claude Code connects to a remote MCP server directly: add the address and this token to its configuration, and that's it.",
       setupClaudeDesktopLabel: "Claude Desktop",
       setupClaudeDesktopHint:
-        "Claude Desktop can't add a remote server directly. The bridge mcp-remote, started via npx, makes the connection on its behalf.",
+        "Claude Desktop can't add a remote server directly. The bridge mcp-remote, started via npx, makes the connection on its behalf. Node.js has to be installed for this.",
+      setupClaudeDesktopSteps: [
+        "In Claude Desktop: Settings → Developer → Edit Config. That opens the right file wherever it lives — don't go looking for it yourself, the path differs by install type.",
+        "Paste the block below. If an mcpServers section is already there, add frostbreaker as another entry inside it.",
+        "Save.",
+        "Quit Claude Desktop COMPLETELY, don't just close the window: right-click its icon in the system tray, then Quit. Then open it again.",
+      ] as string[],
+      setupClaudeDesktopQuitWarning:
+        "Step 4 is where most people get stuck. Closing the window leaves Claude Desktop running in the background, where it never re-reads the config — and it looks like the entry simply didn't work.",
       setupWebNote: "Through claude.ai in the browser this isn't possible yet, deliberately, because that requires an OAuth connection.",
       emptyTitle: "No token yet",
       emptyBody: "Your Claude access tokens will appear here once you create the first one.",
