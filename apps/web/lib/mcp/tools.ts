@@ -240,6 +240,14 @@ const DEFAULT_LIMIT = 25;
  *  keine Freitexte -- 200 Zeilen davon bleiben deutlich unter der
  *  Ausgabegrenze, waehrend 200 LEADS sie reissen wuerden. */
 const LIST_CAP = 200;
+/**
+ * Deckel fuer die Teilsuchen einer gebuendelten Mehrfach-Suche (Migration
+ * 0096). Deutlich hoeher als LIST_CAP, weil hier keine Listen stehen, sondern
+ * ihre Bestandteile: die Suche vom 2026-08-16 allein hatte 60 (4 Nischen x 15
+ * Staedte). Geholt werden je Zeile nur zwei Werte, und sie werden sofort zu
+ * einer Zahl je Gruppe verrechnet.
+ */
+const CHILD_CAP = 1000;
 /** Offsets darueber sind kein sinnvoller Aufruf mehr, sondern ein Modell, das
  *  sich verzaehlt hat. Eine Obergrenze verhindert, dass Postgres dafuer eine
  *  Million Zeilen ueberspringt. */
@@ -601,42 +609,113 @@ export const TOOLS: Record<ToolName, McpTool> = {
       const tor = gate(ctx, args, "read");
       if (!tor.ok) return tor.result;
 
-      const { data, error } = await supabase
-        .from("searches")
-        // businesses(count) ist die Aggregat-Form von PostgREST: eine Zeile je
-        // Suche mit der Anzahl der daran haengenden Firmen, statt N+1 Abfragen.
-        //
-        // NICHT gegen den Produktivstand geprueft (2026-08-22): dafuer fehlte
-        // lokal der Service-Role-Schluessel. Sollte PostgREST die Form nicht
-        // annehmen, scheitert die GANZE Abfrage sichtbar (dbFail), sie liefert
-        // keine stillen Nullen. Der Ausweg waere dann eine Zaehlabfrage je
-        // Zeile mit { count: "exact", head: true } -- durch LIST_CAP gedeckelt
-        // und parallel abgesetzt derselbe Aufwand, den die Suchen-Seite
-        // ohnehin bei jedem Laden erzeugt.
-        .select("id, name, query, location, source, status, created_at, archived_at, instantly_campaign_id, businesses(count)")
-        .eq("workspace_id", tor.workspaceId)
-        // Der Papierkorb (Migration 0010) ist in der App unsichtbar und soll
-        // es hier auch sein.
-        .is("deleted_at", null)
-        // Teilsuchen einer gebuendelten Mehrfach-Suche (Migration 0096) sind
-        // fuer den Nutzer keine eigenen Listen; search_overview blendet sie aus
-        // demselben Grund aus. Ohne diese Zeile stuenden hier sechzig
-        // Eintraege fuer das, was in der App EINE Liste ist -- und das Modell
-        // wuerde sechzigmal get_leads aufrufen.
-        .is("parent_search_id", null)
-        .order("created_at", { ascending: false })
-        .limit(LIST_CAP);
-      if (error) return dbFail("list_lead_lists", error);
+      const [listenAntwort, kinderAntwort, summen] = await Promise.all([
+        supabase
+          .from("searches")
+          // businesses(count) ist die Aggregat-Form von PostgREST: eine Zeile je
+          // Suche mit der Anzahl der daran haengenden Firmen, statt N+1 Abfragen.
+          //
+          // NICHT gegen den Produktivstand geprueft (2026-08-22): dafuer fehlte
+          // lokal der Service-Role-Schluessel. Sollte PostgREST die Form nicht
+          // annehmen, scheitert die GANZE Abfrage sichtbar (dbFail), sie liefert
+          // keine stillen Nullen. Der Ausweg waere dann eine Zaehlabfrage je
+          // Zeile mit { count: "exact", head: true } -- durch LIST_CAP gedeckelt
+          // und parallel abgesetzt derselbe Aufwand, den die Suchen-Seite
+          // ohnehin bei jedem Laden erzeugt.
+          .select("id, name, query, location, source, status, created_at, archived_at, instantly_campaign_id, businesses(count)")
+          .eq("workspace_id", tor.workspaceId)
+          // Der Papierkorb (Migration 0010) ist in der App unsichtbar und soll
+          // es hier auch sein.
+          .is("deleted_at", null)
+          // Teilsuchen einer gebuendelten Mehrfach-Suche (Migration 0096) sind
+          // fuer den Nutzer keine eigenen Listen; search_overview blendet sie aus
+          // demselben Grund aus. Ohne diese Zeile stuenden hier sechzig
+          // Eintraege fuer das, was in der App EINE Liste ist -- und das Modell
+          // wuerde sechzigmal get_leads aufrufen.
+          .is("parent_search_id", null)
+          .order("created_at", { ascending: false })
+          .limit(LIST_CAP),
 
-      const listen = data ?? [];
+        /**
+         * Die Firmen der Teilsuchen, damit die Gruppenzeile nicht mit 0 dasteht.
+         *
+         * Eine Gruppen-Huelle hat KEINE eigenen Firmen (Migration 0096, Spalte
+         * is_search_group); die haengen an ihren Kindern, und die Kinder sind
+         * oben ausgeblendet. Ohne diese Abfrage meldete list_lead_lists fuer
+         * eine gebuendelte Mehrfach-Suche company_count 0, obwohl 800 Leads
+         * darin liegen -- search_overview summiert sie fuer die App aus genau
+         * demselben Grund.
+         *
+         * EINE Abfrage fuer alle Kinder des Workspaces, nicht eine je Gruppe.
+         * Der Teilindex searches_parent_idx (Migration 0096) deckt sie ab.
+         */
+        supabase
+          .from("searches")
+          .select("parent_search_id, businesses(count)")
+          .eq("workspace_id", tor.workspaceId)
+          .is("deleted_at", null)
+          .not("parent_search_id", "is", null)
+          .limit(CHILD_CAP),
+
+        leadTotals(supabase, tor.workspaceId),
+      ]);
+
+      if (listenAntwort.error) return dbFail("list_lead_lists", listenAntwort.error);
+
+      const hinweise: string[] = [];
+
+      // Ohne offset in diesem Werkzeug: waere der Deckel erreicht, fehlten
+      // Listen, ohne dass es jemandem auffiele. Der Hinweis sagt es.
+      const listen = listenAntwort.data ?? [];
+      if (listen.length >= LIST_CAP) {
+        hinweise.push(
+          `Only the ${LIST_CAP} most recent lead lists are shown. Older ones exist in Frostbreaker, and totals below still cover all of them.`
+        );
+      }
+
+      /**
+       * Die Kinder scheitern zu lassen waere der teurere Fehler.
+       *
+       * Gebuendelte Suchen hat laengst nicht jeder Workspace; die Liste selbst
+       * hat aber jeder. Bricht diese eine Abfrage, bleibt company_count fuer
+       * eine Gruppe bei 0 -- genau so falsch wie vor dieser Aenderung -- statt
+       * dass das ganze Werkzeug ausfaellt. Gesagt wird es trotzdem.
+       */
+      const kindFirmen = new Map<string, number>();
+      if (kinderAntwort.error) {
+        console.error("[mcp] list_lead_lists: Teilsuchen fehlgeschlagen:", kinderAntwort.error.message);
+        hinweise.push(
+          "The sub-searches of bundled searches could not be read, so a bundled lead list may show company_count 0. Open it in Frostbreaker for its real size."
+        );
+      } else {
+        for (const kind of kinderAntwort.data ?? []) {
+          const eltern = kind.parent_search_id;
+          if (!eltern) continue;
+          kindFirmen.set(eltern, (kindFirmen.get(eltern) ?? 0) + leadCount(kind.businesses));
+        }
+      }
+
+      if (!summen) {
+        hinweise.push(
+          "The workspace totals could not be counted this time; the per-list numbers below are unaffected."
+        );
+      }
+
       return okJson({
-        // Ohne offset in diesem Werkzeug: waere der Deckel erreicht, fehlten
-        // Listen, ohne dass es jemandem auffiele. Der Hinweis sagt es.
-        ...(listen.length >= LIST_CAP
-          ? {
-              note: `Only the ${LIST_CAP} most recent lead lists are shown. Older ones exist in Frostbreaker.`,
-            }
-          : {}),
+        ...(hinweise.length > 0 ? { note: hinweise.join(" ") } : {}),
+        /**
+         * Die Summen VOR den Listen, und das ist Absicht.
+         *
+         * Gemessen am 2026-08-22 im Workspace 2d9bb9ae-…: 64 Listen, zusammen
+         * 3053 Firmen, 3007 Ansprechpartner, davon 1650 mit E-Mail, und 1916
+         * der Firmen liegen in archivierten Listen. Auf "wie viele Leads habe
+         * ich" antwortete das Modell 3053 -- richtig gezaehlt, aber meist nicht
+         * gefragt: gemeint ist "wie viele kann ich anschreiben" (1650) oder
+         * "wie viele sind aktiv" (1137). Dazu musste es ausserdem 64 Zeilen
+         * addieren, was eine zweite Fehlerquelle war.
+         */
+        totals: summen,
+        ...(summen ? { totals_note: TOTALS_NOTE } : {}),
         lead_lists: listen.map((s) => ({
           search_id: s.id,
           // searches.name ist optional; die App zeigt dann die Suchanfrage,
@@ -646,7 +725,14 @@ export const TOOLS: Record<ToolName, McpTool> = {
           location: s.location,
           source: s.source,
           status: s.status,
-          lead_count: leadCount(s.businesses),
+          /**
+           * Frueher lead_count. Umbenannt, weil "lead" im Gespraech mal die
+           * Firma, mal die Person und mal den anschreibbaren Kontakt meint --
+           * gezaehlt wird hier die FIRMA. Ausserhalb dieser Antwort hat das
+           * Feld niemand gelesen (nur hier erzeugt, nirgends im Repo
+           * verwendet).
+           */
+          company_count: leadCount(s.businesses) + (kindFirmen.get(s.id) ?? 0),
           archived: s.archived_at !== null,
           in_instantly: Boolean(s.instantly_campaign_id),
           created_at: s.created_at,
@@ -1490,6 +1576,13 @@ export const TOOLS: Record<ToolName, McpTool> = {
         /**
          * Nur die Zahl, ohne Zeilen (head: true).
          *
+         * Gezaehlt werden FIRMEN, nicht Personen: der Icebreaker haengt an
+         * businesses.personalization, eine Firma mit drei Ansprechpartnern hat
+         * genau einen. Der Feldname sagt das seit dem 2026-08-22 auch --
+         * "leads_without_icebreaker" liess offen, ob Firmen oder Kontakte
+         * gemeint sind, und genau diese Verwechslung ist der Grund, warum
+         * list_lead_lists jetzt ein totals-Objekt liefert.
+         *
          * Gezaehlt wird ueber ALLE Listen des Workspaces, auch archivierte und
          * laengst versendete -- ein Join auf searches waere hier eine zweite
          * Bedingung, die niemand nachprueft. Der Hinweis im Ergebnis sagt es
@@ -1575,9 +1668,9 @@ export const TOOLS: Record<ToolName, McpTool> = {
           status: s.status,
           started_at: s.created_at,
         })),
-        leads_without_icebreaker: {
+        companies_without_icebreaker: {
           count: ohneIcebreaker.count ?? 0,
-          note: "Counted across every lead list of this workspace, including archived ones.",
+          note: "Counted in companies, not in contacts: an icebreaker belongs to the company, so a company with three contacts has one. Counted across every lead list of this workspace, including archived ones. Call list_lead_lists for the workspace totals in companies, contacts and contacts with an email address.",
         },
       });
     },
@@ -3418,6 +3511,114 @@ function firstRelation<T>(relation: T | T[] | null | undefined): T | null {
 function leadCount(relation: unknown): number {
   const erste = firstRelation(relation as { count?: number } | { count?: number }[]);
   return typeof erste?.count === "number" ? erste.count : 0;
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Die Summen eines Workspaces
+// ─────────────────────────────────────────────────────────────────────────
+
+/**
+ * DREI ZAHLEN, DIE NICHT DASSELBE SIND (gemessen am 2026-08-22)
+ *
+ * Workspace 2d9bb9ae-811a-45ff-b1bf-1584e89f51ca, 64 Listen:
+ *   3053 Firmen (businesses)
+ *   3007 Ansprechpartner (contacts)
+ *   1650 Ansprechpartner MIT E-Mail -- nur die sind anschreibbar
+ *   1916 der 3053 Firmen liegen in ARCHIVIERTEN Listen
+ *
+ * Auf "wie viele Leads habe ich" kam bisher 3053. Die Zahl war richtig, die
+ * Frage war meist eine andere. Deshalb liefert list_lead_lists alle vier
+ * Groessen nebeneinander, statt dass ein Modell 64 Zeilen addiert und dabei
+ * eine fuenfte Zahl erfindet.
+ */
+type LeadTotals = {
+  companies: number;
+  contacts: number;
+  contacts_with_email: number;
+  active: { companies: number; contacts: number; contacts_with_email: number };
+};
+
+/** Inline und nicht in tool-descriptions.ts, wie die uebrigen note-Texte
+ *  dieser Datei: es gehoert zur Antwort und nicht zur Werkzeugliste. Der
+ *  Wortlaut darf gern der copywriter schaerfen, die drei Einheiten muessen
+ *  drinbleiben. */
+const TOTALS_NOTE =
+  "companies counts businesses, one row per company. contacts counts the people found at those companies. contacts_with_email counts the contacts that have an email address and is the only one of the three that answers 'how many can actually be emailed'. active repeats all three for the lead lists that are not archived. These totals are counted over the whole workspace, so they stay exact even when the list below is capped, and they include the sub-searches of a bundled search.";
+
+/**
+ * Sechs Zaehlabfragen, keine je Liste.
+ *
+ * head: true holt NUR den Zaehler, keine Zeilen -- sechs davon parallel kosten
+ * weniger als die eine Listenabfrage daneben. Der Zaun ist wie ueberall in
+ * dieser Datei das ausdrueckliche .eq("workspace_id", …); der Join auf
+ * searches grenzt nur ab, WELCHE Listen zaehlen.
+ *
+ * Der Papierkorb (searches.deleted_at, Migration 0010) faellt raus, wie in der
+ * Liste daneben. Teilsuchen fallen NICHT raus: sie sind fuer den Nutzer keine
+ * eigene Liste, ihre Firmen sind aber echte Leads.
+ *
+ * BEKANNTE GRENZE: archiviert wird in der App nur die sichtbare Zeile
+ * (searches-list.tsx setzt archived_at auf den Zeilen aus search_overview, und
+ * das sind die Eltern). Die Teilsuchen einer archivierten Gruppe tragen den
+ * Zeitpunkt also nicht und zaehlen weiter als aktiv. Der Fall ist selten und
+ * eine Korrektur waere ein zweiter Rundlauf ueber die Elternzeilen; lieber
+ * hier aufgeschrieben als still falsch.
+ *
+ * NICHT gegen den Produktivstand geprueft (2026-08-22), dieselbe Luecke wie
+ * bei businesses(count): ohne Service-Role-Schluessel gibt es lokal nichts zu
+ * pruefen. Deshalb gibt diese Funktion bei einem Fehler null zurueck statt zu
+ * werfen -- list_lead_lists liefert dann seine Listen ohne Summen weiter,
+ * statt am Zusatz zu scheitern.
+ */
+async function leadTotals(
+  supabase: SupabaseClient,
+  workspaceId: string
+): Promise<LeadTotals | null> {
+  const firmen = (nurAktive: boolean) => {
+    const q = supabase
+      .from("businesses")
+      .select("id, searches!inner(id)", { count: "exact", head: true })
+      .eq("workspace_id", workspaceId)
+      .is("searches.deleted_at", null);
+    return nurAktive ? q.is("searches.archived_at", null) : q;
+  };
+
+  const personen = (nurAktive: boolean, nurMitEmail: boolean) => {
+    let q = supabase
+      .from("contacts")
+      .select("id, businesses!inner(searches!inner(id))", { count: "exact", head: true })
+      .eq("workspace_id", workspaceId)
+      .is("businesses.searches.deleted_at", null);
+    if (nurAktive) q = q.is("businesses.searches.archived_at", null);
+    // Leerer String kommt hier nicht vor: der Worker schreibt entweder eine
+    // Adresse oder null (parse_persons in find_decisionmaker.py, parse_hunter_
+    // emails in hunt_persons.py).
+    if (nurMitEmail) q = q.not("email", "is", null);
+    return q;
+  };
+
+  const ergebnisse = await Promise.all([
+    firmen(false),
+    firmen(true),
+    personen(false, false),
+    personen(false, true),
+    personen(true, false),
+    personen(true, true),
+  ]);
+
+  const gescheitert = ergebnisse.find((e) => e.error);
+  if (gescheitert) {
+    console.error("[mcp] Summen fehlgeschlagen:", gescheitert.error?.message ?? gescheitert.error);
+    return null;
+  }
+
+  const zahl = (i: number) => ergebnisse[i].count ?? 0;
+  return {
+    companies: zahl(0),
+    contacts: zahl(2),
+    contacts_with_email: zahl(3),
+    active: { companies: zahl(1), contacts: zahl(4), contacts_with_email: zahl(5) },
+  };
 }
 
 /**

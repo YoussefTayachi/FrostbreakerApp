@@ -406,7 +406,14 @@ describe("Workspace-Zuschnitt", () => {
     const { supabase, aufrufe } = stubSupabase({ searches: { data: [] } });
     await callTool(supabase, ctx(), "list_lead_lists", { workspace_id: WS });
     const isFilter = aufrufe.filter((a) => a.table === "searches" && a.method === "is");
-    expect(isFilter.map((a) => a.args[0])).toEqual(["deleted_at", "parent_search_id"]);
+    // Zwei Abfragen auf searches: erst die Listen selbst (Papierkorb UND
+    // Teilsuchen raus), dann die Teilsuchen fuer sich, damit ihre Firmen auf
+    // der Gruppenzeile mitgezaehlt werden -- die holt nur den Papierkorb-
+    // Filter und dreht den zweiten mit .not() um.
+    expect(isFilter.map((a) => a.args[0])).toEqual(["deleted_at", "parent_search_id", "deleted_at"]);
+    const kinder = aufrufe.find((a) => a.table === "searches" && a.method === "not");
+    expect(kinder?.args).toEqual(["parent_search_id", "is", null]);
+    expect(hatFilter(aufrufe, "searches", "workspace_id", WS)).toBe(true);
   });
 
   it("get_replies filtert auf workspace_id und holt nur Eingaenge", async () => {
@@ -429,6 +436,127 @@ describe("Workspace-Zuschnitt", () => {
     await callTool(supabase, ctx(), "list_workspaces", {});
     const inFilter = aufrufe.find((a) => a.method === "in");
     expect(inFilter?.args).toEqual(["id", [WS]]);
+  });
+});
+
+describe("list_lead_lists: Summen und Einheiten", () => {
+  /**
+   * Der Anlass, gemessen am 2026-08-22 im Workspace 2d9bb9ae-…: 64 Listen,
+   * 3053 Firmen, 3007 Ansprechpartner, davon 1650 mit E-Mail, 1916 Firmen in
+   * archivierten Listen. Auf "wie viele Leads habe ich" kam 3053 -- richtig
+   * gezaehlt und meist nicht gefragt. Die Zahlen unten sind genau diese.
+   *
+   * Die Reihenfolge der gestubbten Antworten folgt der Reihenfolge der
+   * Abfragen in leadTotals(): businesses erst gesamt, dann aktiv; contacts
+   * gesamt, gesamt-mit-E-Mail, aktiv, aktiv-mit-E-Mail.
+   */
+  const summenStub = {
+    businesses: [{ count: 3053 }, { count: 1137 }],
+    contacts: [{ count: 3007 }, { count: 1650 }, { count: 1100 }, { count: 720 }],
+  };
+
+  it("liefert ein Summen-Objekt, damit niemand 64 Zeilen addiert", async () => {
+    const { supabase } = stubSupabase({
+      searches: [
+        {
+          data: [
+            { id: "s1", name: "Zahnaerzte Berlin", query: "zahnarzt", archived_at: null, businesses: [{ count: 40 }] },
+          ],
+        },
+        { data: [] },
+      ],
+      ...summenStub,
+    });
+    const ergebnis = await callTool(supabase, ctx(), "list_lead_lists", { workspace_id: WS });
+    const nutzlast = ergebnis.structuredContent as {
+      totals: unknown;
+      totals_note: string;
+      lead_lists: Record<string, unknown>[];
+    };
+    expect(nutzlast.totals).toEqual({
+      companies: 3053,
+      contacts: 3007,
+      contacts_with_email: 1650,
+      active: { companies: 1137, contacts: 1100, contacts_with_email: 720 },
+    });
+    // Der Unterschied Firma / Person / anschreibbar muss im Ergebnis stehen,
+    // nicht nur in der Werkzeugbeschreibung: das Modell liest beides, aber die
+    // Zahl steht hier.
+    expect(nutzlast.totals_note).toContain("companies");
+    expect(nutzlast.totals_note).toContain("contacts_with_email");
+  });
+
+  it("zaehlt je Zeile Firmen und heisst auch so", async () => {
+    // lead_count hiess frueher so und liess offen, ob Firmen oder Personen
+    // gemeint sind. Faellt dieser Test, ist der alte Name zurueck.
+    const { supabase } = stubSupabase({
+      searches: [
+        { data: [{ id: "s1", query: "zahnarzt", archived_at: null, businesses: [{ count: 40 }] }] },
+        { data: [] },
+      ],
+      ...summenStub,
+    });
+    const ergebnis = await callTool(supabase, ctx(), "list_lead_lists", { workspace_id: WS });
+    const [liste] = (ergebnis.structuredContent as { lead_lists: Record<string, unknown>[] }).lead_lists;
+    expect(liste.company_count).toBe(40);
+    expect(liste.lead_count).toBeUndefined();
+  });
+
+  it("eine gebuendelte Suche zaehlt die Firmen ihrer Teilsuchen mit", async () => {
+    /**
+     * Eine Gruppen-Huelle hat keine eigenen Firmen (Migration 0096), und ihre
+     * Teilsuchen sind aus der Liste ausgeblendet. Ohne die Aufsummierung
+     * stuende eine Liste mit 800 Leads hier mit 0 -- search_overview summiert
+     * sie fuer die App aus demselben Grund.
+     */
+    const { supabase } = stubSupabase({
+      searches: [
+        { data: [{ id: "g1", name: "DACH-Abdeckung", query: "zahnarzt", archived_at: null, businesses: [{ count: 0 }] }] },
+        {
+          data: [
+            { parent_search_id: "g1", businesses: [{ count: 400 }] },
+            { parent_search_id: "g1", businesses: [{ count: 400 }] },
+          ],
+        },
+      ],
+      ...summenStub,
+    });
+    const ergebnis = await callTool(supabase, ctx(), "list_lead_lists", { workspace_id: WS });
+    const [liste] = (ergebnis.structuredContent as { lead_lists: { company_count: number }[] }).lead_lists;
+    expect(liste.company_count).toBe(800);
+  });
+
+  it("scheitern die Summen, kommen die Listen trotzdem", async () => {
+    // Die Summen sind ein Zusatz. Sie duerfen das Werkzeug nicht mitreissen,
+    // sonst hat ein Fehler in einer Zaehlabfrage die Liste selbst gekostet.
+    const { supabase } = stubSupabase({
+      searches: [
+        { data: [{ id: "s1", query: "zahnarzt", archived_at: null, businesses: [{ count: 40 }] }] },
+        { data: [] },
+      ],
+      businesses: { error: { message: "relation missing" } },
+      contacts: { error: { message: "relation missing" } },
+    });
+    const ergebnis = await callTool(supabase, ctx(), "list_lead_lists", { workspace_id: WS });
+    const nutzlast = ergebnis.structuredContent as {
+      note: string;
+      totals: unknown;
+      lead_lists: { company_count: number }[];
+    };
+    expect(ergebnis.isError).toBeUndefined();
+    expect(nutzlast.totals).toBeNull();
+    expect(nutzlast.note).toContain("totals");
+    expect(nutzlast.lead_lists[0].company_count).toBe(40);
+  });
+
+  it("die Beschreibung nennt den Unterschied zwischen Firma, Person und anschreibbar", () => {
+    // Die Beschreibung ist das, was das Modell liest, BEVOR es antwortet. Ohne
+    // diesen Unterschied raet es, welche der drei Zahlen gemeint war.
+    const beschreibung = listTools().find((t) => t.name === "list_lead_lists")!.description;
+    expect(beschreibung).toContain("company_count");
+    expect(beschreibung).toContain("totals.contacts");
+    expect(beschreibung).toContain("totals.contacts_with_email");
+    expect(beschreibung).toContain("totals.active");
   });
 });
 
@@ -743,6 +871,24 @@ describe("get_briefing", () => {
     };
     expect(inhalt.campaign_alerts.items.map((c) => c.search_id)).toEqual(["viel"]);
     expect(inhalt.campaign_alerts.items[0].bounce_rate).toBe(5);
+  });
+
+  it("die Icebreaker-Zahl sagt, dass sie Firmen zaehlt", async () => {
+    // Vorher hiess das Feld leads_without_icebreaker und liess offen, ob
+    // Firmen oder Kontakte gemeint sind. Der Icebreaker haengt an
+    // businesses.personalization: eine Firma mit drei Ansprechpartnern hat
+    // genau einen.
+    const { supabase } = stubSupabase({
+      messages: { data: [], count: 0 },
+      instantly_campaign_stats: { data: [] },
+      searches: { data: [] },
+      businesses: { data: [], count: 412 },
+    });
+    const ergebnis = await callTool(supabase, ctx(), "get_briefing", { workspace_id: WS });
+    const inhalt = ergebnis.structuredContent as Record<string, { count: number; note: string }>;
+    expect(inhalt.leads_without_icebreaker).toBeUndefined();
+    expect(inhalt.companies_without_icebreaker.count).toBe(412);
+    expect(inhalt.companies_without_icebreaker.note).toContain("not in contacts");
   });
 
   it("ein zu grosses since_hours wird abgelehnt, bevor gefragt wird", async () => {
