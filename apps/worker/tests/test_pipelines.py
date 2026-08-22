@@ -108,6 +108,34 @@ def test_parse_persons_na_handling():
     assert rows[0]["linkedin"] == "https://linkedin.com/in/shamir"
 
 
+def test_parse_persons_verwirft_erfundenes_profil():
+    """Die Person bleibt, nur das erfundene Profil faellt weg.
+
+    Gemessen am 2026-08-22: 52 Kontakte mit einer linkedin, die woertlich auf
+    "12345678" endet. Ein Kontakt ohne Profil ist ueber die E-Mail weiterhin
+    erreichbar -- ihn ganz zu verwerfen waere teurer als der tote Link.
+    """
+    data = {
+        "company_name": "MoreYoga",
+        "persons": [
+            {
+                "name": "Shamir Sidhu",
+                "title": "owner",
+                "email": "shamir@moreyoga.co.uk",
+                "linkedin": "https://www.linkedin.com/in/shamir-sidhu-12345678",
+                "instagram": "https://www.instagram.com/shamirsidhu",
+                "twitter": "NA",
+                "facebook": "NA",
+            },
+        ],
+    }
+    rows = parse_persons(data)
+    assert len(rows) == 1
+    assert rows[0]["linkedin"] is None
+    assert rows[0]["instagram"] == "https://www.instagram.com/shamirsidhu"
+    assert rows[0]["email"] == "shamir@moreyoga.co.uk"
+
+
 def test_is_company_name():
     from worker.pipelines.find_decisionmaker import is_company_name
 

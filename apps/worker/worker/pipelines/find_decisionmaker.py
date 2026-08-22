@@ -13,11 +13,32 @@ from worker import usage
 from worker.db import sb
 from worker.email_classify import classify_email
 from worker.keys import get_api_key
+from worker.profile_urls import clean_profile_url
 from worker.search_state import BUSINESS_WITH_SEARCH, search_is_deleted
 from worker.suppression import is_suppressed, load_suppression
 
 MODEL = "gpt-4.1-mini"
 
+# ═══════════════════════════════════════════════════════════════════════════
+# GEMESSEN AM 2026-08-22: DAS MODELL ERFINDET PROFIL-ADRESSEN
+# ═══════════════════════════════════════════════════════════════════════════
+#
+# Produktion, Workspace 2d9bb9ae-811a-45ff-b1bf-1584e89f51ca: 1449 von 3007
+# Kontakten haben eine contacts.linkedin. 52 davon enden woertlich auf
+# "12345678" -- bei 52 verschiedenen Menschen ist das kein Zufall, sondern ein
+# Platzhalter statt einer Fehlanzeige. Weitere 150 enden auf sieben oder mehr
+# Ziffern.
+#
+# Das Schema unten fuehrt alle Felder als Pflicht, aber DAS ist nicht die
+# Ursache: 'NA' und der leere String kommen beide durch _clean() als None an,
+# das Modell HAT also einen Weg, nichts zu liefern. Es hat ihn nur nicht
+# genommen, weil der Satz "Use the string 'NA' for anything you cannot find"
+# allgemein bleibt und nichts darueber sagt, dass eine plausibel aussehende
+# Adresse schlimmer ist als gar keine. Genau das sagen die beiden Saetze zu den
+# Profil-URLs jetzt ausdruecklich.
+#
+# Zweite Absicherung ist worker/profile_urls.py: was trotzdem als Platzhalter
+# ankommt, wird in parse_persons() verworfen, bevor es gespeichert wird.
 SYSTEM_PROMPT = (
     "You are an expert researcher finding the business owner / decision makers of a given "
     "business. Use web search. Only include natural persons (individual human beings) - "
@@ -25,8 +46,14 @@ SYSTEM_PROMPT = (
     "For each person also find their email address, their direct/mobile phone number "
     "(check the website imprint/contact page and public listings) and social "
     "profiles (LinkedIn, Instagram, Twitter/X, Facebook) if available. "
-    "Use the string 'NA' for anything you cannot find. Only include real people you found "
-    "evidence for; if you find nobody, return an empty persons list. "
+    "Use the string 'NA' for anything you cannot find. "
+    "NEVER guess, construct or complete a profile URL, an email address or a phone number. "
+    "Return a social profile URL only if you actually saw that exact address in a search "
+    "result and it belongs to this person; otherwise return 'NA'. A plausible-looking but "
+    "invented URL (for example linkedin.com/in/john-doe-12345678) is far worse than 'NA', "
+    "because a human will open it and a wrong profile misleads them about the person. "
+    "Only include real people you found evidence for; if you find nobody, return an empty "
+    "persons list. "
     "Additionally, based on the same research, write a concise factual company summary: "
     "2-4 sentences covering what the business does, who its customers are, and any "
     "notable specifics (location, scale, technology, recent developments). Write it in "
@@ -81,6 +108,12 @@ def _clean(value: str | None) -> str | None:
     return None if not value or value.strip().upper() == "NA" else value.strip()
 
 
+def _profile(value: str | None, platform: str) -> str | None:
+    """Erst die 'NA'-Konvention, dann die Platzhalter-Pruefung. Die Grenze und
+    warum sie so eng gezogen ist, steht in worker/profile_urls.py."""
+    return clean_profile_url(_clean(value), platform)
+
+
 def parse_persons(data: dict) -> list[dict]:
     """Die KI ist schon per Prompt auf echte Personen eingeschraenkt (siehe
     SYSTEM_PROMPT), trotzdem als zweite Absicherung dieselbe Praefix-Heuristik
@@ -92,7 +125,13 @@ def parse_persons(data: dict) -> list[dict]:
     dieselbe Person durchaus mehrfach zurueck (real aufgetreten: zehn Zeilen
     mit derselben Adresse fuer eine Firma, alle aus einem Durchlauf). Ohne das
     stehen dieselben Kontakte mehrfach in der Liste und blaehen die Zaehler
-    auf, die der Nutzer im Frontend sieht."""
+    auf, die der Nutzer im Frontend sieht.
+
+    Die vier Profil-Felder laufen ueber _profile() und damit durch
+    worker/profile_urls.py: erfundene Adressen wie /in/name-12345678 werden
+    verworfen (52 solcher Zeilen gemessen am 2026-08-22, siehe dort). Der
+    Kontakt selbst bleibt, nur das Feld wird leer -- er ist ueber E-Mail und
+    Telefon weiterhin erreichbar."""
     out = []
     seen_emails: set[str] = set()
     seen_names: set[str] = set()
@@ -126,10 +165,10 @@ def parse_persons(data: dict) -> list[dict]:
                 "email": email,
                 "email_type": email_type,
                 "phone": _clean(p.get("phone")),
-                "linkedin": _clean(p.get("linkedin")),
-                "instagram": _clean(p.get("instagram")),
-                "twitter": _clean(p.get("twitter")),
-                "facebook": _clean(p.get("facebook")),
+                "linkedin": _profile(p.get("linkedin"), "linkedin"),
+                "instagram": _profile(p.get("instagram"), "instagram"),
+                "twitter": _profile(p.get("twitter"), "twitter"),
+                "facebook": _profile(p.get("facebook"), "facebook"),
                 "source": "ai_websearch",
             }
         )
