@@ -28,7 +28,7 @@ import {
 
 /**
  * Der MCP-Endpunkt: ein Nutzer liest seine Frostbreaker-Daten aus SEINEM
- * Claude und schreibt genau ein Feld zurueck.
+ * Claude und schreibt einzelne Felder zurueck.
  *
  * Diese Datei haelt nur Reihenfolge und IO. Alles Entscheidbare liegt in
  * lib/mcp/* und ist dort getestet: das Protokoll in protocol.ts, der Zuschnitt

@@ -70,6 +70,22 @@ export default async function SearchDetailPage({
       .select("id, status")
       .eq("search_id", id)
       .eq("workspace_id", workspaceId)
+      /**
+       * Nur Kampagnen, die es auch bei Instantly gibt.
+       *
+       * Seit dem MCP-Werkzeug create_campaign (2026-08-22) kann eine
+       * campaigns-Zeile existieren, die NUR bei uns liegt: ein Entwurf ohne
+       * instantly_campaign_id. Die Karte darunter kann damit nichts anfangen
+       * -- sie verlinkt auf /instantly/campaigns/[id], und diese Route
+       * antwortet ohne Instantly-ID mit "Kampagne nicht gefunden". Ohne diese
+       * Zeile haette der Entwurf also den Knopf "Kampagne anlegen" durch einen
+       * toten Link ersetzt.
+       *
+       * Bis ein solcher Entwurf in der App geoeffnet werden kann, bleibt er
+       * hier unsichtbar. Das ist der ehrlichere von zwei unfertigen
+       * Zustaenden, nicht der Endzustand.
+       */
+      .not("instantly_campaign_id", "is", null)
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle(),
@@ -137,6 +153,10 @@ export default async function SearchDetailPage({
           .select("id, status")
           .in("search_id", leadIds)
           .eq("workspace_id", workspaceId)
+          // Wie oben: ein reiner MCP-Entwurf ohne Instantly-ID kann von der
+          // Karte nicht geoeffnet werden und wuerde den Anlegen-Knopf durch
+          // einen toten Link ersetzen.
+          .not("instantly_campaign_id", "is", null)
           .order("created_at", { ascending: false })
           .limit(1)
           .maybeSingle(),

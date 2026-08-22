@@ -8,7 +8,7 @@ import {
 import { TOOL_DESCRIPTIONS, type ToolName } from "@/lib/mcp/tool-descriptions";
 import { wrapUntrusted } from "@/lib/mcp/untrusted";
 import { loadFieldDefs } from "@/lib/offer-field-defs";
-import { instantlyHtmlToPlainText } from "@/lib/instantly/campaigns";
+import { instantlyHtmlToPlainText, normalizeInstantlyTimezone } from "@/lib/instantly/campaigns";
 import { OFFER_COLUMNS, OFFER_TEXT_FIELDS, type OfferTextField } from "@/lib/offers";
 
 /**
@@ -32,10 +32,10 @@ import { OFFER_COLUMNS, OFFER_TEXT_FIELDS, type OfferTextField } from "@/lib/off
  * ARGUMENTPRUEFUNG VON HAND
  * ═══════════════════════════════════════════════════════════════════════
  *
- * Kein zod: das Repo hat es nicht, und eine Abhaengigkeit fuer vierzehn
- * Werkzeuge mit zusammen gut zwanzig Argumenten waere ein schlechter Tausch.
- * Die Pruefer unten (readString, readCount) sind die einzige Stelle, an der
- * Eingaben angefasst werden.
+ * Kein zod: das Repo hat es nicht, und eine Abhaengigkeit fuer neunzehn
+ * Werkzeuge mit zusammen gut dreissig Argumenten waere ein schlechter Tausch.
+ * Die Pruefer unten (readString, readCount, readFlag, readList) sind die
+ * einzige Stelle, an der Eingaben angefasst werden.
  *
  * Verstoesse werden WERKZEUGFEHLER (isError: true), keine JSON-RPC-Fehler:
  * ein Modell, das limit=500 schickt, soll den Hinweis lesen und es mit 100
@@ -174,6 +174,54 @@ function readCount(
   return { ok: true, value: wert };
 }
 
+/** Ein Ja/Nein-Argument. Fehlt es, gilt der Standard; alles andere als ein
+ *  echtes boolean ist ein Fehler und keine Auslegung -- "true" als String
+ *  waere geraten, und geraten wird bei einem Schreibwerkzeug nichts. */
+function readFlag(
+  args: ToolArgs,
+  key: string,
+  standard: boolean
+): { ok: true; value: boolean } | { ok: false; message: string } {
+  const wert = args[key];
+  if (wert === undefined || wert === null) return { ok: true, value: standard };
+  if (typeof wert !== "boolean") {
+    return { ok: false, message: `Argument "${key}" must be true or false.` };
+  }
+  return { ok: true, value: wert };
+}
+
+/** Eine Liste von Objekten, mit Deckel. Der Deckel wird VOR jeder anderen
+ *  Pruefung gemeldet: wer 300 Eintraege schickt, soll "teile es auf" lesen
+ *  und nicht einen Fehler zum 51. Eintrag. */
+function readList(
+  args: ToolArgs,
+  key: string,
+  max: number,
+  zuVielHinweis: string
+): { ok: true; value: Record<string, unknown>[] } | { ok: false; message: string } {
+  const wert = args[key];
+  if (!Array.isArray(wert)) {
+    return { ok: false, message: `Argument "${key}" is required and must be a list.` };
+  }
+  if (wert.length === 0) {
+    return { ok: false, message: `Argument "${key}" must not be empty.` };
+  }
+  if (wert.length > max) {
+    return {
+      ok: false,
+      message: `Argument "${key}" has ${wert.length} entries, the maximum is ${max}. ${zuVielHinweis}`,
+    };
+  }
+  const eintraege: Record<string, unknown>[] = [];
+  for (const [i, eintrag] of wert.entries()) {
+    if (typeof eintrag !== "object" || eintrag === null || Array.isArray(eintrag)) {
+      return { ok: false, message: `Entry ${i + 1} of "${key}" must be an object.` };
+    }
+    eintraege.push(eintrag as Record<string, unknown>);
+  }
+  return { ok: true, value: eintraege };
+}
+
 const MAX_LIMIT = 100;
 const DEFAULT_LIMIT = 25;
 /** Deckel fuer die beiden Werkzeuge ohne eigene Blaetterung (Listen-Uebersicht
@@ -267,6 +315,99 @@ const BOUNCE_ALERT_MIN_SENT = 20;
  * Schreibvorgang mit einem Constraint-Fehler, den das Modell nicht deuten
  * kann; waere einer zu wenig, fehlte eine Stufe der Pipeline.
  */
+/**
+ * Der Deckel des einzigen Mengenwerkzeugs.
+ *
+ * 50 ist keine technische Grenze -- Postgres schriebe auch 500. Es ist die
+ * Grenze, ab der ein Mensch den Bestaetigungsdialog seines Clients nicht mehr
+ * liest, und genau dieses Lesen ist die Bedingung, unter der ein
+ * Mengenwerkzeug hier ueberhaupt vertretbar ist (die vier Bedingungen stehen
+ * vollstaendig in lib/mcp/untrusted.ts). Eine Liste mit 300 Leads bleibt
+ * deshalb sechs Aufrufe mit sechs Bestaetigungen.
+ */
+const MAX_BULK_LEADS = 50;
+
+/**
+ * Wie viele Protokollzeilen undo_writes je Aufruf zurueckdreht.
+ *
+ * Dieselbe Zahl wie MAX_BULK_LEADS, und das ist der Punkt: EIN Mengenaufruf
+ * laesst sich mit EINEM Aufruf zurueckdrehen. Ausserdem kostet jede Zeile
+ * einen Lese- und einen Schreibvorgang; bei mehreren hundert liefe die Route
+ * in ihr Zeitlimit, und ein halb durchgelaufenes Zurueckdrehen waere der
+ * schlechteste aller Zustaende.
+ */
+const MAX_UNDO_ROWS = 50;
+/** 1440 Minuten = 24 Stunden. Wer weiter zurueck will, nennt die
+ *  Protokoll-IDs -- eine Zeitspanne von Tagen trifft zu viel Fremdes. */
+const DEFAULT_UNDO_MINUTES = 60;
+const MAX_UNDO_MINUTES = 1440;
+
+/** Eine Sequenz mit mehr als zehn Stufen ist keine Sequenz mehr. Das Formular
+ *  in der App kennt keine Obergrenze, aber auch niemanden, der je mehr als
+ *  fuenf angelegt haette. */
+const MAX_SEQUENCE_STEPS = 10;
+/** Betreffzeile und Mailtext eines Entwurfsschrittes. Der Text ist der
+ *  laengste Wert, den dieser Server annimmt; er wird nicht gekuerzt, sondern
+ *  abgelehnt, damit keine halbe Mail in der Datenbank landet. */
+const MAX_SUBJECT_CHARS = 300;
+const MAX_BODY_CHARS = 10000;
+/** Wartezeit vor einem Schritt. 90 Tage sind grosszuegig; alles darueber ist
+ *  ein Vertipper (900 statt 9). */
+const MAX_WAIT_DAYS = 90;
+const MAX_CAMPAIGN_NAME_CHARS = 200;
+/** Instantly deckelt selbst nicht sichtbar; 1000 Mails am Tag aus einem
+ *  Workspace waeren ohnehin ein Zustellbarkeitsproblem und kein Tageslimit. */
+const MAX_DAILY_LIMIT = 1000;
+
+/**
+ * Womit ein Kampagnen-ENTWURF anfaengt.
+ *
+ * Woertlich das, was emptyCampaignFormValue() in
+ * app/instantly/campaigns/campaign-form.tsx setzt: Mo-Fr, 09:00-17:00, 50
+ * Mails am Tag, kein Zaehlpixel und keine Link-Verfolgung (die bewusste
+ * Entscheidung aus Migration 0071 -- Instantlys Vorgabe waere "an" und kostet
+ * Zustellbarkeit).
+ *
+ * NICHT uebernommen ist defaultInstantlyTimezone(): das liest die Zeitzone des
+ * BROWSERS, und hier gibt es keinen. Auf dem Server ergaebe es UTC und darueber
+ * den Rueckfall "Europe/Belgrade" -- eine erfundene Zeitzone fuer einen
+ * deutschsprachigen Kunden. Stattdessen die Vorgabe der Spalte selbst
+ * (Migration 0001, 'Europe/Berlin'), sichtbar und mit dem Argument timezone
+ * ueberschreibbar.
+ */
+const CAMPAIGN_DEFAULTS = {
+  days: [1, 2, 3, 4, 5],
+  send_window_start: "09:00",
+  send_window_end: "17:00",
+  timezone: "Europe/Berlin",
+  daily_limit: 50,
+  open_tracking: false,
+  link_tracking: false,
+} as const;
+
+/** "09:00". Genau das Format, das <input type="time"> in der App liefert und
+ *  das Postgres als time annimmt. */
+const TIME_PATTERN = /^([01]\d|2[0-3]):[0-5]\d$/;
+
+/**
+ * Die Felder, die undo_writes tatsaechlich zurueckschreiben kann.
+ *
+ * Bewusst eine Erlaubnisliste und keine Ausschlussliste: was hier nicht steht,
+ * wird uebersprungen und im Ergebnis mit Grund genannt. Ein Werkzeug, das
+ * "irgendwie schon" versucht, eine unbekannte Spalte zu setzen, waere mit
+ * Service-Role die gefaehrlichste Zeile dieses Servers.
+ *
+ * notes.body fehlt mit Absicht: eine Notiz wird nur ANGEHAENGT, sie hat keinen
+ * alten Wert, und mcp_write_log traegt ihre note_id gar nicht (Migration
+ * 0100). Sie zurueckzudrehen hiesse loeschen, und es gibt hier bewusst nichts,
+ * was loescht. campaigns.* fehlt aus demselben Grund: ein Entwurf wird in der
+ * App entfernt, nicht hier.
+ */
+const UNDOABLE_FIELDS = {
+  "businesses.personalization": { table: "businesses", column: "personalization" },
+  "contacts.outreach_status": { table: "contacts", column: "outreach_status" },
+} as const;
+
 const CONTACT_STATUSES = [
   "new",
   "contacted",
@@ -303,6 +444,42 @@ function gate(
 const WORKSPACE_PROPERTY = {
   type: "string",
   description: "The workspace id from list_workspaces.",
+};
+
+/**
+ * Die Spalten von get_leads, zweimal als LITERAL.
+ *
+ * Zusammengebaut wuerde Supabase die Zeilenform nicht mehr ableiten koennen
+ * (GenericStringError, siehe OFFER_COLUMNS in lib/offers.ts). Der einzige
+ * Unterschied ist das !inner, mit dem with_linkedin aus der eingebetteten
+ * Beziehung eine Bedingung macht.
+ */
+const LEAD_COLUMNS =
+  "id, name, website, company_summary, personalization, decisionmaker_status, hunter_status, created_at, contacts(id, full_name, title, email, seniority, source, linkedin)";
+const LEAD_COLUMNS_LINKEDIN =
+  "id, name, website, company_summary, personalization, decisionmaker_status, hunter_status, created_at, contacts!inner(id, full_name, title, email, seniority, source, linkedin)";
+
+/** Die Zeile dazu, von Hand: siehe den Kommentar an LEAD_COLUMNS. */
+type LeadRow = {
+  id: string;
+  name: string | null;
+  website: string | null;
+  company_summary: string | null;
+  personalization: string | null;
+  decisionmaker_status: string | null;
+  hunter_status: string | null;
+  created_at: string | null;
+  contacts:
+    | {
+        id: string;
+        full_name: string | null;
+        title: string | null;
+        email: string | null;
+        seniority: string | null;
+        source: string | null;
+        linkedin: string | null;
+      }[]
+    | null;
 };
 
 const READ_ONLY_ANNOTATIONS = (title: string) => ({
@@ -457,6 +634,15 @@ export const TOOLS: Record<ToolName, McpTool> = {
           maximum: MAX_LIMIT,
         },
         offset: { type: "integer", description: "How many leads to skip.", minimum: 0 },
+        without_icebreaker: {
+          type: "boolean",
+          description: "Only leads that have no icebreaker yet. Default false.",
+        },
+        with_linkedin: {
+          type: "boolean",
+          description:
+            "Only leads whose contacts have a LinkedIn profile URL, and only those contacts. Default false.",
+        },
       },
       required: ["workspace_id", "search_id"],
       additionalProperties: false,
@@ -475,15 +661,39 @@ export const TOOLS: Record<ToolName, McpTool> = {
       if (limit.value === 0) return fail('Argument "limit" must be at least 1.');
       const offset = readCount(args, "offset", 0, MAX_OFFSET);
       if (!offset.ok) return fail(offset.message);
+      const ohneIcebreaker = readFlag(args, "without_icebreaker", false);
+      if (!ohneIcebreaker.ok) return fail(ohneIcebreaker.message);
+      const mitLinkedin = readFlag(args, "with_linkedin", false);
+      if (!mitLinkedin.ok) return fail(mitLinkedin.message);
 
-      const { data, error, count } = await supabase
+      /**
+       * Die Arbeitsliste: "gib mir 25, die noch offen sind".
+       *
+       * with_linkedin macht aus der eingebetteten Beziehung einen INNER JOIN.
+       * Das filtert nicht nur die Firmen, sondern auch die mitgelieferten
+       * Kontakte: eine Firma mit drei Kontakten, von denen einer ein
+       * LinkedIn-Profil hat, kommt mit genau diesem einen zurueck. Das ist
+       * fuer den Zweck richtig (man will das Profil ansehen) und steht
+       * deshalb ausdruecklich in der Beschreibung -- wer alle Kontakte
+       * braucht, nimmt get_lead.
+       *
+       * NICHT gegen den Produktivstand geprueft (2026-08-22): dafuer fehlte
+       * lokal der Service-Role-Schluessel, dieselbe Luecke wie bei
+       * businesses(count) in list_lead_lists. Sollte PostgREST die Form nicht
+       * annehmen, scheitert die GANZE Abfrage sichtbar (dbFail); sie liefert
+       * keine stillen Teilmengen.
+       */
+      const spalten = mitLinkedin.value ? LEAD_COLUMNS_LINKEDIN : LEAD_COLUMNS;
+
+      let abfrage = supabase
         .from("businesses")
-        .select(
-          "id, name, website, company_summary, personalization, decisionmaker_status, hunter_status, created_at, contacts(id, full_name, title, email, seniority, source)",
-          { count: "exact" }
-        )
+        .select(spalten, { count: "exact" })
         .eq("workspace_id", tor.workspaceId)
-        .eq("search_id", searchId)
+        .eq("search_id", searchId);
+      if (ohneIcebreaker.value) abfrage = abfrage.is("personalization", null);
+      if (mitLinkedin.value) abfrage = abfrage.not("contacts.linkedin", "is", null);
+
+      const { data, error, count } = await abfrage
         // Zweites Sortierkriterium, damit die Seiten nicht ineinander rutschen:
         // created_at ist bei einem Suchlauf fuer viele Zeilen identisch, und
         // ohne eindeutigen Tie-Break liefert Postgres bei range() nicht
@@ -493,7 +703,13 @@ export const TOOLS: Record<ToolName, McpTool> = {
         .range(offset.value, offset.value + limit.value - 1);
       if (error) return dbFail("get_leads", error);
 
-      const leads = (data ?? []).map((b) => ({
+      // Ueber unknown: die Spaltenliste steht erst zur Laufzeit fest, und
+      // Supabase leitet die Zeilenform aus dem STRING-LITERAL ab (dieselbe
+      // Falle wie bei OFFER_COLUMNS in lib/offers.ts). Die beiden moeglichen
+      // Listen unterscheiden sich nur im !inner, die Felder sind identisch.
+      const zeilen = (data ?? []) as unknown as LeadRow[];
+
+      const leads = zeilen.map((b) => ({
         business_id: b.id,
         name: b.name,
         website: b.website,
@@ -508,6 +724,10 @@ export const TOOLS: Record<ToolName, McpTool> = {
           email: c.email,
           seniority: c.seniority,
           source: c.source,
+          // Bei 1449 von 3007 Kontakten dieses Workspaces gefuellt (48 %,
+          // gemessen am 2026-08-22). Null heisst "nicht gefunden", nicht
+          // "hat kein Profil".
+          linkedin: c.linkedin ?? null,
         })),
       }));
       const total = count ?? leads.length;
@@ -518,6 +738,16 @@ export const TOOLS: Record<ToolName, McpTool> = {
         limit: limit.value,
         offset: offset.value,
         has_more: offset.value + leads.length < total,
+        // Zurueckgespiegelt, damit im Gespraech nicht untergeht, dass total
+        // sich auf die GEFILTERTE Menge bezieht und nicht auf die Liste.
+        ...(ohneIcebreaker.value || mitLinkedin.value
+          ? {
+              filters: {
+                without_icebreaker: ohneIcebreaker.value,
+                with_linkedin: mitLinkedin.value,
+              },
+            }
+          : {}),
         leads,
       });
     },
@@ -1393,6 +1623,214 @@ export const TOOLS: Record<ToolName, McpTool> = {
     },
   },
 
+  // ── set_lead_icebreakers ───────────────────────────────────────────────
+  /**
+   * ═════════════════════════════════════════════════════════════════════
+   * DAS EINZIGE MENGENWERKZEUG, UND WORAN ES HAENGT
+   * ═════════════════════════════════════════════════════════════════════
+   *
+   * Zweimal abgelehnt, beim dritten Mal gebaut -- unter vier Bedingungen, die
+   * vollstaendig in lib/mcp/untrusted.ts begruendet sind: namentliche
+   * Einzeleintraege statt eines Filters, Deckel bei MAX_BULK_LEADS,
+   * Probelauf ueber dry_run, Umkehrbarkeit ueber undo_writes. Wer eine davon
+   * hier herausnimmt, nimmt die Begruendung mit.
+   *
+   * ALLES ODER NICHTS: eine fremde oder doppelte business_id laesst den
+   * ganzen Aufruf scheitern. Die gueltigen zu schreiben und den Rest
+   * stillschweigend zu ueberspringen waere bei einer Menge die schlechtere
+   * Auskunft -- niemand liest bei 50 Zeilen nach, welche zwei fehlen.
+   */
+  set_lead_icebreakers: {
+    title: "Set lead icebreakers",
+    description: TOOL_DESCRIPTIONS.set_lead_icebreakers,
+    inputSchema: {
+      type: "object",
+      properties: {
+        workspace_id: WORKSPACE_PROPERTY,
+        leads: {
+          type: "array",
+          description: `The leads to write, each named by its own business_id. At most ${MAX_BULK_LEADS} per call.`,
+          minItems: 1,
+          maxItems: MAX_BULK_LEADS,
+          items: {
+            type: "object",
+            properties: {
+              business_id: { type: "string", description: "The business_id from get_leads." },
+              icebreaker: { type: "string", description: "The new opening line for this lead." },
+            },
+            required: ["business_id", "icebreaker"],
+            additionalProperties: false,
+          },
+        },
+        dry_run: {
+          type: "boolean",
+          description: "True writes nothing and returns what would change. Default false.",
+        },
+      },
+      required: ["workspace_id", "leads"],
+      additionalProperties: false,
+    },
+    // Dieselbe Liste zweimal ergibt denselben Zustand.
+    annotations: WRITE_ANNOTATIONS("Set lead icebreakers", true),
+    scope: "read_write",
+    async handler(supabase, ctx, args) {
+      const tor = gate(ctx, args, "read_write");
+      if (!tor.ok) return tor.result;
+
+      const liste = readList(
+        args,
+        "leads",
+        MAX_BULK_LEADS,
+        `Split it up: ${MAX_BULK_LEADS} leads per call, six calls for 300 leads.`
+      );
+      if (!liste.ok) return fail(liste.message);
+      const probelauf = readFlag(args, "dry_run", false);
+      if (!probelauf.ok) return fail(probelauf.message);
+
+      const eintraege: { business_id: string; icebreaker: string }[] = [];
+      const gesehen = new Set<string>();
+      for (const [i, eintrag] of liste.value.entries()) {
+        const businessId = readString(eintrag, "business_id");
+        if (!businessId) {
+          return fail(`Entry ${i + 1} of "leads" needs a non-empty "business_id" from get_leads.`);
+        }
+        // Zweimal dieselbe Firma in einer Liste: welcher der beiden Texte
+        // gewinnen soll, kann niemand aus der Liste ablesen -- und im
+        // Protokoll stuenden zwei Zeilen, von denen eine luegt.
+        if (gesehen.has(businessId)) {
+          return fail(
+            `business_id "${businessId}" appears twice in "leads". Every lead may be named once per call; nothing was written.`
+          );
+        }
+        gesehen.add(businessId);
+        const icebreaker = eintrag.icebreaker;
+        if (typeof icebreaker !== "string") {
+          return fail(`Entry ${i + 1} of "leads" needs "icebreaker" as a string.`);
+        }
+        if (icebreaker.length > MAX_ICEBREAKER_CHARS) {
+          return fail(
+            `The icebreaker of entry ${i + 1} is longer than ${MAX_ICEBREAKER_CHARS} characters. An opening line is one or two sentences.`
+          );
+        }
+        eintraege.push({ business_id: businessId, icebreaker });
+      }
+
+      /**
+       * EINE Abfrage fuer alle IDs, vor jedem Schreibvorgang.
+       *
+       * 50 Einzelpruefungen waeren 50 Rundreisen und -- schlimmer -- die
+       * Versuchung, nach der zehnten Pruefung schon zu schreiben. So steht
+       * vorher fest, ob der ganze Aufruf durchgehen darf.
+       */
+      const ids = eintraege.map((e) => e.business_id);
+      const { data: gefunden, error: leseFehler } = await supabase
+        .from("businesses")
+        .select("id, name, personalization")
+        .eq("workspace_id", tor.workspaceId)
+        .in("id", ids);
+      if (leseFehler) return dbFail("set_lead_icebreakers", leseFehler);
+
+      const bekannt = new Map((gefunden ?? []).map((b) => [b.id as string, b]));
+      const fremd = ids.filter((id) => !bekannt.has(id));
+      if (fremd.length > 0) {
+        // Gleiche Formulierung wie ueberall: "gibt es nicht" und "gehoert
+        // einem anderen Workspace" duerfen sich nicht unterscheiden. Die IDs
+        // selbst zu nennen ist kein Orakel -- sie kommen aus dem Aufruf.
+        return fail(
+          `${fremd.length} of ${ids.length} business_ids are not in this workspace: ${fremd.slice(0, 5).join(", ")}${fremd.length > 5 ? ", …" : ""}. Nothing was written. Call get_leads for the workspace to get valid ids.`
+        );
+      }
+
+      const geplant = eintraege.map((e) => {
+        const zeile = bekannt.get(e.business_id)!;
+        return {
+          business_id: e.business_id,
+          company: (zeile.name as string | null) ?? null,
+          previous_icebreaker: (zeile.personalization as string | null) ?? null,
+          icebreaker: e.icebreaker,
+          // Ein Text, der schon dasteht, ist kein Schreibvorgang. Das
+          // mitzuzaehlen waere eine Zahl, die groesser klingt als die
+          // Aenderung.
+          unchanged: (zeile.personalization ?? null) === e.icebreaker,
+        };
+      });
+
+      if (probelauf.value) {
+        return okJson({
+          dry_run: true,
+          written: false,
+          count: geplant.length,
+          would_change: geplant.filter((g) => !g.unchanged).length,
+          note: "Nothing was written. Call again without dry_run to write these values.",
+          changes: geplant.map(beschreibeIcebreaker),
+        });
+      }
+
+      /**
+       * Nacheinander und nicht parallel.
+       *
+       * 50 gleichzeitige Updates waeren ein Stoss auf denselben Verbindungs-
+       * pool, den die App fuer echte Seitenaufrufe braucht, und der Gewinn
+       * waere eine halbe Sekunde. Faellt einer aus, laufen die uebrigen
+       * trotzdem durch und stehen einzeln im Ergebnis: ein Abbruch mitten
+       * drin haette einen Zustand hinterlassen, den niemand mehr benennen
+       * kann.
+       */
+      const geschrieben: typeof geplant = [];
+      const fehlgeschlagen: { business_id: string; company: string | null }[] = [];
+      for (const eintrag of geplant) {
+        const { error } = await supabase
+          .from("businesses")
+          .update({ personalization: eintrag.icebreaker })
+          .eq("id", eintrag.business_id)
+          // Beide Bedingungen, wie ueberall: die id allein traefe mit
+          // Service-Role jede Zeile der Datenbank.
+          .eq("workspace_id", tor.workspaceId);
+        if (error) {
+          console.error(`[mcp] set_lead_icebreakers: ${eintrag.business_id} nicht geschrieben:`, error.message);
+          fehlgeschlagen.push({ business_id: eintrag.business_id, company: eintrag.company });
+          continue;
+        }
+        geschrieben.push(eintrag);
+      }
+
+      if (geschrieben.length === 0) {
+        return fail(
+          "None of the leads could be written. Nothing changed. Try again; if it persists, check Frostbreaker."
+        );
+      }
+
+      // EINE Protokollzeile je geschriebenem Lead, in einem einzigen Insert:
+      // die Spur ist genauso fein wie bei set_lead_icebreaker, kostet aber
+      // eine Rundreise statt fuenfzig.
+      await protokolliereViele(
+        supabase,
+        ctx,
+        tor.workspaceId,
+        geschrieben.map((g) => ({
+          business_id: g.business_id,
+          field: "businesses.personalization",
+          old_value: g.previous_icebreaker,
+          new_value: g.icebreaker,
+        }))
+      );
+
+      return okJson({
+        dry_run: false,
+        written: geschrieben.length,
+        count: geplant.length,
+        ...(fehlgeschlagen.length > 0
+          ? {
+              failed: fehlgeschlagen,
+              note: `${fehlgeschlagen.length} leads could not be written. The others were. Call again with only the failed ones; writing the same text twice changes nothing.`,
+            }
+          : {}),
+        undo_hint: "Call undo_writes to put the previous icebreakers back.",
+        changes: geschrieben.map(beschreibeIcebreaker),
+      });
+    },
+  },
+
   // ── set_contact_status ─────────────────────────────────────────────────
   set_contact_status: {
     title: "Set contact status",
@@ -1784,6 +2222,860 @@ export const TOOLS: Record<ToolName, McpTool> = {
       });
     },
   },
+
+  // ── create_campaign ────────────────────────────────────────────────────
+  /**
+   * ═════════════════════════════════════════════════════════════════════
+   * WIE DIE APP EINE KAMPAGNE ANLEGT -- NACHGESEHEN (2026-08-22)
+   * ═════════════════════════════════════════════════════════════════════
+   *
+   * api/instantly/campaigns/route.ts POST macht DREI Dinge in dieser
+   * Reihenfolge: Kampagne bei Instantly anlegen (POST /api/v2/campaigns),
+   * Leads dorthin schieben, und erst danach den lokalen Spiegel schreiben
+   * (campaigns, campaign_steps, campaign_leads, campaign_searches) sowie
+   * searches.instantly_campaign_id setzen. Einen Entwurf, der NUR bei uns
+   * liegt, kennt die App bisher nicht: sie hat immer beide Seiten.
+   *
+   * Genau diesen Fall legt dieses Werkzeug an, und zwar bewusst nur die
+   * eigene Haelfte: instantly_campaign_id bleibt leer, activated_at bleibt
+   * leer, mailboxes bleibt leer. Der Gang zu Instantly braucht den
+   * API-Schluessel des Workspaces, kostet einen Fremdaufruf und ist der
+   * Schritt, nach dem echte Mails moeglich werden -- er gehoert in die App
+   * und nicht in ein Werkzeug, das neben fremdem Website- und Mailtext
+   * steht.
+   *
+   * ZWEI Pruefungen der App werden gespiegelt: die Liste muss dem Workspace
+   * gehoeren, und sie darf noch keine Kampagne haben (dort HTTP 409). Die
+   * dritte, getBillingStatus, laeuft ueber auth.getUser() und ergaebe hier
+   * ohne Session immer null; sie sitzt ohnehin vor dem Instantly-Aufruf, und
+   * der findet hier nicht statt. Ein Entwurf verbraucht nichts.
+   *
+   * Eine gebuendelte Mehrfach-Suche (Migration 0096) wird wie im Formular
+   * aufgeloest: an der Huelle haengt keine einzige Firma, verknuepft werden
+   * ihre Teilsuchen.
+   */
+  create_campaign: {
+    title: "Create campaign draft",
+    description: TOOL_DESCRIPTIONS.create_campaign,
+    inputSchema: {
+      type: "object",
+      properties: {
+        workspace_id: WORKSPACE_PROPERTY,
+        name: { type: "string", description: "The campaign name, as it appears in Frostbreaker." },
+        search_id: {
+          type: "string",
+          description: "The lead list this campaign sends to, from list_lead_lists.",
+        },
+      },
+      required: ["workspace_id", "name", "search_id"],
+      additionalProperties: false,
+    },
+    // Nicht idempotent: zweimal aufgerufen entstuenden zwei Entwuerfe. Der
+    // zweite Aufruf laeuft deshalb in die Pruefung unten und wird ein Fehler,
+    // der den ersten beim Namen nennt.
+    annotations: WRITE_ANNOTATIONS("Create campaign draft", false),
+    scope: "read_write",
+    async handler(supabase, ctx, args) {
+      const tor = gate(ctx, args, "read_write");
+      if (!tor.ok) return tor.result;
+
+      const name = readString(args, "name");
+      if (!name) return fail('Argument "name" is required: the name of the campaign.');
+      if (name.length > MAX_CAMPAIGN_NAME_CHARS) {
+        return fail(`Argument "name" is longer than ${MAX_CAMPAIGN_NAME_CHARS} characters.`);
+      }
+      const searchId = readString(args, "search_id");
+      if (!searchId) {
+        return fail('Argument "search_id" is required. Call list_lead_lists to get one.');
+      }
+
+      const { data: suche, error: suchFehler } = await supabase
+        .from("searches")
+        .select("id, name, query, is_search_group, instantly_campaign_id")
+        .eq("id", searchId)
+        .eq("workspace_id", tor.workspaceId)
+        // Der Papierkorb (Migration 0010) ist in der App unsichtbar; eine
+        // Kampagne fuer eine geloeschte Liste waere eine fuer niemanden.
+        .is("deleted_at", null)
+        .maybeSingle();
+      if (suchFehler) return dbFail("create_campaign", suchFehler);
+      if (!suche) {
+        return fail(
+          "Unknown search_id in this workspace. Call list_lead_lists for the workspace to get valid ids."
+        );
+      }
+
+      /**
+       * Die Listen, aus denen die Kampagne ihre Empfaenger zieht.
+       *
+       * Bei einer Gruppen-Huelle sind das ihre Teilsuchen, nie sie selbst --
+       * dieselbe Uebersetzung, die groupPickerOptions im Formular macht.
+       * Beide Abfragen laufen ueber .eq() und nie ueber einen
+       * zusammengesetzten .or()-Filterstring: die ID kommt aus einem Modell,
+       * und ein Komma darin waere dort ein zweiter Filter (Begruendung in
+       * find_lead).
+       */
+      let listen: { id: string; instantly_campaign_id: string | null }[] = [
+        { id: suche.id as string, instantly_campaign_id: suche.instantly_campaign_id as string | null },
+      ];
+      if (suche.is_search_group === true) {
+        const { data: kinder, error: kindFehler } = await supabase
+          .from("searches")
+          .select("id, instantly_campaign_id")
+          .eq("parent_search_id", suche.id as string)
+          .eq("workspace_id", tor.workspaceId)
+          .is("deleted_at", null);
+        if (kindFehler) return dbFail("create_campaign", kindFehler);
+        listen = (kinder ?? []).map((k) => ({
+          id: k.id as string,
+          instantly_campaign_id: k.instantly_campaign_id as string | null,
+        }));
+        if (listen.length === 0) {
+          return fail(
+            "This lead list is a bundle whose sub-lists are gone, so it holds no companies. Pick another lead list from list_lead_lists."
+          );
+        }
+      }
+
+      // Wie in der App (dort HTTP 409): eine Liste speist genau eine
+      // Kampagne. Ohne diese Pruefung stuenden dieselben Empfaenger in zwei
+      // Kampagnen und bekaemen alles doppelt.
+      const verknuepft = listen.find((l) => l.instantly_campaign_id);
+      if (verknuepft) {
+        return fail(
+          "This lead list already has a campaign in Instantly. Open it in Frostbreaker under Instantly > Campaigns instead of creating a second one."
+        );
+      }
+
+      /**
+       * Und ein zweiter Entwurf fuer dieselbe Liste?
+       *
+       * campaign_searches traegt selbst keine workspace_id; gefragt wird
+       * deshalb mit den Such-IDs von oben, die bereits gegen den Workspace
+       * geprueft sind. Das Ergebnis wird trotzdem nochmal ueber campaigns mit
+       * .eq("workspace_id", …) aufgeloest -- die Zwischentabelle allein waere
+       * mit Service-Role kein Zaun.
+       */
+      const { data: zuordnung, error: zuordnungFehler } = await supabase
+        .from("campaign_searches")
+        .select("campaign_id")
+        .in("search_id", listen.map((l) => l.id));
+      if (zuordnungFehler) return dbFail("create_campaign", zuordnungFehler);
+      const kampagnenIds = [...new Set((zuordnung ?? []).map((z) => z.campaign_id as string))];
+      if (kampagnenIds.length > 0) {
+        const { data: vorhanden, error: vorhandenFehler } = await supabase
+          .from("campaigns")
+          .select("id, name, status")
+          .eq("workspace_id", tor.workspaceId)
+          .in("id", kampagnenIds)
+          .limit(1);
+        if (vorhandenFehler) return dbFail("create_campaign", vorhandenFehler);
+        const erste = (vorhanden ?? [])[0];
+        if (erste) {
+          return fail(
+            `This lead list already has a campaign ("${erste.name}", campaign_id ${erste.id}, status ${erste.status}). Change that one with set_campaign_sequence or update_campaign instead of creating a second.`
+          );
+        }
+      }
+
+      const { data: angelegt, error: schreibFehler } = await supabase
+        .from("campaigns")
+        .insert({
+          workspace_id: tor.workspaceId,
+          // Die primaere Liste, wie in der App: instantly_campaign_stats
+          // haengt an genau einer search_id, die vollstaendige Zuordnung
+          // steht in campaign_searches (Migration 0050).
+          search_id: listen[0].id,
+          name,
+          // Der Status der Spalte selbst (Migration 0001). Kein
+          // toLocalStatus() wie in der App: dort kommt die Zahl von Instantly
+          // zurueck, hier gibt es kein Instantly.
+          status: "draft",
+          instantly_campaign_id: null,
+          activated_at: null,
+          // Leer, und das ist der Punkt: welche Postfaecher senden, steht
+          // erst fest, wenn jemand sie in der App auswaehlt. Eine geratene
+          // Adresse hier waere die erste Mail aus dem falschen Postfach.
+          mailboxes: [],
+          days: [...CAMPAIGN_DEFAULTS.days],
+          send_window_start: CAMPAIGN_DEFAULTS.send_window_start,
+          send_window_end: CAMPAIGN_DEFAULTS.send_window_end,
+          timezone: CAMPAIGN_DEFAULTS.timezone,
+          daily_limit: CAMPAIGN_DEFAULTS.daily_limit,
+          open_tracking: CAMPAIGN_DEFAULTS.open_tracking,
+          link_tracking: CAMPAIGN_DEFAULTS.link_tracking,
+        })
+        .select("id, created_at")
+        .maybeSingle();
+      if (schreibFehler) return dbFail("create_campaign", schreibFehler);
+      if (!angelegt) return dbFail("create_campaign", { message: "insert ohne Rueckgabe" });
+
+      const campaignId = angelegt.id as string;
+
+      const { error: verknuepfFehler } = await supabase
+        .from("campaign_searches")
+        .insert(listen.map((l) => ({ campaign_id: campaignId, search_id: l.id })));
+      if (verknuepfFehler) {
+        // Die Kampagne steht bereits. Das zu verschweigen waere schlimmer als
+        // der halbe Zustand selbst -- dieselbe Haltung wie in der App, wenn
+        // Instantly geklappt hat und der Spiegel nicht.
+        console.error("[mcp] create_campaign: campaign_searches nicht geschrieben:", verknuepfFehler.message);
+        return fail(
+          `The campaign was created (campaign_id ${campaignId}), but it could not be linked to the lead list. Open it in Frostbreaker and check which list it uses.`
+        );
+      }
+
+      await protokolliere(supabase, ctx, tor.workspaceId, {
+        campaign_id: campaignId,
+        field: "campaigns.created",
+        // Es gab nichts vorher; ein alter Wert wird nicht erfunden.
+        old_value: null,
+        new_value: name,
+      });
+
+      return okJson({
+        campaign_id: campaignId,
+        name,
+        status: "draft",
+        // searches.name ist optional; die App zeigt dann die Suchanfrage.
+        lead_list: (suche.name as string | null) ?? (suche.query as string | null) ?? null,
+        search_ids: listen.map((l) => l.id),
+        created_at: angelegt.created_at ?? null,
+        defaults: {
+          days: CAMPAIGN_DEFAULTS.days,
+          send_window_start: CAMPAIGN_DEFAULTS.send_window_start,
+          send_window_end: CAMPAIGN_DEFAULTS.send_window_end,
+          timezone: CAMPAIGN_DEFAULTS.timezone,
+          daily_limit: CAMPAIGN_DEFAULTS.daily_limit,
+          open_tracking: CAMPAIGN_DEFAULTS.open_tracking,
+          link_tracking: CAMPAIGN_DEFAULTS.link_tracking,
+          mailboxes: [],
+        },
+        written: true,
+        next_steps:
+          "Write the emails with set_campaign_sequence. Choosing the mailboxes, creating the campaign in Instantly and starting it happen in Frostbreaker under Instantly > Campaigns; nothing is sent until someone does that there.",
+      });
+    },
+  },
+
+  // ── set_campaign_sequence ──────────────────────────────────────────────
+  /**
+   * ═════════════════════════════════════════════════════════════════════
+   * WARUM NUR ENTWUERFE OHNE INSTANTLY-ZWILLING
+   * ═════════════════════════════════════════════════════════════════════
+   *
+   * Nachgesehen in api/instantly/campaigns/[id]/route.ts (2026-08-22): die
+   * Kampagnenseite liest die Sequenz LIVE von Instantly und nimmt aus
+   * campaign_steps nur, was dort leer ist. Wer also die Schritte einer
+   * Kampagne beschreibt, die es bei Instantly schon gibt, aendert weder das,
+   * was versendet wird, noch das, was der Nutzer sieht -- er ueberschreibt
+   * nur das Sicherheitsnetz gegen verschwundene Entwuerfe. Ein Schreibvorgang,
+   * der nichts bewirkt und dabei etwas kaputtmacht, ist der schlechteste;
+   * deshalb hier ein klarer Fehler statt einer stillen Wirkungslosigkeit.
+   *
+   * Ersetzt wird vollstaendig (delete + insert), genau wie PATCH in der App.
+   * campaign_steps hat unique(campaign_id, step_order): ein Insert ohne das
+   * vorherige Loeschen liefe in den Constraint.
+   */
+  set_campaign_sequence: {
+    title: "Set campaign sequence",
+    description: TOOL_DESCRIPTIONS.set_campaign_sequence,
+    inputSchema: {
+      type: "object",
+      properties: {
+        workspace_id: WORKSPACE_PROPERTY,
+        campaign_id: { type: "string", description: "The campaign_id from create_campaign or get_sequence." },
+        steps: {
+          type: "array",
+          description: `The complete sequence, replacing what is there. At most ${MAX_SEQUENCE_STEPS} steps.`,
+          minItems: 1,
+          maxItems: MAX_SEQUENCE_STEPS,
+          items: {
+            type: "object",
+            properties: {
+              step_order: { type: "integer", description: "Position in the sequence, ascending.", minimum: 0 },
+              wait_days: {
+                type: "integer",
+                description: "Days to wait before this step. The first step has no wait.",
+                minimum: 0,
+                maximum: MAX_WAIT_DAYS,
+              },
+              subject: { type: "string", description: "The subject line." },
+              body: { type: "string", description: "The email text, as plain text." },
+            },
+            required: ["step_order", "wait_days", "subject", "body"],
+            additionalProperties: false,
+          },
+        },
+      },
+      required: ["workspace_id", "campaign_id", "steps"],
+      additionalProperties: false,
+    },
+    // Dieselbe Sequenz zweimal ergibt denselben Zustand.
+    annotations: WRITE_ANNOTATIONS("Set campaign sequence", true),
+    scope: "read_write",
+    async handler(supabase, ctx, args) {
+      const tor = gate(ctx, args, "read_write");
+      if (!tor.ok) return tor.result;
+
+      const campaignId = readString(args, "campaign_id");
+      if (!campaignId) {
+        return fail('Argument "campaign_id" is required. Call create_campaign or get_sequence to get one.');
+      }
+
+      const liste = readList(
+        args,
+        "steps",
+        MAX_SEQUENCE_STEPS,
+        "A sequence with more steps than that is not a sequence any more."
+      );
+      if (!liste.ok) return fail(liste.message);
+
+      const schritte: { step_order: number; wait_days: number; subject: string; body: string }[] = [];
+      const belegt = new Set<number>();
+      for (const [i, eintrag] of liste.value.entries()) {
+        const order = readCount(eintrag, "step_order", -1, MAX_SEQUENCE_STEPS * 10);
+        if (!order.ok) return fail(`Entry ${i + 1} of "steps": ${order.message}`);
+        if (order.value < 0) return fail(`Entry ${i + 1} of "steps" needs a "step_order" of 0 or more.`);
+        if (belegt.has(order.value)) {
+          return fail(`Two steps share step_order ${order.value}. Every step needs its own position.`);
+        }
+        belegt.add(order.value);
+        const wait = readCount(eintrag, "wait_days", 0, MAX_WAIT_DAYS);
+        if (!wait.ok) return fail(`Entry ${i + 1} of "steps": ${wait.message}`);
+        const subject = readString(eintrag, "subject");
+        const body = readString(eintrag, "body");
+        // Dieselbe Pruefung wie in der App ("Jede Variante braucht Betreff
+        // und Text."): ein halb ausgefuellter Schritt ginge bei Instantly als
+        // leere Mail an einen Teil der Empfaenger raus.
+        if (!subject || !body) {
+          return fail(`Entry ${i + 1} of "steps" needs both a "subject" and a "body"; neither may be empty.`);
+        }
+        if (subject.length > MAX_SUBJECT_CHARS) {
+          return fail(`The subject of entry ${i + 1} is longer than ${MAX_SUBJECT_CHARS} characters.`);
+        }
+        if (body.length > MAX_BODY_CHARS) {
+          return fail(`The body of entry ${i + 1} is longer than ${MAX_BODY_CHARS} characters.`);
+        }
+        schritte.push({ step_order: order.value, wait_days: wait.value, subject, body });
+      }
+      // Die uebergebene Reihenfolge zaehlt nicht, step_order zaehlt.
+      schritte.sort((a, b) => a.step_order - b.step_order);
+
+      const entwurf = await ladeEntwurf(supabase, tor.workspaceId, campaignId, "set_campaign_sequence");
+      if (!entwurf.ok) return entwurf.result;
+
+      // Der bisherige Stand, bevor er verschwindet: ohne ihn stuende im
+      // Protokoll nur, DASS jemand die Sequenz ersetzt hat.
+      const { data: bisher, error: bisherFehler } = await supabase
+        .from("campaign_steps")
+        .select("step_order, wait_days, subject, body")
+        // Kein workspace_id-Filter moeglich und keiner noetig: campaignId ist
+        // durch ladeEntwurf gegangen (campaign_steps traegt keine
+        // workspace_id, Migration 0001).
+        .eq("campaign_id", campaignId)
+        .order("step_order", { ascending: true });
+      if (bisherFehler) return dbFail("set_campaign_sequence", bisherFehler);
+
+      const { error: loeschFehler } = await supabase
+        .from("campaign_steps")
+        .delete()
+        .eq("campaign_id", campaignId);
+      if (loeschFehler) return dbFail("set_campaign_sequence", loeschFehler);
+
+      const { error: einfuegFehler } = await supabase.from("campaign_steps").insert(
+        schritte.map((s, i) => ({
+          campaign_id: campaignId,
+          // 0-basiert und lueckenlos, wie die App speichert (dort der
+          // Array-Index). step_order aus dem Argument bestimmt nur die
+          // Reihenfolge, nicht die gespeicherte Zahl.
+          step_order: i,
+          wait_days: s.wait_days,
+          // subject/body fuehren weiterhin Variante A (Migration 0071), und
+          // variants haelt die vollstaendige Wahrheit -- get_sequence liest
+          // beides in dieser Ordnung.
+          subject: s.subject,
+          body: s.body,
+          variants: [{ subject: s.subject, body: s.body }],
+        }))
+      );
+      if (einfuegFehler) return dbFail("set_campaign_sequence", einfuegFehler);
+
+      await protokolliere(supabase, ctx, tor.workspaceId, {
+        campaign_id: campaignId,
+        field: "campaign_steps",
+        // Vollstaendig als JSON, nicht als Zusammenfassung: eine halbe Kopie
+        // waere fuer den Menschen, der wissen will, was ein Modell
+        // ueberschrieben hat, nutzlos.
+        old_value: (bisher ?? []).length > 0 ? JSON.stringify(bisher) : null,
+        new_value: JSON.stringify(schritte),
+      });
+
+      return okJson({
+        campaign_id: campaignId,
+        name: entwurf.campaign.name,
+        status: entwurf.campaign.status,
+        replaced_steps: (bisher ?? []).length,
+        steps: schritte.map((s, i) => ({
+          step: i,
+          wait_days: s.wait_days,
+          subject: s.subject,
+        })),
+        written: true,
+        note: "Stored in Frostbreaker only. The campaign reaches Instantly when someone creates it there in the app; nothing is sent before that.",
+      });
+    },
+  },
+
+  // ── update_campaign ────────────────────────────────────────────────────
+  update_campaign: {
+    title: "Update campaign draft",
+    description: TOOL_DESCRIPTIONS.update_campaign,
+    inputSchema: {
+      type: "object",
+      properties: {
+        workspace_id: WORKSPACE_PROPERTY,
+        campaign_id: { type: "string", description: "The campaign_id from create_campaign or get_sequence." },
+        name: { type: "string", description: "The new campaign name." },
+        daily_limit: {
+          type: "integer",
+          description: `How many emails a day this campaign may send. 1 to ${MAX_DAILY_LIMIT}.`,
+          minimum: 1,
+          maximum: MAX_DAILY_LIMIT,
+        },
+        send_window_start: { type: "string", description: 'Start of the sending window, "HH:MM".' },
+        send_window_end: { type: "string", description: 'End of the sending window, "HH:MM".' },
+        timezone: {
+          type: "string",
+          description: 'The timezone the window is meant in, e.g. "Europe/Berlin".',
+        },
+      },
+      required: ["workspace_id", "campaign_id"],
+      additionalProperties: false,
+    },
+    // Dieselben Werte zweimal ergeben denselben Zustand.
+    annotations: WRITE_ANNOTATIONS("Update campaign draft", true),
+    scope: "read_write",
+    async handler(supabase, ctx, args) {
+      const tor = gate(ctx, args, "read_write");
+      if (!tor.ok) return tor.result;
+
+      const campaignId = readString(args, "campaign_id");
+      if (!campaignId) {
+        return fail('Argument "campaign_id" is required. Call create_campaign or get_sequence to get one.');
+      }
+
+      const aenderungen: Record<string, string | number> = {};
+
+      const name = readString(args, "name");
+      if (args.name !== undefined && !name) {
+        return fail('Argument "name" must not be empty. Leave it out to keep the current name.');
+      }
+      if (name) {
+        if (name.length > MAX_CAMPAIGN_NAME_CHARS) {
+          return fail(`Argument "name" is longer than ${MAX_CAMPAIGN_NAME_CHARS} characters.`);
+        }
+        aenderungen.name = name;
+      }
+
+      if (args.daily_limit !== undefined && args.daily_limit !== null) {
+        const limit = readCount(args, "daily_limit", CAMPAIGN_DEFAULTS.daily_limit, MAX_DAILY_LIMIT);
+        if (!limit.ok) return fail(limit.message);
+        if (limit.value === 0) return fail('Argument "daily_limit" must be at least 1.');
+        aenderungen.daily_limit = limit.value;
+      }
+
+      for (const [arg, spalte] of [
+        ["send_window_start", "send_window_start"],
+        ["send_window_end", "send_window_end"],
+      ] as const) {
+        const wert = readString(args, arg);
+        if (args[arg] !== undefined && !wert) {
+          return fail(`Argument "${arg}" must not be empty. Leave it out to keep the current value.`);
+        }
+        if (wert) {
+          // Das Format, das <input type="time"> in der App liefert. Ohne die
+          // Pruefung entstuende ein Postgres-Fehler, den dbFail bewusst nicht
+          // durchreicht und den das Modell nicht deuten koennte.
+          if (!TIME_PATTERN.test(wert)) {
+            return fail(`Argument "${arg}" must be a time like "09:00".`);
+          }
+          aenderungen[spalte] = wert;
+        }
+      }
+
+      const timezone = readString(args, "timezone");
+      if (args.timezone !== undefined && !timezone) {
+        return fail('Argument "timezone" must not be empty. Leave it out to keep the current one.');
+      }
+      if (timezone) {
+        /**
+         * Ueber normalizeInstantlyTimezone und nicht roh uebernommen.
+         *
+         * Instantly kennt nur eine kuratierte Liste von Zonennamen
+         * (lib/instantly/campaigns.ts); "Europe/Vienna" ist dort ungueltig
+         * und wird auf "Europe/Belgrade" abgebildet. Ein ungeprueft
+         * gespeicherter Name faellt erst auf, wenn die Kampagne bei Instantly
+         * angelegt wird -- also im schlechtesten Moment.
+         */
+        const normalisiert = normalizeInstantlyTimezone(timezone);
+        aenderungen.timezone = normalisiert;
+      }
+
+      if (Object.keys(aenderungen).length === 0) {
+        return fail(
+          'Give at least one of "name", "daily_limit", "send_window_start", "send_window_end" or "timezone".'
+        );
+      }
+
+      const entwurf = await ladeEntwurf(supabase, tor.workspaceId, campaignId, "update_campaign");
+      if (!entwurf.ok) return entwurf.result;
+
+      const { error: schreibFehler } = await supabase
+        .from("campaigns")
+        .update(aenderungen)
+        .eq("id", campaignId)
+        // Beide Bedingungen; die id allein traefe mit Service-Role jede
+        // Kampagne der Datenbank.
+        .eq("workspace_id", tor.workspaceId);
+      if (schreibFehler) return dbFail("update_campaign", schreibFehler);
+
+      // Eine Zeile JE SPALTE, nicht eine fuer den ganzen Aufruf: sonst
+      // stuende im Protokoll ein Gemischtwarenladen aus vier Werten in einem
+      // Textfeld, und niemand koennte sagen, was sich woran geaendert hat.
+      await protokolliereViele(
+        supabase,
+        ctx,
+        tor.workspaceId,
+        Object.entries(aenderungen).map(([spalte, wert]) => ({
+          campaign_id: campaignId,
+          field: `campaigns.${spalte}`,
+          old_value: alsText(entwurf.campaign[spalte as keyof typeof entwurf.campaign]),
+          new_value: String(wert),
+        }))
+      );
+
+      return okJson({
+        campaign_id: campaignId,
+        status: entwurf.campaign.status,
+        changed: aenderungen,
+        ...(timezone && aenderungen.timezone !== timezone
+          ? {
+              timezone_note: `Instantly only accepts a fixed list of timezones; "${timezone}" was stored as "${aenderungen.timezone}", which is the same offset.`,
+            }
+          : {}),
+        written: true,
+      });
+    },
+  },
+
+  // ── undo_writes ────────────────────────────────────────────────────────
+  /**
+   * ═════════════════════════════════════════════════════════════════════
+   * DER GRUND, WARUM ES set_lead_icebreakers GEBEN DARF
+   * ═════════════════════════════════════════════════════════════════════
+   *
+   * Ein Mengenwerkzeug ist genau so lange vertretbar, wie sein Ergebnis
+   * zuruecknehmbar ist (die vollstaendige Begruendung steht in
+   * lib/mcp/untrusted.ts). Dieses Werkzeug ist diese Zuruecknahme, und es hat
+   * drei Eigenschaften, die es davor bewahren, selbst zur Gefahr zu werden:
+   *
+   * 1. ES UEBERSCHREIBT NIEMALS EINEN MENSCHEN. Vor jedem Zurueckschreiben
+   *    wird geprueft, ob in der Spalte noch genau das steht, was der
+   *    Schreibvorgang hinterlassen hat. Hat jemand danach in der App etwas
+   *    anderes eingetragen, bleibt es stehen und die Zeile wird als
+   *    "changed_since" gemeldet.
+   * 2. ES DREHT SICH NICHT SELBST ZURUECK. Jede Wiederherstellung wird
+   *    protokolliert und traegt in undo_of die Zeile, die sie zuruecknimmt
+   *    (Migration 0101). Ein zweiter Aufruf mit demselben Fenster findet die
+   *    Zeilen als bereits zurueckgedreht vor und laesst sie in Ruhe -- sonst
+   *    waere undo_writes ein Kippschalter.
+   * 3. ES KENNT NUR DIE FELDER, DIE ES KENNT. UNDOABLE_FIELDS ist eine
+   *    Erlaubnisliste; alles andere (eine Notiz, eine Kampagne) wird mit
+   *    Grund uebersprungen statt "irgendwie" zurueckgeschrieben.
+   */
+  undo_writes: {
+    title: "Undo writes",
+    description: TOOL_DESCRIPTIONS.undo_writes,
+    inputSchema: {
+      type: "object",
+      properties: {
+        workspace_id: WORKSPACE_PROPERTY,
+        since_minutes: {
+          type: "integer",
+          description: `How far back to undo, in minutes. Default ${DEFAULT_UNDO_MINUTES}, maximum ${MAX_UNDO_MINUTES}.`,
+          minimum: 1,
+          maximum: MAX_UNDO_MINUTES,
+        },
+        log_ids: {
+          type: "array",
+          description: "Specific log entry ids to undo, instead of a time window.",
+          items: { type: "string" },
+          minItems: 1,
+          maxItems: MAX_UNDO_ROWS,
+        },
+        dry_run: {
+          type: "boolean",
+          description: "True writes nothing and returns what would be restored. Default false.",
+        },
+      },
+      required: ["workspace_id"],
+      additionalProperties: false,
+    },
+    // Zweimal aufgerufen passiert beim zweiten Mal nichts mehr: die Zeilen
+    // sind dann als zurueckgedreht markiert.
+    annotations: WRITE_ANNOTATIONS("Undo writes", true),
+    scope: "read_write",
+    async handler(supabase, ctx, args) {
+      const tor = gate(ctx, args, "read_write");
+      if (!tor.ok) return tor.result;
+
+      const probelauf = readFlag(args, "dry_run", false);
+      if (!probelauf.ok) return fail(probelauf.message);
+
+      const idsAngegeben = args.log_ids !== undefined && args.log_ids !== null;
+      const fensterAngegeben = args.since_minutes !== undefined && args.since_minutes !== null;
+      if (idsAngegeben && fensterAngegeben) {
+        return fail('Give either "since_minutes" or "log_ids", not both. They would contradict each other.');
+      }
+
+      let logIds: string[] = [];
+      if (idsAngegeben) {
+        if (!Array.isArray(args.log_ids)) return fail('Argument "log_ids" must be a list of ids.');
+        if (args.log_ids.length === 0) return fail('Argument "log_ids" must not be empty.');
+        if (args.log_ids.length > MAX_UNDO_ROWS) {
+          return fail(`Argument "log_ids" has more than ${MAX_UNDO_ROWS} entries. Split it up.`);
+        }
+        for (const id of args.log_ids) {
+          if (typeof id !== "string" || id.trim() === "") {
+            return fail('Every entry of "log_ids" must be a non-empty id from an earlier response.');
+          }
+          logIds.push(id.trim());
+        }
+        logIds = [...new Set(logIds)];
+      }
+
+      const minuten = readCount(args, "since_minutes", DEFAULT_UNDO_MINUTES, MAX_UNDO_MINUTES);
+      if (!minuten.ok) return fail(minuten.message);
+      if (minuten.value === 0) return fail('Argument "since_minutes" must be at least 1.');
+      const seit = new Date(Date.now() - minuten.value * 60_000).toISOString();
+
+      let abfrage = supabase
+        .from("mcp_write_log")
+        .select("id, field, old_value, new_value, business_id, contact_id, offer_id, campaign_id, undo_of, created_at")
+        // Der Zaun: das Protokoll traegt eine eigene workspace_id, und ohne
+        // diesen Filter dreht ein Aufruf fremde Schreibvorgaenge zurueck.
+        .eq("workspace_id", tor.workspaceId)
+        .order("created_at", { ascending: false });
+      abfrage = idsAngegeben ? abfrage.in("id", logIds) : abfrage.gte("created_at", seit);
+      // Eine mehr als erlaubt, damit "es sind zu viele" von "es sind genau
+      // so viele" unterscheidbar bleibt.
+      const { data: zeilen, error: leseFehler } = await abfrage.limit(MAX_UNDO_ROWS + 1);
+      if (leseFehler) return dbFail("undo_writes", leseFehler);
+
+      const alleZeilen = (zeilen ?? []) as unknown as WriteLogRow[];
+      if (alleZeilen.length === 0) {
+        return okJson({
+          dry_run: probelauf.value,
+          restored: 0,
+          note: idsAngegeben
+            ? "None of those log ids belong to this workspace, so nothing was undone."
+            : `No writes in the last ${minuten.value} minutes, so there is nothing to undo.`,
+        });
+      }
+      if (alleZeilen.length > MAX_UNDO_ROWS) {
+        return fail(
+          `More than ${MAX_UNDO_ROWS} writes fall into that window. Nothing was undone. Use a shorter since_minutes, or pass log_ids for the writes you mean.`
+        );
+      }
+      if (idsAngegeben) {
+        const gefunden = new Set(alleZeilen.map((z) => z.id));
+        const fehlend = logIds.filter((id) => !gefunden.has(id));
+        if (fehlend.length > 0) {
+          // Alles oder nichts, wie beim Mengenwerkzeug: einen Teil
+          // zurueckzudrehen und den Rest zu verschweigen waere die
+          // schlechtere Auskunft.
+          return fail(
+            `${fehlend.length} of ${logIds.length} log_ids are not in this workspace's write log. Nothing was undone.`
+          );
+        }
+      }
+
+      /**
+       * EINE WIEDERHERSTELLUNG WIRD NICHT ZURUECKGEDREHT.
+       *
+       * Ohne diese Zeile waere das Werkzeug ein Kippschalter: eine
+       * Wiederherstellung ist selbst ein protokollierter Schreibvorgang, sie
+       * liegt im selben Zeitfenster, und der zweite Aufruf wuerde sie
+       * zuruecknehmen -- also den urspruenglichen Text wieder hinschreiben.
+       * Zurueckgedreht wird nur, was von einem Schreibwerkzeug stammt
+       * (undo_of ist null); die uebrigen Zeilen werden mit Grund gemeldet.
+       */
+      const protokoll = alleZeilen.filter((z) => z.undo_of === null);
+      const wiederherstellungen = alleZeilen
+        .filter((z) => z.undo_of !== null)
+        .map((z) => ({ field: z.field, log_id: z.id, reason: "is_itself_a_restore" }));
+      if (protokoll.length === 0) {
+        return okJson({
+          dry_run: probelauf.value,
+          restored: 0,
+          note: "Those log entries are restores, not writes. Undoing a restore would write the old text back again, so nothing was done.",
+          skipped: wiederherstellungen,
+        });
+      }
+
+      /**
+       * Was davon wurde schon zurueckgedreht?
+       *
+       * Eine Wiederherstellung traegt in undo_of die Zeile, die sie
+       * zuruecknimmt. Ohne diese Abfrage waere ein zweiter Aufruf mit
+       * demselben Fenster ein Wiederholen des Schreibvorgangs.
+       */
+      const { data: markierungen, error: markierungsFehler } = await supabase
+        .from("mcp_write_log")
+        .select("undo_of")
+        .eq("workspace_id", tor.workspaceId)
+        .in("undo_of", protokoll.map((z) => z.id));
+      if (markierungsFehler) return dbFail("undo_writes", markierungsFehler);
+      const zurueckgedreht = new Set(
+        (markierungen ?? []).map((m) => m.undo_of as string).filter(Boolean)
+      );
+
+      const gruppen = gruppiereNachZiel(protokoll);
+      const aktuell = await ladeAktuelleWerte(supabase, tor.workspaceId, gruppen);
+      if (!aktuell.ok) return dbFail("undo_writes", aktuell.error);
+
+      const plan: UndoPlan[] = [];
+      const uebersprungen: { field: string; log_id: string; reason: string }[] = [
+        ...wiederherstellungen,
+      ];
+
+      for (const gruppe of gruppen) {
+        // Zeilen absteigend: die neueste sagt, was jetzt dastehen muesste,
+        // die aelteste, worauf zurueckgestellt wird. Bei einer Kette
+        // A->B->C ist das Ergebnis wieder A.
+        const neueste = gruppe.rows[0];
+        const aelteste = gruppe.rows[gruppe.rows.length - 1];
+        if (zurueckgedreht.has(neueste.id)) {
+          uebersprungen.push({ field: gruppe.field, log_id: neueste.id, reason: "already_restored" });
+          continue;
+        }
+        if (!gruppe.ziel) {
+          uebersprungen.push({
+            field: gruppe.field,
+            log_id: neueste.id,
+            reason:
+              gruppe.field === "notes.body"
+                ? "notes_are_append_only"
+                : gruppe.field.startsWith("campaigns.") || gruppe.field === "campaign_steps"
+                  ? "campaigns_are_changed_in_the_app"
+                  : "field_cannot_be_restored",
+          });
+          continue;
+        }
+        const jetzt = aktuell.werte.get(gruppe.key);
+        if (jetzt === undefined) {
+          uebersprungen.push({ field: gruppe.field, log_id: neueste.id, reason: "row_no_longer_exists" });
+          continue;
+        }
+        if (jetzt !== neueste.new_value) {
+          // Der wichtigste der drei Faelle: hier hat ein Mensch in der App
+          // gearbeitet. Sein Text ist nicht das, was zurueckgenommen werden
+          // soll.
+          uebersprungen.push({ field: gruppe.field, log_id: neueste.id, reason: "changed_since" });
+          continue;
+        }
+        if (aelteste.old_value === null && gruppe.ziel.table === "contacts") {
+          // contacts.outreach_status ist "not null" (Migration 0018); ein
+          // fehlender alter Wert liesse sich nur mit einem erfundenen fuellen.
+          uebersprungen.push({ field: gruppe.field, log_id: neueste.id, reason: "no_previous_value" });
+          continue;
+        }
+        plan.push({
+          key: gruppe.key,
+          field: gruppe.field,
+          ziel: gruppe.ziel,
+          from: jetzt,
+          to: aelteste.old_value,
+          log_id: neueste.id,
+          covers: gruppe.rows.map((r) => r.id),
+        });
+      }
+
+      if (probelauf.value) {
+        return okJson({
+          dry_run: true,
+          restored: 0,
+          would_restore: plan.length,
+          note: "Nothing was written. Call again without dry_run to restore these values.",
+          changes: plan.map(beschreibePlan),
+          ...(uebersprungen.length > 0 ? { skipped: uebersprungen } : {}),
+        });
+      }
+
+      const erledigt: UndoPlan[] = [];
+      const fehlgeschlagen: { field: string; log_id: string }[] = [];
+      // Nach Zeile zusammengefasst: zwei eigene Angebotsfelder derselben
+      // Zeile ergeben EIN Update, sonst wuerde das zweite das erste aus dem
+      // jsonb wieder herauswerfen (Lesen-Aendern-Schreiben).
+      for (const [, buendel] of buendleNachZeile(plan, aktuell.customFields)) {
+        const { table, rowId, patch } = buendel;
+        const { error } = await supabase
+          .from(table)
+          .update(patch)
+          .eq("id", rowId)
+          // Beide Bedingungen; die id allein traefe mit Service-Role jede
+          // Zeile der Datenbank.
+          .eq("workspace_id", tor.workspaceId);
+        if (error) {
+          console.error(`[mcp] undo_writes: ${table}/${rowId} nicht zurueckgeschrieben:`, error.message);
+          for (const eintrag of buendel.eintraege) {
+            fehlgeschlagen.push({ field: eintrag.field, log_id: eintrag.log_id });
+          }
+          continue;
+        }
+        erledigt.push(...buendel.eintraege);
+      }
+
+      if (erledigt.length > 0) {
+        await protokolliereViele(
+          supabase,
+          ctx,
+          tor.workspaceId,
+          erledigt.map((e) => ({
+            business_id: e.ziel.table === "businesses" ? e.ziel.rowId : null,
+            contact_id: e.ziel.table === "contacts" ? e.ziel.rowId : null,
+            offer_id: e.ziel.table === "offers" ? e.ziel.rowId : null,
+            field: e.field,
+            old_value: e.from,
+            new_value: e.to,
+            // Die Markierung, an der der naechste Aufruf erkennt, dass hier
+            // schon zurueckgedreht wurde.
+            undo_of: e.log_id,
+          }))
+        );
+      }
+
+      return okJson({
+        dry_run: false,
+        restored: erledigt.length,
+        ...(fehlgeschlagen.length > 0
+          ? {
+              failed: fehlgeschlagen,
+              note: "Some values could not be written back. The others were.",
+            }
+          : {}),
+        changes: erledigt.map(beschreibePlan),
+        ...(uebersprungen.length > 0
+          ? {
+              skipped: uebersprungen,
+              skipped_note:
+                "changed_since means someone edited that value in Frostbreaker after the write; it was deliberately left alone. Notes and campaigns are not undone here.",
+            }
+          : {}),
+      });
+    },
+  },
 };
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -1842,6 +3134,360 @@ function readVariants(step: {
   ];
 }
 
+/**
+ * Ein Kampagnen-ENTWURF, oder ein Fehler, der sagt warum nicht.
+ *
+ * Drei Bedingungen, alle drei mit eigenem Satz:
+ *
+ * 1. aktiviert (activated_at gesetzt oder status nicht 'draft') -- was eine
+ *    laufende Kampagne tut, entscheidet Instantly; hier daran zu drehen waere
+ *    eine Aenderung, die niemand sieht und die niemand rueckgaengig macht.
+ * 2. bei Instantly vorhanden (instantly_campaign_id gesetzt) -- gemessen in
+ *    api/instantly/campaigns/[id]/route.ts: die Kampagnenseite liest die
+ *    Sequenz LIVE von Instantly und nimmt aus campaign_steps nur, was dort
+ *    leer ist. Ein Schreibvorgang hier waere wirkungslos UND wuerde das
+ *    Sicherheitsnetz gegen verschwundene Entwuerfe ueberschreiben.
+ * 3. gar nicht vorhanden -- gleiche Formulierung wie ueberall, damit sich
+ *    "gibt es nicht" und "gehoert einem anderen Workspace" nicht
+ *    unterscheiden lassen.
+ */
+type KampagnenZeile = {
+  id: string;
+  name: string;
+  status: string;
+  activated_at: string | null;
+  instantly_campaign_id: string | null;
+  daily_limit: number | null;
+  send_window_start: string | null;
+  send_window_end: string | null;
+  timezone: string | null;
+};
+
+async function ladeEntwurf(
+  supabase: SupabaseClient,
+  workspaceId: string,
+  campaignId: string,
+  werkzeug: string
+): Promise<{ ok: true; campaign: KampagnenZeile } | { ok: false; result: ToolCallResult }> {
+  const { data, error } = await supabase
+    .from("campaigns")
+    .select("id, name, status, activated_at, instantly_campaign_id, daily_limit, send_window_start, send_window_end, timezone")
+    .eq("id", campaignId)
+    .eq("workspace_id", workspaceId)
+    .maybeSingle();
+  if (error) return { ok: false, result: dbFail(werkzeug, error) };
+  if (!data) {
+    return {
+      ok: false,
+      result: fail(
+        "Unknown campaign_id in this workspace. Call get_sequence for the workspace to see its campaigns."
+      ),
+    };
+  }
+  const zeile = data as unknown as KampagnenZeile;
+  if (zeile.activated_at !== null || zeile.status !== "draft") {
+    return {
+      ok: false,
+      result: fail(
+        `This campaign is not a draft any more (status ${zeile.status}${zeile.activated_at ? `, activated ${zeile.activated_at}` : ""}). A campaign that has been started is changed in Frostbreaker under Instantly > Campaigns, and no tool here can activate, pause or stop it.`
+      ),
+    };
+  }
+  if (zeile.instantly_campaign_id !== null) {
+    return {
+      ok: false,
+      result: fail(
+        "This campaign already exists in Instantly, so its text and schedule live there. Change it in Frostbreaker under Instantly > Campaigns; a write here would not reach Instantly."
+      ),
+    };
+  }
+  return { ok: true, campaign: zeile };
+}
+
+/** Fuer das Protokoll: aus einem Spaltenwert wird Text, aus null bleibt null.
+ *  daily_limit ist eine Zahl, name ein Text -- old_value ist beides Mal text. */
+function alsText(wert: unknown): string | null {
+  if (wert === null || wert === undefined) return null;
+  return String(wert);
+}
+
+/**
+ * Wie lang ein Wert in einer ERGEBNISLISTE hoechstens sein darf.
+ *
+ * Nicht zu verwechseln mit MAX_FOREIGN_TEXT_CHARS: hier geht es nicht um
+ * Fremdtext, sondern um die Groesse der Antwort. 50 Eintraege mit altem und
+ * neuem Icebreaker à 2000 Zeichen waeren 200.000 Zeichen, und Claude Code
+ * bricht eine Werkzeugausgabe bei 25.000 Token HART ab -- mitten im JSON. Ein
+ * Icebreaker ist real 200 bis 300 Zeichen (der Generator im Worker darf 35
+ * Woerter, Migration 0094), 300 trifft also fast nie zu.
+ */
+const PREVIEW_CHARS = 300;
+
+function vorschau(text: string | null): string | null {
+  if (text === null) return null;
+  if (text.length <= PREVIEW_CHARS) return text;
+  return text.slice(0, PREVIEW_CHARS) + TRUNCATION_MARK;
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// undo_writes: vom Protokolleintrag zur Spalte
+// ─────────────────────────────────────────────────────────────────────────
+
+/** Eine Zeile aus mcp_write_log, auf das reduziert, was hier gelesen wird. */
+type WriteLogRow = {
+  id: string;
+  field: string;
+  old_value: string | null;
+  new_value: string | null;
+  business_id: string | null;
+  contact_id: string | null;
+  offer_id: string | null;
+  campaign_id: string | null;
+  undo_of: string | null;
+  created_at: string;
+};
+
+/** Wohin ein Protokolleintrag zurueckgeschrieben wird. key nur bei
+ *  offers.custom_fields.<schluessel>. */
+type UndoZiel = {
+  table: "businesses" | "contacts" | "offers";
+  rowId: string;
+  column: string;
+  key?: string;
+};
+
+type UndoGruppe = {
+  key: string;
+  field: string;
+  ziel: UndoZiel | null;
+  /** Absteigend, neueste zuerst. */
+  rows: WriteLogRow[];
+};
+
+type UndoPlan = {
+  key: string;
+  field: string;
+  ziel: UndoZiel;
+  from: string | null;
+  to: string | null;
+  /** Die Zeile, die zurueckgenommen wird -- sie landet in undo_of. */
+  log_id: string;
+  /** Alle Zeilen dieser Kette, damit im Ergebnis steht, was abgedeckt ist. */
+  covers: string[];
+};
+
+/**
+ * Der Pfad aus mcp_write_log.field, uebersetzt in Tabelle und Spalte.
+ *
+ * Streng: was nicht in UNDOABLE_FIELDS oder in OFFER_TEXT_FIELDS steht, ist
+ * null und wird uebersprungen. Mit Service-Role waere ein "probier es halt"
+ * die gefaehrlichste Zeile dieses Servers -- der Feldname stammt aus einer
+ * Datenbankspalte, die ein frueherer Werkzeugaufruf gefuellt hat.
+ */
+function zielFuerFeld(row: WriteLogRow): UndoZiel | null {
+  const bekannt = (UNDOABLE_FIELDS as Record<string, { table: string; column: string } | undefined>)[row.field];
+  if (bekannt) {
+    const rowId = bekannt.table === "businesses" ? row.business_id : row.contact_id;
+    if (!rowId) return null;
+    return { table: bekannt.table as "businesses" | "contacts", rowId, column: bekannt.column };
+  }
+  if (!row.offer_id) return null;
+  const CUSTOM_PREFIX = "offers.custom_fields.";
+  if (row.field.startsWith(CUSTOM_PREFIX)) {
+    const key = row.field.slice(CUSTOM_PREFIX.length);
+    return key ? { table: "offers", rowId: row.offer_id, column: "custom_fields", key } : null;
+  }
+  if (row.field.startsWith("offers.")) {
+    const spalte = row.field.slice("offers.".length);
+    return (OFFER_TEXT_FIELDS as readonly string[]).includes(spalte)
+      ? { table: "offers", rowId: row.offer_id, column: spalte }
+      : null;
+  }
+  return null;
+}
+
+/**
+ * Mehrere Schreibvorgaenge auf dasselbe Feld derselben Zeile gehoeren
+ * zusammen.
+ *
+ * A -> B -> C zurueckzudrehen heisst A, nicht B: die neueste Zeile sagt, was
+ * jetzt dastehen muesste, die aelteste, worauf zurueckgestellt wird. Wuerde
+ * jede Zeile einzeln zurueckgeschrieben, haenge das Ergebnis von der
+ * Reihenfolge ab, in der die Updates durchlaufen.
+ *
+ * Zeilen ohne Ziel bilden je eine eigene Gruppe: sie werden einzeln mit Grund
+ * gemeldet, statt in einer Sammelgruppe zu verschwinden.
+ */
+function gruppiereNachZiel(rows: WriteLogRow[]): UndoGruppe[] {
+  const gruppen = new Map<string, UndoGruppe>();
+  for (const row of rows) {
+    const ziel = zielFuerFeld(row);
+    const key = ziel ? `${row.field}|${ziel.rowId}` : `${row.field}|${row.id}`;
+    const vorhanden = gruppen.get(key);
+    if (vorhanden) vorhanden.rows.push(row);
+    else gruppen.set(key, { key, field: row.field, ziel, rows: [row] });
+  }
+  return [...gruppen.values()];
+}
+
+/**
+ * Was JETZT in den betroffenen Spalten steht.
+ *
+ * Eine Abfrage je Tabelle statt einer je Zeile, und jede mit dem
+ * Workspace-Filter. Der Vergleich mit dem Protokoll entscheidet danach, ob
+ * zurueckgeschrieben werden darf: steht dort etwas anderes, hat ein Mensch in
+ * der App gearbeitet, und sein Text bleibt stehen.
+ */
+async function ladeAktuelleWerte(
+  supabase: SupabaseClient,
+  workspaceId: string,
+  gruppen: UndoGruppe[]
+): Promise<
+  | { ok: true; werte: Map<string, string | null>; customFields: Map<string, Record<string, string>> }
+  | { ok: false; error: { message?: string } | null }
+> {
+  const werte = new Map<string, string | null>();
+  const customFields = new Map<string, Record<string, string>>();
+  const ids = { businesses: new Set<string>(), contacts: new Set<string>(), offers: new Set<string>() };
+  for (const g of gruppen) {
+    if (g.ziel) ids[g.ziel.table].add(g.ziel.rowId);
+  }
+
+  if (ids.businesses.size > 0) {
+    const { data, error } = await supabase
+      .from("businesses")
+      .select("id, personalization")
+      .eq("workspace_id", workspaceId)
+      .in("id", [...ids.businesses]);
+    if (error) return { ok: false, error };
+    for (const zeile of data ?? []) {
+      werte.set(`businesses.personalization|${zeile.id}`, (zeile.personalization as string | null) ?? null);
+    }
+  }
+
+  if (ids.contacts.size > 0) {
+    const { data, error } = await supabase
+      .from("contacts")
+      .select("id, outreach_status")
+      .eq("workspace_id", workspaceId)
+      .in("id", [...ids.contacts]);
+    if (error) return { ok: false, error };
+    for (const zeile of data ?? []) {
+      werte.set(`contacts.outreach_status|${zeile.id}`, (zeile.outreach_status as string | null) ?? null);
+    }
+  }
+
+  if (ids.offers.size > 0) {
+    // OFFER_COLUMNS als Literal, nicht zusammengebaut: sonst faellt Supabase
+    // auf GenericStringError zurueck (die Falle steht in lib/offers.ts).
+    const { data, error } = await supabase
+      .from("offers")
+      .select(OFFER_COLUMNS)
+      .eq("workspace_id", workspaceId)
+      .in("id", [...ids.offers]);
+    if (error) return { ok: false, error };
+    for (const roh of data ?? []) {
+      const zeile = roh as unknown as Record<string, unknown>;
+      const id = zeile.id as string;
+      const custom =
+        typeof zeile.custom_fields === "object" && zeile.custom_fields !== null && !Array.isArray(zeile.custom_fields)
+          ? (zeile.custom_fields as Record<string, string>)
+          : {};
+      customFields.set(id, custom);
+      for (const feld of OFFER_TEXT_FIELDS) {
+        werte.set(`offers.${feld}|${id}`, typeof zeile[feld] === "string" ? (zeile[feld] as string) : null);
+      }
+      for (const [schluessel, wert] of Object.entries(custom)) {
+        werte.set(`offers.custom_fields.${schluessel}|${id}`, typeof wert === "string" ? wert : null);
+      }
+    }
+    // Ein eigenes Feld, dessen Schluessel in custom_fields gar nicht (mehr)
+    // steht, gilt als leer und nicht als "Zeile weg": der Schreibvorgang von
+    // damals hat ihn angelegt, jemand hat ihn danach entfernt.
+    for (const g of gruppen) {
+      if (g.ziel?.table === "offers" && g.ziel.key && customFields.has(g.ziel.rowId) && !werte.has(g.key)) {
+        werte.set(g.key, null);
+      }
+    }
+  }
+
+  return { ok: true, werte, customFields };
+}
+
+/**
+ * Ein Update je betroffener ZEILE, nicht je Feld.
+ *
+ * Zwei eigene Angebotsfelder derselben Zeile schreiben beide auf dasselbe
+ * jsonb; nacheinander ausgefuehrt wuerde das zweite Update das erste wieder
+ * herauswerfen, weil beide von demselben gelesenen Stand ausgehen.
+ */
+function buendleNachZeile(
+  plan: UndoPlan[],
+  customFields: Map<string, Record<string, string>>
+): Map<
+  string,
+  { table: string; rowId: string; patch: Record<string, unknown>; eintraege: UndoPlan[] }
+> {
+  const buendel = new Map<
+    string,
+    { table: string; rowId: string; patch: Record<string, unknown>; eintraege: UndoPlan[] }
+  >();
+  for (const eintrag of plan) {
+    const key = `${eintrag.ziel.table}|${eintrag.ziel.rowId}`;
+    const vorhanden = buendel.get(key) ?? {
+      table: eintrag.ziel.table,
+      rowId: eintrag.ziel.rowId,
+      patch: {} as Record<string, unknown>,
+      eintraege: [] as UndoPlan[],
+    };
+    if (eintrag.ziel.key) {
+      const bisher =
+        (vorhanden.patch.custom_fields as Record<string, string> | undefined) ??
+        { ...(customFields.get(eintrag.ziel.rowId) ?? {}) };
+      // Kein alter Wert heisst: den Schluessel gab es vorher nicht. Ihn auf
+      // null zu setzen waere ein leeres Feld, das es nie gab -- er wird
+      // entfernt.
+      if (eintrag.to === null) delete bisher[eintrag.ziel.key];
+      else bisher[eintrag.ziel.key] = eintrag.to;
+      vorhanden.patch.custom_fields = bisher;
+    } else {
+      vorhanden.patch[eintrag.ziel.column] = eintrag.to;
+    }
+    vorhanden.eintraege.push(eintrag);
+    buendel.set(key, vorhanden);
+  }
+  return buendel;
+}
+
+/** Eine Zeile der Ergebnisliste von set_lead_icebreakers. Gekuerzt aus
+ *  demselben Grund wie beschreibePlan: 50 Eintraege mit vollem Text waeren
+ *  eine Antwort, die der Client hart abschneidet. */
+function beschreibeIcebreaker(g: {
+  business_id: string;
+  company: string | null;
+  previous_icebreaker: string | null;
+  icebreaker: string;
+  unchanged: boolean;
+}) {
+  return {
+    business_id: g.business_id,
+    company: g.company,
+    previous_icebreaker: vorschau(g.previous_icebreaker),
+    icebreaker: vorschau(g.icebreaker),
+    unchanged: g.unchanged,
+  };
+}
+
+function beschreibePlan(p: UndoPlan) {
+  return {
+    field: p.field,
+    target_id: p.ziel.rowId,
+    current_value: vorschau(p.from),
+    restored_value: vorschau(p.to),
+    log_ids: p.covers,
+  };
+}
+
 /** Ein einzelner Wert aus offers.custom_fields, ohne Annahme ueber die Form
  *  der Spalte: sie ist jsonb und koennte alles enthalten. */
 function leseCustomField(custom: unknown, key: string): string | null {
@@ -1868,30 +3514,58 @@ function leseCustomField(custom: unknown, key: string): string | null {
  * Eine Notiz an einer Firma traegt business_id, eine an einer Person
  * contact_id -- so, wie es in notes selbst steht.
  */
+type WriteLogEintrag = {
+  business_id?: string | null;
+  contact_id?: string | null;
+  offer_id?: string | null;
+  campaign_id?: string | null;
+  field: string;
+  old_value: string | null;
+  new_value: string | null;
+  /** Nur bei einer Wiederherstellung: die Zeile, die zurueckgenommen wird
+   *  (Migration 0101). Sie ist die Markierung, an der undo_writes erkennt,
+   *  dass hier schon zurueckgedreht wurde. */
+  undo_of?: string | null;
+};
+
 async function protokolliere(
   supabase: SupabaseClient,
   ctx: McpToolContext,
   workspaceId: string,
-  eintrag: {
-    business_id?: string | null;
-    contact_id?: string | null;
-    offer_id?: string | null;
-    field: string;
-    old_value: string | null;
-    new_value: string | null;
-  }
+  eintrag: WriteLogEintrag
 ): Promise<void> {
-  const { error } = await supabase.from("mcp_write_log").insert({
-    token_id: ctx.tokenId,
-    user_id: ctx.userId,
-    workspace_id: workspaceId,
-    business_id: eintrag.business_id ?? null,
-    contact_id: eintrag.contact_id ?? null,
-    offer_id: eintrag.offer_id ?? null,
-    field: eintrag.field,
-    old_value: eintrag.old_value,
-    new_value: eintrag.new_value,
-  });
+  await protokolliereViele(supabase, ctx, workspaceId, [eintrag]);
+}
+
+/**
+ * Mehrere Protokollzeilen in EINEM Insert.
+ *
+ * Fuer set_lead_icebreakers und undo_writes: die Spur bleibt genauso fein wie
+ * bei einem Einzelwerkzeug (eine Zeile je geaendertem Datensatz), kostet aber
+ * eine Rundreise statt fuenfzig.
+ */
+async function protokolliereViele(
+  supabase: SupabaseClient,
+  ctx: McpToolContext,
+  workspaceId: string,
+  eintraege: WriteLogEintrag[]
+): Promise<void> {
+  if (eintraege.length === 0) return;
+  const { error } = await supabase.from("mcp_write_log").insert(
+    eintraege.map((eintrag) => ({
+      token_id: ctx.tokenId,
+      user_id: ctx.userId,
+      workspace_id: workspaceId,
+      business_id: eintrag.business_id ?? null,
+      contact_id: eintrag.contact_id ?? null,
+      offer_id: eintrag.offer_id ?? null,
+      campaign_id: eintrag.campaign_id ?? null,
+      field: eintrag.field,
+      old_value: eintrag.old_value,
+      new_value: eintrag.new_value,
+      undo_of: eintrag.undo_of ?? null,
+    }))
+  );
   if (error) console.error("[mcp] mcp_write_log nicht geschrieben:", error.message);
 }
 

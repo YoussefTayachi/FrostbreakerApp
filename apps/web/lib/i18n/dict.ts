@@ -1312,7 +1312,7 @@ const de = {
     mcp: {
       title: "Claude-Zugang",
       intro:
-        "Verbinde dein eigenes Claude mit deinen Frostbreaker-Daten: Lead-Listen, einzelne Leads samt Mail-Verlauf, Angebot, versendete Sequenzen, Kampagnenzahlen und Antworten lesen, dazu Icebreaker, Kontaktstatus, Notizen und Angebotsfelder zurückschreiben. Betreust du mehrere Kunden in mehreren Workspaces, fragst du dein Claude morgens einmal, was sich seit gestern getan hat, statt dich überall einzeln einzuloggen. Dein bestehendes Claude-Abo reicht aus, Frostbreaker berechnet dafür nichts zusätzlich.",
+        "Verbinde dein eigenes Claude mit deinen Frostbreaker-Daten: Lead-Listen, einzelne Leads samt Mail-Verlauf, Angebot, versendete Sequenzen, Kampagnenzahlen und Antworten lesen, dazu Icebreaker, Kontaktstatus, Notizen und Angebotsfelder zurückschreiben und Kampagnen als Entwurf vorbereiten. Betreust du mehrere Kunden in mehreren Workspaces, fragst du dein Claude morgens einmal, was sich seit gestern getan hat, statt dich überall einzeln einzuloggen. Dein bestehendes Claude-Abo reicht aus, Frostbreaker berechnet dafür nichts zusätzlich.",
       createButton: "Token erzeugen",
       nameLabel: "Name",
       namePlaceholder: "z. B. Laptop Büro",
@@ -1321,7 +1321,7 @@ const de = {
       scopeRead: "Nur lesen",
       scopeReadWrite: "Lesen und einzelne Felder schreiben",
       scopeHint:
-        "Auch die schreibende Stufe fasst immer nur einen Datensatz je Aufruf an: Icebreaker eines Leads, Status eines Kontakts, eine Notiz, ein Feld deines Angebots. Versenden, Suchen starten, Kampagnen starten oder pausieren und Löschen bleiben ausgeschlossen, auch mit diesem Token.",
+        "Die schreibende Stufe fasst je Aufruf einen Datensatz an: Icebreaker eines Leads, Status eines Kontakts, eine Notiz, ein Feld deines Angebots. Die eine Ausnahme sind bis zu 50 Icebreaker auf einmal, jeder einzeln benannt, mit Vorschau vorab und rückgängig zu machen. Versenden, Suchen starten, Kampagnen starten oder pausieren, an Instantly übergeben und Löschen bleiben ausgeschlossen, auch mit diesem Token; Kampagnen entstehen hier nur als Entwurf.",
       workspaceLabel: "Workspace",
       workspaceAll: "Alle, in denen ich Mitglied bin",
       workspaceOne: "Nur dieser eine",
@@ -3740,7 +3740,7 @@ const en: Dictionary = {
     mcp: {
       title: "Claude access",
       intro:
-        "Connect your own Claude to your Frostbreaker data: read lead lists, a single lead including its email history, your offer, the sequences you send, campaign numbers and replies, and write back icebreakers, contact statuses, notes and offer fields. If you run several clients across several workspaces, ask your Claude each morning what happened overnight instead of logging into each one separately. Your existing Claude subscription covers this, Frostbreaker doesn't charge anything extra for it.",
+        "Connect your own Claude to your Frostbreaker data: read lead lists, a single lead including its email history, your offer, the sequences you send, campaign numbers and replies, write back icebreakers, contact statuses, notes and offer fields, and prepare campaigns as drafts. If you run several clients across several workspaces, ask your Claude each morning what happened overnight instead of logging into each one separately. Your existing Claude subscription covers this, Frostbreaker doesn't charge anything extra for it.",
       createButton: "Create token",
       nameLabel: "Name",
       namePlaceholder: "e.g. work laptop",
@@ -3749,7 +3749,7 @@ const en: Dictionary = {
       scopeRead: "Read only",
       scopeReadWrite: "Read and write single fields",
       scopeHint:
-        "Even the write level touches only one record per call: a lead's icebreaker, a contact's status, one note, one field of your offer. Sending, starting searches, starting or pausing campaigns and deleting stay off limits, with this token too.",
+        "The write level touches one record per call: a lead's icebreaker, a contact's status, one note, one field of your offer. The one exception is up to 50 icebreakers at once, each one named individually, with a preview beforehand and an undo afterwards. Sending, starting searches, starting or pausing campaigns, handing anything to Instantly and deleting stay off limits, with this token too; campaigns are only ever created as drafts here.",
       workspaceLabel: "Workspace",
       workspaceAll: "All I'm a member of",
       workspaceOne: "Just this one",

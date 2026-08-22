@@ -36,20 +36,52 @@ import { UNTRUSTED_PREAMBLE, UNTRUSTED_POSTAMBLE } from "@/lib/mcp/tool-descript
  * sei "reduced but did not eliminate" -- ein Modell KANN eine Anweisung im
  * Datenbereich trotzdem befolgen.
  *
- * Der eigentliche Schutz ist deshalb der schmale Werkzeugsatz: es gibt vier
- * Schreibwerkzeuge, jedes aendert GENAU EINEN Datensatz je Aufruf
- * (set_lead_icebreaker, set_contact_status, add_note, set_offer_field), und
- * nichts hier verschickt Mails, startet Suchen, schaltet Kampagnen, loescht
- * etwas oder gibt Geld aus.
+ * Der eigentliche Schutz ist deshalb der schmale Werkzeugsatz. Bis zum
+ * 2026-08-22 hiess das ohne Ausnahme: jedes Schreibwerkzeug aendert GENAU
+ * EINEN Datensatz je Aufruf (set_lead_icebreaker, set_contact_status,
+ * add_note, set_offer_field), und ein Mengenwerkzeug wurde zweimal
+ * ausdruecklich abgelehnt.
  *
- * Wer hier ein Massenwerkzeug ergaenzt ("setze bei allen Leads ..."), macht
- * diese Datei wertlos: ein einziger praeparierter Satz auf einer Website
- * wuerde dann eine ganze Lead-Liste umschreiben, statt eine Zeile. Der Test
- * "bietet kein Werkzeug an, das versendet, loescht oder in Menge schreibt" in
- * lib/mcp/tools.test.ts haelt das fest.
+ * ═══════════════════════════════════════════════════════════════════════
+ * WARUM ES JETZT DOCH EIN MENGENWERKZEUG GIBT
+ * ═══════════════════════════════════════════════════════════════════════
  *
- * Der heikelste Fall ist der Mail-Verlauf in get_lead: Text, den ein Fremder
- * geschrieben hat, direkt neben diesen vier Werkzeugen im selben Kontext.
+ * set_lead_icebreakers schreibt bis zu 50 Leads je Aufruf. Der Anlass ist
+ * echt: wer eine Liste mit 300 Leads von Hand personalisiert, braucht sonst
+ * 300 Werkzeugaufrufe und 300 Bestaetigungen, und genau daran stirbt der
+ * Arbeitsablauf, fuer den dieser Server gebaut wurde.
+ *
+ * Die Ablehnung von damals ist damit nicht weggefallen, sie haengt an vier
+ * Bedingungen. Faellt EINE davon weg, ist die Begruendung dieser Datei
+ * hinfaellig:
+ *
+ * 1. NAMENTLICH. Das Argument ist eine Liste aus {business_id, icebreaker}.
+ *    Es gibt bewusst KEINE Filterform ("setze bei allen, die X erfuellen").
+ *    Eine eingeschleuste Anweisung muesste 50 plausible UUIDs samt Texten
+ *    erzeugen, und die stehen alle im Bestaetigungsdialog des Clients.
+ * 2. GEDECKELT. 50 Eintraege je Aufruf, mehr ist ein Werkzeugfehler. 300
+ *    Leads bleiben sechs Aufrufe mit sechs Bestaetigungen -- das ist
+ *    Absicht und kein Rest von Unbequemlichkeit, den man noch wegoptimiert.
+ * 3. PROBELAUF. dry_run schreibt nichts und zeigt je Lead Firma, alten und
+ *    neuen Wert. Der Blick darauf ist der Moment, in dem ein untergeschobener
+ *    Text auffaellt.
+ * 4. UMKEHRBAR. undo_writes stellt aus mcp_write_log den alten Wert wieder
+ *    her, samt Probelauf und ohne Werte anzufassen, die seither in der App
+ *    geaendert wurden. Das ist der eigentliche Grund, warum die Menge
+ *    vertretbar wird: ein missverstandener Prompt ist keine endgueltige
+ *    Zerstoerung mehr, sondern ein Aufruf, den man zuruecknimmt.
+ *
+ * Was weiterhin NICHT existiert und woran sich nichts aendern soll: nichts
+ * hier verschickt eine Mail, startet eine Suche, aktiviert oder pausiert eine
+ * Kampagne, uebergibt etwas an Instantly, loescht etwas oder gibt Geld aus.
+ * Die Kampagnen-Werkzeuge legen einen ENTWURF an und beschreiben ihn; der Weg
+ * nach draussen fuehrt ausschliesslich durch die App. Der Test "bietet kein
+ * Werkzeug an, das versendet, loescht oder schaltet" in lib/mcp/tools.test.ts
+ * haelt das fest, die Tests daneben halten Deckel, Probelauf und
+ * Alles-oder-nichts des Mengenwerkzeugs fest.
+ *
+ * Der heikelste Fall bleibt der Mail-Verlauf in get_lead: Text, den ein
+ * Fremder geschrieben hat, direkt neben diesen Werkzeugen im selben Kontext.
  */
 
 /** Der Tag-Name ohne Klammern, z.B. "untrusted-data-3f2b...". */

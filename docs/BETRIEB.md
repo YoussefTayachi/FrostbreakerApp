@@ -121,14 +121,40 @@ Endpunkt ist zustandslos und prüft bei **jedem** Aufruf neu, ob der Token gilt
 und in welchen Workspaces sein Besitzer laut `workspace_members` Mitglied ist.
 Er läuft mit Service-Role (ohne Session wäre `auth.uid()` NULL und jede
 RLS-Policy false); der Ausgleich ist der ausdrückliche `workspace_id`-Filter in
-jeder Abfrage, siehe `apps/web/lib/mcp/authorize.ts`. Vierzehn Werkzeuge, davon
-zehn lesend; schreibend sind `set_lead_icebreaker`, `set_contact_status`,
-`add_note` und `set_offer_field`, und jedes davon fasst genau einen Datensatz je
-Aufruf an. Es gibt bewusst kein Werkzeug, das versendet, eine Suche startet,
-eine Kampagne schaltet, etwas löscht oder in Menge schreibt: der schmale
-Schreibbereich ist der eigentliche Schutz gegen Anweisungen, die in fremdem
-Website- oder Mailtext stecken (Begründung in `lib/mcp/untrusted.ts`). Jeder
+jeder Abfrage, siehe `apps/web/lib/mcp/authorize.ts`. Neunzehn Werkzeuge, davon
+zehn lesend. Schreibend sind `set_lead_icebreaker`, `set_lead_icebreakers`,
+`set_contact_status`, `add_note`, `set_offer_field`, `create_campaign`,
+`set_campaign_sequence`, `update_campaign` und `undo_writes`; jedes davon fasst
+genau einen Datensatz je Aufruf an — mit einer Ausnahme.
+
+Die Ausnahme ist `set_lead_icebreakers` (seit 2026-08-22): bis zu **50** Leads
+je Aufruf, jeder einzeln über seine `business_id` benannt (keine Filterform),
+mit `dry_run` als Vorschau, Alles-oder-nichts bei einer fremden ID, und
+umkehrbar über `undo_writes`. Diese vier Bedingungen sind der Grund, warum ein
+Mengenwerkzeug hier überhaupt vertretbar ist; fällt eine weg, ist die
+Begründung in `lib/mcp/untrusted.ts` hinfällig. `undo_writes` schreibt aus
+`mcp_write_log` den alten Wert zurück, lässt aber alles stehen, was seither in
+der App geändert wurde, und markiert jede Wiederherstellung über
+`mcp_write_log.undo_of` (Migration 0101), damit ein zweiter Aufruf kein
+Kippschalter ist.
+
+Die drei Kampagnen-Werkzeuge legen ausschließlich einen **Entwurf** an
+(`campaigns` ohne `instantly_campaign_id`, ohne `activated_at`, ohne
+Mailboxen). Es gibt weiterhin kein Werkzeug, das versendet, eine Suche startet,
+eine Kampagne aktiviert oder pausiert, etwas an Instantly übergibt oder etwas
+löscht: der schmale Schreibbereich ist der eigentliche Schutz gegen
+Anweisungen, die in fremdem Website- oder Mailtext stecken. Jeder
 Schreibvorgang landet in `mcp_write_log`.
+
+**Offen (Stand 2026-08-22):** Ein solcher Entwurf ist in der App noch nicht zu
+öffnen. `GET /api/instantly/campaigns` filtert auf
+`instantly_campaign_id is not null`, und die Detailroute antwortet ohne diese
+ID mit „Kampagne nicht gefunden" — die Kampagnenseite liest ihren Zustand live
+von Instantly. Die Suchen-Detailseite blendet Entwürfe deshalb bewusst aus
+(sonst ersetzte ein Entwurf den Knopf „Kampagne anlegen" durch einen toten
+Link). Lesbar ist er über MCP (`get_sequence`). Was fehlt, ist ein Weg, einen
+Entwurf im Kampagnenformular zu öffnen und von dort wie gewohnt bei Instantly
+anzulegen.
 
 **Achtung bei Umgebungsvariablen:** Der Resend-Schlüssel heißt in Vercel
 `Resend_API_KEY`, nicht `RESEND_API_KEY`. `process.env` unterscheidet Groß-
