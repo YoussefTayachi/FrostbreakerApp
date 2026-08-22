@@ -67,14 +67,22 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   // api/billing/webhook (Stripe), api/cron/* (pg_cron), api/internal/* (pg_net,
-  // z.B. Signup-Benachrichtigung) und api/unsubscribe (per Klick aus einer
-  // Kampagnen-Mail) werden ohne Supabase-Session aufgerufen — ohne diesen
-  // Ausschluss redirected die Auth-Middleware jeden Aufruf auf /login, bevor
-  // die Route ueberhaupt laeuft. Alle pruefen ihre eigene Authentifizierung
-  // selbst (Stripe-Signatur, CRON_SECRET/INTERNAL_NOTIFY_SECRET, bzw. beim
-  // Opt-out-Link braucht es bewusst gar keine — CAN-SPAM verlangt einen
-  // Opt-out ohne zusaetzliche Huerden).
+  // z.B. Signup-Benachrichtigung), api/unsubscribe (per Klick aus einer
+  // Kampagnen-Mail) und api/mcp/ (der eigene Claude des Nutzers) werden ohne
+  // Supabase-Session aufgerufen — ohne diesen Ausschluss redirected die
+  // Auth-Middleware jeden Aufruf auf /login, bevor die Route ueberhaupt
+  // laeuft. Alle pruefen ihre eigene Authentifizierung selbst
+  // (Stripe-Signatur, CRON_SECRET/INTERNAL_NOTIFY_SECRET, api/mcp/ prueft
+  // seinen eigenen Bearer-Token gegen mcp_tokens, bzw. beim Opt-out-Link
+  // braucht es bewusst gar keine — CAN-SPAM verlangt einen Opt-out ohne
+  // zusaetzliche Huerden).
+  //
+  // api/mcp steht hier OHNE abschliessenden Schraegstrich, anders als
+  // api/cron/ und api/internal/: die beiden haben nur Unterrouten, der
+  // MCP-Endpunkt ist selbst die Route (/api/mcp). Mit "api/mcp/" wuerde die
+  // Ausnahme genau den einen Pfad verfehlen, um den es geht, und Claude
+  // bekaeme statt einer Antwort eine Umleitung auf /login.
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|api/billing/webhook|api/cron/|api/internal/|api/unsubscribe).*)",
+    "/((?!_next/static|_next/image|favicon.ico|api/billing/webhook|api/cron/|api/internal/|api/mcp|api/unsubscribe).*)",
   ],
 };

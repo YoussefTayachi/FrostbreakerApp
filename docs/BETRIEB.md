@@ -103,7 +103,7 @@ URL mitwandern, sonst laufen Signup-Meldungen ins Leere.
 
 Region `fra1`. Deployt bei jedem Push auf `main`.
 
-Vier Routen laufen bewusst **ohne** Supabase-Session und prüfen ihre
+Fünf Routen laufen bewusst **ohne** Supabase-Session und prüfen ihre
 Authentifizierung selbst; sie sind deshalb im Middleware-Matcher
 ausgenommen (siehe `apps/web/middleware.ts`):
 
@@ -112,7 +112,18 @@ ausgenommen (siehe `apps/web/middleware.ts`):
 | `api/billing/webhook` | Stripe-Signatur |
 | `api/cron/*` | `CRON_SECRET` |
 | `api/internal/*` | `INTERNAL_NOTIFY_SECRET` |
+| `api/mcp` | Bearer-Token aus `mcp_tokens` (SHA-256-Vergleich) |
 | `api/unsubscribe` | bewusst nichts (CAN-SPAM verlangt Opt-out ohne Hürden) |
+
+`api/mcp` ist der MCP-Server: der Nutzer trägt einen Token aus den
+Einstellungen in seinem eigenen Claude ein und liest damit seine Leads. Der
+Endpunkt ist zustandslos und prüft bei **jedem** Aufruf neu, ob der Token gilt
+und in welchen Workspaces sein Besitzer laut `workspace_members` Mitglied ist.
+Er läuft mit Service-Role (ohne Session wäre `auth.uid()` NULL und jede
+RLS-Policy false); der Ausgleich ist der ausdrückliche `workspace_id`-Filter in
+jeder Abfrage, siehe `apps/web/lib/mcp/authorize.ts`. Schreibend gibt es genau
+ein Werkzeug (Icebreaker eines Leads), jeder Schreibvorgang landet in
+`mcp_write_log`.
 
 **Achtung bei Umgebungsvariablen:** Der Resend-Schlüssel heißt in Vercel
 `Resend_API_KEY`, nicht `RESEND_API_KEY`. `process.env` unterscheidet Groß-
