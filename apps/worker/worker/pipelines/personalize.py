@@ -46,10 +46,11 @@ MAX_SITE_CHARS = 6000
 # Die Zahl ist eine Kostengrenze, keine Qualitaetsgrenze: der Beispielblock
 # steht in JEDER Anfrage fuer JEDEN Lead. Ein Beispiel traegt den Kontexttext
 # einer Firma, in der Praxis ein paar tausend Zeichen; zehn davon landen grob
-# im Bereich 5.000 bis 10.000 Tokens Vorspann. Gecacht kostet das je Lead
-# wenig, ungecacht das Zehnfache, und beides multipliziert sich mit der Anzahl
-# Leads einer Suche. Zum Anlernen eines Schreibstils saettigt Few-Shot
-# ohnehin lange vorher.
+# im Bereich 5.000 bis 10.000 Tokens Vorspann. Gecacht kostet ein Eingangstoken
+# ein Viertel (0,10 statt 0,40 USD je Million, siehe usage.py), ungecacht das
+# Vierfache davon, und beides multipliziert sich mit der Anzahl Leads einer
+# Suche. Zum Anlernen eines Schreibstils saettigt Few-Shot ohnehin lange
+# vorher.
 #
 # Muss mit MAX_PERSONALIZATION_EXAMPLES in
 # apps/web/lib/personalization-defaults.ts uebereinstimmen: die Oberflaeche
@@ -404,6 +405,104 @@ def sanitize_banned_punctuation(text: str, banned_words: list[str]) -> str:
     return result.strip(" ,")
 
 
+def build_input(
+    system_prompt: str,
+    company_name: str,
+    context: str,
+    examples: list[dict] | None = None,
+    correction: str | None = None,
+) -> list[dict]:
+    """Die input-Liste fuer die Responses-API.
+
+    ═══════════════════════════════════════════════════════════════════════
+    WIE DIE BEISPIELE IN DEN PROMPT KOMMEN
+    ═══════════════════════════════════════════════════════════════════════
+
+    Als echte Gespraechs-Turns, nicht als Aufzaehlung im System-Prompt. Ein
+    Beispiel ist ein user-Turn (der Kontext) und der darauf folgende
+    assistant-Turn (die handgeschriebene Zeile), und danach kommt die echte
+    Anfrage als letzter user-Turn. Das Modell sieht damit genau die Abbildung,
+    die es nachmachen soll, an derselben Stelle, an der es sie spaeter
+    anwenden muss.
+
+    Die Responses-API laesst genau diese vier Rollen in input zu: user,
+    assistant, system, developer. Nachgesehen am 2026-08-22 auf
+    https://developers.openai.com/api/reference/resources/responses/methods/create
+    ("Create a model response", input -> Message). assistant-Turns sind dort
+    ausdruecklich die Turns, die als vom Modell erzeugt GELTEN, also genau das,
+    was Few-Shot braucht. Sie duerfen im Request stehen, ohne dass es vorher
+    einen echten Lauf gegeben hat.
+
+    Der assistant-Turn ist die blanke Zeile: keine Anfuehrungszeichen, kein
+    Label, kein "Icebreaker:". Alles, was dort zusaetzlich steht, waere Teil
+    des Musters und tauchte in den Ergebnissen wieder auf.
+
+    ZUR FORM DES BEISPIEL-USER-TURNS
+
+    Die echte Anfrage lautet "Unternehmen: <Name>\\n\\n<Kontext>". Ein
+    Beispiel hat keinen Firmennamen: personalization_examples speichert nur
+    input_context und icebreaker. Es gibt also drei Moeglichkeiten, und zwei
+    davon sind schlechter:
+
+      - Einen erfundenen Platzhalternamen einsetzen. Das waere die schlimmste
+        Variante, weil derselbe Name dann in JEDEM Beispiel steht und damit
+        selbst zum Muster wird. Genau dieser Effekt ist an echten Daten schon
+        gemessen worden und steht in constraint_block dokumentiert: die
+        erzeugten Zeilen endeten praktisch alle mit derselben Wendung, weil
+        der Prompt sie einmal als Beispiel nannte.
+      - Bei manchen Beispielen die Zeile setzen und bei anderen nicht. Dann
+        ist die Form nicht einmal untereinander gleich.
+
+    Deshalb ist der Beispiel-User-Turn der input_context, wie er hinterlegt
+    ist, unveraendert und ohne Zusatz. Das ist untereinander konsistent, und
+    der Unterschied zur echten Anfrage ist genau eine Kopfzeile. Die
+    Oberflaeche zeigt im Eingabefeld einen Platzhalter, der diese Kopfzeile
+    vormacht; wer sie mit einfuegt, hat auch diesen Unterschied nicht mehr.
+
+    DER KORREKTUR-VERSUCH
+
+    haengt am LETZTEN user-Turn, also an der echten Anfrage. An ein Beispiel
+    gehaengt wuerde er zum Bestandteil des gelernten Musters, und das Modell
+    lernte, dass zu jedem Kontext eine Ruege gehoert.
+
+    PROMPT-CACHING
+
+    Die Reihenfolge system, Beispiele, echte Anfrage ist genau die, die OpenAI
+    fuer das Caching verlangt. Nachgesehen am 2026-08-22 auf
+    https://developers.openai.com/api/docs/guides/prompt-caching:
+
+      - Es laeuft automatisch und ohne eigenen Marker; einen Gegenwert zu
+        Anthropics cache_control gibt es nicht und braucht es nicht.
+      - Gecacht wird das PRAEFIX der Anfrage, und die Doku sagt woertlich:
+        "Place static content like instructions and examples at the beginning
+        of your prompt, and put variable content, such as user-specific
+        information, at the end." System-Prompt und Beispielblock sind ueber
+        alle Leads eines Workspaces byte-identisch, nur der letzte user-Turn
+        wechselt. Diese Funktion baut deshalb in genau dieser Reihenfolge.
+      - Der Vorspann muss mindestens 1024 Tokens lang sein, Treffer gibt es
+        danach in Schritten von 128 Tokens (fuer Modelle vor GPT-5.6, also
+        auch fuer MODEL hier). Ein System-Prompt ohne Beispiele liegt in der
+        Regel darunter: ohne hinterlegte Beispiele passiert schlicht nichts,
+        ohne Fehler und ohne Aufschlag.
+      - Der Eintrag verfaellt nach 5 bis 10 Minuten ohne Zugriff. Innerhalb
+        einer laufenden Suche kommen die personalize-Jobs dicht genug
+        hintereinander; die erste Zeile nach einer Pause zahlt wieder voll.
+    """
+    input_items: list[dict] = [{"role": "system", "content": system_prompt}]
+    for ex in examples or []:
+        input_items.append({"role": "user", "content": ex["input_context"]})
+        input_items.append({"role": "assistant", "content": ex["icebreaker"]})
+
+    user_content = f"Unternehmen: {company_name}\n\n{context}"
+    if correction:
+        user_content += (
+            f"\n\nDein letzter Versuch hat folgende Regel(n) verletzt: {correction}. "
+            "Bitte korrigiere und antworte erneut nur mit dem Text selbst."
+        )
+    input_items.append({"role": "user", "content": user_content})
+    return input_items
+
+
 @retry(stop=stop_after_attempt(3), wait=wait_exponential(min=5, max=60), reraise=True)
 def generate(
     company_name: str,
@@ -413,20 +512,12 @@ def generate(
     correction: str | None = None,
     workspace_id: str | None = None,
     search_id: str | None = None,
+    examples: list[dict] | None = None,
 ) -> str:
     client = OpenAI(api_key=api_key)
-    user_content = f"Unternehmen: {company_name}\n\n{context}"
-    if correction:
-        user_content += (
-            f"\n\nDein letzter Versuch hat folgende Regel(n) verletzt: {correction}. "
-            "Bitte korrigiere und antworte erneut nur mit dem Text selbst."
-        )
     resp = client.responses.create(
         model=MODEL,
-        input=[
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_content},
-        ],
+        input=build_input(system_prompt, company_name, context, examples, correction),
     )
     # Direkt hier festhalten statt beim Aufrufer: ein Korrektur-Versuch ist ein
     # zweiter, echter Aufruf und muss auch zweimal zaehlen. Frueher wurde pro
@@ -538,6 +629,7 @@ def run(job: dict) -> None:
         return  # keine Datenbasis vorhanden und Recherche bereits abgeschlossen -> kein Retry-Spam
 
     api_key = get_api_key(ws, "openai")
+    examples = load_examples(ws)
     # Direkt vom Datensatz: das eingebettete searches(...) liefert nur
     # deleted_at, keine id (siehe BUSINESS_WITH_SEARCH).
     search_id = biz.get("search_id")
@@ -558,6 +650,7 @@ def run(job: dict) -> None:
         return generate(
             biz["name"], context, api_key, system_prompt,
             correction=correction, workspace_id=ws, search_id=search_id,
+            examples=examples,
         )
 
     line = write_line()

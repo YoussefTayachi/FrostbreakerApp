@@ -2077,6 +2077,8 @@ const de = {
       `Mehr als ${max} Beispiele sind nicht vorgesehen: der Block steht in jeder Anfrage für jeden Lead und kostet entsprechend.`,
     examplesSaveHint:
       "Änderungen an den Textfeldern werden beim Verlassen des Feldes gespeichert. Hinzufügen, Löschen und Sortieren wirkt sofort.",
+    testExamplesUsed: (n: number) =>
+      n === 1 ? "1 Beispiel mitgeschickt" : `${n} Beispiele mitgeschickt`,
     languageHeading: "Sprache der Icebreaker",
     languageSubtitle: "In welcher Sprache sollen die Aufhänger geschrieben werden?",
     languageOptions: { de: "Deutsch", en: "Englisch" } as Record<string, string>,
@@ -4466,6 +4468,8 @@ const en: Dictionary = {
       `More than ${max} examples are not supported: the block goes into every request for every lead and is billed accordingly.`,
     examplesSaveHint:
       "Changes to the text fields are saved when you leave the field. Adding, deleting and reordering takes effect immediately.",
+    testExamplesUsed: (n: number) =>
+      n === 1 ? "1 example included" : `${n} examples included`,
     languageHeading: "Icebreaker language",
     languageSubtitle: "Which language should the opening lines be written in?",
     languageOptions: { de: "German", en: "English" } as Record<string, string>,

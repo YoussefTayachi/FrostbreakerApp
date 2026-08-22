@@ -3,12 +3,19 @@ import { createClient } from "@/lib/supabase/server";
 import { getCurrentWorkspace } from "@/lib/workspace/server";
 import { getApiKey } from "@/lib/api-keys";
 import {
+  MAX_PERSONALIZATION_EXAMPLES,
   constraintBlock,
   sanitizeBannedPunctuation,
   validateIcebreaker,
   wordCount,
 } from "@/lib/personalization-defaults";
-import { OPENAI_MODEL, extractOutputText } from "@/lib/openai";
+import {
+  OPENAI_MODEL,
+  buildPersonalizationInput,
+  extractOutputText,
+  type OpenAiInputMessage,
+  type PersonalizationExample,
+} from "@/lib/openai";
 import { recordOpenAiUsage } from "@/lib/usage";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
@@ -39,19 +46,12 @@ async function callModel(
   supabase: SupabaseClient,
   workspaceId: string,
   apiKey: string,
-  systemPrompt: string,
-  userContent: string
+  input: OpenAiInputMessage[]
 ): Promise<{ text?: string; error?: string }> {
   const res = await fetch("https://api.openai.com/v1/responses", {
     method: "POST",
     headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-    body: JSON.stringify({
-      model: OPENAI_MODEL,
-      input: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userContent },
-      ],
-    }),
+    body: JSON.stringify({ model: OPENAI_MODEL, input }),
   });
   if (!res.ok) {
     const errBody = await res.text();
@@ -134,7 +134,30 @@ export async function POST(req: Request) {
     );
   }
 
-  const userContent = `Unternehmen: ${biz.name}\n\n${context}`;
+  // Die Beispiele kommen aus der Datenbank und nicht aus dem Request: sie
+  // werden im AI-Agent-Tab sofort gespeichert, und der Worker liest sie
+  // genauso. Fehlten sie hier, pruefte der Live-Test einen anderen Prompt als
+  // den, der spaeter laeuft, und zwar an der Stelle, die den Stil bestimmt.
+  //
+  // .eq("workspace_id", ...) ist Pflicht: RLS entscheidet nur, auf welche
+  // Accounts jemand zugreifen darf, nicht welcher der eigenen Workspaces
+  // gemeint ist.
+  const { data: exampleRows } = await supabase
+    .from("personalization_examples")
+    .select("input_context, icebreaker")
+    .eq("workspace_id", ws.workspace.id)
+    .order("sort_order", { ascending: true })
+    .order("created_at", { ascending: true })
+    .limit(MAX_PERSONALIZATION_EXAMPLES);
+  // Dieselbe Aussortierung wie load_examples() im Worker: ein halbes Paar
+  // bringt dem Modell die falsche Abbildung bei.
+  const examples: PersonalizationExample[] = (exampleRows ?? [])
+    .map((r) => ({
+      input_context: (r.input_context ?? "").trim(),
+      icebreaker: (r.icebreaker ?? "").trim(),
+    }))
+    .filter((r) => r.input_context && r.icebreaker);
+
   // Derselbe Anhang, den auch der Worker an JEDEN Prompt haengt. Fehlte er
   // hier, pruefte der Live-Test einen anderen Prompt als den, der spaeter
   // laeuft, und genau daran war der Sprachfehler so schwer zu sehen: der
@@ -145,6 +168,7 @@ export async function POST(req: Request) {
   // Feste Bindungen fuer die Closure darunter: TypeScript traegt die
   // Null-Pruefungen von oben nicht in eine verschachtelte Funktion hinein.
   const workspaceId = ws.workspace.id;
+  const companyName: string = biz.name;
   const key: string = apiKey;
 
   /** Ein Aufruf. Eine Stelle, damit der erste Versuch und die Korrekturrunde
@@ -154,8 +178,7 @@ export async function POST(req: Request) {
       supabase,
       workspaceId,
       key,
-      effectivePrompt,
-      correction ? userContent + "\n\n" + correction : userContent
+      buildPersonalizationInput(effectivePrompt, companyName, context, examples, correction)
     );
   }
 
@@ -190,5 +213,9 @@ export async function POST(req: Request) {
     source,
     wordCount: wordCount(text),
     corrected,
+    // Damit die Oberflaeche sagen kann, WAS da geprueft wurde. Ein Testlauf,
+    // der nicht dazusagt, wie viele Beispiele mitgingen, laesst offen, ob das
+    // Ergebnis vom Prompt oder von den Beispielen kommt.
+    exampleCount: examples.length,
   });
 }

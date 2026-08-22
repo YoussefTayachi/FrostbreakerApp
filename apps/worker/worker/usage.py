@@ -31,6 +31,17 @@ log = logging.getLogger(__name__)
 # verfaelschen.
 OPENAI_USD_PER_1M_INPUT = 0.40
 OPENAI_USD_PER_1M_OUTPUT = 1.60
+# Ein Eingangstoken, das aus dem Cache gelesen wurde, kostet ein Viertel.
+# Nachgesehen am 2026-08-22 auf https://developers.openai.com/api/docs/pricing,
+# Zeile gpt-4.1-mini (also MODEL aus personalize.py): Input $0.40, Cached input
+# $0.10, Output $1.60. Einen Aufschlag fuers Schreiben gibt es bei diesem
+# Modell nicht.
+#
+# Die Zahl ist erst mit den Few-Shot-Beispielen wichtig geworden: seither steht
+# ein Vorspann von mehreren tausend Tokens in JEDER Anfrage, und der wird
+# innerhalb einer laufenden Suche ueberwiegend gecacht gelesen. Ohne diesen
+# Satz haette die Kostenzeile ihn viermal zu teuer verbucht.
+OPENAI_USD_PER_1M_CACHED_INPUT = 0.10
 # Hunter und Apollo rechnen in Credits ab, deren Eurowert vom gebuchten Tarif
 # abhaengt und deshalb nicht allgemein bezifferbar ist. Wir halten die Credits
 # fest und lassen den Betrag offen, statt einen Tarif zu unterstellen.
@@ -44,9 +55,19 @@ NEVERBOUNCE_USD_PER_CHECK = 0.008
 # Migration, die einen Constraint zurueckbaut, ist mehr Risiko als Nutzen.
 
 
-def openai_cost_usd(input_tokens: int, output_tokens: int) -> float:
+def openai_cost_usd(input_tokens: int, output_tokens: int, cached_input_tokens: int = 0) -> float:
+    """cached_input_tokens ist ein TEIL von input_tokens, kein Zusatz.
+
+    OpenAI meldet input_tokens als Gesamtsumme und den gecachten Anteil
+    darunter in input_tokens_details.cached_tokens (Beispiel aus der Doku,
+    nachgesehen am 2026-08-22: input_tokens 2600, davon cached_tokens 2000).
+    Anthropic hat das andersherum gemacht, deshalb steht es hier ausdruecklich:
+    wer beide Zahlen addierte, wuerde den Vorspann doppelt berechnen.
+    """
+    frisch = max(input_tokens - cached_input_tokens, 0)
     return (
-        input_tokens / 1_000_000 * OPENAI_USD_PER_1M_INPUT
+        frisch / 1_000_000 * OPENAI_USD_PER_1M_INPUT
+        + cached_input_tokens / 1_000_000 * OPENAI_USD_PER_1M_CACHED_INPUT
         + output_tokens / 1_000_000 * OPENAI_USD_PER_1M_OUTPUT
     )
 
@@ -90,12 +111,19 @@ def record_openai(
     Gezaehlt wird, was die Antwort selbst meldet, nicht was wir geschaetzt
     haetten. Ein Korrektur-Versuch schlaegt damit korrekt doppelt zu Buche.
     Fehlt das usage-Feld, wird nichts geschrieben statt geraten.
+
+    input_tokens_details.cached_tokens geht nur in den PREIS ein, nicht in die
+    Menge: die Tokens stecken schon in input_tokens (siehe openai_cost_usd).
+    Fehlt das Feld, ist der gecachte Anteil 0, und es wird gerechnet wie
+    bisher.
     """
     usage = getattr(response, "usage", None)
     if usage is None:
         return
     eingang = int(getattr(usage, "input_tokens", 0) or 0)
     ausgang = int(getattr(usage, "output_tokens", 0) or 0)
+    details = getattr(usage, "input_tokens_details", None)
+    gecacht = int(getattr(details, "cached_tokens", 0) or 0)
     gesamt = eingang + ausgang
     if gesamt <= 0:
         return
@@ -105,6 +133,6 @@ def record_openai(
         operation,
         gesamt,
         "tokens",
-        cost_usd=openai_cost_usd(eingang, ausgang),
+        cost_usd=openai_cost_usd(eingang, ausgang, gecacht),
         search_id=search_id,
     )

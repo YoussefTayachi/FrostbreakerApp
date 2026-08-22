@@ -29,10 +29,24 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 // Veroeffentlichte Listenpreise, Stand der letzten Pruefung 2026-08-02.
 export const OPENAI_USD_PER_1M_INPUT = 0.4;
 export const OPENAI_USD_PER_1M_OUTPUT = 1.6;
+// Gecacht gelesene Eingangstokens kosten ein Viertel. Nachgesehen am
+// 2026-08-22 auf https://developers.openai.com/api/docs/pricing, Zeile
+// gpt-4.1-mini: Input $0.40, Cached input $0.10, Output $1.60.
+export const OPENAI_USD_PER_1M_CACHED_INPUT = 0.1;
 
-export function openaiCostUsd(inputTokens: number, outputTokens: number): number {
+/** cachedInputTokens ist ein TEIL von inputTokens, kein Zusatz: OpenAI meldet
+ *  input_tokens als Gesamtsumme und den gecachten Anteil darunter in
+ *  input_tokens_details.cached_tokens. Wer beides addiert, berechnet den
+ *  Vorspann doppelt. */
+export function openaiCostUsd(
+  inputTokens: number,
+  outputTokens: number,
+  cachedInputTokens = 0
+): number {
+  const fresh = Math.max(inputTokens - cachedInputTokens, 0);
   return (
-    (inputTokens / 1_000_000) * OPENAI_USD_PER_1M_INPUT +
+    (fresh / 1_000_000) * OPENAI_USD_PER_1M_INPUT +
+    (cachedInputTokens / 1_000_000) * OPENAI_USD_PER_1M_CACHED_INPUT +
     (outputTokens / 1_000_000) * OPENAI_USD_PER_1M_OUTPUT
   );
 }
@@ -45,15 +59,24 @@ export function openaiCostUsd(inputTokens: number, outputTokens: number): number
 // Migration, die einen Constraint zurueckbaut, ist mehr Risiko als Nutzen.
 
 /** Was die Responses-API im usage-Feld meldet. */
-type ResponsesUsage = { input_tokens?: number; output_tokens?: number };
+type ResponsesUsage = {
+  input_tokens?: number;
+  output_tokens?: number;
+  input_tokens_details?: { cached_tokens?: number };
+};
 
-export function tokensFromResponse(json: unknown): { input: number; output: number } | null {
+export function tokensFromResponse(
+  json: unknown
+): { input: number; output: number; cached: number } | null {
   const usage = (json as { usage?: ResponsesUsage } | null)?.usage;
   if (!usage) return null;
   const input = Number(usage.input_tokens ?? 0);
   const output = Number(usage.output_tokens ?? 0);
+  // Fehlt das Detail, ist der gecachte Anteil 0 und es wird gerechnet wie
+  // bisher. Geraten wird nichts.
+  const cached = Number(usage.input_tokens_details?.cached_tokens ?? 0);
   if (!Number.isFinite(input) || !Number.isFinite(output) || input + output <= 0) return null;
-  return { input, output };
+  return { input, output, cached: Number.isFinite(cached) ? cached : 0 };
 }
 
 /** Eine Verbrauchszeile schreiben. Wirft nie. */
@@ -92,6 +115,9 @@ export async function recordUsage(
  * haetten; eine Korrekturrunde schlaegt damit korrekt ein zweites Mal zu
  * Buche. Fehlt das usage-Feld, wird nichts geschrieben statt geraten (gleiche
  * Regel wie im Worker: eine ehrliche Luecke statt einer erfundenen Zahl).
+ *
+ * Der gecachte Anteil geht nur in den PREIS ein, nicht in die Menge: er
+ * steckt schon in input_tokens.
  */
 export async function recordOpenAiUsage(
   supabase: SupabaseClient,
@@ -107,7 +133,7 @@ export async function recordOpenAiUsage(
     operation,
     units: tokens.input + tokens.output,
     unitKind: "tokens",
-    costUsd: openaiCostUsd(tokens.input, tokens.output),
+    costUsd: openaiCostUsd(tokens.input, tokens.output, tokens.cached),
   });
 }
 

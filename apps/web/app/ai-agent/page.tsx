@@ -19,6 +19,7 @@ type TestResult = {
   problems: string[];
   wordCount: number;
   corrected: boolean;
+  exampleCount?: number;
 };
 type CustomTemplate = {
   id: string;
@@ -896,6 +897,15 @@ export default function AiAgentPage() {
             <p className="text-sm italic leading-relaxed text-ink">{testResult.text}</p>
             <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
               <span className="text-faint">{testResult.wordCount} {t.aiAgent.words}</span>
+              {/* Der Testlauf sagt dazu, wie viele Beispiele mitgingen. Ohne
+                  diese Zahl bleibt offen, ob das Ergebnis vom Prompt oder von
+                  den Beispielen kommt, und ein halbes Paar (das beide Seiten
+                  aussortieren) sieht aus wie ein ganzes. */}
+              {(testResult.exampleCount ?? 0) > 0 && (
+                <span className="rounded-full border border-edge2 px-2 py-0.5 text-soft">
+                  {t.aiAgent.testExamplesUsed(testResult.exampleCount ?? 0)}
+                </span>
+              )}
               {testResult.corrected && (
                 <span className="rounded-full border border-sky-500/30 bg-sky-500/10 px-2 py-0.5 text-sky-600 dark:text-sky-300">
                   {t.aiAgent.correctedNote}
