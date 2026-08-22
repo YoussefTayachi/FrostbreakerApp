@@ -1228,9 +1228,8 @@ const de = {
     providerHints: {
       google_maps: "Geocoding API + Places API (New) aktivieren",
       openai: "Key beginnt mit sk-",
-      // PLATZHALTER, muss noch formuliert werden (copywriter).
       anthropic:
-        "Nur nötig, wenn im AI-Agent-Tab Claude als Modell gewählt ist. Key beginnt mit sk-ant-",
+        "Nur nötig, wenn im AI-Agent-Tab Claude als Modell gewählt ist. Ein Claude-Pro- oder Max-Abo reicht dafür nicht, du brauchst einen eigenen Anthropic-API-Schlüssel, der mit sk-ant- beginnt.",
       hunter: "Für E-Mail-Suche nach Entscheidern",
       apollo: "Für die Apollo-Massensuche (Firma + Entscheider + verifizierte E-Mail in einem Schritt). Braucht mindestens Apollos Basic-Plan. Der Free-Plan sperrt die Personensuche über die API.",
       prospeo: "Für die Prospeo-Suche (Firma + Entscheider + verifizierte E-Mail in einem Schritt). Der API-Zugang ist schon im kostenlosen Tarif dabei. Technologie-Filter und Stellenausschreibungen brauchen Starter, der Website-Traffic-Filter Pro.",
@@ -1846,8 +1845,7 @@ const de = {
       },
     },
     /**
-     * Die eigenen Felder (Migration 0098). Inhaltlich richtige Platzhalter,
-     * noch nicht formuliert: ein copywriter geht darueber.
+     * Die eigenen Felder (Migration 0098).
      *
      * Zwei Aussagen muessen ueberleben, egal wie umformuliert wird: die Felder
      * kommen ZUSAETZLICH zu den zwoelf, und die Definitionen gelten fuer den
@@ -1855,19 +1853,19 @@ const de = {
      */
     custom: {
       heading: "Eigene Felder",
-      hint: "Zusätzlich zu den zwölf oben. Du bestimmst Name und Anweisung selbst.",
+      hint: "Zusätzlich zu den zwölf festen Feldern oben. Du bestimmst Name und Anweisung selbst.",
       empty:
-        "Noch keine eigenen Felder. Ein eigenes Feld ist sinnvoll, wenn du etwas in jeder Mail brauchst, das oben nicht vorkommt: die ungefähren Verluste durch das Problem zum Beispiel, oder deine Risikoumkehr.",
+        "Noch keine eigenen Felder. Eins lohnt sich, wenn jede Mail etwas braucht, das die zwölf oben nicht abdecken, zum Beispiel die ungefähren Verluste durch das Problem oder deine Risikoumkehr.",
       manageHeading: "Felder verwalten",
       workspaceNote:
-        "Diese Felder gelten für ALLE Angebote dieses Workspaces. Was du hier oben einträgst, gehört dagegen nur zu diesem einen Angebot.",
+        "Diese Definitionen gelten für ALLE Angebote in diesem Workspace. Was du oben bei den Werten einträgst, gehört dagegen nur zu diesem einen Angebot.",
       labelLabel: "Name des Feldes",
       newLabelPlaceholder: "z. B. Risikoumkehr",
       instructionLabel: "Anweisung an die KI",
       instructionPlaceholder:
-        "z. B. Was nimmst du dem Empfänger an Risiko ab, wenn er Ja sagt? Ein Satz, keine Garantieversprechen.",
+        "z. B. Welches Risiko nimmst du dem Empfänger ab, wenn er Ja sagt? Ein Satz, keine Garantieversprechen.",
       instructionHint:
-        "Die Anweisung wandert wörtlich in den Prompt. Je genauer sie ist, desto brauchbarer der Vorschlag von Core oder Aim. Ohne Anweisung steht dort nur der Name.",
+        "Die Anweisung geht wörtlich in den Prompt, der Feldname allein nicht. „Risikoumkehr“ sagt der KI nicht, wonach sie suchen soll, „Welche Garantie oder Rücknahme bietet der Absender an? Nur wenn die Seite eine nennt“ schon. Fehlt die Anweisung, bleibt nur der Name übrig, und der Vorschlag fällt entsprechend vage aus.",
       fillFromLabel: "Woraus gefüllt",
       fillFrom: {
         core: "Core: aus deiner Website",
@@ -1876,14 +1874,14 @@ const de = {
         manual: "Nur von Hand",
       },
       fillFromHint:
-        "Core liest deine eigene Website (was DU verkaufst), Aim liest die Firmen einer Lead-Liste (an WEN). Ein Feld über den Empfänger aus deiner Website zu ziehen liefert erfundene Werte, deshalb die Wahl.",
+        "Core liest deine eigene Website (was DU verkaufst), Aim liest die Firmen deiner Lead-Liste (an WEN du verkaufst). Ziehst du ein Feld über den Empfänger aus deiner eigenen Website, erfindet die KI den Wert, deshalb die Wahl.",
       add: "Feld anlegen",
       moveUp: "Nach oben",
       moveDown: "Nach unten",
       deleteConfirm: (label: string) =>
         `„${label}" löschen? Der bereits eingetragene Wert bleibt gespeichert und wird nur nicht mehr benutzt.`,
       max: (n: number) =>
-        `Mehr als ${n} eigene Felder gibt es nicht. Wer mehr braucht, hat meistens zwei Angebote statt einem.`,
+        `Mehr als ${n} eigene Felder sind nicht vorgesehen. Wer mehr braucht, hat meistens zwei Angebote statt einem.`,
     },
     saveState: {
       saving: "Speichert...",
@@ -1971,8 +1969,6 @@ const de = {
   aiAgent: {
     title: "AI Agent",
     subtitle: "Steuere, wie der Icebreaker generiert wird: Datenquelle, Regeln und Ton vollständig anpassbar.",
-    // PLATZHALTER, muss noch formuliert werden (copywriter). Inhaltlich
-    // korrekt, aber nicht auf Wirkung geschrieben.
     modelHeading: "Modell",
     modelSubtitle: "Welches Modell schreibt den Icebreaker?",
     modelOptions: {
@@ -1982,20 +1978,20 @@ const de = {
       },
       claude: {
         label: "Claude (Anthropic)",
-        hint: "Zweite Wahl. Zusätzlich lernbar an eigenen Beispiel-Paaren, dafür deutlich teurer pro Lead.",
+        hint: "Lernt deinen Stil aus echten Beispielen statt nur aus dem Prompt, kostet dafür merklich mehr pro Lead.",
       },
     } as Record<string, { label: string; hint: string }>,
     modelKeyHint:
       "Für das gewählte Modell muss unter Einstellungen › API-Keys ein Schlüssel hinterlegt sein.",
     examplesHeading: "Beispiele",
     examplesSubtitle:
-      "Zeig dem Modell deinen Stil an fertigen Paaren: links der Text, den es über die Firma sieht, rechts der Icebreaker, den du selbst dazu geschrieben hättest.",
-    examplesEmpty: "Noch kein Beispiel hinterlegt. Ohne Beispiele folgt Claude nur dem Prompt.",
+      "Bring dem Modell deinen Stil an echten Paaren bei, statt ihn in Regeln zu fassen: der Text, den es über eine Firma sieht, und der Icebreaker, den du selbst dazu geschrieben hättest. Jedes Beispiel geht bei jedem Lead als Eingabe mit, wähle also lieber wenige gute als viele halbe.",
+    examplesEmpty: "Noch kein Beispiel hinterlegt. Füg eins hinzu, dann lernt Claude deinen Stil daran statt nur am Prompt.",
     addExample: "Beispiel hinzufügen",
     exampleNumber: (n: number) => `Beispiel ${n}`,
     exampleContextLabel: "Kontext, den das Modell sieht",
     exampleContextPlaceholder:
-      "Unternehmen: Muster GmbH\n\nHier den Website- oder Recherchetext einfügen, so wie das Modell ihn später sehen würde.",
+      "Unternehmen: Muster GmbH\n\nDer Text, den das Modell wirklich sieht: die recherchierte Firmenbeschreibung, der Website-Text oder beides, je nach Einstellung unter Datenquelle weiter unten.",
     exampleIcebreakerLabel: "Dein Icebreaker dazu",
     exampleIcebreakerPlaceholder: "Die Zeile, die du selbst geschrieben hättest. Ohne Anführungszeichen.",
     exampleMoveUp: "Nach oben",
@@ -2016,7 +2012,7 @@ const de = {
     languageSubtitle: "In welcher Sprache sollen die Aufhänger geschrieben werden?",
     languageOptions: { de: "Deutsch", en: "Englisch" } as Record<string, string>,
     languageHint:
-      "Unabhängig von der Sprache der Oberfläche — eine deutsche Ansicht und amerikanische Zielkunden sind der Normalfall. Die Vorgabe gilt auch für einen selbst geschriebenen Prompt.",
+      "Unabhängig von der Sprache der Oberfläche: eine deutsche Ansicht und amerikanische Zielkunden sind der Normalfall. Die Vorgabe gilt auch für einen selbst geschriebenen Prompt.",
     sourceHeading: "Datenquelle",
     sourceSubtitle: "Worauf soll sich die Personalisierung stützen?",
     sourceOptions: [
@@ -3594,9 +3590,8 @@ const en: Dictionary = {
     providerHints: {
       google_maps: "Enable the Geocoding API + Places API (New)",
       openai: "Key starts with sk-",
-      // PLACEHOLDER, still needs proper wording (copywriter).
       anthropic:
-        "Only needed if Claude is selected as the model in the AI Agent tab. Key starts with sk-ant-",
+        "Only needed if Claude is selected as the model in the AI Agent tab. A Claude Pro or Max subscription does not work here: you need a separate Anthropic API key, which starts with sk-ant-.",
       hunter: "For email search of decision makers",
       apollo: "For Apollo bulk search (company + decision maker + verified email in one step). Requires at least Apollo's Basic plan: the Free plan blocks people search over the API.",
       prospeo: "For Prospeo search (company + decision maker + verified email in one step). API access is included even on the free tier. The technology filter and job postings need Starter, the website traffic filter needs Pro.",
@@ -4180,25 +4175,25 @@ const en: Dictionary = {
         hint: "One question — the same one in all four emails.",
       },
     },
-    /** The custom fields (migration 0098). Plain wording, not a final copy
-     *  pass. Two statements have to survive any rewrite: these fields come IN
-     *  ADDITION to the twelve, and the definitions belong to the whole
-     *  workspace while the values belong to this one offer. */
+    /** The custom fields (migration 0098). Two statements have to survive any
+     *  rewrite: these fields come IN ADDITION to the twelve, and the
+     *  definitions belong to the whole workspace while the values belong to
+     *  this one offer. */
     custom: {
       heading: "Your own fields",
-      hint: "In addition to the twelve above. You decide the name and the instruction.",
+      hint: "In addition to the twelve fixed fields above. You choose the name and the instruction yourself.",
       empty:
-        "No custom fields yet. One is worth adding when every email needs something the twelve fields do not cover: the rough cost of the problem, for instance, or your risk reversal.",
+        "No custom fields yet. One is worth adding when every email needs something the twelve above do not cover, for instance the rough cost of the problem, or your risk reversal.",
       manageHeading: "Manage fields",
       workspaceNote:
-        "These fields apply to ALL offers in this workspace. What you type above belongs to this one offer only.",
+        "These definitions apply to ALL offers in this workspace. What you type above under the values belongs to this one offer only.",
       labelLabel: "Field name",
       newLabelPlaceholder: "e.g. Risk reversal",
       instructionLabel: "Instruction for the AI",
       instructionPlaceholder:
-        "e.g. What risk do you take off the reader once they say yes? One sentence, no guarantees.",
+        "e.g. What risk do you take off the reader once they say yes? One sentence, no guarantee promises.",
       instructionHint:
-        "The instruction goes into the prompt word for word. The more precise it is, the more usable the suggestion from Core or Aim. Without one, only the name is passed on.",
+        "The instruction goes into the prompt word for word, the field name alone does not. \"Risk reversal\" does not tell the AI what to look for, \"What guarantee or refund does the sender offer? Only if the page names one\" does. Without an instruction, only the name is left, and the suggestion comes out just as vague.",
       fillFromLabel: "Filled from",
       fillFrom: {
         core: "Core: from your website",
@@ -4207,14 +4202,14 @@ const en: Dictionary = {
         manual: "By hand only",
       },
       fillFromHint:
-        "Core reads your own website (what YOU sell), Aim reads the companies on a lead list (WHO you sell to). Pulling a field about the recipient out of your own website returns invented values, hence the choice.",
+        "Core reads your own website (what YOU sell), Aim reads the companies on your lead list (WHO you sell to). Pull a field about the recipient from your own website, and the AI invents the value, hence the choice.",
       add: "Add field",
       moveUp: "Move up",
       moveDown: "Move down",
       deleteConfirm: (label: string) =>
         `Delete "${label}"? The value you already entered stays saved, it is simply no longer used.`,
       max: (n: number) =>
-        `${n} custom fields is the limit. Needing more usually means two offers rather than one.`,
+        `${n} custom fields is the limit. Needing more usually means two offers instead of one.`,
     },
     saveState: {
       saving: "Saving...",
@@ -4302,7 +4297,6 @@ const en: Dictionary = {
   aiAgent: {
     title: "AI Agent",
     subtitle: "Control how the icebreaker is generated: data source, rules and tone fully customizable.",
-    // PLACEHOLDER, still needs proper wording (copywriter).
     modelHeading: "Model",
     modelSubtitle: "Which model writes the icebreaker?",
     modelOptions: {
@@ -4312,19 +4306,19 @@ const en: Dictionary = {
       },
       claude: {
         label: "Claude (Anthropic)",
-        hint: "Second option. Can additionally be taught from your own example pairs, but costs noticeably more per lead.",
+        hint: "Learns your style from real examples instead of just the prompt, but costs noticeably more per lead.",
       },
     } as Record<string, { label: string; hint: string }>,
     modelKeyHint: "The selected model needs a key saved under Settings › API keys.",
     examplesHeading: "Examples",
     examplesSubtitle:
-      "Show the model your style with finished pairs: the text it sees about the company, and the icebreaker you would have written for it.",
-    examplesEmpty: "No example saved yet. Without examples, Claude only follows the prompt.",
+      "Teach the model your style with real pairs instead of writing more rules: the text it sees about a company, and the icebreaker you would have written for it. Every example rides along on every lead, so a few strong ones beat a long list of average ones.",
+    examplesEmpty: "No example saved yet. Add one, and Claude learns your style from it instead of the prompt alone.",
     addExample: "Add example",
     exampleNumber: (n: number) => `Example ${n}`,
     exampleContextLabel: "Context the model sees",
     exampleContextPlaceholder:
-      "Unternehmen: Muster GmbH\n\nPaste the website or research text here, the way the model would see it later.",
+      "Unternehmen: Muster GmbH\n\nPaste the text the model actually sees: the researched company summary, the website text, or both, depending on the Data source setting below.",
     exampleIcebreakerLabel: "Your icebreaker for it",
     exampleIcebreakerPlaceholder: "The line you would have written yourself. No quotation marks.",
     exampleMoveUp: "Move up",
@@ -4343,7 +4337,7 @@ const en: Dictionary = {
     languageSubtitle: "Which language should the opening lines be written in?",
     languageOptions: { de: "German", en: "English" } as Record<string, string>,
     languageHint:
-      "Independent of the interface language — a German interface with US prospects is the normal case. The setting also applies to a prompt you wrote yourself.",
+      "Independent of the interface language: a German interface with US prospects is the normal case. The setting also applies to a prompt you wrote yourself.",
     sourceHeading: "Data source",
     sourceSubtitle: "What should the personalization be based on?",
     sourceOptions: [
