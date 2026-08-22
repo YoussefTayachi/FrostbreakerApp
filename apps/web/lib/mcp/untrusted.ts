@@ -34,11 +34,22 @@ import { UNTRUSTED_PREAMBLE, UNTRUSTED_POSTAMBLE } from "@/lib/mcp/tool-descript
  * Es verringert die Gefahr, es beseitigt sie nicht. Supabase schreibt in
  * "Defense in Depth for MCP Servers" ueber genau diese Umzaeunung, das Risiko
  * sei "reduced but did not eliminate" -- ein Modell KANN eine Anweisung im
- * Datenbereich trotzdem befolgen. Der eigentliche Schutz ist deshalb der
- * schmale Werkzeugsatz: es gibt genau ein Schreibwerkzeug, es aendert genau
- * ein Textfeld an genau einem Lead, und nichts hier verschickt Mails, startet
- * Suchen oder gibt Geld aus. Wer hier ein Massenwerkzeug ergaenzt, macht diese
- * Datei wertlos.
+ * Datenbereich trotzdem befolgen.
+ *
+ * Der eigentliche Schutz ist deshalb der schmale Werkzeugsatz: es gibt vier
+ * Schreibwerkzeuge, jedes aendert GENAU EINEN Datensatz je Aufruf
+ * (set_lead_icebreaker, set_contact_status, add_note, set_offer_field), und
+ * nichts hier verschickt Mails, startet Suchen, schaltet Kampagnen, loescht
+ * etwas oder gibt Geld aus.
+ *
+ * Wer hier ein Massenwerkzeug ergaenzt ("setze bei allen Leads ..."), macht
+ * diese Datei wertlos: ein einziger praeparierter Satz auf einer Website
+ * wuerde dann eine ganze Lead-Liste umschreiben, statt eine Zeile. Der Test
+ * "bietet kein Werkzeug an, das versendet, loescht oder in Menge schreibt" in
+ * lib/mcp/tools.test.ts haelt das fest.
+ *
+ * Der heikelste Fall ist der Mail-Verlauf in get_lead: Text, den ein Fremder
+ * geschrieben hat, direkt neben diesen vier Werkzeugen im selben Kontext.
  */
 
 /** Der Tag-Name ohne Klammern, z.B. "untrusted-data-3f2b...". */

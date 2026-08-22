@@ -121,9 +121,14 @@ Endpunkt ist zustandslos und prüft bei **jedem** Aufruf neu, ob der Token gilt
 und in welchen Workspaces sein Besitzer laut `workspace_members` Mitglied ist.
 Er läuft mit Service-Role (ohne Session wäre `auth.uid()` NULL und jede
 RLS-Policy false); der Ausgleich ist der ausdrückliche `workspace_id`-Filter in
-jeder Abfrage, siehe `apps/web/lib/mcp/authorize.ts`. Schreibend gibt es genau
-ein Werkzeug (Icebreaker eines Leads), jeder Schreibvorgang landet in
-`mcp_write_log`.
+jeder Abfrage, siehe `apps/web/lib/mcp/authorize.ts`. Vierzehn Werkzeuge, davon
+zehn lesend; schreibend sind `set_lead_icebreaker`, `set_contact_status`,
+`add_note` und `set_offer_field`, und jedes davon fasst genau einen Datensatz je
+Aufruf an. Es gibt bewusst kein Werkzeug, das versendet, eine Suche startet,
+eine Kampagne schaltet, etwas löscht oder in Menge schreibt: der schmale
+Schreibbereich ist der eigentliche Schutz gegen Anweisungen, die in fremdem
+Website- oder Mailtext stecken (Begründung in `lib/mcp/untrusted.ts`). Jeder
+Schreibvorgang landet in `mcp_write_log`.
 
 **Achtung bei Umgebungsvariablen:** Der Resend-Schlüssel heißt in Vercel
 `Resend_API_KEY`, nicht `RESEND_API_KEY`. `process.env` unterscheidet Groß-

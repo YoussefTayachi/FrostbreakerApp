@@ -1312,16 +1312,16 @@ const de = {
     mcp: {
       title: "Claude-Zugang",
       intro:
-        "Verbinde dein eigenes Claude mit deinen Frostbreaker-Daten: Lead-Listen, Angebot, Kampagnenzahlen und Antworten lesen, dazu Icebreaker direkt zurückschreiben. Betreust du mehrere Kunden in mehreren Workspaces, fragst du dein Claude morgens einmal, was sich seit gestern getan hat, statt dich überall einzeln einzuloggen. Dein bestehendes Claude-Abo reicht aus, Frostbreaker berechnet dafür nichts zusätzlich.",
+        "Verbinde dein eigenes Claude mit deinen Frostbreaker-Daten: Lead-Listen, einzelne Leads samt Mail-Verlauf, Angebot, versendete Sequenzen, Kampagnenzahlen und Antworten lesen, dazu Icebreaker, Kontaktstatus, Notizen und Angebotsfelder zurückschreiben. Betreust du mehrere Kunden in mehreren Workspaces, fragst du dein Claude morgens einmal, was sich seit gestern getan hat, statt dich überall einzeln einzuloggen. Dein bestehendes Claude-Abo reicht aus, Frostbreaker berechnet dafür nichts zusätzlich.",
       createButton: "Token erzeugen",
       nameLabel: "Name",
       namePlaceholder: "z. B. Laptop Büro",
       nameHint: "Hilft dir, mehrere Token auseinanderzuhalten, etwa nach Gerät oder Zweck.",
       scopeLabel: "Berechtigung",
       scopeRead: "Nur lesen",
-      scopeReadWrite: "Lesen und Icebreaker schreiben",
+      scopeReadWrite: "Lesen und einzelne Felder schreiben",
       scopeHint:
-        "Auch die schreibende Stufe darf nur eines: den Icebreaker eines einzelnen Leads setzen. Versenden, Suchen starten und Löschen bleiben ausgeschlossen, auch mit diesem Token.",
+        "Auch die schreibende Stufe fasst immer nur einen Datensatz je Aufruf an: Icebreaker eines Leads, Status eines Kontakts, eine Notiz, ein Feld deines Angebots. Versenden, Suchen starten, Kampagnen starten oder pausieren und Löschen bleiben ausgeschlossen, auch mit diesem Token.",
       workspaceLabel: "Workspace",
       workspaceAll: "Alle, in denen ich Mitglied bin",
       workspaceOne: "Nur dieser eine",
@@ -3740,16 +3740,16 @@ const en: Dictionary = {
     mcp: {
       title: "Claude access",
       intro:
-        "Connect your own Claude to your Frostbreaker data: read lead lists, your offer, campaign numbers and replies, and write icebreakers back. If you run several clients across several workspaces, ask your Claude each morning what happened overnight instead of logging into each one separately. Your existing Claude subscription covers this, Frostbreaker doesn't charge anything extra for it.",
+        "Connect your own Claude to your Frostbreaker data: read lead lists, a single lead including its email history, your offer, the sequences you send, campaign numbers and replies, and write back icebreakers, contact statuses, notes and offer fields. If you run several clients across several workspaces, ask your Claude each morning what happened overnight instead of logging into each one separately. Your existing Claude subscription covers this, Frostbreaker doesn't charge anything extra for it.",
       createButton: "Create token",
       nameLabel: "Name",
       namePlaceholder: "e.g. work laptop",
       nameHint: "Helps you tell multiple tokens apart, for example by device or purpose.",
       scopeLabel: "Permission",
       scopeRead: "Read only",
-      scopeReadWrite: "Read and write icebreakers",
+      scopeReadWrite: "Read and write single fields",
       scopeHint:
-        "Even the write level can do only one thing: set the icebreaker of a single lead. Sending, starting searches and deleting stay off limits, with this token too.",
+        "Even the write level touches only one record per call: a lead's icebreaker, a contact's status, one note, one field of your offer. Sending, starting searches, starting or pausing campaigns and deleting stay off limits, with this token too.",
       workspaceLabel: "Workspace",
       workspaceAll: "All I'm a member of",
       workspaceOne: "Just this one",
