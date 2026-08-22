@@ -71,14 +71,41 @@ import { UNTRUSTED_PREAMBLE, UNTRUSTED_POSTAMBLE } from "@/lib/mcp/tool-descript
  *    vertretbar wird: ein missverstandener Prompt ist keine endgueltige
  *    Zerstoerung mehr, sondern ein Aufruf, den man zuruecknimmt.
  *
+ * ═══════════════════════════════════════════════════════════════════════
+ * WARUM EIN WERKZEUG SEIT DEM 2026-08-22 NACH DRAUSSEN GEHT
+ * ═══════════════════════════════════════════════════════════════════════
+ *
+ * Bis dahin galt hier ausnahmslos: nichts uebergibt etwas an Instantly.
+ * publish_campaign tut es -- es legt einen ENTWURF als Kampagne bei Instantly
+ * an und laedt deren Empfaenger dorthin hoch. Der Anlass ist derselbe wie beim
+ * Mengenwerkzeug: ein Entwurf, den niemand veroeffentlichen kann, ist eine
+ * Sequenz, die im Nichts endet.
+ *
+ * Die Grenze ist damit verschoben, nicht aufgehoben, und sie liegt jetzt genau
+ * eine Stelle weiter:
+ *
+ * - ES VERSENDET NICHTS. Eine frisch angelegte Instantly-Kampagne steht still,
+ *   bis ein Mensch sie startet (siehe api/instantly/campaigns/[id]/activate).
+ *   Es gibt hier weiterhin kein activate, kein pause und kein Werkzeug, das
+ *   eine Mail schickt -- und das soll so bleiben.
+ * - ES UMGEHT KEINE ABMELDUNG. Wer sich abgemeldet hat, auf der Sperrliste
+ *   oder im Archiv steht, bereits geantwortet hat oder eine als ungueltig
+ *   erkannte Adresse hat, wird nicht hochgeladen. Die Filter stehen in
+ *   lib/instantly/create-campaign.ts (planCampaignLeads) und werden von der
+ *   App und von hier aus derselben Funktion aufgerufen, damit die beiden Wege
+ *   nicht auseinanderlaufen koennen.
+ * - ES UMGEHT DIE ABO-SCHRANKE NICHT. Die Route prueft sie ueber die Sitzung,
+ *   die es hier nicht gibt; dieses Werkzeug prueft sie ueber die user_id aus
+ *   dem Token (getBillingStatusForUser).
+ * - ES HAT EINEN PROBELAUF. dry_run legt nichts an und zeigt, wie viele Leads
+ *   hochgingen und wie viele warum zurueckbleiben.
+ *
  * Was weiterhin NICHT existiert und woran sich nichts aendern soll: nichts
  * hier verschickt eine Mail, startet eine Suche, aktiviert oder pausiert eine
- * Kampagne, uebergibt etwas an Instantly, loescht etwas oder gibt Geld aus.
- * Die Kampagnen-Werkzeuge legen einen ENTWURF an und beschreiben ihn; der Weg
- * nach draussen fuehrt ausschliesslich durch die App. Der Test "bietet kein
- * Werkzeug an, das versendet, loescht oder schaltet" in lib/mcp/tools.test.ts
- * haelt das fest, die Tests daneben halten Deckel, Probelauf und
- * Alles-oder-nichts des Mengenwerkzeugs fest.
+ * Kampagne, loescht etwas oder gibt Geld aus. Der Test "bietet kein Werkzeug
+ * an, das versendet, loescht oder schaltet" in lib/mcp/tools.test.ts haelt das
+ * fest, die Tests daneben halten Deckel, Probelauf und Alles-oder-nichts des
+ * Mengenwerkzeugs fest.
  *
  * Der heikelste Fall bleibt der Mail-Verlauf in get_lead: Text, den ein
  * Fremder geschrieben hat, direkt neben diesen Werkzeugen im selben Kontext.

@@ -8,8 +8,18 @@ import {
 import { TOOL_DESCRIPTIONS, type ToolName } from "@/lib/mcp/tool-descriptions";
 import { wrapUntrusted } from "@/lib/mcp/untrusted";
 import { loadFieldDefs } from "@/lib/offer-field-defs";
+import { getApiKey } from "@/lib/api-keys";
+import { getBillingStatusForUser } from "@/lib/billing";
+import { instantlyRequest, InstantlyApiError } from "@/lib/instantly";
 import { instantlyHtmlToPlainText, normalizeInstantlyTimezone } from "@/lib/instantly/campaigns";
-import { classifyLinkedCampaigns, type CampaignDraftRow } from "@/lib/instantly/campaign-draft";
+import {
+  campaignFormValueFromDraft,
+  classifyLinkedCampaigns,
+  type CampaignDraftFormValue,
+  type CampaignDraftRow,
+  type CampaignDraftStep,
+} from "@/lib/instantly/campaign-draft";
+import { createInstantlyCampaign, type CreateCampaignResult } from "@/lib/instantly/create-campaign";
 import { OFFER_COLUMNS, OFFER_TEXT_FIELDS, type OfferTextField } from "@/lib/offers";
 
 /**
@@ -385,6 +395,32 @@ const CAMPAIGN_DEFAULTS = {
   open_tracking: false,
   link_tracking: false,
 } as const;
+
+/**
+ * Der Rueckfall fuer campaignFormValueFromDraft in publish_campaign.
+ *
+ * In der App ist das emptyCampaignFormValue() des Formulars; hier gibt es
+ * keinen Browser (siehe die Begruendung an CAMPAIGN_DEFAULTS), also dieselben
+ * Vorgaben. Er greift nur fuer Spalten, die am Entwurf leer sind; die Sequenz
+ * kann er nicht ersetzen, ein Entwurf ohne Schritte wird vorher abgelehnt.
+ */
+const LEERES_KAMPAGNENFORMULAR: CampaignDraftFormValue = {
+  name: "",
+  mailboxes: [],
+  steps: [],
+  days: [...CAMPAIGN_DEFAULTS.days],
+  from: CAMPAIGN_DEFAULTS.send_window_start,
+  to: CAMPAIGN_DEFAULTS.send_window_end,
+  timezone: CAMPAIGN_DEFAULTS.timezone,
+  dailyLimit: String(CAMPAIGN_DEFAULTS.daily_limit),
+  openTracking: CAMPAIGN_DEFAULTS.open_tracking,
+  linkTracking: CAMPAIGN_DEFAULTS.link_tracking,
+};
+
+/** Wie viele Absenderadressen publish_campaign annimmt. Instantly deckelt
+ *  email_list nicht sichtbar; zwanzig Postfaecher auf einer Kampagne sind
+ *  bereits mehr, als ein Workspace dieser App real hat. */
+const MAX_MAILBOXES = 20;
 
 /** "09:00". Genau das Format, das <input type="time"> in der App liefert und
  *  das Postgres als time annimmt. */
@@ -2782,6 +2818,279 @@ export const TOOLS: Record<ToolName, McpTool> = {
     },
   },
 
+  // ── publish_campaign ───────────────────────────────────────────────────
+  /**
+   * ═════════════════════════════════════════════════════════════════════
+   * DAS EINZIGE WERKZEUG, DAS NACH DRAUSSEN GEHT
+   * ═════════════════════════════════════════════════════════════════════
+   *
+   * Alle anderen Werkzeuge dieses Servers bleiben in der eigenen Datenbank.
+   * Dieses legt die Kampagne bei Instantly an und laedt die Empfaenger dorthin
+   * hoch -- genau das, was api/instantly/campaigns POST tut, wenn ein Mensch
+   * im Formular auf Anlegen klickt. Der Ablauf steht deshalb NICHT hier,
+   * sondern in lib/instantly/create-campaign.ts, den beide Wege aufrufen: eine
+   * zweite Umsetzung waere die verlaesslichste Art, dass Sperrliste und
+   * Abmeldungen auf einem der beiden Wege irgendwann nicht mehr greifen.
+   *
+   * Was hier bleibt, sind die zwei Dinge, die der MCP-Weg anders hat:
+   *
+   * 1. DIE ABO-SCHRANKE. Die Route ruft getBillingStatus(supabase) auf, und
+   *    das liest auth.getUser(). Mit Service-Role ist das null, die Pruefung
+   *    waere also wirkungslos -- ein Konto mit abgelaufener Testphase koennte
+   *    ueber MCP anlegen, was ihm in der App verweigert wird. Hier laeuft sie
+   *    deshalb ueber getBillingStatusForUser mit der user_id aus dem Token
+   *    (dieselbe Abfrage, dieselbe isActive-Regel, nur eine andere Quelle der
+   *    Identitaet).
+   * 2. DIE POSTFAECHER. create_campaign legt bewusst keine an ("eine geratene
+   *    Adresse waere die erste Mail aus dem falschen Postfach"). Ohne Absender
+   *    kann Instantly nichts versenden, also braucht dieses Werkzeug sie --
+   *    und zwar NAMENTLICH, nie geraten: entweder stehen sie schon am Entwurf
+   *    (jemand hat sie in der App gewaehlt) oder sie kommen als Argument. Jede
+   *    genannte Adresse wird gegen die Postfaecher des Workspaces geprueft;
+   *    was Instantly nicht kennt, ist ein Fehler, der die vorhandenen
+   *    aufzaehlt. Ein Tippfehler ergaebe sonst eine Kampagne, die niemals
+   *    senden kann.
+   *
+   * WAS ES WEITERHIN NICHT TUT: aktivieren. Eine frisch angelegte
+   * Instantly-Kampagne verschickt nichts (siehe .../activate/route.ts); der
+   * Knopf dafuer steht in der App und nirgends sonst.
+   */
+  publish_campaign: {
+    title: "Publish campaign to Instantly",
+    description: TOOL_DESCRIPTIONS.publish_campaign,
+    inputSchema: {
+      type: "object",
+      properties: {
+        workspace_id: WORKSPACE_PROPERTY,
+        campaign_id: { type: "string", description: "The draft's campaign_id from create_campaign or get_sequence." },
+        mailboxes: {
+          type: "array",
+          description:
+            "The sending addresses, each one an account that exists in this workspace's Instantly. Leave it out to use the ones already stored on the draft; a dry_run lists what is available.",
+          items: { type: "string" },
+          maxItems: MAX_MAILBOXES,
+        },
+        dry_run: {
+          type: "boolean",
+          description:
+            "True creates nothing and uploads nothing, and returns how many leads would be uploaded, how many are held back, and what is still missing. Default false.",
+        },
+      },
+      required: ["workspace_id", "campaign_id"],
+      additionalProperties: false,
+    },
+    annotations: {
+      title: "Publish campaign to Instantly",
+      readOnlyHint: false,
+      // Nichts wird geloescht: der Entwurf wird zur Kampagne, dieselbe Zeile.
+      destructiveHint: false,
+      // Zweimal aufgerufen entstuenden zwei Instantly-Kampagnen fuer dieselben
+      // Empfaenger -- der zweite Aufruf laeuft deshalb in ladeEntwurf ("ist
+      // kein Entwurf mehr") und legt nichts an.
+      idempotentHint: false,
+      // Das einzige Werkzeug dieses Servers, das eine fremde API aufruft.
+      openWorldHint: true,
+    },
+    scope: "read_write",
+    async handler(supabase, ctx, args) {
+      const tor = gate(ctx, args, "read_write");
+      if (!tor.ok) return tor.result;
+
+      const campaignId = readString(args, "campaign_id");
+      if (!campaignId) {
+        return fail('Argument "campaign_id" is required. Call create_campaign or get_sequence to get one.');
+      }
+      const probelauf = readFlag(args, "dry_run", false);
+      if (!probelauf.ok) return fail(probelauf.message);
+
+      let genannt: string[] | null = null;
+      if (args.mailboxes !== undefined && args.mailboxes !== null) {
+        if (!Array.isArray(args.mailboxes)) {
+          return fail('Argument "mailboxes" must be a list of email addresses.');
+        }
+        if (args.mailboxes.length > MAX_MAILBOXES) {
+          return fail(`Argument "mailboxes" has more than ${MAX_MAILBOXES} entries.`);
+        }
+        const gesammelt: string[] = [];
+        for (const eintrag of args.mailboxes) {
+          if (typeof eintrag !== "string" || eintrag.trim() === "") {
+            return fail('Every entry of "mailboxes" must be a non-empty email address.');
+          }
+          gesammelt.push(eintrag.trim());
+        }
+        genannt = [...new Set(gesammelt)];
+        if (genannt.length === 0) {
+          return fail('Argument "mailboxes" must not be empty. Leave it out to use the draft\'s own mailboxes.');
+        }
+      }
+
+      // Gehoert dem Workspace, ist noch ein Entwurf, laeuft noch nicht:
+      // dieselben drei Bedingungen wie bei den anderen Kampagnen-Werkzeugen.
+      const entwurf = await ladeEntwurf(supabase, tor.workspaceId, campaignId, "publish_campaign");
+      if (!entwurf.ok) return entwurf.result;
+
+      // Die Listen, aus denen die Empfaenger kommen. campaign_searches traegt
+      // keine workspace_id (Migration 0050); die campaign_id ist durch
+      // ladeEntwurf gegangen, deshalb ist die Abfrage hier gedeckt.
+      const { data: zuordnung, error: zuordnungFehler } = await supabase
+        .from("campaign_searches")
+        .select("search_id")
+        .eq("campaign_id", campaignId);
+      if (zuordnungFehler) return dbFail("publish_campaign", zuordnungFehler);
+      const searchIds = [...new Set((zuordnung ?? []).map((z) => z.search_id as string))];
+      if (searchIds.length === 0) {
+        return fail(
+          "This draft is not linked to any lead list, so there would be nobody to send to. Create a new draft with create_campaign."
+        );
+      }
+
+      const { data: schritte, error: schrittFehler } = await supabase
+        .from("campaign_steps")
+        .select("wait_days, subject, body, variants")
+        .eq("campaign_id", campaignId)
+        .order("step_order", { ascending: true });
+      if (schrittFehler) return dbFail("publish_campaign", schrittFehler);
+      if ((schritte ?? []).length === 0) {
+        // Eine Kampagne ohne Mails anzulegen ist ein Fehler, kein Sonderfall:
+        // sie stuende bei Instantly als leere Sequenz, und der Entwurf waere
+        // verbraucht.
+        return fail(
+          "This draft has no emails yet. Write the sequence with set_campaign_sequence before publishing it."
+        );
+      }
+
+      /**
+       * Der Entwurf als das, was das Kampagnenformular abschicken wuerde.
+       *
+       * Ueber campaignFormValueFromDraft und nicht von Hand zusammengesetzt:
+       * dort stecken zwei Umrechnungen, die man sonst vergisst. Postgres
+       * liefert "09:00:00", Instantly will "09:00" (toHhMm), und die Vorgabe
+       * der Spalte "Europe/Berlin" ist bei Instantly gar kein gueltiger Wert
+       * (normalizeInstantlyTimezone, gemessen am 2026-07-21).
+       */
+      const formular = campaignFormValueFromDraft(
+        {
+          name: entwurf.campaign.name,
+          mailboxes: entwurf.campaign.mailboxes,
+          days: entwurf.campaign.days,
+          send_window_start: entwurf.campaign.send_window_start,
+          send_window_end: entwurf.campaign.send_window_end,
+          timezone: entwurf.campaign.timezone,
+          daily_limit: entwurf.campaign.daily_limit,
+          open_tracking: entwurf.campaign.open_tracking,
+          link_tracking: entwurf.campaign.link_tracking,
+        },
+        (schritte ?? []) as unknown as CampaignDraftStep[],
+        LEERES_KAMPAGNENFORMULAR
+      );
+
+      // Die Schranke, die in der Route vor dem Instantly-Aufruf sitzt -- hier
+      // ueber die user_id aus dem Token statt ueber die Sitzung.
+      const abo = await getBillingStatusForUser(supabase, ctx.userId);
+      if (!abo?.isActive && !probelauf.value) {
+        return fail(
+          "This account's subscription has expired, so no campaign can be created in Instantly. Pick a plan in Frostbreaker under Settings > Billing; the draft stays as it is."
+        );
+      }
+
+      const apiKey = await getApiKey(supabase, tor.workspaceId, "instantly");
+      if (!apiKey) {
+        return fail(
+          "This workspace has no Instantly API key stored, so the campaign cannot be created. Add it in Frostbreaker under Settings > API keys."
+        );
+      }
+
+      const postfaecher = await ladeInstantlyPostfaecher(apiKey);
+      if (!postfaecher.ok) return fail(postfaecher.message);
+
+      const gewuenscht = genannt ?? formular.mailboxes;
+      const { gewaehlt, unbekannt } = ordnePostfaecherZu(gewuenscht, postfaecher.emails);
+      if (unbekannt.length > 0) {
+        return fail(
+          `Instantly has no account for ${unbekannt.join(", ")} in this workspace. Available: ${
+            postfaecher.emails.join(", ") || "none"
+          }.`
+        );
+      }
+      if (gewaehlt.length === 0 && !probelauf.value) {
+        return fail(
+          postfaecher.emails.length > 0
+            ? `This draft has no sending mailbox yet. Call again with mailboxes, naming which of these should send: ${postfaecher.emails.join(", ")}.`
+            : "This workspace has no mailbox connected in Instantly, so a campaign could not send anything. Connect one in Frostbreaker under Instantly > Mailboxes."
+        );
+      }
+
+      const ergebnis = await createInstantlyCampaign(supabase, apiKey, abo, {
+        workspaceId: tor.workspaceId,
+        name: formular.name,
+        searchIds,
+        mailboxes: gewaehlt,
+        steps: formular.steps,
+        days: formular.days,
+        from: formular.from,
+        to: formular.to,
+        timezone: formular.timezone,
+        dailyLimit: Number(formular.dailyLimit) || null,
+        openTracking: formular.openTracking,
+        linkTracking: formular.linkTracking,
+        // Dieser Entwurf wird die Kampagne: dieselbe Zeile, dieselbe
+        // campaign_id, dieselben Protokollzeilen.
+        draftId: campaignId,
+        dryRun: probelauf.value,
+      });
+
+      if (!ergebnis.ok) return fail(erklaereFehlschlag(ergebnis));
+
+      if (ergebnis.dryRun) {
+        return okJson({
+          dry_run: true,
+          campaign_id: campaignId,
+          name: formular.name,
+          lead_lists: searchIds,
+          would_upload: ergebnis.leadsAdded,
+          held_back: {
+            suppressed_or_unsubscribed: ergebnis.skippedSuppressed,
+            already_replied_or_declined: ergebnis.skippedEngaged,
+            invalid_address: ergebnis.skippedUnverified,
+          },
+          mailboxes: gewaehlt,
+          available_mailboxes: postfaecher.emails,
+          subscription_active: abo?.isActive === true,
+          // Leer heisst: ein echter Aufruf wuerde jetzt durchlaufen.
+          blockers: ergebnis.blockers,
+          note: "Nothing was created and nothing was uploaded. Call again without dry_run to create the campaign in Instantly.",
+        });
+      }
+
+      await protokolliere(supabase, ctx, tor.workspaceId, {
+        campaign_id: ergebnis.campaignId ?? campaignId,
+        field: "campaigns.published",
+        // Es gab vorher keine Instantly-Kampagne; eine erfundene Null waere
+        // kein alter Wert. undo_writes laesst campaigns.* ohnehin in Ruhe.
+        old_value: null,
+        new_value: ergebnis.instantlyCampaignId,
+      });
+
+      return okJson({
+        campaign_id: ergebnis.campaignId,
+        instantly_campaign_id: ergebnis.instantlyCampaignId,
+        name: formular.name,
+        lead_lists: searchIds,
+        leads_uploaded: ergebnis.leadsAdded,
+        held_back: {
+          suppressed_or_unsubscribed: ergebnis.skippedSuppressed,
+          already_replied_or_declined: ergebnis.skippedEngaged,
+          invalid_address: ergebnis.skippedUnverified,
+        },
+        mailboxes: gewaehlt,
+        discarded_drafts: ergebnis.discardedDrafts,
+        written: true,
+        next_steps:
+          "The campaign now exists in Instantly and has sent nothing: a newly created campaign stays idle until someone starts it. Starting it happens in Frostbreaker under Instantly > Campaigns and in no tool here.",
+      });
+    },
+  },
+
   // ── undo_writes ────────────────────────────────────────────────────────
   /**
    * ═════════════════════════════════════════════════════════════════════
@@ -3174,6 +3483,12 @@ type KampagnenZeile = {
   send_window_start: string | null;
   send_window_end: string | null;
   timezone: string | null;
+  /** Die vier Spalten, die erst publish_campaign braucht: sie fuellen das
+   *  Kampagnenformular, das dieses Werkzeug an Instantly weitergibt. */
+  mailboxes: string[] | null;
+  days: number[] | null;
+  open_tracking: boolean | null;
+  link_tracking: boolean | null;
 };
 
 async function ladeEntwurf(
@@ -3184,7 +3499,7 @@ async function ladeEntwurf(
 ): Promise<{ ok: true; campaign: KampagnenZeile } | { ok: false; result: ToolCallResult }> {
   const { data, error } = await supabase
     .from("campaigns")
-    .select("id, name, status, activated_at, instantly_campaign_id, daily_limit, send_window_start, send_window_end, timezone")
+    .select("id, name, status, activated_at, instantly_campaign_id, daily_limit, send_window_start, send_window_end, timezone, mailboxes, days, open_tracking, link_tracking")
     .eq("id", campaignId)
     .eq("workspace_id", workspaceId)
     .maybeSingle();
@@ -3215,6 +3530,102 @@ async function ladeEntwurf(
     };
   }
   return { ok: true, campaign: zeile };
+}
+
+/**
+ * Die Postfaecher, die dieser Workspace bei Instantly hat.
+ *
+ * Ein Fremdaufruf je publish_campaign, auch im Probelauf. Er ist die einzige
+ * Moeglichkeit zu pruefen, ob eine genannte Absenderadresse dort ueberhaupt
+ * existiert: ob Instantly eine unbekannte Adresse in email_list von sich aus
+ * ablehnt, ist NICHT gemessen -- und eine Kampagne mit einem Tippfehler im
+ * Absender koennte niemals senden, ohne dass es jemandem auffiele. Eine
+ * zusaetzliche Anfrage von den 20 je Minute, die Instantly je Workspace
+ * zulaesst, ist dafuer ein guter Tausch.
+ *
+ * limit=100 wie in api/instantly/accounts: wer mehr Postfaecher hat, waehlt
+ * sie in der App aus.
+ */
+async function ladeInstantlyPostfaecher(
+  apiKey: string
+): Promise<{ ok: true; emails: string[] } | { ok: false; message: string }> {
+  try {
+    const antwort = await instantlyRequest<{ items?: { email?: string | null }[] }>(
+      apiKey,
+      "/api/v2/accounts?limit=100"
+    );
+    const emails = (antwort?.items ?? [])
+      .map((a) => (typeof a?.email === "string" ? a.email : null))
+      .filter((e): e is string => Boolean(e));
+    return { ok: true, emails };
+  } catch (err) {
+    const status = err instanceof InstantlyApiError ? err.status : 0;
+    console.error("[mcp] publish_campaign: Postfaecher nicht abrufbar:", (err as Error).message);
+    return {
+      ok: false,
+      message:
+        status === 401 || status === 403
+          ? "Instantly rejected this workspace's API key, so nothing was created. Check the key in Frostbreaker under Settings > API keys."
+          : "Instantly did not answer, so nothing was created. Try again in a minute.",
+    };
+  }
+}
+
+/** Genannte Adressen auf die Schreibweise abbilden, unter der Instantly das
+ *  Konto fuehrt. Gross- und Kleinschreibung spielt bei einer E-Mail-Adresse
+ *  keine Rolle, in email_list aber sehr wohl: dort muss stehen, wie das Konto
+ *  dort heisst. */
+function ordnePostfaecherZu(
+  gewuenscht: string[],
+  vorhanden: string[]
+): { gewaehlt: string[]; unbekannt: string[] } {
+  const nachKlein = new Map(vorhanden.map((e) => [e.toLowerCase(), e]));
+  const gewaehlt: string[] = [];
+  const unbekannt: string[] = [];
+  for (const wunsch of gewuenscht) {
+    const treffer = nachKlein.get(wunsch.trim().toLowerCase());
+    if (treffer) gewaehlt.push(treffer);
+    else unbekannt.push(wunsch);
+  }
+  return { gewaehlt: [...new Set(gewaehlt)], unbekannt };
+}
+
+/**
+ * Der Fehlschlag des gemeinsamen Ablaufs, auf Englisch und fuer ein Modell.
+ *
+ * createInstantlyCampaign traegt den deutschen Satz fuer die Oberflaeche; hier
+ * zaehlt der Grund. Nur bei "instantly_failed" wird der Originaltext
+ * durchgereicht: er kommt von Instantly, ist englisch und nennt die Ursache
+ * genauer, als es eine Uebersetzung koennte.
+ */
+function erklaereFehlschlag(fehler: Extract<CreateCampaignResult, { ok: false }>): string {
+  switch (fehler.reason) {
+    case "subscription_inactive":
+      return "This account's subscription has expired, so no campaign can be created in Instantly. Pick a plan in Frostbreaker under Settings > Billing; the draft stays as it is.";
+    case "search_not_found":
+      return "At least one lead list behind this draft no longer exists in this workspace. Nothing was created.";
+    case "search_already_linked":
+    case "list_has_campaign":
+      return "One of this draft's lead lists already feeds a campaign in Instantly, and a second one would send the same people everything twice. Nothing was created; open the existing campaign in Frostbreaker under Instantly > Campaigns.";
+    case "draft_gone":
+      return "This draft no longer exists. Nothing was created.";
+    case "draft_not_a_draft":
+      return "This campaign is no longer a draft; it was created in Instantly in the meantime. Nothing was created.";
+    case "no_sendable_leads":
+      return "None of the leads in these lists may be emailed: every address is on the suppression list, has unsubscribed, has already replied or declined, or is known to be invalid. Nothing was created.";
+    case "incomplete_variant":
+      return "One step of the sequence has no subject or no body. Fix it with set_campaign_sequence, then publish again.";
+    case "missing_fields":
+      return "The draft is missing something the campaign needs: a name, a schedule, a sequence or a mailbox. Nothing was created.";
+    case "mirror_failed":
+      return `The campaign was created in Instantly (id ${fehler.instantlyCampaignId}), but Frostbreaker could not store it. Do not publish again; open Instantly > Campaigns in the app and check what is there.`;
+    case "instantly_failed":
+      return `Instantly refused the request: ${fehler.error} The campaign may exist there without its leads, so check Instantly > Campaigns in Frostbreaker before trying again.`;
+  }
+  // Unerreichbar, solange jeder Grund oben steht -- und der Compiler haelt
+  // das fest: kaeme einer dazu, waere die Zuweisung an never ein Fehler.
+  const unbehandelt: never = fehler.reason;
+  return `The campaign could not be created (${String(unbehandelt)}). Nothing was created.`;
 }
 
 /** Fuer das Protokoll: aus einem Spaltenwert wird Text, aus null bleibt null.

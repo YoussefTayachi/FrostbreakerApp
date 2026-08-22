@@ -54,11 +54,35 @@ export async function getBillingStatus(
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) return null;
+  return getBillingStatusForUser(supabase, user.id);
+}
 
+/**
+ * Derselbe Status, aber fuer einen Aufruf OHNE Sitzung.
+ *
+ * Der MCP-Server laeuft mit Service-Role: auth.getUser() ergibt dort null,
+ * getBillingStatus liefert also immer null und jede Pruefung darauf waere
+ * wirkungslos (siehe app/api/mcp/route.ts). Die user_id steht stattdessen im
+ * Token-Datensatz und wird hier hereingereicht.
+ *
+ * Bewusst dieselbe Funktion mit derselben Abfrage und derselben isActive-Regel
+ * statt einer zweiten Fassung daneben: an dieser Entscheidung haengt, ob Leads
+ * zu einem Drittanbieter hochgeladen werden duerfen, und zwei Kopien liefen
+ * garantiert auseinander.
+ *
+ * ACHTUNG: mit einem session-gebundenen Client greift RLS weiterhin, eine
+ * fremde userId ergibt dann schlicht keine Zeile. Mit Service-Role greift sie
+ * NICHT -- die userId muss aus einer geprueften Quelle stammen, nie aus einem
+ * Argument des Aufrufers.
+ */
+export async function getBillingStatusForUser(
+  supabase: SupabaseClient,
+  userId: string
+): Promise<BillingStatus | null> {
   const { data } = await supabase
     .from("subscriptions")
     .select("plan, status, trial_ends_at, current_period_end, stripe_customer_id")
-    .eq("owner_id", user.id)
+    .eq("owner_id", userId)
     .single();
   if (!data) return null;
 

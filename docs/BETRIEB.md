@@ -121,11 +121,12 @@ Endpunkt ist zustandslos und prüft bei **jedem** Aufruf neu, ob der Token gilt
 und in welchen Workspaces sein Besitzer laut `workspace_members` Mitglied ist.
 Er läuft mit Service-Role (ohne Session wäre `auth.uid()` NULL und jede
 RLS-Policy false); der Ausgleich ist der ausdrückliche `workspace_id`-Filter in
-jeder Abfrage, siehe `apps/web/lib/mcp/authorize.ts`. Neunzehn Werkzeuge, davon
+jeder Abfrage, siehe `apps/web/lib/mcp/authorize.ts`. Zwanzig Werkzeuge, davon
 zehn lesend. Schreibend sind `set_lead_icebreaker`, `set_lead_icebreakers`,
 `set_contact_status`, `add_note`, `set_offer_field`, `create_campaign`,
-`set_campaign_sequence`, `update_campaign` und `undo_writes`; jedes davon fasst
-genau einen Datensatz je Aufruf an. Mit einer Ausnahme.
+`set_campaign_sequence`, `update_campaign`, `publish_campaign` und
+`undo_writes`; jedes davon fasst genau einen Datensatz je Aufruf an. Mit einer
+Ausnahme.
 
 Die Ausnahme ist `set_lead_icebreakers` (seit 2026-08-22): bis zu **50** Leads
 je Aufruf, jeder einzeln über seine `business_id` benannt (keine Filterform),
@@ -138,13 +139,29 @@ der App geändert wurde, und markiert jede Wiederherstellung über
 `mcp_write_log.undo_of` (Migration 0101), damit ein zweiter Aufruf kein
 Kippschalter ist.
 
-Die drei Kampagnen-Werkzeuge legen ausschließlich einen **Entwurf** an
-(`campaigns` ohne `instantly_campaign_id`, ohne `activated_at`, ohne
-Mailboxen). Es gibt weiterhin kein Werkzeug, das versendet, eine Suche startet,
-eine Kampagne aktiviert oder pausiert, etwas an Instantly übergibt oder etwas
+`create_campaign`, `set_campaign_sequence` und `update_campaign` legen
+ausschließlich einen **Entwurf** an (`campaigns` ohne `instantly_campaign_id`,
+ohne `activated_at`, ohne Mailboxen). Es gibt weiterhin kein Werkzeug, das
+versendet, eine Suche startet, eine Kampagne aktiviert oder pausiert oder etwas
 löscht: der schmale Schreibbereich ist der eigentliche Schutz gegen
 Anweisungen, die in fremdem Website- oder Mailtext stecken. Jeder
 Schreibvorgang landet in `mcp_write_log`.
+
+`publish_campaign` (seit 2026-08-22) ist das einzige Werkzeug, das den Server
+verlässt: es macht aus dem Entwurf eine echte Instantly-Kampagne und lädt deren
+Leads hoch. Es ist derselbe Ablauf, den das Formular auslöst, weil beide
+`lib/instantly/create-campaign.ts` aufrufen. Damit gelten auf dem MCP-Weg
+dieselben vier Empfänger-Filter (Sperrliste inklusive Abmeldungen,
+`contact_archive`, bereits geantwortet oder abgesagt, ungültige Adresse) und
+dieselbe Abo-Schranke. Letztere läuft allerdings über
+`getBillingStatusForUser(supabase, user_id aus dem Token)`, weil
+`auth.getUser()` mit Service-Role NULL ergibt und die Prüfung der Route hier
+wirkungslos wäre. Absender werden nie geraten: entweder stehen sie am Entwurf
+oder sie kommen als Argument `mailboxes`, und jede genannte Adresse wird gegen
+`GET /api/v2/accounts` geprüft (eine der 20 Instantly-Anfragen pro Minute).
+`dry_run` legt nichts an und zeigt, wie viele Leads hochgingen und wie viele
+warum zurückbleiben. **Aktiviert wird weiterhin nur in der App**: eine frisch
+angelegte Instantly-Kampagne versendet nichts.
 
 **Der Weg eines Entwurfs durch die App (seit 2026-08-22):** Er steht in der
 Kampagnenliste unter Instantly > Kampagnen, mit eigenem Abzeichen („Entwurf aus

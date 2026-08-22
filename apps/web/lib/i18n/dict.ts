@@ -1321,7 +1321,7 @@ const de = {
       scopeRead: "Nur lesen",
       scopeReadWrite: "Lesen und einzelne Felder schreiben",
       scopeHint:
-        "Die schreibende Stufe fasst je Aufruf einen Datensatz an: Icebreaker eines Leads, Status eines Kontakts, eine Notiz, ein Feld deines Angebots. Die eine Ausnahme sind bis zu 50 Icebreaker auf einmal, jeder einzeln benannt, mit Vorschau vorab und rückgängig zu machen. Versenden, Suchen starten, Kampagnen starten oder pausieren, an Instantly übergeben und Löschen bleiben ausgeschlossen, auch mit diesem Token; Kampagnen entstehen hier nur als Entwurf.",
+        "Die schreibende Stufe fasst je Aufruf einen Datensatz an: Icebreaker eines Leads, Status eines Kontakts, eine Notiz, ein Feld deines Angebots. Die eine Ausnahme sind bis zu 50 Icebreaker auf einmal, jeder einzeln benannt, mit Vorschau vorab und rückgängig zu machen. Einen fertigen Entwurf kann Claude damit auch bei Instantly anlegen; Abgemeldete und gesperrte Adressen bleiben dabei außen vor, genau wie in der App. Versenden, Suchen starten, Kampagnen starten oder pausieren und Löschen bleiben ausgeschlossen, auch mit diesem Token: gestartet wird eine Kampagne nur von dir.",
       workspaceLabel: "Workspace",
       workspaceAll: "Alle, in denen ich Mitglied bin",
       workspaceOne: "Nur dieser eine",
@@ -3767,7 +3767,7 @@ const en: Dictionary = {
       scopeRead: "Read only",
       scopeReadWrite: "Read and write single fields",
       scopeHint:
-        "The write level touches one record per call: a lead's icebreaker, a contact's status, one note, one field of your offer. The one exception is up to 50 icebreakers at once, each one named individually, with a preview beforehand and an undo afterwards. Sending, starting searches, starting or pausing campaigns, handing anything to Instantly and deleting stay off limits, with this token too; campaigns are only ever created as drafts here.",
+        "The write level touches one record per call: a lead's icebreaker, a contact's status, one note, one field of your offer. The one exception is up to 50 icebreakers at once, each one named individually, with a preview beforehand and an undo afterwards. Claude can also create a finished draft as a campaign in Instantly; people who unsubscribed or are on your blocklist are left out of it, exactly as in the app. Sending, starting searches, starting or pausing campaigns and deleting stay off limits, with this token too: a campaign is only ever started by you.",
       workspaceLabel: "Workspace",
       workspaceAll: "All I'm a member of",
       workspaceOne: "Just this one",

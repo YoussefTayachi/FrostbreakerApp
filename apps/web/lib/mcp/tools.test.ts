@@ -1,7 +1,18 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { callTool, listTools, type McpToolContext } from "./tools";
 import { SCOPE_DENIED_MESSAGE, WORKSPACE_DENIED_MESSAGE } from "./authorize";
+
+/**
+ * Der Schluessel aus api_keys ist Fernet-verschluesselt; entschluesselt wird
+ * er ueber lib/api-keys.ts, und ohne echten APP_ENCRYPTION_KEY gibt es hier
+ * nichts zu entschluesseln. Nur publish_campaign holt ueberhaupt einen
+ * Schluessel, fuer alle anderen Werkzeuge ist diese Attrappe wirkungslos.
+ */
+vi.mock("@/lib/fernet", () => ({
+  fernetDecrypt: () => "instantly-key",
+  fernetEncrypt: () => "ciphertext",
+}));
 
 /**
  * Die Werkzeuge gegen eine GESTUBBTE Datenbank.
@@ -68,6 +79,10 @@ function stubSupabase(antworten: Antworten = {}) {
         "limit",
         "update",
         "insert",
+        // campaign_leads wird beim Veroeffentlichen angehaengt (upsert mit
+        // ignoreDuplicates), damit dieselbe Person nicht zweimal in derselben
+        // Kampagne steht.
+        "upsert",
         // Nur campaign_steps wird geloescht, und zwar um sofort wieder
         // eingefuegt zu werden (set_campaign_sequence ersetzt vollstaendig,
         // wie das Speichern in der App). Es gibt weiterhin kein Werkzeug, das
@@ -78,6 +93,16 @@ function stubSupabase(antworten: Antworten = {}) {
       }
       builder.maybeSingle = (...args: unknown[]) => {
         aufrufe.push({ table, method: "maybeSingle", args });
+        const a = antwort();
+        return Promise.resolve({ data: a.data ?? null, error: a.error ?? null });
+      };
+      // .single() gehoert nicht dem MCP-Code selbst, sondern zwei Funktionen,
+      // die publish_campaign mitbenutzt: getBillingStatusForUser (Abo) und
+      // getApiKey (Instantly-Schluessel). Verhaelt sich hier wie maybeSingle;
+      // der Unterschied (Fehler statt null bei keiner Zeile) spielt fuer beide
+      // keine Rolle, sie fragen nur data ab.
+      builder.single = (...args: unknown[]) => {
+        aufrufe.push({ table, method: "single", args });
         const a = antwort();
         return Promise.resolve({ data: a.data ?? null, error: a.error ?? null });
       };
@@ -136,7 +161,7 @@ function logZeilen(aufrufe: Aufruf[]): Record<string, unknown>[] {
 }
 
 describe("listTools", () => {
-  it("bietet genau die neunzehn vereinbarten Werkzeuge, in fester Reihenfolge", () => {
+  it("bietet genau die zwanzig vereinbarten Werkzeuge, in fester Reihenfolge", () => {
     // Feste Reihenfolge, weil die Spezifikation eine deterministische
     // Sortierung verlangt -- und weil sie den Arbeitsweg abbildet: erst der
     // Workspace, dann die Liste, dann die Leads, und ganz zum Schluss das,
@@ -160,11 +185,12 @@ describe("listTools", () => {
       "create_campaign",
       "set_campaign_sequence",
       "update_campaign",
+      "publish_campaign",
       "undo_writes",
     ]);
   });
 
-  it("kennzeichnet zehn Werkzeuge als nur lesend und neun als schreibend", () => {
+  it("kennzeichnet zehn Werkzeuge als nur lesend und zehn als schreibend", () => {
     const schreibend = listTools().filter((t) => t.annotations.readOnlyHint === false);
     expect(schreibend.map((t) => t.name)).toEqual([
       "set_lead_icebreaker",
@@ -175,8 +201,20 @@ describe("listTools", () => {
       "create_campaign",
       "set_campaign_sequence",
       "update_campaign",
+      "publish_campaign",
       "undo_writes",
     ]);
+  });
+
+  it("genau ein Werkzeug ruft eine fremde API auf, und es ist publish_campaign", () => {
+    /**
+     * openWorldHint ist keine Beschriftung, sondern die Zusage dieses Servers:
+     * alles ausser publish_campaign bleibt in der eigenen Datenbank. Kommt hier
+     * ein zweiter Name dazu, ist die Begruendung in lib/mcp/untrusted.ts
+     * hinfaellig und muss mitgeaendert werden.
+     */
+    const nachDraussen = listTools().filter((t) => t.annotations.openWorldHint === true);
+    expect(nachDraussen.map((t) => t.name)).toEqual(["publish_campaign"]);
   });
 
   it("kein schreibendes Werkzeug ist als zerstoerend markiert", () => {
@@ -207,6 +245,10 @@ describe("listTools", () => {
     expect(idempotent("undo_writes")).toBe(true);
     expect(idempotent("add_note")).toBe(false);
     expect(idempotent("create_campaign")).toBe(false);
+    // publish_campaign zweimal waeren zwei Instantly-Kampagnen an dieselben
+    // Empfaenger; der zweite Aufruf laeuft in ladeEntwurf und legt nichts an,
+    // der Zustand danach waere aber ein anderer.
+    expect(idempotent("publish_campaign")).toBe(false);
   });
 
   it("bietet kein Werkzeug an, das versendet, loescht oder eine Kampagne schaltet", () => {
@@ -221,6 +263,11 @@ describe("listTools", () => {
      * weil es eine Liste namentlicher Leads schreibt und keine Menge nach
      * Bedingung. Ein "bulk_"-Werkzeug waere das andere, und das soll es nicht
      * geben.
+     *
+     * "activate" und "pause" stehen ebenfalls weiterhin darin, obwohl
+     * publish_campaign seit demselben Tag eine Kampagne bei Instantly ANLEGT:
+     * eine frisch angelegte Kampagne versendet nichts, das Starten bleibt in
+     * der App. Genau diese Grenze haelt die Liste fest.
      */
     const verboten = ["send", "delete", "remove", "start_search", "activate", "pause", "bulk", "all"];
     for (const werkzeug of listTools()) {
@@ -253,10 +300,20 @@ describe("listTools", () => {
   it("die Kampagnen-Werkzeuge sagen in der Beschreibung, dass sie nicht aktivieren", () => {
     // Die Stelle, an der ein Modell am ehesten weiterdenkt. Aktivieren heisst
     // hier: echte Mails an echte Firmen.
-    for (const name of ["create_campaign", "set_campaign_sequence", "update_campaign"]) {
+    for (const name of ["create_campaign", "set_campaign_sequence", "update_campaign", "publish_campaign"]) {
       const beschreibung = listTools().find((t) => t.name === name)!.description.toLowerCase();
       expect(beschreibung, name).toContain("activat");
     }
+  });
+
+  it("publish_campaign nennt Probelauf und Sperrliste schon in der Beschreibung", () => {
+    // Das einzige Werkzeug, das Daten an einen Dritten uebergibt. Was es
+    // zurueckhaelt und dass es einen Probelauf gibt, muss das Modell lesen,
+    // BEVOR es aufruft -- danach sind die Leads dort.
+    const beschreibung = listTools().find((t) => t.name === "publish_campaign")!.description.toLowerCase();
+    expect(beschreibung).toContain("dry_run");
+    expect(beschreibung).toContain("unsubscribed");
+    expect(beschreibung).toContain("suppression list");
   });
 
   it("jedes Werkzeug hat eine Beschreibung und ein Schema", () => {
@@ -1589,6 +1646,326 @@ describe("update_campaign", () => {
     });
     expect(ergebnis.isError).toBe(true);
     expect(aufrufe).toHaveLength(0);
+  });
+});
+
+describe("publish_campaign", () => {
+  /**
+   * Das einzige Werkzeug, das eine fremde API aufruft. Die Fragen, die diese
+   * Tests beantworten, sind genau die zwei, an denen es gefaehrlich ist:
+   * greift die Abo-Schranke ohne Sitzung, und faellt eine abgemeldete Adresse
+   * auf diesem Weg genauso raus wie in der App.
+   */
+  const entwurf = {
+    id: "c1",
+    name: "Zahnaerzte Q4",
+    status: "draft",
+    activated_at: null,
+    instantly_campaign_id: null,
+    daily_limit: 50,
+    send_window_start: "09:00:00",
+    send_window_end: "17:00:00",
+    // Die Vorgabe der Spalte (Migration 0001) und bei Instantly ein
+    // UNGUELTIGER Zonenname: publish_campaign muss ihn abbilden.
+    timezone: "Europe/Berlin",
+    mailboxes: ["Hallo@Kanzlei.de"],
+    days: [1, 2, 3, 4, 5],
+    open_tracking: false,
+    link_tracking: false,
+  };
+  const schritt = {
+    wait_days: 0,
+    subject: "Kurz zu Ihrer Praxis",
+    body: "Guten Tag",
+    variants: [{ subject: "Kurz zu Ihrer Praxis", body: "Guten Tag" }],
+  };
+  const aktivesAbo = {
+    plan: "starter",
+    status: "active",
+    trial_ends_at: null,
+    current_period_end: null,
+    stripe_customer_id: null,
+  };
+  /** Eine Firma, ein Kontakt: der zweite steht auf der Sperrliste. */
+  const kontakte = [
+    {
+      id: "k1",
+      email: "chef@praxis.de",
+      first_name: "Ada",
+      last_name: "Lovelace",
+      title: "Inhaberin",
+      business_id: "b1",
+      is_primary: false,
+      outreach_status: "new",
+      email_verification_status: "valid",
+      businesses: { name: "Praxis Nord", website: "praxis.de", personalization: "Ihre neue Seite" },
+    },
+    {
+      id: "k2",
+      email: "abgemeldet@andere.de",
+      first_name: "Bea",
+      last_name: "Nord",
+      title: "Inhaberin",
+      business_id: "b2",
+      is_primary: false,
+      outreach_status: "new",
+      email_verification_status: "valid",
+      businesses: { name: "Praxis Sued", website: "andere.de", personalization: null },
+    },
+  ];
+
+  /** Die Antworten fuer einen vollstaendigen Durchlauf. Die Reihenfolge je
+   *  Tabelle ist die Reihenfolge der Abfragen im Ablauf. */
+  function vollstaendig(overrides: Record<string, unknown> = {}) {
+    return {
+      campaigns: [
+        { data: entwurf }, // ladeEntwurf
+        { data: entwurf }, // die Entwurfs-Uebernahme in create-campaign
+        { data: [entwurf] }, // die Kampagnen an diesen Listen
+        { data: [] }, // das Update des Spiegels
+      ],
+      campaign_searches: [
+        { data: [{ search_id: "s1" }] }, // die Listen dieses Entwurfs
+        { data: [{ campaign_id: "c1" }] }, // was sonst an ihnen haengt
+        { data: [] },
+      ],
+      campaign_steps: { data: [schritt] },
+      searches: { data: [{ id: "s1", name: "Zahnaerzte", query: "zahnarzt", instantly_campaign_id: null }] },
+      subscriptions: { data: aktivesAbo },
+      api_keys: { data: { key_ciphertext: "egal, fernet ist gestubbt" } },
+      contacts: { data: kontakte },
+      suppression_list: { data: [{ email: "abgemeldet@andere.de", domain: null }] },
+      contact_archive: { data: [] },
+      ...overrides,
+    };
+  }
+
+  /** Instantly, so weit dieser Ablauf es benutzt. Merkt sich jeden Aufruf. */
+  function stubInstantly(konten: string[] = ["hallo@kanzlei.de"]) {
+    const anfragen: { url: string; body: Record<string, unknown> | null }[] = [];
+    const antwort = (nutzlast: unknown) => ({
+      ok: true,
+      status: 200,
+      text: async () => JSON.stringify(nutzlast),
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string, init?: { body?: string }) => {
+        anfragen.push({ url, body: init?.body ? JSON.parse(init.body) : null });
+        if (url.includes("/api/v2/accounts")) {
+          return antwort({ items: konten.map((email) => ({ email, status: 1 })) });
+        }
+        if (url.includes("/api/v2/leads/add")) return antwort({ ok: true });
+        return antwort({ id: "inst-9", status: 0 });
+      })
+    );
+    return anfragen;
+  }
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("ein read-Token veroeffentlicht nicht, und fragt auch nicht", async () => {
+    const { supabase, aufrufe } = stubSupabase(vollstaendig());
+    const ergebnis = await callTool(supabase, ctx(), "publish_campaign", {
+      workspace_id: WS,
+      campaign_id: "c1",
+    });
+    expect(ergebnis.content[0].text).toBe(SCOPE_DENIED_MESSAGE);
+    expect(aufrufe).toHaveLength(0);
+  });
+
+  it("legt die Kampagne an, laedt NUR die erlaubten Adressen hoch und protokolliert", async () => {
+    const { supabase, aufrufe } = stubSupabase(vollstaendig());
+    const anfragen = stubInstantly();
+    const ergebnis = await callTool(supabase, ctx({ scope: "read_write" }), "publish_campaign", {
+      workspace_id: WS,
+      campaign_id: "c1",
+    });
+    expect(ergebnis.isError).toBeUndefined();
+
+    const angelegt = anfragen.find((a) => a.url.endsWith("/api/v2/campaigns"))!;
+    expect(angelegt.body).toMatchObject({
+      name: "Zahnaerzte Q4",
+      email_list: ["hallo@kanzlei.de"],
+      // Instantly erbt "Stop on reply" bei API-Erstellung nicht zuverlaessig.
+      stop_on_reply: true,
+    });
+    // Europe/Berlin ist bei Instantly kein gueltiger Wert (gemessen am
+    // 2026-07-21): ungeprueft durchgereicht scheitert das Anlegen.
+    expect(
+      (angelegt.body as { campaign_schedule: { schedules: { timezone: string }[] } }).campaign_schedule
+        .schedules[0].timezone
+    ).toBe("Europe/Belgrade");
+
+    /**
+     * DIE FRAGE, DERENTWEGEN ES DIESEN TEST GIBT.
+     *
+     * Wer sich abgemeldet hat, steht in suppression_list (api/unsubscribe
+     * schreibt genau dorthin). Ueber MCP darf er genauso wenig in einer
+     * Kampagne landen wie ueber das Formular -- das ist die CAN-SPAM-Zusage
+     * und kein Detail.
+     */
+    const hochgeladen = anfragen.find((a) => a.url.endsWith("/api/v2/leads/add"))!;
+    expect((hochgeladen.body as { leads: { email: string }[] }).leads.map((l) => l.email)).toEqual([
+      "chef@praxis.de",
+    ]);
+
+    // Der Spiegel: dieselbe Zeile wie der Entwurf, jetzt mit Zwilling.
+    const update = aufrufe.find((a) => a.table === "campaigns" && a.method === "update");
+    expect(update!.args[0]).toMatchObject({ instantly_campaign_id: "inst-9" });
+    expect(hatFilter(aufrufe, "campaigns", "workspace_id", WS)).toBe(true);
+
+    expect(logZeilen(aufrufe)[0]).toMatchObject({
+      workspace_id: WS,
+      campaign_id: "c1",
+      field: "campaigns.published",
+      old_value: null,
+      new_value: "inst-9",
+    });
+
+    const nutzlast = ergebnis.structuredContent as Record<string, unknown>;
+    expect(nutzlast.leads_uploaded).toBe(1);
+    expect(nutzlast.held_back).toMatchObject({ suppressed_or_unsubscribed: 1 });
+  });
+
+  it("dry_run legt nichts an und zaehlt, wer warum zurueckbleibt", async () => {
+    const { supabase, aufrufe } = stubSupabase(vollstaendig());
+    const anfragen = stubInstantly();
+    const ergebnis = await callTool(supabase, ctx({ scope: "read_write" }), "publish_campaign", {
+      workspace_id: WS,
+      campaign_id: "c1",
+      dry_run: true,
+    });
+    expect(ergebnis.isError).toBeUndefined();
+
+    // Nur die Postfaecher werden gelesen; nichts wird angelegt, nichts
+    // hochgeladen.
+    expect(anfragen.map((a) => a.url)).toEqual([
+      "https://api.instantly.ai/api/v2/accounts?limit=100",
+    ]);
+    expect(aufrufe.some((a) => a.method === "update" || a.method === "insert")).toBe(false);
+
+    const nutzlast = ergebnis.structuredContent as Record<string, unknown>;
+    expect(nutzlast).toMatchObject({
+      dry_run: true,
+      would_upload: 1,
+      subscription_active: true,
+      blockers: [],
+      mailboxes: ["hallo@kanzlei.de"],
+    });
+    expect(nutzlast.held_back).toMatchObject({ suppressed_or_unsubscribed: 1 });
+  });
+
+  it("ein abgelaufenes Abo erreicht Instantly gar nicht", async () => {
+    /**
+     * Die Schranke der Route laeuft ueber auth.getUser() und waere hier
+     * wirkungslos: mit Service-Role gibt es keinen User. Geprueft wird
+     * deshalb ueber die user_id aus dem Token -- und zwar VOR dem
+     * Instantly-Aufruf, denn dort werden Leads zu einem Dritten hochgeladen.
+     */
+    const { supabase, aufrufe } = stubSupabase(
+      vollstaendig({
+        subscriptions: {
+          data: { ...aktivesAbo, status: "trialing", trial_ends_at: "2020-01-01T00:00:00Z" },
+        },
+      })
+    );
+    const anfragen = stubInstantly();
+    const ergebnis = await callTool(supabase, ctx({ scope: "read_write" }), "publish_campaign", {
+      workspace_id: WS,
+      campaign_id: "c1",
+    });
+    expect(ergebnis.isError).toBe(true);
+    expect(ergebnis.content[0].text).toContain("subscription");
+    expect(anfragen).toHaveLength(0);
+    // Und der Schluessel wird gar nicht erst entschluesselt.
+    expect(aufrufe.some((a) => a.table === "api_keys")).toBe(false);
+  });
+
+  it("ein Entwurf ohne Sequenz wird abgelehnt, bevor das Abo geprueft wird", async () => {
+    const { supabase, aufrufe } = stubSupabase(vollstaendig({ campaign_steps: { data: [] } }));
+    const anfragen = stubInstantly();
+    const ergebnis = await callTool(supabase, ctx({ scope: "read_write" }), "publish_campaign", {
+      workspace_id: WS,
+      campaign_id: "c1",
+    });
+    expect(ergebnis.isError).toBe(true);
+    expect(ergebnis.content[0].text).toContain("set_campaign_sequence");
+    expect(anfragen).toHaveLength(0);
+    expect(aufrufe.some((a) => a.table === "subscriptions")).toBe(false);
+  });
+
+  it("eine Kampagne, die es bei Instantly schon gibt, wird nicht ein zweites Mal angelegt", async () => {
+    const { supabase } = stubSupabase(
+      vollstaendig({
+        campaigns: { data: { ...entwurf, status: "active", instantly_campaign_id: "inst-1" } },
+      })
+    );
+    const anfragen = stubInstantly();
+    const ergebnis = await callTool(supabase, ctx({ scope: "read_write" }), "publish_campaign", {
+      workspace_id: WS,
+      campaign_id: "c1",
+    });
+    expect(ergebnis.isError).toBe(true);
+    expect(anfragen).toHaveLength(0);
+  });
+
+  it("ohne Instantly-Schluessel ist es ein klarer Fehler, kein stiller Fehlschlag", async () => {
+    const { supabase } = stubSupabase(vollstaendig({ api_keys: { data: null } }));
+    const anfragen = stubInstantly();
+    const ergebnis = await callTool(supabase, ctx({ scope: "read_write" }), "publish_campaign", {
+      workspace_id: WS,
+      campaign_id: "c1",
+    });
+    expect(ergebnis.isError).toBe(true);
+    expect(ergebnis.content[0].text).toContain("API key");
+    expect(anfragen).toHaveLength(0);
+  });
+
+  it("eine Absenderadresse, die Instantly nicht kennt, legt nichts an", async () => {
+    // Ein Tippfehler im Absender ergaebe sonst eine Kampagne, die niemals
+    // senden kann, und niemandem faellt es auf.
+    const { supabase } = stubSupabase(vollstaendig());
+    const anfragen = stubInstantly(["hallo@kanzlei.de"]);
+    const ergebnis = await callTool(supabase, ctx({ scope: "read_write" }), "publish_campaign", {
+      workspace_id: WS,
+      campaign_id: "c1",
+      mailboxes: ["hallo@kanzlei.at"],
+    });
+    expect(ergebnis.isError).toBe(true);
+    expect(ergebnis.content[0].text).toContain("hallo@kanzlei.de");
+    expect(anfragen.every((a) => a.url.includes("/accounts"))).toBe(true);
+  });
+
+  it("ohne jedes Postfach wird nichts angelegt, und die vorhandenen werden genannt", async () => {
+    // create_campaign legt bewusst keine Postfaecher an: welche senden,
+    // entscheidet ein Mensch. Hier muss es deshalb entweder am Entwurf stehen
+    // oder benannt werden.
+    const { supabase } = stubSupabase(
+      vollstaendig({ campaigns: [{ data: { ...entwurf, mailboxes: [] } }, { data: entwurf }] })
+    );
+    const anfragen = stubInstantly(["hallo@kanzlei.de"]);
+    const ergebnis = await callTool(supabase, ctx({ scope: "read_write" }), "publish_campaign", {
+      workspace_id: WS,
+      campaign_id: "c1",
+    });
+    expect(ergebnis.isError).toBe(true);
+    expect(ergebnis.content[0].text).toContain("hallo@kanzlei.de");
+    expect(anfragen.every((a) => a.url.includes("/accounts"))).toBe(true);
+  });
+
+  it("eine unbekannte campaign_id klingt wie eine fremde", async () => {
+    const { supabase } = stubSupabase({ campaigns: { data: null } });
+    const anfragen = stubInstantly();
+    const ergebnis = await callTool(supabase, ctx({ scope: "read_write" }), "publish_campaign", {
+      workspace_id: WS,
+      campaign_id: "fremd",
+    });
+    expect(ergebnis.isError).toBe(true);
+    expect(ergebnis.content[0].text).toContain("Unknown campaign_id");
+    expect(anfragen).toHaveLength(0);
   });
 });
 
