@@ -1845,6 +1845,46 @@ const de = {
         hint: "Eine Frage — in allen vier Mails dieselbe.",
       },
     },
+    /**
+     * Die eigenen Felder (Migration 0098). Inhaltlich richtige Platzhalter,
+     * noch nicht formuliert: ein copywriter geht darueber.
+     *
+     * Zwei Aussagen muessen ueberleben, egal wie umformuliert wird: die Felder
+     * kommen ZUSAETZLICH zu den zwoelf, und die Definitionen gelten fuer den
+     * ganzen Workspace, die Werte nur fuer dieses Angebot.
+     */
+    custom: {
+      heading: "Eigene Felder",
+      hint: "Zusätzlich zu den zwölf oben. Du bestimmst Name und Anweisung selbst.",
+      empty:
+        "Noch keine eigenen Felder. Ein eigenes Feld ist sinnvoll, wenn du etwas in jeder Mail brauchst, das oben nicht vorkommt: die ungefähren Verluste durch das Problem zum Beispiel, oder deine Risikoumkehr.",
+      manageHeading: "Felder verwalten",
+      workspaceNote:
+        "Diese Felder gelten für ALLE Angebote dieses Workspaces. Was du hier oben einträgst, gehört dagegen nur zu diesem einen Angebot.",
+      labelLabel: "Name des Feldes",
+      newLabelPlaceholder: "z. B. Risikoumkehr",
+      instructionLabel: "Anweisung an die KI",
+      instructionPlaceholder:
+        "z. B. Was nimmst du dem Empfänger an Risiko ab, wenn er Ja sagt? Ein Satz, keine Garantieversprechen.",
+      instructionHint:
+        "Die Anweisung wandert wörtlich in den Prompt. Je genauer sie ist, desto brauchbarer der Vorschlag von Core oder Aim. Ohne Anweisung steht dort nur der Name.",
+      fillFromLabel: "Woraus gefüllt",
+      fillFrom: {
+        core: "Core: aus deiner Website",
+        aim: "Aim: aus der Lead-Liste",
+        both: "Beides",
+        manual: "Nur von Hand",
+      },
+      fillFromHint:
+        "Core liest deine eigene Website (was DU verkaufst), Aim liest die Firmen einer Lead-Liste (an WEN). Ein Feld über den Empfänger aus deiner Website zu ziehen liefert erfundene Werte, deshalb die Wahl.",
+      add: "Feld anlegen",
+      moveUp: "Nach oben",
+      moveDown: "Nach unten",
+      deleteConfirm: (label: string) =>
+        `„${label}" löschen? Der bereits eingetragene Wert bleibt gespeichert und wird nur nicht mehr benutzt.`,
+      max: (n: number) =>
+        `Mehr als ${n} eigene Felder gibt es nicht. Wer mehr braucht, hat meistens zwei Angebote statt einem.`,
+    },
     saveState: {
       saving: "Speichert...",
       saved: "Gespeichert",
@@ -4139,6 +4179,42 @@ const en: Dictionary = {
         label: "What you are asking for",
         hint: "One question — the same one in all four emails.",
       },
+    },
+    /** The custom fields (migration 0098). Plain wording, not a final copy
+     *  pass. Two statements have to survive any rewrite: these fields come IN
+     *  ADDITION to the twelve, and the definitions belong to the whole
+     *  workspace while the values belong to this one offer. */
+    custom: {
+      heading: "Your own fields",
+      hint: "In addition to the twelve above. You decide the name and the instruction.",
+      empty:
+        "No custom fields yet. One is worth adding when every email needs something the twelve fields do not cover: the rough cost of the problem, for instance, or your risk reversal.",
+      manageHeading: "Manage fields",
+      workspaceNote:
+        "These fields apply to ALL offers in this workspace. What you type above belongs to this one offer only.",
+      labelLabel: "Field name",
+      newLabelPlaceholder: "e.g. Risk reversal",
+      instructionLabel: "Instruction for the AI",
+      instructionPlaceholder:
+        "e.g. What risk do you take off the reader once they say yes? One sentence, no guarantees.",
+      instructionHint:
+        "The instruction goes into the prompt word for word. The more precise it is, the more usable the suggestion from Core or Aim. Without one, only the name is passed on.",
+      fillFromLabel: "Filled from",
+      fillFrom: {
+        core: "Core: from your website",
+        aim: "Aim: from the lead list",
+        both: "Both",
+        manual: "By hand only",
+      },
+      fillFromHint:
+        "Core reads your own website (what YOU sell), Aim reads the companies on a lead list (WHO you sell to). Pulling a field about the recipient out of your own website returns invented values, hence the choice.",
+      add: "Add field",
+      moveUp: "Move up",
+      moveDown: "Move down",
+      deleteConfirm: (label: string) =>
+        `Delete "${label}"? The value you already entered stays saved, it is simply no longer used.`,
+      max: (n: number) =>
+        `${n} custom fields is the limit. Needing more usually means two offers rather than one.`,
     },
     saveState: {
       saving: "Saving...",

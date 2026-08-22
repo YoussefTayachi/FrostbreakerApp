@@ -36,6 +36,7 @@ import { LINKEDIN_PLACEHOLDERS } from "@/lib/crm/linkedin-message";
 import type { Offer } from "@/lib/offers";
 import { leadInBefore } from "./sequence-prompt";
 import { BANNED_PHRASES, bannedPhrasesIn } from "./playbook";
+import { customFieldNotesBlock, type OfferFieldDef } from "./offer-custom-fields";
 
 /** LinkedIns Grenze fuer die Nachricht an einer Kontaktanfrage. Gemessen am
  *  Feld selbst, nicht geschaetzt: laengere Texte nimmt das Formular nicht an. */
@@ -67,14 +68,21 @@ export function signatureCost(signature: string): number {
  * @param personalizationWords workspaces.personalization_max_words, wie lang
  *   der eingesetzte Aufhaenger wird. Ohne diese Zahl kann das Modell seinen
  *   eigenen Spielraum nicht kennen.
+ * @param eigene Die selbst definierten Felder des Workspaces (Migration 0098).
+ *   Derselbe Block wie in der Mailsequenz, und aus demselben Grund: derselbe
+ *   Absender, derselbe Zweck des Kanals. Wer ueber beide Wege angeschrieben
+ *   wird, soll zweimal dieselbe Sache hoeren. Ohne sie ist der Prompt Wort
+ *   fuer Wort der von vorher.
  */
 export function buildLinkedInPrompt(
   offer: Offer,
   signature: string,
-  personalizationWords: number
+  personalizationWords: number,
+  eigene?: OfferFieldDef[]
 ): string {
   const sprache = LANGUAGE_NAMES[offer.language] ?? "German";
   const sig = signature.trim();
+  const eigeneNotizen = customFieldNotesBlock(eigene ?? [], offer.custom_fields);
   // ═══════════════════════════════════════════════════════════════════
   // WARUM DEM MODELL DER EIGENE SPIELRAUM GENANNT WIRD, NICHT DIE 300
   // ═══════════════════════════════════════════════════════════════════
@@ -116,6 +124,10 @@ export function buildLinkedInPrompt(
       : "They have NO proof. Never mention clients, numbers, results or years of experience.",
     offer.tone.trim() ? `Tone notes: ${offer.tone.trim()}` : "Tone: direct, plain, business-like.",
     "",
+    // Nur Felder MIT Wert. Ein leeres eigenes Feld erzeugt hier NICHTS, anders
+    // als die festen Felder darueber, die im Leerfall ein Verbot tragen. Die
+    // Begruendung steht bei customFieldNotesBlock.
+    ...(eigeneNotizen.length > 0 ? [...eigeneNotizen, ""] : []),
     "HARD RULES:",
     `- Write in ${sprache}.`,
   ];

@@ -55,6 +55,42 @@ describe("buildOfferPrompt", () => {
     expect(p.indexOf("THE ONE PRODUCT")).toBeLessThan(p.indexOf("THE PAGE:"));
   });
 
+  it("bleibt ohne eigene Felder Wort fuer Wort der alte", () => {
+    // Dieselbe Zusage wie beim Produkt: ein Workspace, der nie ein eigenes
+    // Feld anlegt, darf von Migration 0098 nichts merken. Ein Feld, das nur
+    // Aim fuellen darf, zaehlt hier ausdruecklich als "kein eigenes Feld".
+    const ohne = buildOfferPrompt(seite, "de");
+    expect(buildOfferPrompt(seite, "de", null, [])).toBe(ohne);
+    expect(
+      buildOfferPrompt(seite, "de", null, [
+        { key: "painpoint", label: "Painpoint", instruction: "Woran haengt der Lead?", fill_from: "aim" },
+        { key: "notiz", label: "Notiz", instruction: "", fill_from: "manual" },
+      ])
+    ).toBe(ohne);
+  });
+
+  it("nimmt ein eigenes Core-Feld in FIELDS und ins JSON-Beispiel auf", () => {
+    const p = buildOfferPrompt(seite, "de", null, [
+      {
+        key: "risk_reversal",
+        label: "Risikoumkehr",
+        instruction: "Was nimmst du dem Empfaenger an Risiko ab?",
+        fill_from: "core",
+      },
+    ]);
+    expect(p).toContain("- risk_reversal: Was nimmst du dem Empfaenger an Risiko ab?");
+    expect(p).toContain('"proof":"...","risk_reversal":"..."}');
+    // Die Regeln oben gelten mit und werden nicht ein zweites Mal formuliert.
+    expect(p.match(/Never guess/g)).toHaveLength(1);
+  });
+
+  it("grenzt auch die eigenen Felder auf das gewaehlte Produkt ein", () => {
+    const p = buildOfferPrompt(seite, "de", { name: "Armincx", description: "" }, [
+      { key: "risk_reversal", label: "Risikoumkehr", instruction: "Risiko?", fill_from: "core" },
+    ]);
+    expect(p).toContain("proof, risk_reversal -- is about THIS one only.");
+  });
+
   it("laesst die Beschreibung weg, wenn der Nutzer nur einen Namen getippt hat", () => {
     const p = buildOfferPrompt(seite, "de", { name: "Armincx", description: "" });
     expect(p).toContain("Name: Armincx");

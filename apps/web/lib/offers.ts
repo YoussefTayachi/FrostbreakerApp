@@ -13,6 +13,11 @@
  * "vervollstaendigt" oder mit einem Platzhalter gefuellt.
  */
 
+// Nur der Typ. Ein Wert-Import waere ein Ladekreis (offer-custom-fields ->
+// offer-from-website -> offers), und offer-from-website braucht
+// OFFER_TEXT_FIELDS bereits beim Auswerten seines Moduls.
+import type { CustomFieldValues } from "@/lib/copy/offer-custom-fields";
+
 export type AddressForm = "du" | "sie";
 export type OfferLanguage = "de" | "en";
 
@@ -74,6 +79,20 @@ export type Offer = {
    *  workspaces.reply_sender_name; ist auch das leer, endet die Mail ohne
    *  Unterschrift statt mit einem erfundenen Namen (Migration 0091). */
   signature: string;
+  /**
+   * Die Werte der eigenen Felder (Migration 0098), Schluessel =
+   * offer_field_defs.key.
+   *
+   * Sie kommen ZUSAETZLICH zu den zwoelf oben und ersetzen keines davon. Die
+   * zwoelf bleiben Spalten, weil REQUIRED_FOR_GENERATION, completeness() und
+   * jede Playbook-Pruefung sie namentlich lesen; hier drin steht nur, was
+   * dieser Workspace sich selbst dazu definiert hat.
+   *
+   * Ein Schluessel ohne Definition (Definition geloescht, Wert geblieben) ist
+   * Absicht und wird nirgends gelesen; siehe die Spaltenbeschreibung in
+   * Migration 0098.
+   */
+  custom_fields: CustomFieldValues;
   is_default: boolean;
 };
 
@@ -81,7 +100,7 @@ export type Offer = {
  *  leitet die Feldtypen aus dem String ab und faellt sonst auf
  *  GenericStringError zurueck (dieselbe Falle wie in app/ai-agent/page.tsx). */
 export const OFFER_COLUMNS =
-  "id, name, offering, icp, problem, friction, friction_reason, outcome, mechanism, proof, preview_asset, review_time, cta, tone, address_form, language, website, signature, is_default";
+  "id, name, offering, icp, problem, friction, friction_reason, outcome, mechanism, proof, preview_asset, review_time, cta, tone, address_form, language, website, signature, custom_fields, is_default";
 
 export function emptyOffer(name: string, language: OfferLanguage = "de"): Omit<Offer, "id" | "is_default"> {
   return {
@@ -102,6 +121,9 @@ export function emptyOffer(name: string, language: OfferLanguage = "de"): Omit<O
     language,
     website: null,
     signature: "",
+    // Kein Backfill, kein Zwang: ein Workspace ohne eigene Felder hat hier
+    // dauerhaft ein leeres Objekt und merkt von Migration 0098 nichts.
+    custom_fields: {},
   };
 }
 

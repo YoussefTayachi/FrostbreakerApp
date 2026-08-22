@@ -24,6 +24,7 @@ const angebot: Offer = {
   language: "de",
   website: null,
   signature: "",
+  custom_fields: {},
   is_default: true,
 };
 

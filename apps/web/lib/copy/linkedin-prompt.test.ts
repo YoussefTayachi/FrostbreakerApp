@@ -79,6 +79,29 @@ describe("buildLinkedInPrompt", () => {
     expect(buildLinkedInPrompt({ ...angebot, language: "en" }, "", WOERTER)).not.toContain('"Sie"');
   });
 
+  it("nimmt die eigenen Felder mit, aber nur die gefuellten", () => {
+    // Derselbe Block wie in der Mailsequenz, aus demselben Grund: derselbe
+    // Absender, derselbe Zweck des Kanals. Ohne Wert erzeugt ein eigenes Feld
+    // nichts, und ohne Definitionen ist der Prompt der alte.
+    const def = {
+      key: "risk_reversal",
+      label: "Risikoumkehr",
+      instruction: "Risiko?",
+      fill_from: "core" as const,
+    };
+    const ohne = buildLinkedInPrompt(angebot, "", WOERTER);
+    expect(buildLinkedInPrompt(angebot, "", WOERTER, [])).toBe(ohne);
+    expect(buildLinkedInPrompt(angebot, "", WOERTER, [def])).toBe(ohne);
+    const p = buildLinkedInPrompt(
+      { ...angebot, custom_fields: { risk_reversal: "Erste Woche kostenlos" } },
+      "",
+      WOERTER,
+      [def]
+    );
+    expect(p).toContain("Risikoumkehr: Erste Woche kostenlos");
+    expect(p.indexOf("Risikoumkehr:")).toBeLessThan(p.indexOf("HARD RULES"));
+  });
+
   it("verbietet die Unterschrift, solange keine hinterlegt ist", () => {
     const p = buildLinkedInPrompt(angebot, "", WOERTER);
     expect(p).toContain("No subject line. No signature.");

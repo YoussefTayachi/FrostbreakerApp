@@ -3,6 +3,7 @@ import { getCurrentWorkspace } from "@/lib/workspace/server";
 import { getLangServer } from "@/lib/i18n/lang";
 import { dict } from "@/lib/i18n/dict";
 import { OFFER_COLUMNS, type Offer } from "@/lib/offers";
+import { loadFieldDefs } from "@/lib/offer-field-defs";
 import OffersEditor from "./offers-editor";
 
 /**
@@ -36,6 +37,11 @@ export default async function OffersPage() {
     .eq("workspace_id", ws.workspace.id)
     .order("created_at", { ascending: true });
 
+  // Die eigenen Feld-Definitionen (Migration 0098). Sie gelten fuer den ganzen
+  // Workspace, nicht fuer ein einzelnes Angebot, und werden deshalb hier
+  // einmal geladen und nicht je Angebotswechsel.
+  const fieldDefs = await loadFieldDefs(supabase, ws.workspace.id);
+
   return (
     <div className="fade-up fb-hud fb-weit space-y-5">
       <div className="relative overflow-hidden rounded-xl border border-edge/60 bg-panel px-6 py-5">
@@ -48,7 +54,7 @@ export default async function OffersPage() {
           <p className="mt-1 max-w-xl text-sm leading-relaxed text-faint">{t.offers.subtitle}</p>
         </div>
       </div>
-      <OffersEditor initial={(data ?? []) as unknown as Offer[]} />
+      <OffersEditor initial={(data ?? []) as unknown as Offer[]} initialFieldDefs={fieldDefs} />
     </div>
   );
 }

@@ -14,6 +14,7 @@ import {
   type DraftStep,
   type SequenceOptions,
 } from "@/lib/copy/sequence-prompt";
+import { loadFieldDefs } from "@/lib/offer-field-defs";
 
 /**
  * Eine vollstaendige Mail-Sequenz aus dem hinterlegten Angebot.
@@ -84,7 +85,12 @@ export async function POST(req: Request) {
     bestExample: null,
   };
 
-  const prompt = buildSequencePrompt(offer as unknown as Offer, opts);
+  // Alle eigenen Felder, ungefiltert: fill_from entscheidet, wer ein Feld
+  // FUELLEN darf, nicht, ob es in die Mail einfliesst. Was hier ankommt,
+  // entscheiden allein die Werte am Angebot (Migration 0098).
+  const eigene = await loadFieldDefs(supabase, workspaceId);
+
+  const prompt = buildSequencePrompt(offer as unknown as Offer, opts, eigene);
 
   const erster = await callOpenAi(openaiKey, [{ role: "user", content: prompt }]);
   if (!erster.ok) return NextResponse.json({ error: erster.error }, { status: 502 });
@@ -102,7 +108,7 @@ export async function POST(req: Request) {
   }
 
   const angebot = offer as unknown as Offer;
-  let problems = sequenceProblems(steps, opts, angebot);
+  let problems = sequenceProblems(steps, opts, angebot, eigene);
   let corrected = false;
   if (problems.length > 0) {
     const zweiter = await callOpenAi(openaiKey, [
@@ -117,7 +123,7 @@ export async function POST(req: Request) {
       // wegwerfen.
       if (nachgebessert.length > 0) {
         steps = nachgebessert;
-        problems = sequenceProblems(steps, opts, angebot);
+        problems = sequenceProblems(steps, opts, angebot, eigene);
         corrected = true;
       }
     }

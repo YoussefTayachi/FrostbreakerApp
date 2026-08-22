@@ -7,6 +7,8 @@ import { recordOpenAiUsage } from "@/lib/usage";
 import { fetchWebsiteContent, normalizeWebsiteUrl } from "@/lib/website-text";
 import { buildOfferPrompt, parseOfferSuggestion } from "@/lib/copy/offer-from-website";
 import { cleanProduct } from "@/lib/copy/offer-products";
+import { defsFor, parseCustomFields } from "@/lib/copy/offer-custom-fields";
+import { loadFieldDefs } from "@/lib/offer-field-defs";
 
 /**
  * Die eigene Website lesen und daraus Feldvorschlaege machen.
@@ -62,18 +64,27 @@ export async function POST(req: Request) {
   const seite = await fetchWebsiteContent(url);
   if (!seite.ok) return NextResponse.json({ error: seite.error }, { status: seite.status });
 
+  // Die eigenen Felder des Workspaces, gefiltert auf die, die CORE fuellen
+  // darf (Migration 0098). Ein Workspace ohne eigene Felder bekommt eine leere
+  // Liste, und dann ist der Prompt Wort fuer Wort der von vorher.
+  const eigene = defsFor(await loadFieldDefs(supabase, workspaceId), "core");
+
   const result = await callOpenAi(openaiKey, [
-    { role: "user", content: buildOfferPrompt(seite.content, language, product) },
+    { role: "user", content: buildOfferPrompt(seite.content, language, product, eigene) },
   ]);
   if (!result.ok) return NextResponse.json({ error: result.error }, { status: 502 });
   await recordOpenAiUsage(supabase, workspaceId, "offer_from_website", result.json);
 
   const suggestion = parseOfferSuggestion(result.text);
-  if (Object.keys(suggestion).length === 0) {
+  // Getrennt von `suggestion`, damit das Formular beides einzeln uebernehmen
+  // kann: die zwoelf festen Felder sind typisiert, die eigenen stehen unter
+  // ihrem Schluessel. Gespeichert wird auch hier nichts.
+  const custom = parseCustomFields(result.text, eigene);
+  if (Object.keys(suggestion).length === 0 && Object.keys(custom).length === 0) {
     return NextResponse.json(
       { error: "Aus der Seite liess sich nichts ableiten. Bitte von Hand ausfüllen." },
       { status: 422 }
     );
   }
-  return NextResponse.json({ suggestion });
+  return NextResponse.json({ suggestion, custom });
 }

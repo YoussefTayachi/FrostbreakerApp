@@ -43,6 +43,7 @@
 import { FIRST_MAIL_MAX_WORDS, estimateWords, hasLink } from "@/lib/campaign-readiness";
 import { DEFAULT_MAX_WORDS } from "@/lib/personalization-defaults";
 import { OFFER_TEXT_FIELDS, type Offer, type OfferTextField } from "@/lib/offers";
+import { customFieldNotesBlock, type OfferFieldDef } from "./offer-custom-fields";
 import {
   BANNED_PHRASES,
   MEETING_WORDS,
@@ -179,10 +180,25 @@ export function greetingLine(offer: Offer): string {
   return offer.address_form === "sie" ? "Guten Tag {{firstName}}," : "Hi {{firstName}},";
 }
 
-export function buildSequencePrompt(offer: Offer, opts: SequenceOptions): string {
+/**
+ * @param eigene Die selbst definierten Felder des Workspaces (Migration 0098).
+ *   Ohne sie ist der erzeugte Prompt Wort fuer Wort der von vorher; ein Test
+ *   haelt das fest. Die WERTE kommen aus dem Angebot selbst
+ *   (offer.custom_fields), damit es nicht zwei Wahrheiten darueber gibt, was
+ *   in einem Feld steht.
+ */
+export function buildSequencePrompt(
+  offer: Offer,
+  opts: SequenceOptions,
+  eigene?: OfferFieldDef[]
+): string {
   const budget = ownWordBudget(opts.personalizationWords);
   const sprache = LANGUAGE_NAMES[offer.language] ?? "German";
   const signature = signatureFor(offer, opts.senderName);
+  // Nur Felder MIT Wert erzeugen hier etwas. Warum ein leeres eigenes Feld,
+  // anders als die zwoelf festen, kein Verbot erzeugt, steht bei
+  // customFieldNotesBlock.
+  const eigeneNotizen = customFieldNotesBlock(eigene ?? [], offer.custom_fields);
 
   const lines: string[] = [
     "You write cold outreach email sequences that get REPLIES, not admiration.",
@@ -265,6 +281,10 @@ export function buildSequencePrompt(offer: Offer, opts: SequenceOptions): string
     "  'word for word' means identical across the four steps, not identical to the note above.",
     "- If a note is a meeting request, do not turn the email into one. Ask something the reader can answer with yes.",
     "",
+    // Die eigenen Felder stehen HIER: hinter der Regel, dass Feldinhalte
+    // Notizen und kein Wortlaut sind (sie gilt fuer sie genauso), und vor den
+    // HARD RULES samt ARCHITECTURE-Block, der unangetastet bleibt und gewinnt.
+    ...(eigeneNotizen.length > 0 ? [...eigeneNotizen, ""] : []),
     "HARD RULES (these override everything above):",
     `- Write every email in ${sprache}.`,
   ];
@@ -543,7 +563,11 @@ export function sequenceProblems(
    * (Betreff-Spiegel, Abschrift und fehlende Unterschrift), und ein Ausfall
    * ist besser als ein geratener Befund.
    */
-  offer?: Pick<Offer, OfferTextField | "signature" | "language">
+  offer?: Pick<Offer, OfferTextField | "signature" | "language" | "custom_fields">,
+  /** Die selbst definierten Felder. Ohne sie werden nur die zwoelf festen auf
+   *  Abschrift geprueft; ein Wert ohne Definition stand nie im Prompt und kann
+   *  also auch nicht abgeschrieben worden sein. */
+  eigene?: OfferFieldDef[]
 ): SequenceProblem[] {
   const microYes = offer?.cta;
   // Dieselbe Unterschrift, die buildSequencePrompt vorgibt — aus derselben
@@ -554,10 +578,27 @@ export function sequenceProblems(
   // Die Felder, deren woertliche Uebernahme auffaellt. tone bleibt draussen:
   // "direkt, kein Hype" taucht nie in einer Mail auf, und proof SOLL zitiert
   // werden duerfen — eine Referenz ist eine Tatsache, keine Notiz.
+  //
+  // cta bleibt ebenfalls draussen, und das ist eine Ausnahme mit Grund: der
+  // Micro-Yes ist das EINZIGE Feld, dessen woertliche Wiederholung der Prompt
+  // ausdruecklich verlangt ("repeat the micro yes WORD FOR WORD in every
+  // step"). Ist die Notiz schon eine saubere Ja/Nein-Frage, ist ihre
+  // Uebernahme richtig und keine Abschrift; stuende cta hier, meldete jede
+  // gut ausgefuellte Sequenz einen Befund und loeste damit eine zweite,
+  // bezahlte Korrekturrunde aus. Der Fall, um den es 2026-08-13 wirklich ging
+  // (eine Terminbitte als Micro-Yes), faellt weiterhin auf: einmal am Feld
+  // selbst (offer-tests.ts, microYesProblems) und einmal am Text (meetingAsk).
+  //
+  // Die eigenen Felder (Migration 0098) stehen mit in dieser Liste: sie sind
+  // Notizen wie die anderen auch, stehen im selben Prompt und werden genauso
+  // woertlich uebernommen, wenn man das Modell laesst.
   const notizen = offer
-    ? OFFER_TEXT_FIELDS.filter((f) => f !== "tone" && f !== "proof")
-        .map((f) => offer[f])
-        .filter((v) => v.trim().length > 0)
+    ? [
+        ...OFFER_TEXT_FIELDS.filter((f) => f !== "tone" && f !== "proof" && f !== "cta").map(
+          (f) => offer[f]
+        ),
+        ...(eigene ?? []).map((d) => offer.custom_fields[d.key] ?? ""),
+      ].filter((v) => v.trim().length > 0)
     : [];
   const problems: SequenceProblem[] = [];
   if (steps.length !== DEFAULT_STEP_COUNT) problems.push({ kind: "stepCount", got: steps.length });
@@ -627,6 +668,23 @@ export function sequenceProblems(
       if (bannedPhrasesIn(v.body, MEETING_WORDS).length > 0) {
         problems.push({ kind: "meetingAsk", step: i + 1 });
         break;
+      }
+    }
+
+    // Abschrift eines Angebotsfeldes.
+    //
+    // Die Pruefung fehlte, seit der Befund eingefuehrt wurde (Commit 5efa2ea):
+    // Typ, Notizen-Liste und Korrekturzeile standen da, nur diese Schleife
+    // nicht. Sie ist der Grund, warum die Notizen-Liste ueberhaupt gebaut
+    // wird. Gemessen wurde der Fall am Live-Stand (2026-08-13): das Modell hat
+    // zwei Felder samt Grammatikfehler des Nutzers aneinandergeklebt.
+    if (notizen.length > 0) {
+      for (const v of step.variants) {
+        const abgeschrieben = copiedFrom(v.body, notizen);
+        if (abgeschrieben.length > 0) {
+          problems.push({ kind: "copiedNote", step: i + 1, text: abgeschrieben[0] });
+          break;
+        }
       }
     }
 

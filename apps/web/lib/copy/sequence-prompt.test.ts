@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { FIRST_MAIL_MAX_WORDS } from "@/lib/campaign-readiness";
 import type { Offer } from "@/lib/offers";
+import type { OfferFieldDef } from "./offer-custom-fields";
 import {
   DEFAULT_DELAYS,
   DEFAULT_STEP_COUNT,
@@ -35,10 +36,19 @@ const angebot: Offer = {
   language: "de",
   website: "https://beispiel.de",
   signature: "",
+  custom_fields: {},
   is_default: true,
 };
 
 const opts = defaultSequenceOptions();
+
+/** Ein eigenes Feld (Migration 0098). Absenderseitig, also 'core'. */
+const risikoFeld: OfferFieldDef = {
+  key: "risk_reversal",
+  label: "Risikoumkehr",
+  instruction: "Was nimmst du dem Empfaenger an Risiko ab?",
+  fill_from: "core",
+};
 
 function stufe(bodies: string[], subjects = ["betreff a", "betreff b"]): DraftStep {
   return {
@@ -182,6 +192,40 @@ describe("buildSequencePrompt", () => {
     });
     expect(p).toContain("earned the most replies");
     expect(p).toContain("do NOT copy its sentences");
+  });
+
+  it("bleibt ohne eigene Felder Wort fuer Wort der bisherige Prompt", () => {
+    // Ein Workspace ohne eigene Felder darf von Migration 0098 nichts merken.
+    const ohne = buildSequencePrompt(angebot, opts);
+    expect(buildSequencePrompt(angebot, opts, [])).toBe(ohne);
+    // Und auch mit Definition, aber ohne Wert: ein leeres eigenes Feld erzeugt
+    // NICHTS. Anders als bei den zwoelf festen Feldern gibt es dazu kein
+    // Verbot, weil es keine bekannte Rolle gibt, die das Modell erfinden
+    // koennte.
+    expect(buildSequencePrompt(angebot, opts, [risikoFeld])).toBe(ohne);
+  });
+
+  it("setzt ein gefuelltes eigenes Feld zwischen die Notizen-Regel und die HARD RULES", () => {
+    const p = buildSequencePrompt(
+      { ...angebot, custom_fields: { risk_reversal: "Die erste Woche ist kostenlos" } },
+      opts,
+      [risikoFeld]
+    );
+    expect(p).toContain("Risikoumkehr: Die erste Woche ist kostenlos");
+    expect(p.indexOf("THESE ARE NOTES")).toBeLessThan(p.indexOf("Risikoumkehr:"));
+    expect(p.indexOf("Risikoumkehr:")).toBeLessThan(p.indexOf("HARD RULES"));
+    // Der ARCHITECTURE-Block bleibt unangetastet und gewinnt; der eigene Block
+    // sagt zusaetzlich, dass er keine zweite Frage aufmacht.
+    expect(p).toContain("NEVER add a second friction");
+    expect(p.indexOf("Risikoumkehr:")).toBeLessThan(p.indexOf("THE ARCHITECTURE"));
+  });
+
+  it("nimmt einen Wert ohne Definition nicht auf", () => {
+    // Verwaist heisst: die Definition wurde geloescht, der Wert blieb stehen.
+    // Er wird nirgends mehr gelesen, und genau das macht das Loeschen
+    // umkehrbar (Migration 0098).
+    const p = buildSequencePrompt({ ...angebot, custom_fields: { alt: "steht noch da" } }, opts, []);
+    expect(p).not.toContain("steht noch da");
   });
 });
 
@@ -430,6 +474,45 @@ describe("sequenceProblems", () => {
     s[0].variants[0].body = "Hi {{firstName}},\n\n{{personalization}}\n\nSoll ich dir die Aufnahme schicken?";
     const befunde = sequenceProblems(s, { ...opts, senderName: "Youssef" }, angebot);
     expect(befunde).toContainEqual({ kind: "missingSignature", step: 1 });
+  });
+
+  it("meldet ein woertlich abgeschriebenes Angebotsfeld", () => {
+    // Am Live-Stand gemessen (2026-08-13): das Modell hat Feldinhalte
+    // aneinandergeklebt, samt Grammatikfehler des Nutzers. Die Felder sind
+    // Notizen des Absenders an sich selbst, nicht sein Wortlaut.
+    const s = guelteSequenz();
+    s[1].variants[0].body = `Hi {{firstName}},\n\n${angebot.friction_reason}\n\nSoll ich dir die Aufnahme schicken?\n\nBeste Grüße\nYoussef`;
+    const befunde = sequenceProblems(s, opts, angebot);
+    expect(befunde).toContainEqual({
+      kind: "copiedNote",
+      step: 2,
+      text: angebot.friction_reason,
+    });
+  });
+
+  it("meldet den woertlich uebernommenen Micro-Yes NICHT als Abschrift", () => {
+    // Der Micro-Yes ist das einzige Feld, dessen woertliche Wiederholung der
+    // Prompt ausdruecklich verlangt. Stuende cta in der Notizen-Liste,
+    // meldete jede gut gebaute Sequenz einen Befund und loeste eine zweite,
+    // bezahlte Korrekturrunde aus.
+    const befunde = sequenceProblems(guelteSequenz(), opts, angebot);
+    expect(befunde.some((p) => p.kind === "copiedNote")).toBe(false);
+  });
+
+  it("greift auch auf den Werten der eigenen Felder", () => {
+    // Sie sind Notizen wie die anderen auch und stehen im selben Prompt.
+    const wert = "Die erste Woche ist kostenlos und jederzeit kuendbar";
+    const s = guelteSequenz();
+    s[2].variants[0].body = `Hi {{firstName}},\n\n${wert}\n\nSoll ich dir die Aufnahme schicken?`;
+    const mitFeld = { ...angebot, custom_fields: { risk_reversal: wert } };
+    expect(sequenceProblems(s, opts, mitFeld, [risikoFeld])).toContainEqual({
+      kind: "copiedNote",
+      step: 3,
+      text: wert,
+    });
+    // Ohne die Definition steht der Wert in keinem Prompt und kann also auch
+    // nicht abgeschrieben worden sein.
+    expect(sequenceProblems(s, opts, mitFeld).some((p) => p.kind === "copiedNote")).toBe(false);
   });
 
   it("meldet eine Textwand ohne Absaetze", () => {

@@ -17,12 +17,18 @@ import {
 } from "@/lib/offers";
 import type { OfferSuggestion } from "@/lib/copy/offer-from-website";
 import type { OfferProduct } from "@/lib/copy/offer-products";
+import {
+  readCustomFields,
+  type CustomFieldValues,
+  type OfferFieldDefRow,
+} from "@/lib/copy/offer-custom-fields";
 import { FINDING_FIELD, offerFindings, type OfferFinding } from "@/lib/copy/offer-tests";
 import type { CoachFinding } from "@/lib/copy/coach-prompt";
 import OfferMap from "./offer-map";
 import Herkunft from "./herkunft";
 import ProduktWahl, { FREITEXT } from "./produkt-wahl";
 import Thaw from "../thaw";
+import EigeneFelder from "./eigene-felder";
 import { useT } from "../language-provider";
 import { useToast } from "../toast-provider";
 import { useWorkspace } from "../workspace-provider";
@@ -195,13 +201,31 @@ function Schalter({
   );
 }
 
-export default function OffersEditor({ initial }: { initial: Offer[] }) {
+/**
+ * Die jsonb-Spalte kommt als beliebiger Wert aus der Datenbank; alles, was
+ * kein String ist, faellt weg. Einmal an der Grenze statt an jeder Lesestelle.
+ */
+function mitEigenenFeldern(rows: Offer[]): Offer[] {
+  return rows.map((o) => ({ ...o, custom_fields: readCustomFields(o.custom_fields) }));
+}
+
+export default function OffersEditor({
+  initial,
+  initialFieldDefs,
+}: {
+  initial: Offer[];
+  /** Die eigenen Feld-Definitionen des WORKSPACES (Migration 0098), nicht des
+   *  Angebots. Sie werden hier gehalten, weil sie sich beim Verwalten aendern
+   *  und die Vorschlaege von Core und Aim auf sie zeigen. */
+  initialFieldDefs: OfferFieldDefRow[];
+}) {
   const { t } = useT();
   const O = t.offers;
   const { push } = useToast();
   const { workspaceId } = useWorkspace();
 
-  const [offers, setOffers] = useState<Offer[]>(initial);
+  const [offers, setOffers] = useState<Offer[]>(() => mitEigenenFeldern(initial));
+  const [fieldDefs, setFieldDefs] = useState<OfferFieldDefRow[]>(initialFieldDefs);
   const [selectedId, setSelectedId] = useState<string | null>(
     initial.find((o) => o.is_default)?.id ?? initial[0]?.id ?? null
   );
@@ -212,6 +236,10 @@ export default function OffersEditor({ initial }: { initial: Offer[] }) {
   const [busy, setBusy] = useState(false);
   const [lese, setLese] = useState(false);
   const [vorschlaege, setVorschlaege] = useState<OfferSuggestion>({});
+  /** Dieselben Vorschlaege, aber fuer die eigenen Felder. Getrennt gehalten,
+   *  weil sie unter ihrem Schluessel stehen und nicht unter einem der zwoelf
+   *  typisierten Feldnamen; uebernommen wird genauso einzeln. */
+  const [eigeneVorschlaege, setEigeneVorschlaege] = useState<CustomFieldValues>({});
   const [vorschlagQuelle, setVorschlagQuelle] = useState<VorschlagQuelle>("website");
   /** Die Listenauswahl des zweiten Kerns: zu, offen, und was gerade laeuft. */
   const [listeOffen, setListeOffen] = useState(false);
@@ -404,7 +432,7 @@ export default function OffersEditor({ initial }: { initial: Offer[] }) {
       .select(OFFER_COLUMNS)
       .eq("workspace_id", workspaceId)
       .order("created_at", { ascending: true });
-    const rows = (data ?? []) as unknown as Offer[];
+    const rows = mitEigenenFeldern((data ?? []) as unknown as Offer[]);
     setOffers(rows);
     const ziel = rows.find((r) => r.id === selectId) ?? rows.find((r) => r.is_default) ?? rows[0] ?? null;
     setSelectedId(ziel?.id ?? null);
@@ -412,6 +440,7 @@ export default function OffersEditor({ initial }: { initial: Offer[] }) {
     setEntwurf(next);
     setGespeichert(JSON.stringify(next));
     setVorschlaege({});
+    setEigeneVorschlaege({});
     setListenFehler(null);
     setProduktWahl(null);
     setWebsiteProdukte(null);
@@ -435,6 +464,7 @@ export default function OffersEditor({ initial }: { initial: Offer[] }) {
     setEntwurf(next);
     setGespeichert(JSON.stringify(next));
     setVorschlaege({});
+    setEigeneVorschlaege({});
     setListenFehler(null);
     setProduktWahl(null);
     setWebsiteProdukte(null);
@@ -636,6 +666,7 @@ export default function OffersEditor({ initial }: { initial: Offer[] }) {
    *  als eine Sache beschreibt und der Nutzer eine gewaehlt hat. */
   async function erzeugeAusWebsite(adresse: string, produkt: OfferProduct | null) {
     setVorschlaege({});
+    setEigeneVorschlaege({});
     const res = await fetch("/api/offers/from-website", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -646,7 +677,13 @@ export default function OffersEditor({ initial }: { initial: Offer[] }) {
     if (!res.ok) return push(t.common.error + (body.error ?? res.status), "error");
     setVorschlagQuelle("website");
     setVorschlaege(body.suggestion ?? {});
-    push(O.suggestionsReady(Object.keys(body.suggestion ?? {}).length), "success");
+    setEigeneVorschlaege((body.custom ?? {}) as CustomFieldValues);
+    push(
+      O.suggestionsReady(
+        Object.keys(body.suggestion ?? {}).length + Object.keys(body.custom ?? {}).length
+      ),
+      "success"
+    );
   }
 
   /**
@@ -761,6 +798,7 @@ export default function OffersEditor({ initial }: { initial: Offer[] }) {
     setLiestListe(liste.id);
     setListenFehler(null);
     setVorschlaege({});
+    setEigeneVorschlaege({});
     const res = await fetch("/api/offers/from-search", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -775,14 +813,18 @@ export default function OffersEditor({ initial }: { initial: Offer[] }) {
     if (!res.ok) return setListenFehler((body.error as string) ?? String(res.status));
 
     const vorschlag = (body.suggestion ?? {}) as OfferSuggestion;
-    if (Object.keys(vorschlag).length === 0) return setListenFehler(O.fromSearch.nothing);
+    const eigen = (body.custom ?? {}) as CustomFieldValues;
+    if (Object.keys(vorschlag).length + Object.keys(eigen).length === 0) {
+      return setListenFehler(O.fromSearch.nothing);
+    }
     setVorschlagQuelle("search");
     // Derselbe Text, der in der Zeile stand, die gerade angeklickt wurde.
     // Sonst hiesse die Liste im Kasten anders als in der Auswahl.
     setListenName(liste.name ?? liste.query ?? null);
     setVorschlaege(vorschlag);
+    setEigeneVorschlaege(eigen);
     setListeOffen(false);
-    push(O.fromSearch.ready(Object.keys(vorschlag).length), "success");
+    push(O.fromSearch.ready(Object.keys(vorschlag).length + Object.keys(eigen).length), "success");
   }
 
   /**
@@ -832,6 +874,27 @@ export default function OffersEditor({ initial }: { initial: Offer[] }) {
     setVorschlaege((v) => {
       const next = { ...v };
       delete next[field];
+      return next;
+    });
+  }
+
+  /** Ein eigenes Feld setzen. Die Werte haengen am Angebot und werden mit ihm
+   *  gespeichert (dieselbe Automatik wie fuer die zwoelf festen Felder). */
+  function setzeEigenes(key: string, value: string) {
+    setEntwurf((v) => ({ ...v, custom_fields: { ...v.custom_fields, [key]: value } }));
+  }
+
+  function uebernehmeEigenes(key: string) {
+    const wert = eigeneVorschlaege[key];
+    if (!wert) return;
+    setzeEigenes(key, wert);
+    verwerfeEigenes(key);
+  }
+
+  function verwerfeEigenes(key: string) {
+    setEigeneVorschlaege((v) => {
+      const next = { ...v };
+      delete next[key];
       return next;
     });
   }
@@ -1684,6 +1747,33 @@ export default function OffersEditor({ initial }: { initial: Offer[] }) {
             </div>
           </aside>
           )}
+
+          {/* ── Die eigenen Felder ──────────────────────────────────────
+              NACH den vier Stufen bzw. nach der Karte, in beiden Ansichten an
+              derselben Stelle: sie kommen zu den zwoelf hinzu und ersetzen
+              keines davon. Ohne eine einzige Definition steht hier genau ein
+              leerer, zugeklappter Abschnitt und sonst nichts.
+
+              lg:col-span-2 gilt nur in der schmalen Ansicht, deren Elternteil
+              ein zweispaltiges Raster ist: der Abschnitt steht dann unter
+              Formular UND Seitenspalte. Breit ist der Elternteil ein Block,
+              dort ist die Klasse wirkungslos. Er steht im Markup hinter der
+              Seitenspalte, weil das Raster sonst die Spalten sprengt. */}
+          <div className="lg:col-span-2">
+            <EigeneFelder
+              defs={fieldDefs}
+              onDefs={setFieldDefs}
+              werte={entwurf.custom_fields}
+              onWert={setzeEigenes}
+              vorschlaege={eigeneVorschlaege}
+              onUebernehmen={uebernehmeEigenes}
+              onVerwerfen={verwerfeEigenes}
+              vorschlagFarbe={vorschlagFarbe}
+              vorschlagLabel={vorschlagLabel}
+              feldBasis={feldBasis}
+              textfeldCls={textfeldCls}
+            />
+          </div>
         </div>
       )}
     </div>

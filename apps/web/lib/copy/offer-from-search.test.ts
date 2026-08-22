@@ -29,6 +29,7 @@ const angebot: Offer = {
   language: "de",
   website: null,
   signature: "",
+  custom_fields: {},
   is_default: true,
 };
 
@@ -163,6 +164,32 @@ describe("buildOfferFromSearchPrompt", () => {
     expect(p).not.toContain("PRODUCT OR SERVICE");
     expect(p).not.toContain("The sender sells more than one thing");
     expect(p).toEqual(buildOfferFromSearchPrompt(liste, angebot, null));
+  });
+
+  it("bleibt ohne eigene Felder Wort fuer Wort der bisherige Prompt", () => {
+    // Dieselbe Zusage wie beim Produkt. Ein Feld, das nur Core fuellen darf,
+    // zaehlt hier ausdruecklich als "kein eigenes Feld": es beschreibt den
+    // Absender, und das Material dieser Route sind die Empfaenger.
+    const ohne = buildOfferFromSearchPrompt(liste, angebot);
+    expect(buildOfferFromSearchPrompt(liste, angebot, null, [])).toBe(ohne);
+    expect(
+      buildOfferFromSearchPrompt(liste, angebot, null, [
+        { key: "risk_reversal", label: "Risikoumkehr", instruction: "Risiko?", fill_from: "core" },
+      ])
+    ).toBe(ohne);
+  });
+
+  it("nimmt ein eigenes Aim-Feld in FIELDS und ins JSON-Beispiel auf", () => {
+    const p = buildOfferFromSearchPrompt(liste, angebot, null, [
+      {
+        key: "painpoint",
+        label: "Painpoint auf der Website",
+        instruction: "Was faellt auf ihren Seiten auf?",
+        fill_from: "aim",
+      },
+    ]);
+    expect(p).toContain("- painpoint: Was faellt auf ihren Seiten auf?");
+    expect(p).toContain('"mechanism":"...","painpoint":"..."}');
   });
 });
 

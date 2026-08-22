@@ -18,6 +18,7 @@ import {
   messageCorrection,
   messageProblems,
 } from "@/lib/copy/linkedin-prompt";
+import { loadFieldDefs } from "@/lib/offer-field-defs";
 
 /**
  * Eine LinkedIn-Vorlage aus demselben Angebot wie die Mail-Sequenz.
@@ -79,7 +80,10 @@ export async function POST(req: Request) {
   // Die Aufhaengerlaenge gehoert in den Prompt, nicht nur in die Nachpruefung:
   // ohne sie kennt das Modell seinen eigenen Spielraum nicht und schreibt
   // gegen die vollen 300 an (live gemessen 2026-08-13, siehe linkedin-prompt).
-  const prompt = buildLinkedInPrompt(offer, signature, personalizationWords);
+  // Dieselben eigenen Felder wie in der Mailsequenz und ebenfalls ungefiltert:
+  // derselbe Absender, derselbe Zweck (Migration 0098).
+  const eigene = await loadFieldDefs(supabase, workspaceId);
+  const prompt = buildLinkedInPrompt(offer, signature, personalizationWords, eigene);
 
   const result = await callOpenAi(openaiKey, [{ role: "user", content: prompt }]);
   if (!result.ok) return NextResponse.json({ error: result.error }, { status: 502 });

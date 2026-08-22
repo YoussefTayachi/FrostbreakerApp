@@ -14,6 +14,8 @@ import {
   sampleSummaries,
 } from "@/lib/copy/offer-from-search";
 import { cleanProduct } from "@/lib/copy/offer-products";
+import { defsFor, parseCustomFields } from "@/lib/copy/offer-custom-fields";
+import { loadFieldDefs } from "@/lib/offer-field-defs";
 
 /**
  * Aus einer Lead-Liste Vorschlaege fuer die nischen-spezifischen
@@ -133,6 +135,12 @@ export async function POST(req: Request) {
     );
   }
 
+  // Die eigenen Felder des Workspaces, gefiltert auf die, die AIM fuellen
+  // darf (Migration 0098). "Risk Reversal" gehoert dem Absender und steht
+  // deshalb auf 'core'; ein Painpoint der Empfaenger steht auf 'aim'. Ohne
+  // eigene Felder ist der Prompt Wort fuer Wort der von vorher.
+  const eigene = defsFor(await loadFieldDefs(supabase, workspaceId), "aim");
+
   const prompt = buildOfferFromSearchPrompt(
     {
       name: search.name ?? search.query ?? "",
@@ -144,7 +152,8 @@ export async function POST(req: Request) {
       totalWithSummary: count ?? summaries.length,
     },
     offer,
-    product
+    product,
+    eigene
   );
 
   const result = await callOpenAi(openaiKey, [{ role: "user", content: prompt }]);
@@ -152,11 +161,14 @@ export async function POST(req: Request) {
   await recordOpenAiUsage(supabase, workspaceId, "offer_from_search", result.json);
 
   const suggestion = parseOfferFromSearch(result.text);
-  if (Object.keys(suggestion).length === 0) {
+  // Getrennt von `suggestion`, damit das Formular beides einzeln uebernehmen
+  // kann. Gespeichert wird auch hier nichts.
+  const custom = parseCustomFields(result.text, eigene);
+  if (Object.keys(suggestion).length === 0 && Object.keys(custom).length === 0) {
     return NextResponse.json(
       { error: "Aus dieser Liste liess sich nichts ableiten. Bitte von Hand ausfüllen." },
       { status: 422 }
     );
   }
-  return NextResponse.json({ suggestion });
+  return NextResponse.json({ suggestion, custom });
 }

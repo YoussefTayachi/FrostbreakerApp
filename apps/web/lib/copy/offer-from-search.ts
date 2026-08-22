@@ -36,6 +36,7 @@ import { type Offer, type OfferTextField } from "@/lib/offers";
 import type { FilterLine } from "@/lib/search-filter-lines";
 import { parseSuggestionFields, type OfferSuggestion } from "./offer-from-website";
 import type { OfferProduct } from "./offer-products";
+import { customFieldPromptBlock, type OfferFieldDef } from "./offer-custom-fields";
 
 /**
  * Die Felder, die sich von Liste zu Liste unterscheiden, in zwei Sorten.
@@ -149,13 +150,22 @@ function kontext(label: string, value: string): string | null {
  * offer-products.ts). Ohne den Wert bleibt der Prompt Wort fuer Wort der von
  * vorher: der eindeutige Fall ist der Normalfall und darf sich nicht
  * aendern.
+ *
+ * `eigene` sind die selbst definierten Felder des Workspaces (Migration 0098),
+ * gefiltert auf die, die AIM fuellen darf. Dieselbe Zusage wie bei `produkt`:
+ * ohne sie ist der Prompt Wort fuer Wort der von vorher, und ein Test haelt
+ * das fest. Welche Felder hier ueberhaupt ankommen, entscheidet `fill_from`,
+ * und das aus demselben Grund, aus dem oben `proof` fehlt: das Material sind
+ * Saetze ueber die EMPFAENGER, kein Schaufenster des Absenders.
  */
 export function buildOfferFromSearchPrompt(
   ctx: LeadListContext,
   offer: Offer,
-  produkt?: OfferProduct | null
+  produkt?: OfferProduct | null,
+  eigene?: OfferFieldDef[]
 ): string {
   const sprache = LANGUAGE_NAMES[offer.language] ?? "German";
+  const zusatz = customFieldPromptBlock(eigene ?? [], "aim");
 
   const zeilen: (string | null)[] = [
     "You are looking at ONE lead list a sender is about to write to.",
@@ -218,9 +228,10 @@ export function buildOfferFromSearchPrompt(
     "- mechanism: REFRAME the sender's mechanism below for this audience. The mechanism itself does not",
     "  change -- only which part of it comes first and in whose words. No new steps, no tool words,",
     "  no product names. If their mechanism is empty, return an empty string.",
+    ...zusatz.fields,
     "",
     "Answer with JSON only, no prose around it:",
-    '{"problem":"...","friction":"...","friction_reason":"...","icp":"...","outcome":"...","mechanism":"..."}',
+    `{"problem":"...","friction":"...","friction_reason":"...","icp":"...","outcome":"...","mechanism":"..."${zusatz.json}}`,
     "",
     "THE SENDER (context for voice and scope; their sentences are never material to quote):",
     kontext("What they sell", offer.offering),
@@ -240,7 +251,9 @@ export function buildOfferFromSearchPrompt(
       "THE ONE PRODUCT OR SERVICE THIS LIST IS ABOUT:",
       kontext("Name", produkt.name),
       kontext("What it is", produkt.description),
-      "Everything you write -- problem, friction, friction_reason, icp, outcome, mechanism -- is about THIS",
+      `Everything you write -- problem, friction, friction_reason, icp, outcome, mechanism${zusatz.keys
+        .map((k) => `, ${k}`)
+        .join("")} -- is about THIS`,
       "one. The parts of 'What they sell' that belong to their other products or services are off limits.",
       "Do not mention the others and do not blend them in."
     );

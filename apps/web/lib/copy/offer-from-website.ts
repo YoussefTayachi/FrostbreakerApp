@@ -25,6 +25,12 @@ import type { WebsiteContent } from "@/lib/website-text";
 // zwei Funktionen von hier holt: ein `import type` steht nach dem Uebersetzen
 // nicht mehr da, es entsteht also kein Ladekreis.
 import type { OfferProduct } from "./offer-products";
+// Anders als oben ein Wert-Import, und damit ein Ladekreis: offer-custom-fields
+// holt sich von hier extractJsonObject und istAusrede. Er ist harmlos, weil
+// beide Seiten voneinander nur Funktionen AUFRUFEN und keine davon beim
+// Auswerten des Moduls gebraucht wird. Die Begruendung steht ausfuehrlich im
+// Kopf von offer-custom-fields.ts.
+import { customFieldPromptBlock, type OfferFieldDef } from "./offer-custom-fields";
 
 export type OfferSuggestion = Partial<Record<OfferTextField, string>>;
 
@@ -69,12 +75,21 @@ export const SUGGESTED_FIELDS: OfferTextField[] = OFFER_TEXT_FIELDS.filter(
  * vorher: die eindeutige Seite ist der Normalfall und darf sich nicht
  * aendern. Gleiche Form wie in offer-from-search.ts: eine Regelzeile oben und
  * der Block direkt vor dem Material, das er einschraenkt.
+ *
+ * `eigene` sind die selbst definierten Felder des Workspaces (Migration 0098),
+ * gefiltert auf die, die Core fuellen darf. Auch hier gilt: ohne sie ist der
+ * Prompt Wort fuer Wort der von vorher, und ein Test haelt das fest. Sie
+ * erscheinen als weitere FIELDS-Zeilen und im JSON-Beispiel; die Regeln oben
+ * ("Only use what is actually on the page", "Never guess") gelten fuer sie
+ * unveraendert mit und werden ausdruecklich nicht wiederholt.
  */
 export function buildOfferPrompt(
   content: WebsiteContent,
   language: "de" | "en",
-  produkt?: OfferProduct | null
+  produkt?: OfferProduct | null,
+  eigene?: OfferFieldDef[]
 ): string {
+  const zusatz = customFieldPromptBlock(eigene ?? [], "core");
   const sprache = language === "en" ? "English" : "German";
   return [
     "You read a company website and fill in a short profile of what this company SELLS.",
@@ -114,9 +129,10 @@ export function buildOfferPrompt(
     "- mechanism: how the result actually comes about, in plain words.",
     "  Never use the words AI, agent, LLM, API, platform, software, automation or any product name.",
     "- proof: references, results, figures, years in business, named clients",
+    ...zusatz.fields,
     "",
     "Answer with JSON only:",
-    '{"offering":"...","icp":"...","problem":"...","friction":"...","outcome":"...","mechanism":"...","proof":"..."}',
+    `{"offering":"...","icp":"...","problem":"...","friction":"...","outcome":"...","mechanism":"...","proof":"..."${zusatz.json}}`,
     "",
     // Der Block steht DIREKT vor der Seite und nicht bei den Regeln oben: er
     // schraenkt ein, was gleich darunter zu lesen ist, und eine
@@ -128,7 +144,9 @@ export function buildOfferPrompt(
       ? "The page below also describes their other products or services. Every field you fill in --"
       : "",
     produkt
-      ? "offering, icp, problem, friction, outcome, mechanism, proof -- is about THIS one only."
+      ? `offering, icp, problem, friction, outcome, mechanism, proof${zusatz.keys
+          .map((k) => `, ${k}`)
+          .join("")} -- is about THIS one only.`
       : "",
     produkt ? "Do not mention the others and do not blend them in." : "",
     "",
