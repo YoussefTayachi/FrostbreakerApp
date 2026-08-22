@@ -8,7 +8,7 @@
  *  in apps/worker/worker/pipelines/personalize.py uebereinstimmen; sonst
  *  prueft der Live-Test etwas anderes, als der Worker spaeter tut. Genau
  *  dieselbe Kopplung besteht bei OPENAI_MODEL in lib/openai.ts. */
-export const CLAUDE_MODEL = "claude-opus-5";
+export const CLAUDE_MODEL = "claude-sonnet-5";
 
 /** Wie im Worker: die Antwort ist ein Satz, aber Claude denkt standardmaessig
  *  mit, und diese Denk-Tokens zaehlen gegen max_tokens. Muss mit

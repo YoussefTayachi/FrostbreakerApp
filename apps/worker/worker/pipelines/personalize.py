@@ -43,7 +43,7 @@ MODEL = "gpt-4.1-mini"
 # worker/usage.py (ANTHROPIC_USD_PER_1M_*, dort steht der Hinweis) und die
 # Mindestlaenge fuer einen zwischengespeicherten Vorspann (siehe
 # generate_claude).
-CLAUDE_MODEL = "claude-opus-5"
+CLAUDE_MODEL = "claude-sonnet-5"
 
 # Reichlich bemessen, obwohl die Antwort ein einziger Satz ist: bei Claude
 # denkt das Modell standardmaessig mit (adaptives Denken), und diese
@@ -552,11 +552,13 @@ def generate_claude(
       - cache_control ohne ttl ist die 5-Minuten-Form: Schreiben kostet das
         1,25fache, Lesen ein Zehntel des Eingangspreises. Ab dem zweiten Lead
         innerhalb von fuenf Minuten rechnet sich das.
-      - Mindestlaenge des zwischengespeicherten Vorspanns bei Claude Opus 5:
-        512 Tokens. Darunter passiert schlicht nichts, ohne Fehlermeldung und
+      - Der zwischengespeicherte Vorspann hat eine Mindestlaenge (rund 1024
+        Tokens). Darunter passiert schlicht nichts, ohne Fehlermeldung und
         ohne Aufschlag (cache_creation_input_tokens bleibt 0). Der Punkt wird
         deshalb immer gesetzt und nicht an eine geratene Laengenschwelle
-        gebunden.
+        gebunden. Wer CLAUDE_MODEL wechselt, prueft diese Schwelle mit: sie
+        gilt je Modell, und ein System-Prompt ohne Beispiele liegt in der
+        Regel darunter.
     """
     client = Anthropic(api_key=api_key)
 

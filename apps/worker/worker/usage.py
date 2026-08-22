@@ -37,18 +37,22 @@ OPENAI_USD_PER_1M_OUTPUT = 1.60
 NEVERBOUNCE_USD_PER_CHECK = 0.008
 
 # Anthropic, Listenpreise fuer CLAUDE_MODEL aus
-# worker/pipelines/personalize.py. Stand 2026-08-22, nachgesehen auf
-# https://platform.claude.com/docs/en/about-claude/pricing (Tabelle
-# "Model pricing", Zeile "Claude Opus 5"):
+# worker/pipelines/personalize.py. Stand 2026-08-22, Zeile "Claude Sonnet 5":
 #
-#   Base Input $5 / MTok    5m Cache Writes $6.25 / MTok
-#   Cache Hits $0.50 / MTok Output $25 / MTok
+#   Base Input $3 / MTok    5m Cache Writes $3.75 / MTok
+#   Cache Hits $0.30 / MTok Output $15 / MTok
+#
+# Hier stehen bewusst die REGULAeren Preise, nicht der Einfuehrungspreis
+# ($2 Eingang / $10 Ausgang), der am 2026-08-31 auslaeuft. Neun Tage lang
+# rechnet die Zeile damit etwas zu hoch, danach richtig -- andersherum waere
+# sie ab September dauerhaft zu niedrig, und eine zu niedrige Kostenzahl ist
+# die gefaehrlichere Luege.
 #
 # ACHTUNG: diese vier Zahlen gelten je MODELL, nicht je Anbieter. Wer
 # CLAUDE_MODEL in personalize.py aendert, muss sie hier mitaendern, sonst
 # rechnet die Kostenzeile still mit dem Preis eines anderen Modells.
-ANTHROPIC_USD_PER_1M_INPUT = 5.00
-ANTHROPIC_USD_PER_1M_OUTPUT = 25.00
+ANTHROPIC_USD_PER_1M_INPUT = 3.00
+ANTHROPIC_USD_PER_1M_OUTPUT = 15.00
 # Zwei eigene Preise, weil Anthropic Cache-Tokens getrennt meldet und getrennt
 # abrechnet. Sie hier zum normalen Eingang zu zaehlen waere doppelt falsch:
 # ein Cache-Treffer kostet ein Zehntel, ein Cache-Schreibvorgang das 1,25fache
@@ -57,8 +61,8 @@ ANTHROPIC_USD_PER_1M_OUTPUT = 25.00
 #
 # Der 5-Minuten-Preis, nicht der 1-Stunden-Preis: generate_claude setzt
 # cache_control ohne ttl, und das ist laut derselben Seite die 5-Minuten-Form.
-ANTHROPIC_USD_PER_1M_CACHE_WRITE = 6.25
-ANTHROPIC_USD_PER_1M_CACHE_READ = 0.50
+ANTHROPIC_USD_PER_1M_CACHE_WRITE = 3.75
+ANTHROPIC_USD_PER_1M_CACHE_READ = 0.30
 
 
 def openai_cost_usd(input_tokens: int, output_tokens: int) -> float:

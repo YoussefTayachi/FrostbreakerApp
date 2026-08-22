@@ -35,11 +35,11 @@ describe("tokensFromResponse", () => {
 describe("anthropicCostUsd", () => {
   it("rechnet alle vier Posten mit ihrem eigenen Satz ab", () => {
     // Muss mit anthropic_cost_usd in apps/worker/worker/usage.py
-    // uebereinstimmen. Listenpreise Claude Opus 5, Stand 2026-08-22.
-    expect(anthropicCostUsd(1_000_000, 0)).toBeCloseTo(5.0, 10);
-    expect(anthropicCostUsd(0, 1_000_000)).toBeCloseTo(25.0, 10);
-    expect(anthropicCostUsd(0, 0, 1_000_000, 0)).toBeCloseTo(6.25, 10);
-    expect(anthropicCostUsd(0, 0, 0, 1_000_000)).toBeCloseTo(0.5, 10);
+    // uebereinstimmen. Listenpreise Claude Sonnet 5, Stand 2026-08-22.
+    expect(anthropicCostUsd(1_000_000, 0)).toBeCloseTo(3.0, 10);
+    expect(anthropicCostUsd(0, 1_000_000)).toBeCloseTo(15.0, 10);
+    expect(anthropicCostUsd(0, 0, 1_000_000, 0)).toBeCloseTo(3.75, 10);
+    expect(anthropicCostUsd(0, 0, 0, 1_000_000)).toBeCloseTo(0.3, 10);
   });
 
   it("zaehlt Cache-Tokens nicht zum Eingangspreis", () => {

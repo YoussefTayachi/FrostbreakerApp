@@ -38,18 +38,21 @@ export function openaiCostUsd(inputTokens: number, outputTokens: number): number
 }
 
 // Muss mit ANTHROPIC_USD_PER_1M_* in apps/worker/worker/usage.py
-// uebereinstimmen. Listenpreise fuer CLAUDE_MODEL (Claude Opus 5), Stand der
-// letzten Pruefung 2026-08-22, nachgesehen auf
-// https://platform.claude.com/docs/en/about-claude/pricing.
+// uebereinstimmen. Listenpreise fuer CLAUDE_MODEL (Claude Sonnet 5), Stand der
+// letzten Pruefung 2026-08-22.
+//
+// Bewusst die REGULAeren Preise, nicht der bis 2026-08-31 laufende
+// Einfuehrungspreis ($2/$10) -- die Begruendung steht im Gegenstueck in
+// worker/usage.py.
 //
 // Cache-Tokens haben eigene Preise, weil Anthropic sie getrennt meldet und
 // getrennt abrechnet: Schreiben das 1,25fache, Lesen ein Zehntel des
 // Eingangspreises. Der 5-Minuten-Preis, weil lib/anthropic.ts cache_control
 // ohne ttl setzt.
-export const ANTHROPIC_USD_PER_1M_INPUT = 5.0;
-export const ANTHROPIC_USD_PER_1M_OUTPUT = 25.0;
-export const ANTHROPIC_USD_PER_1M_CACHE_WRITE = 6.25;
-export const ANTHROPIC_USD_PER_1M_CACHE_READ = 0.5;
+export const ANTHROPIC_USD_PER_1M_INPUT = 3.0;
+export const ANTHROPIC_USD_PER_1M_OUTPUT = 15.0;
+export const ANTHROPIC_USD_PER_1M_CACHE_WRITE = 3.75;
+export const ANTHROPIC_USD_PER_1M_CACHE_READ = 0.3;
 
 export function anthropicCostUsd(
   inputTokens: number,
