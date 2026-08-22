@@ -213,6 +213,13 @@ export default function McpPage() {
       <div>
         <h1 className="text-2xl font-semibold tracking-tight text-ink">{T.title}</h1>
         <p className="mt-1 text-sm leading-relaxed text-faint">{T.intro}</p>
+        <p className="mt-3 text-xs font-medium text-ink">{T.examplesLabel}</p>
+        <ul className="mt-1.5 list-disc space-y-1 pl-4 text-sm leading-relaxed text-soft">
+          {T.examples.map((example) => (
+            <li key={example}>&ldquo;{example}&rdquo;</li>
+          ))}
+        </ul>
+        <p className="mt-3 text-sm leading-relaxed text-faint">{T.boundary}</p>
       </div>
 
       {/* Der einmalige Moment. Steht ueber dem Formular, weil er alles andere

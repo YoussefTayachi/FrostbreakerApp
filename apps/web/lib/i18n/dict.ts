@@ -1310,16 +1310,24 @@ const de = {
     mcp: {
       title: "Claude-Zugang",
       intro:
-        "Verbinde dein eigenes Claude mit deinen Frostbreaker-Daten: Lead-Listen, einzelne Leads samt Mail-Verlauf, Angebot, versendete Sequenzen, Kampagnenzahlen und Antworten lesen, dazu Icebreaker, Kontaktstatus, Notizen und Angebotsfelder zurückschreiben und Kampagnen als Entwurf vorbereiten. Betreust du mehrere Kunden in mehreren Workspaces, fragst du dein Claude morgens einmal, was sich seit gestern getan hat, statt dich überall einzeln einzuloggen. Dein bestehendes Claude-Abo reicht aus, Frostbreaker berechnet dafür nichts zusätzlich.",
+        "Dein eigenes Claude greift auf deine Frostbreaker-Daten zu, ohne dass du dafür einen zusätzlichen API-Schlüssel bezahlst: es läuft über dein bestehendes Claude-Abo. Es liest Lead-Listen, Leads samt Mail-Verlauf, Angebot, Sequenzen, Kampagnenzahlen und Antworten, und schreibt Icebreaker, Kontaktstatus, Notizen, Angebotsfelder und Kampagnen-Entwürfe zurück.",
+      examplesLabel: "Zum Beispiel, wörtlich so eingetippt:",
+      examples: [
+        "Gib mir die Tageslage über alle meine Workspaces: was ist neu, wo bouncet was, welche Suchen laufen noch.",
+        "Zeig mir die Antworten der letzten zwei Tage mit dem ganzen Mail-Verlauf davor, und schreib mir einen Entwurf für die Antwort.",
+        "Schreib für jeden Lead in der Liste 'Berlin SaaS', der noch keinen Icebreaker hat, einen neuen: kurz, konkret, ohne Floskeln.",
+      ] as string[],
+      boundary:
+        "Das ist Absicht: Claude kann keine Kampagne aktivieren, keine Mail verschicken, keine Suche starten und nichts löschen. Claude liest dabei fremden Text, von Websites und aus Antwort-Mails von Fremden, und was ein Modell daraus macht, soll nie ungeprüft bei tausend Empfängern landen. Den letzten Klick machst du.",
       createButton: "Token erzeugen",
       nameLabel: "Name",
       namePlaceholder: "z. B. Laptop Büro",
       nameHint: "Hilft dir, mehrere Token auseinanderzuhalten, etwa nach Gerät oder Zweck.",
       scopeLabel: "Berechtigung",
       scopeRead: "Nur lesen",
-      scopeReadWrite: "Lesen und einzelne Felder schreiben",
+      scopeReadWrite: "Lesen und schreiben",
       scopeHint:
-        "Die schreibende Stufe fasst je Aufruf einen Datensatz an: Icebreaker eines Leads, Status eines Kontakts, eine Notiz, ein Feld deines Angebots. Die eine Ausnahme sind bis zu 50 Icebreaker auf einmal, jeder einzeln benannt, mit Vorschau vorab und rückgängig zu machen. Einen fertigen Entwurf kann Claude damit auch bei Instantly anlegen; Abgemeldete und gesperrte Adressen bleiben dabei außen vor, genau wie in der App. Versenden, Suchen starten, Kampagnen starten oder pausieren und Löschen bleiben ausgeschlossen, auch mit diesem Token: gestartet wird eine Kampagne nur von dir.",
+        "Schreibend heißt: pro Aufruf ein Datensatz, zum Beispiel der Icebreaker eines Leads, der Status eines Kontakts, eine Notiz oder ein Feld deines Angebots. Eine Ausnahme gibt es: bis zu 50 Icebreaker auf einmal, jeder einzeln benannt, mit Vorschau vorab und rückgängig zu machen. Claude kann außerdem eine Kampagne als Entwurf anlegen, ihre Sequenz schreiben und einen fertigen Entwurf bei Instantly als echte Kampagne anlegen; Abgemeldete und gesperrte Adressen bleiben dabei außen vor, genau wie in der App. Versendet wird trotzdem nichts: eine neu angelegte Kampagne steht still, bis du sie selbst startest. Eine Suche starten, eine laufende Kampagne starten oder pausieren und Löschen bleiben mit diesem Token in jedem Fall ausgeschlossen.",
       workspaceLabel: "Workspace",
       workspaceAll: "Alle, in denen ich Mitglied bin",
       workspaceOne: "Nur dieser eine",
@@ -2078,7 +2086,7 @@ const de = {
     examplesSaveHint:
       "Änderungen an den Textfeldern werden beim Verlassen des Feldes gespeichert. Hinzufügen, Löschen und Sortieren wirkt sofort.",
     testExamplesUsed: (n: number) =>
-      n === 1 ? "1 Beispiel mitgeschickt" : `${n} Beispiele mitgeschickt`,
+      n === 1 ? "1 Beispiel verwendet" : `${n} Beispiele verwendet`,
     languageHeading: "Sprache der Icebreaker",
     languageSubtitle: "In welcher Sprache sollen die Aufhänger geschrieben werden?",
     languageOptions: { de: "Deutsch", en: "Englisch" } as Record<string, string>,
@@ -3740,16 +3748,24 @@ const en: Dictionary = {
     mcp: {
       title: "Claude access",
       intro:
-        "Connect your own Claude to your Frostbreaker data: read lead lists, a single lead including its email history, your offer, the sequences you send, campaign numbers and replies, write back icebreakers, contact statuses, notes and offer fields, and prepare campaigns as drafts. If you run several clients across several workspaces, ask your Claude each morning what happened overnight instead of logging into each one separately. Your existing Claude subscription covers this, Frostbreaker doesn't charge anything extra for it.",
+        "Your own Claude gets access to your Frostbreaker data without an extra API key to pay for: it runs on your existing Claude subscription. It reads lead lists, leads with their full email history, your offer, sequences, campaign numbers and replies, and writes back icebreakers, contact statuses, notes, offer fields and campaign drafts.",
+      examplesLabel: "For example, typed into Claude exactly like this:",
+      examples: [
+        "Give me today's state across all my workspaces: what's new, where things are bouncing, which searches are still running.",
+        "Show me the replies from the last two days with the full email history behind each one, and draft a reply for me.",
+        "Write a new icebreaker for every lead in the 'Berlin SaaS' list that doesn't have one yet: short, specific, no filler.",
+      ] as string[],
+      boundary:
+        "That's deliberate: Claude can't activate a campaign, send an email, start a search or delete anything. It reads text written by strangers, from websites and reply emails, and whatever a model makes of that text should never reach a thousand recipients unchecked. You make the last click.",
       createButton: "Create token",
       nameLabel: "Name",
       namePlaceholder: "e.g. work laptop",
       nameHint: "Helps you tell multiple tokens apart, for example by device or purpose.",
       scopeLabel: "Permission",
       scopeRead: "Read only",
-      scopeReadWrite: "Read and write single fields",
+      scopeReadWrite: "Read and write",
       scopeHint:
-        "The write level touches one record per call: a lead's icebreaker, a contact's status, one note, one field of your offer. The one exception is up to 50 icebreakers at once, each one named individually, with a preview beforehand and an undo afterwards. Claude can also create a finished draft as a campaign in Instantly; people who unsubscribed or are on your blocklist are left out of it, exactly as in the app. Sending, starting searches, starting or pausing campaigns and deleting stay off limits, with this token too: a campaign is only ever started by you.",
+        "Write means one record per call: a lead's icebreaker, a contact's status, one note, or one field of your offer. One exception: up to 50 icebreakers at once, each named individually, with a preview beforehand and an undo afterward. Claude can also create a campaign as a draft, write its sequence, and turn a finished draft into a real campaign in Instantly; anyone who unsubscribed or is on your suppression list is left out of it, exactly as in the app. Nothing gets sent even then: a newly created campaign sits idle until you start it yourself. Starting a search, starting or pausing a running campaign, and deleting anything stay off limits with this token in every case.",
       workspaceLabel: "Workspace",
       workspaceAll: "All I'm a member of",
       workspaceOne: "Just this one",
@@ -4469,7 +4485,7 @@ const en: Dictionary = {
     examplesSaveHint:
       "Changes to the text fields are saved when you leave the field. Adding, deleting and reordering takes effect immediately.",
     testExamplesUsed: (n: number) =>
-      n === 1 ? "1 example included" : `${n} examples included`,
+      n === 1 ? "1 example used" : `${n} examples used`,
     languageHeading: "Icebreaker language",
     languageSubtitle: "Which language should the opening lines be written in?",
     languageOptions: { de: "German", en: "English" } as Record<string, string>,
