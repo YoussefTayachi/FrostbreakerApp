@@ -139,6 +139,7 @@ export default function Nav() {
         { href: "/settings/automations", label: t.nav.automations, icon: IconSparkle },
         { href: "/settings/branding", label: t.nav.branding, icon: IconPalette },
         { href: "/settings/team", label: t.nav.team, icon: IconUsers },
+        { href: "/settings/mcp", label: t.nav.mcp, icon: IconAgent },
         { href: "/blocklist", label: t.nav.blocklist, icon: IconShield },
         { href: "/costs", label: t.nav.costs, icon: IconCost },
       ],
