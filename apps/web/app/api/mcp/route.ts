@@ -133,7 +133,28 @@ export async function POST(request: Request) {
    * workspace_members und der Einschraenkung des Tokens). Wer diesen Client
    * behaelt und den Filter weglaesst, liefert fremde Leads aus.
    */
-  const supabase = createServiceClient();
+  /**
+   * createServiceClient wirft, wenn SUPABASE_SERVICE_ROLE_KEY fehlt. Ohne
+   * dieses catch quittiert Next das mit einer nackten 500 ohne Body, und ein
+   * MCP-Client zeigt dem Nutzer dann nur "server error" -- gemessen am
+   * 2026-08-22 auf dem Dev-Server, wo die Variable in .env.local nicht steht.
+   * Auf Vercel ist sie gesetzt (api/billing/webhook, api/cron/instantly-sync
+   * und api/unsubscribe laufen dort ueber denselben Client), der Fall trifft
+   * also vor allem lokale Einrichtung -- und genau da hilft ein klarer Satz.
+   */
+  let supabase: ReturnType<typeof createServiceClient>;
+  try {
+    supabase = createServiceClient();
+  } catch (err) {
+    console.error("[mcp] Service-Client nicht erzeugbar:", err);
+    return json(
+      {
+        error: "server_misconfigured",
+        message: "The Frostbreaker MCP server is not configured correctly. Contact the workspace owner.",
+      },
+      500
+    );
+  }
 
   const { data: token, error: tokenFehler } = await supabase
     .from("mcp_tokens")
