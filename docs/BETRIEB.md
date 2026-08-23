@@ -121,8 +121,8 @@ Endpunkt ist zustandslos und prüft bei **jedem** Aufruf neu, ob der Token gilt
 und in welchen Workspaces sein Besitzer laut `workspace_members` Mitglied ist.
 Er läuft mit Service-Role (ohne Session wäre `auth.uid()` NULL und jede
 RLS-Policy false); der Ausgleich ist der ausdrückliche `workspace_id`-Filter in
-jeder Abfrage, siehe `apps/web/lib/mcp/authorize.ts`. Zwanzig Werkzeuge, davon
-zehn lesend. Schreibend sind `set_lead_icebreaker`, `set_lead_icebreakers`,
+jeder Abfrage, siehe `apps/web/lib/mcp/authorize.ts`. Einundzwanzig Werkzeuge,
+davon elf lesend. Schreibend sind `set_lead_icebreaker`, `set_lead_icebreakers`,
 `set_contact_status`, `add_note`, `set_offer_field`, `create_campaign`,
 `set_campaign_sequence`, `update_campaign`, `publish_campaign` und
 `undo_writes`; jedes davon fasst genau einen Datensatz je Aufruf an. Mit einer
@@ -138,6 +138,35 @@ Begründung in `lib/mcp/untrusted.ts` hinfällig. `undo_writes` schreibt aus
 der App geändert wurde, und markiert jede Wiederherstellung über
 `mcp_write_log.undo_of` (Migration 0101), damit ein zweiter Aufruf kein
 Kippschalter ist.
+
+Seit dem 2026-08-23 schreibt der Server nicht mehr an der Hausordnung des
+Workspaces vorbei. Anlass war ein über `set_lead_icebreaker` gesetzter
+Aufhänger mit einem Gedankenstrich: genau dieses Zeichen steht in
+`DEFAULT_BANNED_WORDS`, und die Prüfseite zeigte danach dreißig Verstöße zur
+Nacharbeit. `get_writing_rules` liefert dem Modell jetzt die **wirksamen**
+Regeln (Wortgrenze, verbotene Wörter, Ausgabesprache, Quelltext, den
+Systemprompt und die Beispiel-Paare) sowie die Sequenzregeln aus
+`lib/copy/playbook.ts`. Wirksam heißt: aufgelöst gegen dieselben Standards,
+die auch der Worker nimmt. Das ist der Kern des Werkzeugs, denn die Rohspalten
+sind im Regelfall leer. Im gemessenen Workspace ist
+`personalization_banned_words` NULL und `personalization_prompt` leer, während
+die Oberfläche dort `— – -- -` verbietet; wer die Spalten durchreicht, meldet
+dem Modell das Gegenteil dessen, was gilt. Die Auflösung steht an genau einer
+Stelle: `apps/web/lib/personalization/settings.ts`. Im Ergebnis steht je Wert,
+ob er eingestellt oder geerbt ist.
+
+Beide Icebreaker-Werkzeuge prüfen den Text über `validateIcebreaker`, also mit
+derselben Funktion wie PATCH `/api/personalization/review`. **Abgelehnt wird
+nichts**: der Text wird geschrieben und dabei `personalization_needs_review`
+mitgesetzt, genau wie die Route es tut. Ein Verstoß aus einem Modell landet
+damit in derselben Prüfliste wie einer aus dem Worker, statt unbemerkt zu
+bleiben. Eine harte Ablehnung wäre der schlechtere Weg, weil ein Modell dann
+Umgehungen erfindet. Die Verstöße stehen je Lead in der Antwort, auch im
+`dry_run`, und ihre Sprache folgt `personalization_language` des Workspaces.
+`set_lead_icebreakers` setzte die Markierung bis dahin gar nicht, ein Stapel
+von fünfzig Zeilen konnte also fünfzig Verstöße anlegen, die in der Prüfliste
+als unauffällig galten. `undo_writes` bewertet die Markierung beim
+Zurückholen neu; sonst trüge der alte Text die Markierung des neuen.
 
 `create_campaign`, `set_campaign_sequence` und `update_campaign` legen
 ausschließlich einen **Entwurf** an (`campaigns` ohne `instantly_campaign_id`,

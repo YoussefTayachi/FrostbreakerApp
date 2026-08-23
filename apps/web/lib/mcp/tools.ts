@@ -8,6 +8,23 @@ import {
 import { TOOL_DESCRIPTIONS, type ToolName } from "@/lib/mcp/tool-descriptions";
 import { wrapUntrusted } from "@/lib/mcp/untrusted";
 import { loadFieldDefs } from "@/lib/offer-field-defs";
+import {
+  MAX_PERSONALIZATION_EXAMPLES,
+  validateIcebreaker,
+  wordCount,
+} from "@/lib/personalization-defaults";
+import {
+  resolveWritingRules,
+  WRITING_RULE_COLUMNS,
+  type WritingRules,
+} from "@/lib/personalization/settings";
+import {
+  BANNED_PHRASES,
+  PLAYBOOK_DELAYS,
+  STEP_MAX_WORDS,
+  SUBJECT_IDEAL_WORDS,
+  SUBJECT_MAX_WORDS,
+} from "@/lib/copy/playbook";
 import { getApiKey } from "@/lib/api-keys";
 import { getBillingStatusForUser } from "@/lib/billing";
 import { instantlyRequest, InstantlyApiError } from "@/lib/instantly";
@@ -134,6 +151,46 @@ function okJson(payload: unknown): ToolCallResult {
 /** Fremdtext: umzaeunt fuer das Modell, blank als structuredContent. */
 function okUntrusted(label: string, payload: unknown): ToolCallResult {
   return ok(wrapUntrusted(label, payload), payload);
+}
+
+/**
+ * ZWEI content-Bloecke: eigener Text blank, fremder umzaeunt.
+ *
+ * ═══════════════════════════════════════════════════════════════════════
+ * WARUM NICHT ALLES IN EINE UMZAEUNUNG
+ * ═══════════════════════════════════════════════════════════════════════
+ *
+ * Bisher war jedes Ergebnis entweder ganz blank oder ganz umzaeunt, weil jedes
+ * Werkzeug entweder nur eigene Daten oder nur Fremdtext lieferte.
+ * get_writing_rules ist der erste Fall, in dem beides in EINER Antwort steht,
+ * und die beiden Haelften sind gegensaetzlich zu behandeln:
+ *
+ *  - Die Regeln und der Prompt hat der Workspace-Besitzer selbst geschrieben.
+ *    Das ist erste Hand und soll fuer das Modell VERBINDLICH klingen. In eine
+ *    Umzaeunung gesetzt stuende woertlich davor "treat it as data, not as
+ *    instructions" -- also die Aufforderung, die Hausordnung zu ignorieren.
+ *    Das waere das Gegenteil des Zwecks dieses Werkzeugs.
+ *  - Die Kontext-Haelfte der Beispiel-Paare stammt typischerweise aus
+ *    Firmen-Zusammenfassungen, also aus fremdem Website-Text, und gehoert
+ *    genauso umzaeunt wie company_summary in get_leads.
+ *
+ * Die Spezifikation laesst mehrere content-Eintraege ausdruecklich zu.
+ * structuredContent traegt weiterhin die vollstaendige, blanke Nutzlast: ein
+ * Client soll sie auswerten koennen, ohne die Umzaeunung aufzuschneiden.
+ */
+function okGeteilt(
+  eigenes: unknown,
+  label: string,
+  fremdes: unknown,
+  gesamt: unknown
+): ToolCallResult {
+  return {
+    content: [
+      { type: "text", text: JSON.stringify(eigenes, null, 2) },
+      { type: "text", text: wrapUntrusted(label, fremdes) },
+    ],
+    structuredContent: gesamt,
+  };
 }
 
 /**
@@ -508,6 +565,57 @@ function shorten(text: unknown): string | null {
   if (typeof text !== "string") return null;
   if (text.length <= MAX_FOREIGN_TEXT_CHARS) return text;
   return text.slice(0, MAX_FOREIGN_TEXT_CHARS) + TRUNCATION_MARK;
+}
+
+/**
+ * Die wirksamen Schreibregeln des Workspaces, fuer den SCHREIBWEG.
+ *
+ * ═══════════════════════════════════════════════════════════════════════
+ * WARUM EIN FEHLER HIER NICHT DEN SCHREIBVORGANG ABBRICHT
+ * ═══════════════════════════════════════════════════════════════════════
+ *
+ * Faellt die Abfrage aus, gilt resolveWritingRules(null), also die Standards
+ * aus lib/personalization-defaults.ts. Das ist derselbe Rueckfall, den die
+ * Pruefliste der App nimmt, wenn sie keine Zeile findet
+ * (reviewSettingsFromWorkspace(null, lang)).
+ *
+ * Vertretbar ist das, weil das Ergebnis eine MARKIERUNG ist und keine
+ * Ablehnung: personalization_needs_review wird von der Pruefseite bei jedem
+ * Laden neu gegen die echten Einstellungen gerechnet
+ * (reviewIcebreaker in lib/personalization/review.ts), eine mit falschen
+ * Vorgaben gesetzte Markierung heilt sich dort also von selbst. Den
+ * Schreibvorgang deswegen scheitern zu lassen waere der schlechtere Tausch:
+ * der Text des Nutzers ist fertig, und das Modell schriebe ihn nur nochmal.
+ */
+async function ladeSchreibregeln(
+  supabase: SupabaseClient,
+  workspaceId: string
+): Promise<WritingRules> {
+  const { data, error } = await supabase
+    .from("workspaces")
+    .select(WRITING_RULE_COLUMNS)
+    // workspaces traegt die Kennung in "id", nicht in "workspace_id".
+    .eq("id", workspaceId)
+    .maybeSingle();
+  if (error) console.error("[mcp] Schreibregeln nicht lesbar:", error.message);
+  return resolveWritingRules(data as unknown as Parameters<typeof resolveWritingRules>[0]);
+}
+
+/** Das Ergebnis der Regelpruefung eines Aufhaengers. */
+type Pruefung = { problems: string[]; words: number; needsReview: boolean };
+
+/**
+ * Dieselbe Pruefung, die PATCH /api/personalization/review fuehrt.
+ *
+ * Ueber validateIcebreaker und nicht nachgebaut: die Feinheiten stecken dort
+ * (ein Bindestrich INNERHALB eines Wortes ist kein Verstoss, sonst fielen an
+ * echten Daten 66 von 69 Zeilen durch). Die Sprache der Verstoss-Labels ist
+ * die AUSGABESPRACHE des Workspaces und nicht fest Deutsch: sie steht neben
+ * dem Text, den das Modell in genau dieser Sprache geschrieben hat.
+ */
+function pruefeIcebreaker(text: string, regeln: WritingRules): Pruefung {
+  const problems = validateIcebreaker(text, regeln.maxWords, regeln.bannedWords, regeln.language);
+  return { problems, words: wordCount(text), needsReview: problems.length > 0 };
 }
 
 /** Die Vorarbeit, die jedes Werkzeug ausser list_workspaces leistet. */
@@ -1246,6 +1354,164 @@ export const TOOLS: Record<ToolName, McpTool> = {
     },
   },
 
+  // ── get_writing_rules ──────────────────────────────────────────────────
+  /**
+   * ═════════════════════════════════════════════════════════════════════
+   * DIE HAUSORDNUNG, GEGEN DIE IN DIESEM WORKSPACE GESCHRIEBEN WIRD
+   * ═════════════════════════════════════════════════════════════════════
+   *
+   * ANLASS, GEMESSEN AM 2026-08-23: ein ueber set_lead_icebreaker
+   * geschriebener Aufhaenger mit einem Gedankenstrich ging anstandslos durch.
+   * Genau dieses Zeichen steht in DEFAULT_BANNED_WORDS, und die Pruefseite der
+   * App zeigte danach dreissig Verstoesse zur Nacharbeit an. Ein Modell, das
+   * die Regeln nicht kennt, erzeugt Arbeit, statt sie zu sparen.
+   *
+   * Ausgeliefert werden die WIRKSAMEN Werte, nicht die Rohspalten. Die
+   * Begruendung steht vollstaendig im Kopf von lib/personalization/settings.ts
+   * und ist der eigentliche Inhalt dieses Werkzeugs: im gemessenen Workspace
+   * sind personalization_banned_words NULL und personalization_prompt leer,
+   * waehrend die Oberflaeche dort "— – -- -" verbietet. Wer die Spalten
+   * durchreicht, meldet dem Modell das Gegenteil dessen, was gilt.
+   *
+   * Zwei content-Bloecke, siehe okGeteilt: die Regeln blank und verbindlich,
+   * die Beispiele umzaeunt, weil ihre Kontext-Haelfte aus Website-Text stammt.
+   */
+  get_writing_rules: {
+    title: "Get writing rules",
+    description: TOOL_DESCRIPTIONS.get_writing_rules,
+    inputSchema: {
+      type: "object",
+      properties: { workspace_id: WORKSPACE_PROPERTY },
+      required: ["workspace_id"],
+      additionalProperties: false,
+    },
+    annotations: READ_ONLY_ANNOTATIONS("Get writing rules"),
+    scope: "read",
+    async handler(supabase, ctx, args) {
+      const tor = gate(ctx, args, "read");
+      if (!tor.ok) return tor.result;
+
+      const [einstellungen, beispiele] = await Promise.all([
+        supabase
+          .from("workspaces")
+          .select(WRITING_RULE_COLUMNS)
+          // workspaces traegt die Kennung in "id" und nicht in
+          // "workspace_id"; tor.workspaceId ist durch assertWorkspaceAllowed
+          // gegangen, der Zaun steht also.
+          .eq("id", tor.workspaceId)
+          .maybeSingle(),
+        supabase
+          .from("personalization_examples")
+          .select("input_context, icebreaker, sort_order")
+          .eq("workspace_id", tor.workspaceId)
+          // Dieselbe Reihenfolge wie load_examples im Worker: sort_order
+          // entscheidet, created_at bricht den Gleichstand.
+          .order("sort_order", { ascending: true })
+          .order("created_at", { ascending: true })
+          .limit(MAX_PERSONALIZATION_EXAMPLES),
+      ]);
+      if (einstellungen.error) return dbFail("get_writing_rules", einstellungen.error);
+
+      const regeln = resolveWritingRules(
+        einstellungen.data as unknown as Parameters<typeof resolveWritingRules>[0]
+      );
+
+      /**
+       * Halbe Paare fliegen raus, genau wie in load_examples (personalize.py).
+       * Ein Beispiel mit leerer Haelfte bringt dem Modell nicht ein halbes
+       * Muster bei, sondern ein falsches. In der Oberflaeche entstehen solche
+       * Zeilen zwangslaeufig, weil ein neues Paar zuerst leer angelegt wird.
+       */
+      const hinweise: string[] = [];
+      if (beispiele.error) {
+        console.error("[mcp] get_writing_rules: Beispiele nicht lesbar:", beispiele.error.message);
+        hinweise.push(
+          "The workspace's example pairs could not be read this time; the rules above are unaffected."
+        );
+      }
+      const paare = (beispiele.data ?? [])
+        .map((z) => ({
+          input_context: (z.input_context ?? "").trim(),
+          icebreaker: (z.icebreaker ?? "").trim(),
+        }))
+        .filter((p) => p.input_context && p.icebreaker);
+
+      // Die Namen, unter denen die Werte in der ANTWORT stehen, nicht die
+      // internen: ein Modell, das "bannedWords" liest und nach banned_words
+      // sucht, findet nichts.
+      const herkunft = {
+        max_words: regeln.origin.maxWords,
+        banned_words: regeln.origin.bannedWords,
+        language: regeln.origin.language,
+        source: regeln.origin.source,
+        prompt: regeln.origin.prompt,
+      } as const;
+      const geerbt = (Object.keys(herkunft) as (keyof typeof herkunft)[]).filter(
+        (k) => herkunft[k] === "default"
+      );
+
+      const eigenes = {
+        workspace_id: tor.workspaceId,
+        // Wie in list_lead_lists: ein Teil, der ausfaellt, wird gesagt und
+        // laesst nicht das ganze Werkzeug scheitern.
+        ...(hinweise.length > 0 ? { note: hinweise.join(" ") } : {}),
+        icebreaker_rules: {
+          max_words: regeln.maxWords,
+          banned_words: regeln.bannedWords,
+          language: regeln.language,
+          source: regeln.source,
+          // NICHT gekuerzt, anders als jeder andere lange Text dieses Servers:
+          // ein abgeschnittener Prompt waere eine Anweisung, der die Haelfte
+          // fehlt, und das Modell koennte den Unterschied nicht sehen.
+          prompt: regeln.prompt,
+          from: herkunft,
+          note:
+            "These are the values in effect, not the raw columns: where a setting is empty the workspace inherits Frostbreaker's default, and from says which is which. " +
+            (geerbt.length > 0
+              ? `Inherited here: ${geerbt.join(", ")}. `
+              : "Nothing is inherited here. ") +
+            "banned_words are matched case-insensitively, and a dash inside a word (third-party) does not count as a violation, only one that separates parts of a sentence. max_words counts whitespace-separated words. Every icebreaker written through set_lead_icebreaker or set_lead_icebreakers is checked against exactly these values.",
+        },
+        sequence_rules: {
+          step_max_words: [...STEP_MAX_WORDS],
+          subject_max_words: SUBJECT_MAX_WORDS,
+          subject_ideal_words: SUBJECT_IDEAL_WORDS,
+          wait_days_per_step: [...PLAYBOOK_DELAYS],
+          banned_phrases: [...BANNED_PHRASES],
+          note:
+            "For set_campaign_sequence. step_max_words is an upper bound per step and the point is the slope: every step is shorter than the one before it, because writing more when nobody answers trains chasing. wait_days_per_step is the wait BEFORE each step, so day 0, 3, 5, 7, and the gaps shrink on purpose. The subject is a decision label, not a teaser: three or four words that mirror the one thing the email asks for. banned_phrases give a cold email away as a mass mailing faster than its content does. These rules are the same for every workspace; they are not settings and cannot be changed here.",
+        },
+        examples: {
+          count: paare.length,
+          note:
+            paare.length > 0
+              ? `Hand-written pairs from this workspace, in the order they are used: input_context is what the model sees about a company, icebreaker is the line that belongs to it. Follow their tone and shape, never their wording. Long contexts are shortened here; the workspace keeps the full text. The pairs are in the second content block, fenced, because a context is copied from a company website.`
+              : "This workspace has no complete example pairs. They are optional and are added in Frostbreaker under AI Agent.",
+        },
+      };
+
+      if (paare.length === 0) return okJson(eigenes);
+
+      const gekuerzt = paare.map((p) => ({
+        // Gekuerzt, anders als der Prompt darueber: ein Kontext ist in der
+        // Praxis ein paar tausend Zeichen (siehe MAX_PERSONALIZATION_EXAMPLES
+        // in lib/personalization-defaults.ts), und zehn davon rissen die
+        // Ausgabegrenze, bevor die Regeln beim Modell ankaemen. Fuer "wie
+        // klingt das" reicht der Anfang.
+        input_context: shorten(p.input_context),
+        icebreaker: shorten(p.icebreaker),
+      }));
+      // Die Umzaeunung traegt NUR die Paare; count und note bleiben im blanken
+      // Block. In structuredContent wachsen beide Haelften wieder zusammen --
+      // ein flaches Zusammenlegen wuerde den einen examples-Schluessel mit dem
+      // anderen ueberschreiben und count und note verschlucken.
+      return okGeteilt(eigenes, "writing-rule-examples", { examples: gekuerzt }, {
+        ...eigenes,
+        examples: { ...eigenes.examples, items: gekuerzt },
+      });
+    },
+  },
+
   // ── get_sequence ───────────────────────────────────────────────────────
   /**
    * ═════════════════════════════════════════════════════════════════════
@@ -1751,12 +2017,16 @@ export const TOOLS: Record<ToolName, McpTool> = {
 
       // Erst lesen: ohne den alten Wert liesse sich im Protokoll hinterher
       // nicht sagen, was ein missverstandener Prompt ueberschrieben hat.
-      const { data: vorher, error: leseFehler } = await supabase
-        .from("businesses")
-        .select("id, name, personalization")
-        .eq("id", businessId)
-        .eq("workspace_id", tor.workspaceId)
-        .maybeSingle();
+      // Die Regeln daneben, weil beide Abfragen unabhaengig sind.
+      const [{ data: vorher, error: leseFehler }, regeln] = await Promise.all([
+        supabase
+          .from("businesses")
+          .select("id, name, personalization")
+          .eq("id", businessId)
+          .eq("workspace_id", tor.workspaceId)
+          .maybeSingle(),
+        ladeSchreibregeln(supabase, tor.workspaceId),
+      ]);
       if (leseFehler) return dbFail("set_lead_icebreaker", leseFehler);
       if (!vorher) {
         // Gleiche Formulierung fuer "gibt es nicht" und "gehoert einem anderen
@@ -1767,9 +2037,35 @@ export const TOOLS: Record<ToolName, McpTool> = {
         );
       }
 
+      /**
+       * ═══════════════════════════════════════════════════════════════════
+       * GEPRUEFT WIRD, ABGELEHNT WIRD NICHT
+       * ═══════════════════════════════════════════════════════════════════
+       *
+       * Anlass am 2026-08-23: ein hier geschriebener Aufhaenger mit einem
+       * Gedankenstrich ging anstandslos durch, obwohl genau dieses Zeichen in
+       * den Vorgaben des Workspaces steht. Die Pruefseite der App zeigte
+       * danach dreissig Verstoesse zur Nacharbeit -- der Server hat also
+       * Arbeit erzeugt statt sie zu sparen.
+       *
+       * Text UND Markierung in EINEM Update, woertlich wie PATCH
+       * /api/personalization/review es tut. Damit landet ein Verstoss aus
+       * einem Modell in derselben Liste wie einer aus dem Worker, und die
+       * Liste bleibt die eine Stelle, an der jemand nacharbeitet.
+       *
+       * Eine harte Ablehnung waere der schlechtere Weg: ein Modell, dem ein
+       * Werkzeug den Text zurueckweist, erfindet Umgehungen (ein anderes
+       * Zeichen, eine Abkuerzung), und niemand sieht mehr, dass es die Regel
+       * nicht einhalten konnte.
+       */
+      const pruefung = pruefeIcebreaker(icebreaker, regeln);
+
       const { error: schreibFehler } = await supabase
         .from("businesses")
-        .update({ personalization: icebreaker })
+        .update({
+          personalization: icebreaker,
+          personalization_needs_review: pruefung.needsReview,
+        })
         .eq("id", businessId)
         // BEIDE Bedingungen, nicht nur die id: die id allein wuerde mit
         // Service-Role jede Zeile der Datenbank treffen.
@@ -1792,6 +2088,16 @@ export const TOOLS: Record<ToolName, McpTool> = {
         previous_icebreaker: vorher.personalization ?? null,
         icebreaker,
         written: true,
+        words: pruefung.words,
+        max_words: regeln.maxWords,
+        problems: pruefung.problems,
+        needs_review: pruefung.needsReview,
+        ...(pruefung.needsReview
+          ? {
+              review_note:
+                "The line was written, but it breaks this workspace's rules and is now flagged for review in Frostbreaker under Icebreaker pruefen, where a person has to deal with it. Call get_writing_rules and write it again to clear the flag.",
+            }
+          : {}),
         ...(logId ? { log_id: logId } : {}),
         undo_hint: logId
           ? `Call undo_writes with log_ids ["${logId}"] to put the previous icebreaker back.`
@@ -1900,11 +2206,16 @@ export const TOOLS: Record<ToolName, McpTool> = {
        * vorher fest, ob der ganze Aufruf durchgehen darf.
        */
       const ids = eintraege.map((e) => e.business_id);
-      const { data: gefunden, error: leseFehler } = await supabase
-        .from("businesses")
-        .select("id, name, personalization")
-        .eq("workspace_id", tor.workspaceId)
-        .in("id", ids);
+      // Die Regeln EINMAL fuer den ganzen Stapel, parallel zur Zeilenabfrage:
+      // sie sind fuer alle fuenfzig dieselben.
+      const [{ data: gefunden, error: leseFehler }, regeln] = await Promise.all([
+        supabase
+          .from("businesses")
+          .select("id, name, personalization")
+          .eq("workspace_id", tor.workspaceId)
+          .in("id", ids),
+        ladeSchreibregeln(supabase, tor.workspaceId),
+      ]);
       if (leseFehler) return dbFail("set_lead_icebreakers", leseFehler);
 
       const bekannt = new Map((gefunden ?? []).map((b) => [b.id as string, b]));
@@ -1918,7 +2229,7 @@ export const TOOLS: Record<ToolName, McpTool> = {
         );
       }
 
-      const geplant = eintraege.map((e) => {
+      const geplant: GeplanterIcebreaker[] = eintraege.map((e) => {
         const zeile = bekannt.get(e.business_id)!;
         return {
           business_id: e.business_id,
@@ -1929,8 +2240,13 @@ export const TOOLS: Record<ToolName, McpTool> = {
           // mitzuzaehlen waere eine Zahl, die groesser klingt als die
           // Aenderung.
           unchanged: (zeile.personalization ?? null) === e.icebreaker,
+          // Schon HIER und nicht erst beim Schreiben: der Probelauf ist der
+          // Moment, in dem jemand hinsieht, und dort ist die Wortzahl neben
+          // altem und neuem Text die nuetzlichste Auskunft ueberhaupt.
+          pruefung: pruefeIcebreaker(e.icebreaker, regeln),
         };
       });
+      const zuPruefen = geplant.filter((g) => g.pruefung.needsReview);
 
       if (probelauf.value) {
         return okJson({
@@ -1938,7 +2254,12 @@ export const TOOLS: Record<ToolName, McpTool> = {
           written: false,
           count: geplant.length,
           would_change: geplant.filter((g) => !g.unchanged).length,
-          note: "Nothing was written. Call again without dry_run to write these values.",
+          max_words: regeln.maxWords,
+          would_need_review: zuPruefen.length,
+          note:
+            zuPruefen.length > 0
+              ? `Nothing was written. ${zuPruefen.length} of ${geplant.length} lines break this workspace's rules and would be flagged for review in Frostbreaker; the problems are listed per lead below. Fix them and run the dry_run again, or call without dry_run to write them as they are.`
+              : "Nothing was written. Call again without dry_run to write these values.",
           // Ohne log_id: es gibt noch keine Protokollzeile, auf die sie
           // zeigen koennte.
           changes: geplant.map((g) => beschreibeIcebreaker(g)),
@@ -1960,7 +2281,15 @@ export const TOOLS: Record<ToolName, McpTool> = {
       for (const eintrag of geplant) {
         const { error } = await supabase
           .from("businesses")
-          .update({ personalization: eintrag.icebreaker })
+          // Text UND Markierung, wie bei set_lead_icebreaker und wie in
+          // PATCH /api/personalization/review. Bis zum 2026-08-23 setzte
+          // dieses Werkzeug personalization_needs_review gar nicht: ein
+          // Stapel von fuenfzig Zeilen konnte damit fuenfzig Verstoesse
+          // anlegen, die in der Pruefliste als unauffaellig galten.
+          .update({
+            personalization: eintrag.icebreaker,
+            personalization_needs_review: eintrag.pruefung.needsReview,
+          })
           .eq("id", eintrag.business_id)
           // Beide Bedingungen, wie ueberall: die id allein traefe mit
           // Service-Role jede Zeile der Datenbank.
@@ -1997,10 +2326,18 @@ export const TOOLS: Record<ToolName, McpTool> = {
         }))
       );
 
+      const geschriebenZuPruefen = geschrieben.filter((g) => g.pruefung.needsReview);
       return okJson({
         dry_run: false,
         written: geschrieben.length,
         count: geplant.length,
+        max_words: regeln.maxWords,
+        needs_review: geschriebenZuPruefen.length,
+        ...(geschriebenZuPruefen.length > 0
+          ? {
+              review_note: `${geschriebenZuPruefen.length} of the written lines break this workspace's rules and are now flagged for review in Frostbreaker under Icebreaker pruefen, where a person has to work through them. The problems are listed per lead below; call get_writing_rules and write those leads again to clear the flags.`,
+            }
+          : {}),
         ...(fehlgeschlagen.length > 0
           ? {
               failed: fehlgeschlagen,
@@ -3583,12 +3920,32 @@ export const TOOLS: Record<ToolName, McpTool> = {
         });
       }
 
+      /**
+       * DIE MARKIERUNG GEHOERT ZUM TEXT, NICHT ZUR ZEILE.
+       *
+       * personalization_needs_review sagt aus, ob der Text IN der Spalte
+       * gegen die Vorgaben verstoesst. Wird ein alter Text zurueckgeholt,
+       * bezieht sich die dort stehende Markierung noch auf den neuen -- ein
+       * sauberer alter Satz truege dann die Markierung des verstossenden
+       * neuen, und umgekehrt bliebe ein zurueckgeholter Verstoss unmarkiert.
+       *
+       * Deshalb wird sie beim Zurueckschreiben neu gerechnet, mit derselben
+       * Pruefung wie beim Schreiben. Die Regeln werden nur geholt, wenn
+       * ueberhaupt ein Icebreaker im Plan steht: bei einem Status oder einem
+       * Angebotsfeld waere es eine Abfrage fuer nichts.
+       */
+      const regeln = auszufuehren.some(
+        (p) => p.ziel.table === "businesses" && p.ziel.column === "personalization"
+      )
+        ? await ladeSchreibregeln(supabase, tor.workspaceId)
+        : null;
+
       const erledigt: UndoPlan[] = [];
       const fehlgeschlagen: { field: string; log_id: string }[] = [];
       // Nach Zeile zusammengefasst: zwei eigene Angebotsfelder derselben
       // Zeile ergeben EIN Update, sonst wuerde das zweite das erste aus dem
       // jsonb wieder herauswerfen (Lesen-Aendern-Schreiben).
-      for (const [, buendel] of buendleNachZeile(auszufuehren, aktuell.customFields)) {
+      for (const [, buendel] of buendleNachZeile(auszufuehren, aktuell.customFields, regeln)) {
         const { table, rowId, patch } = buendel;
         const { error } = await supabase
           .from(table)
@@ -4313,7 +4670,10 @@ async function ladeAktuelleWerte(
  */
 function buendleNachZeile(
   plan: UndoPlan[],
-  customFields: Map<string, Record<string, string>>
+  customFields: Map<string, Record<string, string>>,
+  /** Fuer die Neubewertung von personalization_needs_review. Null, wenn kein
+   *  Icebreaker im Plan steht. */
+  regeln: WritingRules | null = null
 ): Map<
   string,
   { table: string; rowId: string; patch: Record<string, unknown>; eintraege: UndoPlan[] }
@@ -4342,6 +4702,14 @@ function buendleNachZeile(
       vorhanden.patch.custom_fields = bisher;
     } else {
       vorhanden.patch[eintrag.ziel.column] = eintrag.to;
+      if (eintrag.ziel.table === "businesses" && eintrag.ziel.column === "personalization" && regeln) {
+        // Kein Text heisst nichts zu pruefen: eine Markierung an einer leeren
+        // Spalte waere ein Eintrag in der Pruefliste ohne Zeile zum Ansehen.
+        vorhanden.patch.personalization_needs_review =
+          typeof eintrag.to === "string" && eintrag.to.trim() !== ""
+            ? pruefeIcebreaker(eintrag.to, regeln).needsReview
+            : false;
+      }
     }
     vorhanden.eintraege.push(eintrag);
     buendel.set(key, vorhanden);
@@ -4352,14 +4720,17 @@ function buendleNachZeile(
 /** Eine Zeile der Ergebnisliste von set_lead_icebreakers. Gekuerzt aus
  *  demselben Grund wie beschreibePlan: 50 Eintraege mit vollem Text waeren
  *  eine Antwort, die der Client hart abschneidet. */
+export type GeplanterIcebreaker = {
+  business_id: string;
+  company: string | null;
+  previous_icebreaker: string | null;
+  icebreaker: string;
+  unchanged: boolean;
+  pruefung: Pruefung;
+};
+
 function beschreibeIcebreaker(
-  g: {
-    business_id: string;
-    company: string | null;
-    previous_icebreaker: string | null;
-    icebreaker: string;
-    unchanged: boolean;
-  },
+  g: GeplanterIcebreaker,
   /** Die Protokollzeile dieses Leads. Null im Probelauf (es gibt keine) und
    *  dann, wenn der Protokoll-Insert fehlgeschlagen ist -- der Schreibvorgang
    *  bleibt in beiden Faellen so, wie er ist. */
@@ -4371,6 +4742,12 @@ function beschreibeIcebreaker(
     previous_icebreaker: vorschau(g.previous_icebreaker),
     icebreaker: vorschau(g.icebreaker),
     unchanged: g.unchanged,
+    // Die Wortzahl steht auch dann da, wenn nichts zu bemaengeln ist: sie ist
+    // im Probelauf die Zahl, an der ein Mensch sieht, wie nah eine Zeile an
+    // der Grenze liegt.
+    words: g.pruefung.words,
+    problems: g.pruefung.problems,
+    needs_review: g.pruefung.needsReview,
     ...(logId ? { log_id: logId } : {}),
   };
 }
