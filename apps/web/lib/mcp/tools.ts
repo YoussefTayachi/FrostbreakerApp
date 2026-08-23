@@ -347,15 +347,55 @@ const BOUNCE_ALERT_MIN_SENT = 20;
 const MAX_BULK_LEADS = 50;
 
 /**
- * Wie viele Protokollzeilen undo_writes je Aufruf zurueckdreht.
+ * Wie viele Werte undo_writes je Aufruf WIEDERHERSTELLT.
  *
  * Dieselbe Zahl wie MAX_BULK_LEADS, und das ist der Punkt: EIN Mengenaufruf
- * laesst sich mit EINEM Aufruf zurueckdrehen. Ausserdem kostet jede Zeile
+ * laesst sich mit EINEM Aufruf zurueckdrehen. Ausserdem kostet jeder Wert
  * einen Lese- und einen Schreibvorgang; bei mehreren hundert liefe die Route
- * in ihr Zeitlimit, und ein halb durchgelaufenes Zurueckdrehen waere der
- * schlechteste aller Zustaende.
+ * in ihr Zeitlimit.
+ *
+ * NACHGEMESSEN AM 2026-08-23, UND DER GRUND FUER UNDO_READ_CAP DARUNTER:
+ * bis dahin war dies auch die Grenze dessen, was ein Aufruf ueberhaupt
+ * ANSEHEN durfte. 51 Zeilen im Fenster ergaben einen harten Fehler statt
+ * einer Wiederherstellung -- ein voller Stapel (50 Leads aus
+ * set_lead_icebreakers) plus EIN weiterer Schreibvorgang in derselben Stunde
+ * war damit nicht mehr umkehrbar. Der Ausweg ueber log_ids stand nur auf dem
+ * Papier: die Zeilen eines Stapels entstehen in EINEM Insert und teilen sich
+ * deshalb dieselbe created_at (now() ist Transaktionszeit), ein kuerzeres
+ * Fenster trifft also entweder alle fuenfzig oder keine, und der Probelauf
+ * lief in denselben Fehler. Seither sind Ansehen und Zurueckdrehen zwei
+ * verschiedene Deckel.
  */
 const MAX_UNDO_ROWS = 50;
+
+/**
+ * Wie viele Protokollzeilen ein Aufruf ANSIEHT.
+ *
+ * 250, weil das der laengste Verlauf ist, der in einer Stunde realistisch
+ * entsteht und noch zusammengehoert: ein voller Stapel (50), sein
+ * Zurueckdrehen (50 Wiederherstellungszeilen), ein zweiter Stapel (50) und
+ * dessen Zurueckdrehen (50) sind zusammen 200. Wer darueber liegt, nimmt kein
+ * Missverstaendnis zurueck, sondern ein Tagewerk, und bekommt dazu den
+ * Hinweis, dass nur die juengsten 250 Zeilen betrachtet wurden.
+ *
+ * Angesehen wird damit mehr, als je zurueckgeschrieben wird, und genau darum
+ * geht es: uebersprungene Zeilen (Wiederherstellungen, Notizen, Kampagnen,
+ * bereits Zurueckgedrehtes) duerfen den Deckel des Zurueckdrehens nicht
+ * mitverbrauchen -- sonst verdraengt das Zurueckdrehen von eben die Zeilen,
+ * die noch zurueckzudrehen waeren. Der Preis ist eine Abfrage, die
+ * old_value/new_value von bis zu 250 Zeilen holt; bei campaign_steps sind das
+ * im Extremfall einige hundert KB, die aber im Server bleiben und nie in die
+ * Antwort wandern (die Antwort deckelt beschreibePlan und
+ * MAX_SKIPPED_REPORTED).
+ */
+const UNDO_READ_CAP = 250;
+
+/** Wie viele uebersprungene Zeilen die Antwort NAMENTLICH nennt. Ihre Anzahl
+ *  steht immer vollstaendig daneben (skipped_count); 250 Eintraege aus Feld,
+ *  Grund und ID waeren mehrere tausend Token fuer eine Aufzaehlung, die
+ *  niemand liest -- und Claude Code bricht eine Werkzeugausgabe bei 25.000
+ *  Token hart ab. */
+const MAX_SKIPPED_REPORTED = 50;
 /** 1440 Minuten = 24 Stunden. Wer weiter zurueck will, nennt die
  *  Protokoll-IDs -- eine Zeitspanne von Tagen trifft zu viel Fremdes. */
 const DEFAULT_UNDO_MINUTES = 60;
@@ -1736,7 +1776,10 @@ export const TOOLS: Record<ToolName, McpTool> = {
         .eq("workspace_id", tor.workspaceId);
       if (schreibFehler) return dbFail("set_lead_icebreaker", schreibFehler);
 
-      await protokolliere(supabase, ctx, tor.workspaceId, {
+      // Die log_id gehoert in die Antwort: sie ist der einzige Weg, GENAU
+      // diesen Schreibvorgang zurueckzunehmen, ohne ein Zeitfenster zu raten
+      // (Begruendung an protokolliereViele).
+      const logId = await protokolliere(supabase, ctx, tor.workspaceId, {
         business_id: businessId,
         field: "businesses.personalization",
         old_value: vorher.personalization ?? null,
@@ -1749,6 +1792,10 @@ export const TOOLS: Record<ToolName, McpTool> = {
         previous_icebreaker: vorher.personalization ?? null,
         icebreaker,
         written: true,
+        ...(logId ? { log_id: logId } : {}),
+        undo_hint: logId
+          ? `Call undo_writes with log_ids ["${logId}"] to put the previous icebreaker back.`
+          : "Call undo_writes to put the previous icebreaker back.",
       });
     },
   },
@@ -1892,7 +1939,9 @@ export const TOOLS: Record<ToolName, McpTool> = {
           count: geplant.length,
           would_change: geplant.filter((g) => !g.unchanged).length,
           note: "Nothing was written. Call again without dry_run to write these values.",
-          changes: geplant.map(beschreibeIcebreaker),
+          // Ohne log_id: es gibt noch keine Protokollzeile, auf die sie
+          // zeigen koennte.
+          changes: geplant.map((g) => beschreibeIcebreaker(g)),
         });
       }
 
@@ -1932,8 +1981,11 @@ export const TOOLS: Record<ToolName, McpTool> = {
 
       // EINE Protokollzeile je geschriebenem Lead, in einem einzigen Insert:
       // die Spur ist genauso fein wie bei set_lead_icebreaker, kostet aber
-      // eine Rundreise statt fuenfzig.
-      await protokolliereViele(
+      // eine Rundreise statt fuenfzig. Die IDs kommen mit zurueck und stehen
+      // je Lead in changes -- ein Stapel, dessen log_ids man kennt, laesst
+      // sich auch dann noch gezielt zuruecknehmen, wenn danach weiter
+      // geschrieben wurde.
+      const logIds = await protokolliereViele(
         supabase,
         ctx,
         tor.workspaceId,
@@ -1955,8 +2007,11 @@ export const TOOLS: Record<ToolName, McpTool> = {
               note: `${fehlgeschlagen.length} leads could not be written. The others were. Call again with only the failed ones; writing the same text twice changes nothing.`,
             }
           : {}),
-        undo_hint: "Call undo_writes to put the previous icebreakers back.",
-        changes: geschrieben.map(beschreibeIcebreaker),
+        undo_hint:
+          logIds.length > 0
+            ? "Call undo_writes to put the previous icebreakers back: without arguments for the whole time window, or with the log_ids listed per lead below for exactly these leads."
+            : "Call undo_writes to put the previous icebreakers back.",
+        changes: geschrieben.map((g, i) => beschreibeIcebreaker(g, logIds[i] ?? null)),
       });
     },
   },
@@ -2034,7 +2089,7 @@ export const TOOLS: Record<ToolName, McpTool> = {
         .eq("workspace_id", tor.workspaceId);
       if (schreibFehler) return dbFail("set_contact_status", schreibFehler);
 
-      await protokolliere(supabase, ctx, tor.workspaceId, {
+      const logId = await protokolliere(supabase, ctx, tor.workspaceId, {
         contact_id: contactId,
         field: "contacts.outreach_status",
         old_value: vorher.outreach_status ?? null,
@@ -2049,6 +2104,12 @@ export const TOOLS: Record<ToolName, McpTool> = {
         previous_status: vorher.outreach_status ?? null,
         status,
         written: true,
+        // Siehe protokolliereViele: die log_id nimmt genau diesen Vorgang
+        // zurueck, ohne dass jemand ein Zeitfenster raten muss.
+        ...(logId ? { log_id: logId } : {}),
+        undo_hint: logId
+          ? `Call undo_writes with log_ids ["${logId}"] to put the previous status back.`
+          : "Call undo_writes to put the previous status back.",
         // Damit im Gespraech nicht unterschlagen wird, dass hier mehr passiert
         // als eine Spalte: der Trigger aus Migration 0066 kann eine Aufgabe
         // anlegen.
@@ -2176,7 +2237,7 @@ export const TOOLS: Record<ToolName, McpTool> = {
         .maybeSingle();
       if (schreibFehler) return dbFail("add_note", schreibFehler);
 
-      await protokolliere(supabase, ctx, tor.workspaceId, {
+      const logId = await protokolliere(supabase, ctx, tor.workspaceId, {
         business_id: businessId,
         contact_id: contactId,
         field: "notes.body",
@@ -2193,6 +2254,13 @@ export const TOOLS: Record<ToolName, McpTool> = {
         contact,
         created_at: angelegt?.created_at ?? null,
         written: true,
+        /**
+         * Die log_id als Beleg, aber BEWUSST ohne undo_hint: eine Notiz wird
+         * nur angehaengt, undo_writes ueberspringt sie mit
+         * "notes_are_append_only". Ein Hinweis auf ein Zuruecknehmen, das es
+         * nicht gibt, waere eine Einladung zu einem Aufruf, der nichts tut.
+         */
+        ...(logId ? { log_id: logId } : {}),
       });
     },
   },
@@ -2330,7 +2398,7 @@ export const TOOLS: Record<ToolName, McpTool> = {
         if (error) return dbFail("set_offer_field", error);
       }
 
-      await protokolliere(supabase, ctx, tor.workspaceId, {
+      const logId = await protokolliere(supabase, ctx, tor.workspaceId, {
         offer_id: offer.id as string,
         // Der Pfad, nicht nur der Name: "offers.cta" und
         // "offers.custom_fields.risk_reversal" sind im Protokoll ohne diesen
@@ -2349,6 +2417,11 @@ export const TOOLS: Record<ToolName, McpTool> = {
         previous_value: alt,
         value,
         written: true,
+        // Siehe protokolliereViele.
+        ...(logId ? { log_id: logId } : {}),
+        undo_hint: logId
+          ? `Call undo_writes with log_ids ["${logId}"] to put the previous value back.`
+          : "Call undo_writes to put the previous value back.",
       });
     },
   },
@@ -3193,13 +3266,25 @@ export const TOOLS: Record<ToolName, McpTool> = {
    * Ein Mengenwerkzeug ist genau so lange vertretbar, wie sein Ergebnis
    * zuruecknehmbar ist (die vollstaendige Begruendung steht in
    * lib/mcp/untrusted.ts). Dieses Werkzeug ist diese Zuruecknahme, und es hat
-   * drei Eigenschaften, die es davor bewahren, selbst zur Gefahr zu werden:
+   * vier Eigenschaften, die es davor bewahren, selbst zur Gefahr zu werden:
    *
-   * 1. ES UEBERSCHREIBT NIEMALS EINEN MENSCHEN. Vor jedem Zurueckschreiben
-   *    wird geprueft, ob in der Spalte noch genau das steht, was der
-   *    Schreibvorgang hinterlassen hat. Hat jemand danach in der App etwas
-   *    anderes eingetragen, bleibt es stehen und die Zeile wird als
-   *    "changed_since" gemeldet.
+   * 1. ES UEBERSCHREIBT NIEMALS EINEN MENSCHEN, AUCH NICHT MITTEN IN EINER
+   *    KETTE. Vor jedem Zurueckschreiben wird geprueft, ob in der Spalte noch
+   *    genau das steht, was der Schreibvorgang hinterlassen hat. Hat jemand
+   *    danach in der App etwas anderes eingetragen, bleibt es stehen und die
+   *    Zeile wird als "changed_since" gemeldet.
+   *
+   *    Diese Pruefung allein reichte bis zum 2026-08-23 nicht: sie sieht nur
+   *    die JUENGSTE Protokollzeile, zurueckgeschrieben wurde aber der alte
+   *    Wert der AELTESTEN. Bei "Modell schreibt X, Mensch schreibt Y, Modell
+   *    schreibt Z" landete damit wieder der Stand von vor X in der Spalte,
+   *    und das Y des Menschen war weg, ohne dass es irgendwo gemeldet wurde.
+   *    Seither wird nur die zusammenhaengende Kette zurueckgedreht
+   *    (zusammenhaengendeKette): wo old_value der neueren Zeile nicht mehr
+   *    zum new_value der aelteren passt, hat dazwischen jemand anders
+   *    geschrieben, und genau dieser Wert ist das Ziel. Aus "Y wird
+   *    zerstoert" wird damit "Y wird wiederhergestellt" -- und die
+   *    Plan-Zeile sagt es mit stopped_at_manual_edit.
    * 2. ES DREHT SICH NICHT SELBST ZURUECK. Jede Wiederherstellung wird
    *    protokolliert und traegt in undo_of die Zeile, die sie zuruecknimmt
    *    (Migration 0101). Ein zweiter Aufruf mit demselben Fenster findet die
@@ -3208,6 +3293,14 @@ export const TOOLS: Record<ToolName, McpTool> = {
    * 3. ES KENNT NUR DIE FELDER, DIE ES KENNT. UNDOABLE_FIELDS ist eine
    *    Erlaubnisliste; alles andere (eine Notiz, eine Kampagne) wird mit
    *    Grund uebersprungen statt "irgendwie" zurueckgeschrieben.
+   * 4. ES SCHEITERT NICHT AN DER MENGE. Ansehen und Zurueckdrehen haben zwei
+   *    verschiedene Deckel (UNDO_READ_CAP und MAX_UNDO_ROWS): ein zu volles
+   *    Fenster ist kein Fehler mehr, sondern ein Aufruf, der die juengsten
+   *    fuenfzig Werte zurueckdreht und sagt, wie viele noch offen sind. Der
+   *    Probelauf scheitert daran gar nicht, denn er ist der einzige Ort, an
+   *    dem man die log_ids eines Fensters ueberhaupt erfaehrt -- die andere
+   *    Quelle ist die Antwort des Schreibvorgangs selbst, die seit dem
+   *    2026-08-23 ihre log_ids mitliefert.
    */
   undo_writes: {
     title: "Undo writes",
@@ -3283,12 +3376,23 @@ export const TOOLS: Record<ToolName, McpTool> = {
         .eq("workspace_id", tor.workspaceId)
         .order("created_at", { ascending: false });
       abfrage = idsAngegeben ? abfrage.in("id", logIds) : abfrage.gte("created_at", seit);
-      // Eine mehr als erlaubt, damit "es sind zu viele" von "es sind genau
-      // so viele" unterscheidbar bleibt.
-      const { data: zeilen, error: leseFehler } = await abfrage.limit(MAX_UNDO_ROWS + 1);
+      // Eine mehr als angesehen wird, damit "es sind genau so viele" von "es
+      // sind mehr" unterscheidbar bleibt.
+      const { data: zeilen, error: leseFehler } = await abfrage.limit(UNDO_READ_CAP + 1);
       if (leseFehler) return dbFail("undo_writes", leseFehler);
 
-      const alleZeilen = (zeilen ?? []) as unknown as WriteLogRow[];
+      /**
+       * Ein zu volles Fenster ist KEIN Fehler mehr.
+       *
+       * Bis zum 2026-08-23 stand hier ein Abbruch, sobald mehr als
+       * MAX_UNDO_ROWS Zeilen im Fenster lagen -- und damit war ein voller
+       * Stapel plus ein einziger weiterer Schreibvorgang unumkehrbar (die
+       * Messung steht an MAX_UNDO_ROWS). Jetzt kostet ein volles Fenster nur
+       * die aeltesten Zeilen, und das wird gesagt: zurueckgedreht wird
+       * ohnehin von neu nach alt.
+       */
+      const fensterUeberlaeuft = gelesenZuViel(zeilen);
+      const alleZeilen = ((zeilen ?? []) as unknown as WriteLogRow[]).slice(0, UNDO_READ_CAP);
       if (alleZeilen.length === 0) {
         return okJson({
           dry_run: probelauf.value,
@@ -3297,11 +3401,6 @@ export const TOOLS: Record<ToolName, McpTool> = {
             ? "None of those log ids belong to this workspace, so nothing was undone."
             : `No writes in the last ${minuten.value} minutes, so there is nothing to undo.`,
         });
-      }
-      if (alleZeilen.length > MAX_UNDO_ROWS) {
-        return fail(
-          `More than ${MAX_UNDO_ROWS} writes fall into that window. Nothing was undone. Use a shorter since_minutes, or pass log_ids for the writes you mean.`
-        );
       }
       if (idsAngegeben) {
         const gefunden = new Set(alleZeilen.map((z) => z.id));
@@ -3339,24 +3438,28 @@ export const TOOLS: Record<ToolName, McpTool> = {
         });
       }
 
+      const gruppen = gruppiereNachZiel(protokoll);
+
       /**
        * Was davon wurde schon zurueckgedreht?
        *
        * Eine Wiederherstellung traegt in undo_of die Zeile, die sie
        * zuruecknimmt. Ohne diese Abfrage waere ein zweiter Aufruf mit
        * demselben Fenster ein Wiederholen des Schreibvorgangs.
+       *
+       * Gefragt wird nur nach den KOEPFEN der Gruppen und nicht nach allen
+       * gelesenen Zeilen: geprueft wird ohnehin nur der Kopf, und seit
+       * UNDO_READ_CAP koennten es sonst 250 UUIDs in einem in (…) sein --
+       * rund 9.600 Zeichen URL, denn PostgREST bekommt ein select als GET.
        */
-      const { data: markierungen, error: markierungsFehler } = await supabase
-        .from("mcp_write_log")
-        .select("undo_of")
-        .eq("workspace_id", tor.workspaceId)
-        .in("undo_of", protokoll.map((z) => z.id));
-      if (markierungsFehler) return dbFail("undo_writes", markierungsFehler);
-      const zurueckgedreht = new Set(
-        (markierungen ?? []).map((m) => m.undo_of as string).filter(Boolean)
+      const markierungen = await ladeUndoMarkierungen(
+        supabase,
+        tor.workspaceId,
+        gruppen.map((g) => g.rows[0].id)
       );
+      if (!markierungen.ok) return dbFail("undo_writes", markierungen.error);
+      const zurueckgedreht = markierungen.ids;
 
-      const gruppen = gruppiereNachZiel(protokoll);
       const aktuell = await ladeAktuelleWerte(supabase, tor.workspaceId, gruppen);
       if (!aktuell.ok) return dbFail("undo_writes", aktuell.error);
 
@@ -3366,11 +3469,18 @@ export const TOOLS: Record<ToolName, McpTool> = {
       ];
 
       for (const gruppe of gruppen) {
-        // Zeilen absteigend: die neueste sagt, was jetzt dastehen muesste,
-        // die aelteste, worauf zurueckgestellt wird. Bei einer Kette
-        // A->B->C ist das Ergebnis wieder A.
+        /**
+         * Zeilen absteigend: die neueste sagt, was jetzt dastehen muesste.
+         *
+         * Worauf zurueckgestellt wird, sagt NICHT die aelteste Zeile der
+         * Gruppe, sondern die aelteste der zusammenhaengenden Kette. Bei
+         * einer reinen Kette A->B->C ist das Ergebnis wie bisher wieder A;
+         * steht dazwischen die Eingabe eines Menschen, ist es genau sie
+         * (Punkt 1 im Kopfkommentar, Umsetzung in zusammenhaengendeKette).
+         */
         const neueste = gruppe.rows[0];
-        const aelteste = gruppe.rows[gruppe.rows.length - 1];
+        const { kette, unterbrochen } = zusammenhaengendeKette(gruppe.rows);
+        const aelteste = kette[kette.length - 1];
         if (zurueckgedreht.has(neueste.id)) {
           uebersprungen.push({ field: gruppe.field, log_id: neueste.id, reason: "already_restored" });
           continue;
@@ -3394,9 +3504,16 @@ export const TOOLS: Record<ToolName, McpTool> = {
           continue;
         }
         if (jetzt !== neueste.new_value) {
-          // Der wichtigste der drei Faelle: hier hat ein Mensch in der App
-          // gearbeitet. Sein Text ist nicht das, was zurueckgenommen werden
-          // soll.
+          /**
+           * Hier hat jemand NACH dem letzten Schreibvorgang in der App
+           * gearbeitet. Sein Text ist nicht das, was zurueckgenommen werden
+           * soll, also bleibt die Zeile unangetastet.
+           *
+           * Der verwandte Fall -- jemand hat MITTEN in der Kette
+           * geschrieben -- faellt hier nicht auf, denn oben steht ja der Wert
+           * des Modells. Ihn faengt zusammenhaengendeKette ab, und zwar nicht
+           * mit einem Ueberspringen, sondern mit einem kuerzeren Ziel.
+           */
           uebersprungen.push({ field: gruppe.field, log_id: neueste.id, reason: "changed_since" });
           continue;
         }
@@ -3413,18 +3530,56 @@ export const TOOLS: Record<ToolName, McpTool> = {
           from: jetzt,
           to: aelteste.old_value,
           log_id: neueste.id,
-          covers: gruppe.rows.map((r) => r.id),
+          // NUR die Kette, nicht die ganze Gruppe: die Zeilen hinter dem
+          // Bruch werden nicht zurueckgedreht und duerfen deshalb auch nicht
+          // als abgedeckt gemeldet werden.
+          covers: kette.map((r) => r.id),
+          stoppedAtManualEdit: unterbrochen,
         });
+      }
+
+      /**
+       * Was dieser Aufruf tut, und was danach noch offen ist.
+       *
+       * plan haelt alles, was in diesem Fenster zurueckgedreht werden KOENNTE;
+       * ausgefuehrt werden die juengsten MAX_UNDO_ROWS davon. Die
+       * uebersprungenen Zeilen (Wiederherstellungen, Notizen, Kampagnen,
+       * bereits Zurueckgedrehtes) zaehlen bewusst nicht mit -- sonst
+       * verdraengten ausgerechnet die Wiederherstellungen des vorigen Aufrufs
+       * die Schreibvorgaenge, die noch offen sind.
+       */
+      const auszufuehren = plan.slice(0, MAX_UNDO_ROWS);
+      const offen = plan.length - auszufuehren.length;
+
+      const hinweise: string[] = [];
+      if (offen > 0) {
+        hinweise.push(
+          `${offen} more values in this window can still be restored; ${auszufuehren.length} is the maximum per call. Call undo_writes again with the same window, the ones restored now are marked and will be skipped.`
+        );
+      }
+      if (fensterUeberlaeuft) {
+        hinweise.push(
+          `Only the ${UNDO_READ_CAP} most recent log entries of that window were looked at. Older writes exist; reach them with a shorter since_minutes or with explicit log_ids.`
+        );
+      }
+      if (auszufuehren.some((p) => p.stoppedAtManualEdit)) {
+        hinweise.push(
+          "Entries marked stopped_at_manual_edit are not rolled all the way back: between two writes of this server someone changed that value in Frostbreaker, and the restored value is that change, not the state before it."
+        );
       }
 
       if (probelauf.value) {
         return okJson({
           dry_run: true,
           restored: 0,
-          would_restore: plan.length,
-          note: "Nothing was written. Call again without dry_run to restore these values.",
-          changes: plan.map(beschreibePlan),
-          ...(uebersprungen.length > 0 ? { skipped: uebersprungen } : {}),
+          would_restore: auszufuehren.length,
+          ...(offen > 0 ? { still_pending: offen } : {}),
+          note: [
+            "Nothing was written. Call again without dry_run to restore these values; log_ids below name them individually.",
+            ...hinweise,
+          ].join(" "),
+          changes: auszufuehren.map(beschreibePlan),
+          ...uebersprungeneFelder(uebersprungen),
         });
       }
 
@@ -3433,7 +3588,7 @@ export const TOOLS: Record<ToolName, McpTool> = {
       // Nach Zeile zusammengefasst: zwei eigene Angebotsfelder derselben
       // Zeile ergeben EIN Update, sonst wuerde das zweite das erste aus dem
       // jsonb wieder herauswerfen (Lesen-Aendern-Schreiben).
-      for (const [, buendel] of buendleNachZeile(plan, aktuell.customFields)) {
+      for (const [, buendel] of buendleNachZeile(auszufuehren, aktuell.customFields)) {
         const { table, rowId, patch } = buendel;
         const { error } = await supabase
           .from(table)
@@ -3471,23 +3626,18 @@ export const TOOLS: Record<ToolName, McpTool> = {
         );
       }
 
+      if (fehlgeschlagen.length > 0) {
+        hinweise.unshift("Some values could not be written back. The others were.");
+      }
+
       return okJson({
         dry_run: false,
         restored: erledigt.length,
-        ...(fehlgeschlagen.length > 0
-          ? {
-              failed: fehlgeschlagen,
-              note: "Some values could not be written back. The others were.",
-            }
-          : {}),
+        ...(offen > 0 ? { still_pending: offen } : {}),
+        ...(fehlgeschlagen.length > 0 ? { failed: fehlgeschlagen } : {}),
+        ...(hinweise.length > 0 ? { note: hinweise.join(" ") } : {}),
         changes: erledigt.map(beschreibePlan),
-        ...(uebersprungen.length > 0
-          ? {
-              skipped: uebersprungen,
-              skipped_note:
-                "changed_since means someone edited that value in Frostbreaker after the write; it was deliberately left alone. Notes and campaigns are not undone here.",
-            }
-          : {}),
+        ...uebersprungeneFelder(uebersprungen),
       });
     },
   },
@@ -3897,8 +4047,13 @@ type UndoPlan = {
   to: string | null;
   /** Die Zeile, die zurueckgenommen wird -- sie landet in undo_of. */
   log_id: string;
-  /** Alle Zeilen dieser Kette, damit im Ergebnis steht, was abgedeckt ist. */
+  /** Alle Zeilen dieser Kette, damit im Ergebnis steht, was abgedeckt ist.
+   *  NUR die zusammenhaengende Kette, nicht die ganze Gruppe. */
   covers: string[];
+  /** Die Kette endete an einem fremden Schreibvorgang: zurueckgestellt wird
+   *  auf dessen Wert und nicht auf den Anfang. Steht als
+   *  stopped_at_manual_edit in der Antwort. */
+  stoppedAtManualEdit: boolean;
 };
 
 /**
@@ -3953,6 +4108,116 @@ function gruppiereNachZiel(rows: WriteLogRow[]): UndoGruppe[] {
     else gruppen.set(key, { key, field: row.field, ziel, rows: [row] });
   }
   return [...gruppen.values()];
+}
+
+/**
+ * Die zusammenhaengende Kette am Kopf einer Gruppe.
+ *
+ * ═══════════════════════════════════════════════════════════════════════
+ * WARUM NICHT EINFACH DIE AELTESTE ZEILE
+ * ═══════════════════════════════════════════════════════════════════════
+ *
+ * rows ist absteigend, die neueste zuerst. Zwei benachbarte Zeilen gehoeren
+ * zur selben Kette, wenn die aeltere genau den Wert hinterlassen hat, den die
+ * neuere vorgefunden hat: rows[i].old_value === rows[i + 1].new_value. Beide
+ * Werte stammen aus demselben Protokoll, und jedes Schreibwerkzeug liest
+ * seinen alten Wert unmittelbar vor dem Schreiben (set_lead_icebreaker,
+ * set_contact_status und set_offer_field tun das ausdruecklich), die beiden
+ * sind also vergleichbar.
+ *
+ * Passt es nicht, hat zwischen den beiden Schreibvorgaengen jemand anders
+ * geschrieben. Meist ist das ein Mensch im Formular der App; es koennte auch
+ * der Worker sein oder ein Protokoll-Insert, der fehlgeschlagen ist. Der
+ * Unterschied spielt hier keine Rolle: in jedem Fall ist rows[i].old_value
+ * der Stand, den dieser Server NICHT verursacht hat, und genau dorthin wird
+ * zurueckgestellt. "Nimm zurueck, was das Modell getan hat" heisst damit
+ * woertlich das und nicht "stelle den Anfang der Zeitrechnung wieder her".
+ *
+ * NACHGEMESSEN AM 2026-08-23: bis dahin wurde blind
+ * rows[rows.length - 1].old_value genommen. Bei der Folge "Modell schreibt X,
+ * Mensch schreibt Y, Modell schreibt Z" war das Ergebnis der Stand vor X, das
+ * Y des Menschen war weg, und weil die changed_since-Pruefung nur die
+ * juengste Zeile ansieht (jetzt === Z), wurde es nicht einmal gemeldet. Die
+ * Unterbrechung stand die ganze Zeit im Protokoll: Z.old_value war "Y",
+ * X.new_value war "X".
+ *
+ * Eine einzelne Zeile ist immer eine vollstaendige Kette; unterbrochen ist
+ * dann false, und alles verhaelt sich wie zuvor.
+ */
+function zusammenhaengendeKette(rows: WriteLogRow[]): {
+  kette: WriteLogRow[];
+  unterbrochen: boolean;
+} {
+  let letzte = 0;
+  while (letzte + 1 < rows.length && rows[letzte].old_value === rows[letzte + 1].new_value) {
+    letzte += 1;
+  }
+  return { kette: rows.slice(0, letzte + 1), unterbrochen: letzte + 1 < rows.length };
+}
+
+/** Hat die Leseabfrage die eine Zeile mehr geliefert, die nur zum Zaehlen da
+ *  ist? Eigene Funktion, weil die Zeilen an der Aufrufstelle im selben
+ *  Atemzug auf UNDO_READ_CAP gekuerzt werden und die Laenge danach nichts
+ *  mehr verraet. */
+function gelesenZuViel(zeilen: { length: number } | null | undefined): boolean {
+  return (zeilen?.length ?? 0) > UNDO_READ_CAP;
+}
+
+/**
+ * Welche dieser Protokollzeilen wurden bereits zurueckgedreht?
+ *
+ * Gefragt wird in Haeppchen von MAX_UNDO_ROWS und parallel: supabase-js
+ * schickt ein select als GET, und ein in (…) ueber UNDO_READ_CAP UUIDs waere
+ * eine URL von rund 9.600 Zeichen. Postgres stoert das nicht, die Gateways
+ * davor (Kong, Nginx) je nach Einstellung sehr wohl -- und ein 414 waere ein
+ * Fehler, den niemand mit dieser Stelle in Verbindung braechte.
+ */
+async function ladeUndoMarkierungen(
+  supabase: SupabaseClient,
+  workspaceId: string,
+  ids: string[]
+): Promise<{ ok: true; ids: Set<string> } | { ok: false; error: { message?: string } | null }> {
+  const eindeutig = [...new Set(ids)];
+  if (eindeutig.length === 0) return { ok: true, ids: new Set<string>() };
+  const haeppchen: string[][] = [];
+  for (let i = 0; i < eindeutig.length; i += MAX_UNDO_ROWS) {
+    haeppchen.push(eindeutig.slice(i, i + MAX_UNDO_ROWS));
+  }
+  const ergebnisse = await Promise.all(
+    haeppchen.map((teil) =>
+      supabase
+        .from("mcp_write_log")
+        .select("undo_of")
+        // Der Zaun steht auch hier: eine Markierung aus einem fremden
+        // Workspace darf nicht einmal gelesen werden.
+        .eq("workspace_id", workspaceId)
+        .in("undo_of", teil)
+    )
+  );
+  const gescheitert = ergebnisse.find((e) => e.error);
+  if (gescheitert) return { ok: false, error: gescheitert.error };
+  const gefunden = new Set<string>();
+  for (const { data } of ergebnisse) {
+    for (const zeile of data ?? []) {
+      const wert = (zeile as { undo_of: string | null }).undo_of;
+      if (wert) gefunden.add(wert);
+    }
+  }
+  return { ok: true, ids: gefunden };
+}
+
+/** Die uebersprungenen Zeilen fuer die Antwort: die Anzahl vollstaendig, die
+ *  Aufzaehlung gedeckelt (Begruendung an MAX_SKIPPED_REPORTED). */
+function uebersprungeneFelder(
+  uebersprungen: { field: string; log_id: string; reason: string }[]
+) {
+  if (uebersprungen.length === 0) return {};
+  return {
+    skipped_count: uebersprungen.length,
+    skipped: uebersprungen.slice(0, MAX_SKIPPED_REPORTED),
+    skipped_note:
+      "changed_since means someone edited that value in Frostbreaker after the write, so it was deliberately left alone. already_restored means an earlier undo_writes already put that value back. Notes and campaigns are never undone here.",
+  };
 }
 
 /**
@@ -4087,19 +4352,26 @@ function buendleNachZeile(
 /** Eine Zeile der Ergebnisliste von set_lead_icebreakers. Gekuerzt aus
  *  demselben Grund wie beschreibePlan: 50 Eintraege mit vollem Text waeren
  *  eine Antwort, die der Client hart abschneidet. */
-function beschreibeIcebreaker(g: {
-  business_id: string;
-  company: string | null;
-  previous_icebreaker: string | null;
-  icebreaker: string;
-  unchanged: boolean;
-}) {
+function beschreibeIcebreaker(
+  g: {
+    business_id: string;
+    company: string | null;
+    previous_icebreaker: string | null;
+    icebreaker: string;
+    unchanged: boolean;
+  },
+  /** Die Protokollzeile dieses Leads. Null im Probelauf (es gibt keine) und
+   *  dann, wenn der Protokoll-Insert fehlgeschlagen ist -- der Schreibvorgang
+   *  bleibt in beiden Faellen so, wie er ist. */
+  logId: string | null = null
+) {
   return {
     business_id: g.business_id,
     company: g.company,
     previous_icebreaker: vorschau(g.previous_icebreaker),
     icebreaker: vorschau(g.icebreaker),
     unchanged: g.unchanged,
+    ...(logId ? { log_id: logId } : {}),
   };
 }
 
@@ -4110,6 +4382,13 @@ function beschreibePlan(p: UndoPlan) {
     current_value: vorschau(p.from),
     restored_value: vorschau(p.to),
     log_ids: p.covers,
+    /**
+     * Nur wenn zutreffend, und dann sichtbar: restored_value ist hier NICHT
+     * der Stand vor dem ersten Schreibvorgang, sondern die Eingabe, die
+     * jemand in der App dazwischengesetzt hat. Wer das nicht liest, haelt
+     * einen unvollstaendigen Rueckbau fuer einen vollstaendigen.
+     */
+    ...(p.stoppedAtManualEdit ? { stopped_at_manual_edit: true } : {}),
   };
 }
 
@@ -4158,40 +4437,74 @@ async function protokolliere(
   ctx: McpToolContext,
   workspaceId: string,
   eintrag: WriteLogEintrag
-): Promise<void> {
-  await protokolliereViele(supabase, ctx, workspaceId, [eintrag]);
+): Promise<string | null> {
+  const ids = await protokolliereViele(supabase, ctx, workspaceId, [eintrag]);
+  return ids[0] ?? null;
 }
 
 /**
- * Mehrere Protokollzeilen in EINEM Insert.
+ * Mehrere Protokollzeilen in EINEM Insert, und die vergebenen IDs zurueck.
  *
  * Fuer set_lead_icebreakers und undo_writes: die Spur bleibt genauso fein wie
  * bei einem Einzelwerkzeug (eine Zeile je geaendertem Datensatz), kostet aber
  * eine Rundreise statt fuenfzig.
+ *
+ * ═══════════════════════════════════════════════════════════════════════
+ * WARUM DIE IDs ZURUECKKOMMEN
+ * ═══════════════════════════════════════════════════════════════════════
+ *
+ * undo_writes nimmt entweder ein Zeitfenster oder log_ids. Die Beschreibung
+ * nennt sie "log entry ids from an earlier response" -- bis zum 2026-08-23
+ * gab es diese frueheren Antworten nicht: keine Antwort eines
+ * Schreibwerkzeugs enthielt eine log_id, und die einzige Quelle war der
+ * Probelauf von undo_writes selbst, der bei einem vollen Stapel in denselben
+ * Deckel lief wie der echte Aufruf. Jetzt steht in der Antwort des
+ * Schreibvorgangs, wie man genau ihn zuruecknimmt.
+ *
+ * Die Zuordnung laeuft ueber die REIHENFOLGE: Postgres liefert bei einem
+ * insert … returning die Zeilen in der Reihenfolge der VALUES-Liste, und
+ * PostgREST reicht sie so durch. Weil das eine Annahme ueber fremdes
+ * Verhalten ist, wird sie geprueft statt geglaubt -- kommen nicht genauso
+ * viele IDs zurueck wie Eintraege hineingingen, gibt es gar keine, und die
+ * Antwort nennt dann eben keine log_id.
+ *
+ * Ein Fehler bleibt folgenlos (Begruendung darueber): der Schreibvorgang ist
+ * passiert, das Protokoll ist Nebensache fuer den Aufrufer. Dann fehlen in
+ * der Antwort die log_ids, mehr nicht.
  */
 async function protokolliereViele(
   supabase: SupabaseClient,
   ctx: McpToolContext,
   workspaceId: string,
   eintraege: WriteLogEintrag[]
-): Promise<void> {
-  if (eintraege.length === 0) return;
-  const { error } = await supabase.from("mcp_write_log").insert(
-    eintraege.map((eintrag) => ({
-      token_id: ctx.tokenId,
-      user_id: ctx.userId,
-      workspace_id: workspaceId,
-      business_id: eintrag.business_id ?? null,
-      contact_id: eintrag.contact_id ?? null,
-      offer_id: eintrag.offer_id ?? null,
-      campaign_id: eintrag.campaign_id ?? null,
-      field: eintrag.field,
-      old_value: eintrag.old_value,
-      new_value: eintrag.new_value,
-      undo_of: eintrag.undo_of ?? null,
-    }))
-  );
-  if (error) console.error("[mcp] mcp_write_log nicht geschrieben:", error.message);
+): Promise<string[]> {
+  if (eintraege.length === 0) return [];
+  const { data, error } = await supabase
+    .from("mcp_write_log")
+    .insert(
+      eintraege.map((eintrag) => ({
+        token_id: ctx.tokenId,
+        user_id: ctx.userId,
+        workspace_id: workspaceId,
+        business_id: eintrag.business_id ?? null,
+        contact_id: eintrag.contact_id ?? null,
+        offer_id: eintrag.offer_id ?? null,
+        campaign_id: eintrag.campaign_id ?? null,
+        field: eintrag.field,
+        old_value: eintrag.old_value,
+        new_value: eintrag.new_value,
+        undo_of: eintrag.undo_of ?? null,
+      }))
+    )
+    .select("id");
+  if (error) {
+    console.error("[mcp] mcp_write_log nicht geschrieben:", error.message);
+    return [];
+  }
+  const ids = ((data ?? []) as { id?: unknown }[])
+    .map((z) => (typeof z?.id === "string" ? z.id : null))
+    .filter((id): id is string => id !== null);
+  return ids.length === eintraege.length ? ids : [];
 }
 
 /** Die Werkzeugliste fuer tools/list, in der Reihenfolge der Registry. */

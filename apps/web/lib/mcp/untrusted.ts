@@ -71,6 +71,34 @@ import { UNTRUSTED_PREAMBLE, UNTRUSTED_POSTAMBLE } from "@/lib/mcp/tool-descript
  *    vertretbar wird: ein missverstandener Prompt ist keine endgueltige
  *    Zerstoerung mehr, sondern ein Aufruf, den man zuruecknimmt.
  *
+ *    NACHGEMESSEN AM 2026-08-23: bis dahin galt dieser Punkt nur fuer
+ *    Fenster mit hoechstens 49 Protokollzeilen. Ein VOLLER Stapel (50 Leads,
+ *    also 50 Zeilen) plus ein einziger weiterer Schreibvorgang in derselben
+ *    Stunde ergab 51, und 51 war ein harter Fehler statt einer
+ *    Wiederherstellung. Der Ausweg, den diese Fehlermeldung nannte, gab es
+ *    nicht: log_ids stand in keiner Antwort eines Schreibwerkzeugs, der
+ *    Probelauf von undo_writes lief in denselben Deckel, und ein kuerzeres
+ *    Fenster half nicht, weil die 50 Zeilen eines Stapels aus EINEM Insert
+ *    stammen und sich deshalb dieselbe created_at teilen. Ausgerechnet der
+ *    groesste Aufruf, den dieses Werkzeug erlaubt, liess sich also am
+ *    schlechtesten zuruecknehmen.
+ *
+ *    Nachgezogen an drei Stellen: Ansehen und Zurueckdrehen haben getrennte
+ *    Deckel (UNDO_READ_CAP 250 gegen MAX_UNDO_ROWS 50, beide in
+ *    lib/mcp/tools.ts begruendet), der Probelauf scheitert nie an der Menge,
+ *    und jedes Schreibwerkzeug liefert seine log_ids in der eigenen Antwort
+ *    mit -- bei set_lead_icebreakers eine je Lead.
+ *
+ *    ZWEITE MESSUNG VOM SELBEN TAG, dieselbe Bedingung: undo_writes drehte
+ *    eine Kette blind bis an ihren Anfang zurueck. Bei "Modell schreibt X,
+ *    Mensch schreibt Y in der App, Modell schreibt Z" landete wieder der
+ *    Stand vor X in der Spalte, das Y des Menschen war weg, und die
+ *    changed_since-Pruefung meldete nichts, weil sie nur die juengste
+ *    Protokollzeile ansieht. Das war das Gegenteil dessen, was dieser Punkt
+ *    zusagt. Seither wird nur die zusammenhaengende Kette zurueckgedreht
+ *    (zusammenhaengendeKette in lib/mcp/tools.ts), und aus "Y wird
+ *    zerstoert" wurde "Y wird wiederhergestellt".
+ *
  * ═══════════════════════════════════════════════════════════════════════
  * WARUM EIN WERKZEUG SEIT DEM 2026-08-22 NACH DRAUSSEN GEHT
  * ═══════════════════════════════════════════════════════════════════════

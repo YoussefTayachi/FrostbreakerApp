@@ -644,6 +644,118 @@ describe("set_lead_icebreaker", () => {
   });
 });
 
+describe("Die log_id in der Antwort eines Schreibvorgangs", () => {
+  /**
+   * ═════════════════════════════════════════════════════════════════════
+   * DIE ANDERE HAELFTE VON FEHLER 2 (2026-08-23)
+   * ═════════════════════════════════════════════════════════════════════
+   *
+   * undo_writes nimmt "log entry ids from an earlier response" -- diese
+   * frueheren Antworten gab es nicht: kein Schreibwerkzeug nannte je eine
+   * log_id, und die einzige Quelle war der Probelauf von undo_writes, der
+   * bei einem vollen Stapel in denselben Deckel lief wie der echte Aufruf.
+   */
+  it("set_lead_icebreaker nennt die log_id und den Weg zurueck", async () => {
+    const { supabase } = stubSupabase({
+      businesses: { data: { id: "b1", name: "Alpha GmbH", personalization: "Alt" } },
+      mcp_write_log: { data: [{ id: "log-77" }] },
+    });
+    const ergebnis = await callTool(supabase, ctx({ scope: "read_write" }), "set_lead_icebreaker", {
+      workspace_id: WS,
+      business_id: "b1",
+      icebreaker: "Neu.",
+    });
+    expect(ergebnis.structuredContent).toMatchObject({ written: true, log_id: "log-77" });
+    expect((ergebnis.structuredContent as { undo_hint: string }).undo_hint).toContain("log-77");
+  });
+
+  it("set_lead_icebreakers nennt die log_id JE LEAD, nicht als losen Klumpen", async () => {
+    const { supabase } = stubSupabase({
+      businesses: {
+        data: [
+          { id: "b1", name: "Alpha GmbH", personalization: "Alt 1" },
+          { id: "b2", name: "Beta AG", personalization: null },
+        ],
+      },
+      mcp_write_log: { data: [{ id: "log-1" }, { id: "log-2" }] },
+    });
+    const ergebnis = await callTool(supabase, ctx({ scope: "read_write" }), "set_lead_icebreakers", {
+      workspace_id: WS,
+      leads: [
+        { business_id: "b1", icebreaker: "Erster Satz." },
+        { business_id: "b2", icebreaker: "Zweiter Satz." },
+      ],
+    });
+    expect(ergebnis.structuredContent).toMatchObject({
+      written: 2,
+      changes: [
+        { business_id: "b1", log_id: "log-1" },
+        { business_id: "b2", log_id: "log-2" },
+      ],
+    });
+  });
+
+  it("set_contact_status und set_offer_field nennen sie ebenfalls", async () => {
+    const kontakt = stubSupabase({
+      contacts: { data: { id: "c1", full_name: "A. B.", outreach_status: "new", businesses: { name: "Alpha" } } },
+      mcp_write_log: { data: [{ id: "log-c" }] },
+    });
+    const status = await callTool(kontakt.supabase, ctx({ scope: "read_write" }), "set_contact_status", {
+      workspace_id: WS,
+      contact_id: "c1",
+      status: "replied",
+    });
+    expect(status.structuredContent).toMatchObject({ log_id: "log-c" });
+
+    const angebot = stubSupabase({
+      offers: { data: [{ id: "o1", name: "Standard", cta: "Alt", custom_fields: {} }] },
+      mcp_write_log: { data: [{ id: "log-o" }] },
+    });
+    const feld = await callTool(angebot.supabase, ctx({ scope: "read_write" }), "set_offer_field", {
+      workspace_id: WS,
+      field: "cta",
+      value: "Neu",
+    });
+    expect(feld.structuredContent).toMatchObject({ log_id: "log-o" });
+  });
+
+  it("add_note nennt die log_id, aber KEINEN Weg zurueck", async () => {
+    // Eine Notiz wird nur angehaengt; undo_writes ueberspringt sie mit
+    // notes_are_append_only. Ein Hinweis darauf waere eine Einladung zu
+    // einem Aufruf, der nichts tut.
+    const { supabase } = stubSupabase({
+      businesses: { data: { id: "b1", name: "Alpha GmbH" } },
+      notes: { data: { id: "n1", created_at: "2026-08-23T09:00:00Z" } },
+      mcp_write_log: { data: [{ id: "log-n" }] },
+    });
+    const ergebnis = await callTool(supabase, ctx({ scope: "read_write" }), "add_note", {
+      workspace_id: WS,
+      business_id: "b1",
+      body: "Telefoniert.",
+    });
+    expect(ergebnis.structuredContent).toMatchObject({ written: true, log_id: "log-n" });
+    expect(ergebnis.structuredContent).not.toHaveProperty("undo_hint");
+  });
+
+  it("ein fehlgeschlagenes Protokoll laesst den Schreibvorgang stehen, nur ohne log_id", async () => {
+    // Das Protokoll ist Nebensache fuer den Aufrufer: der Schreibvorgang ist
+    // passiert, ihn als Fehlschlag zu melden hiesse, dass das Modell ein
+    // zweites Mal schreibt.
+    const { supabase } = stubSupabase({
+      businesses: { data: { id: "b1", name: "Alpha GmbH", personalization: "Alt" } },
+      mcp_write_log: { error: { message: "protokoll kaputt" } },
+    });
+    const ergebnis = await callTool(supabase, ctx({ scope: "read_write" }), "set_lead_icebreaker", {
+      workspace_id: WS,
+      business_id: "b1",
+      icebreaker: "Neu.",
+    });
+    expect(ergebnis.isError).toBeUndefined();
+    expect(ergebnis.structuredContent).toMatchObject({ written: true });
+    expect(ergebnis.structuredContent).not.toHaveProperty("log_id");
+  });
+});
+
 describe("find_lead", () => {
   it("sucht in Name UND Website, beide Male mit dem Workspace-Filter", async () => {
     /**
@@ -2270,25 +2382,192 @@ describe("undo_writes", () => {
     });
   });
 
-  it("ein zu grosses Fenster dreht lieber gar nichts zurueck", async () => {
-    // Ein halb durchgelaufenes Zurueckdrehen waere der schlechteste aller
-    // Zustaende.
+  /**
+   * ═════════════════════════════════════════════════════════════════════
+   * FEHLER 1: DIE HANDARBEIT MITTEN IN DER KETTE (2026-08-23)
+   * ═════════════════════════════════════════════════════════════════════
+   *
+   * Die changed_since-Pruefung sieht nur die JUENGSTE Protokollzeile,
+   * zurueckgeschrieben wurde aber der alte Wert der AELTESTEN. Der Fall
+   * darunter lief deshalb glatt durch und setzte die Spalte auf null.
+   */
+  const kette = {
+    juenger: {
+      ...eintrag,
+      id: "log-z",
+      old_value: "Von Hand.",
+      new_value: "Zweiter Modelltext.",
+      created_at: "2026-08-22T12:00:00Z",
+    },
+    aelter: {
+      ...eintrag,
+      id: "log-x",
+      old_value: null,
+      new_value: "Erster Modelltext.",
+      created_at: "2026-08-22T10:00:00Z",
+    },
+  };
+
+  it("dreht nur bis zur Eingabe eines Menschen zurueck, nicht an ihr vorbei", async () => {
     const { supabase, aufrufe } = stubSupabase({
-      mcp_write_log: {
-        data: Array.from({ length: 51 }, (_, i) => ({
-          ...eintrag,
-          id: `log-${i}`,
-          business_id: `b${i}`,
-        })),
-      },
+      mcp_write_log: [{ data: [kette.juenger, kette.aelter] }, { data: [] }],
+      businesses: { data: [{ id: "b1", personalization: "Zweiter Modelltext." }] },
+    });
+    const ergebnis = await callTool(supabase, ctx({ scope: "read_write" }), "undo_writes", {
+      workspace_id: WS,
+    });
+
+    // Der Kern: NICHT null (der Stand vor der ersten Modellzeile), sondern
+    // der Text, den der Mensch dazwischen eingetragen hat.
+    const update = aufrufe.find((a) => a.table === "businesses" && a.method === "update");
+    expect(update!.args[0]).toEqual({ personalization: "Von Hand." });
+    expect(ergebnis.structuredContent).toMatchObject({
+      restored: 1,
+      changes: [
+        {
+          restored_value: "Von Hand.",
+          // Und es wird gesagt: sonst haelt das Modell einen halben Rueckbau
+          // fuer einen vollstaendigen.
+          stopped_at_manual_edit: true,
+          // Nur die Zeilen der Kette, nicht die dahinter.
+          log_ids: ["log-z"],
+        },
+      ],
+    });
+  });
+
+  it("eine ununterbrochene Kette geht bis an ihren Anfang zurueck", async () => {
+    // Die Gegenprobe: ohne fremden Schreibvorgang dazwischen bleibt es beim
+    // bisherigen Verhalten, A nach B nach C ergibt wieder A.
+    const { supabase, aufrufe } = stubSupabase({
+      mcp_write_log: [
+        { data: [{ ...kette.juenger, old_value: "Erster Modelltext." }, kette.aelter] },
+        { data: [] },
+      ],
+      businesses: { data: [{ id: "b1", personalization: "Zweiter Modelltext." }] },
+    });
+    const ergebnis = await callTool(supabase, ctx({ scope: "read_write" }), "undo_writes", {
+      workspace_id: WS,
+    });
+    const update = aufrufe.find((a) => a.table === "businesses" && a.method === "update");
+    expect(update!.args[0]).toEqual({ personalization: null });
+    expect(ergebnis.structuredContent).toMatchObject({
+      restored: 1,
+      changes: [{ restored_value: null, log_ids: ["log-z", "log-x"] }],
+    });
+    const inhalt = ergebnis.structuredContent as { changes: Record<string, unknown>[] };
+    expect(inhalt.changes[0]).not.toHaveProperty("stopped_at_manual_edit");
+  });
+
+  /**
+   * ═════════════════════════════════════════════════════════════════════
+   * FEHLER 2: DER DECKEL MACHTE EINEN VOLLEN STAPEL UNUMKEHRBAR
+   * ═════════════════════════════════════════════════════════════════════
+   *
+   * 50 Zeilen aus set_lead_icebreakers plus EIN weiterer Schreibvorgang
+   * waren 51 im Fenster, und 51 war ein harter Fehler. Ein Ausweg ueber
+   * log_ids gab es nicht: alle 50 Zeilen teilen sich dieselbe created_at.
+   */
+  const stapel = (n: number) =>
+    Array.from({ length: n }, (_, i) => ({
+      ...eintrag,
+      id: `log-b${i}`,
+      business_id: `b${i}`,
+      created_at: "2026-08-22T10:00:00Z",
+    }));
+  const spalten = (n: number, wert: string | null) =>
+    Array.from({ length: n }, (_, i) => ({ id: `b${i}`, personalization: wert }));
+
+  it("ein voller Stapel bleibt umkehrbar, auch wenn danach weiter geschrieben wurde", async () => {
+    const notiz = {
+      ...eintrag,
+      id: "log-notiz",
+      field: "notes.body",
+      old_value: null,
+      new_value: "Telefoniert.",
+      created_at: "2026-08-22T10:05:00Z",
+    };
+    const { supabase, aufrufe } = stubSupabase({
+      mcp_write_log: [{ data: [notiz, ...stapel(50)] }, { data: [] }],
+      businesses: { data: spalten(50, "Neuer Satz.") },
+    });
+    const ergebnis = await callTool(supabase, ctx({ scope: "read_write" }), "undo_writes", {
+      workspace_id: WS,
+    });
+    expect(ergebnis.isError).toBeUndefined();
+    expect(aufrufe.filter((a) => a.table === "businesses" && a.method === "update")).toHaveLength(50);
+    expect(ergebnis.structuredContent).toMatchObject({ restored: 50 });
+    // Die Notiz verbraucht den Deckel nicht: sie wird uebersprungen.
+    expect(ergebnis.structuredContent).not.toHaveProperty("still_pending");
+  });
+
+  it("der zweite Aufruf nach einem vollen Stapel ueberspringt still, statt zu scheitern", async () => {
+    // Genau das, was die Beschreibung zusagt (calling it twice does not undo
+    // the undo): 50 Schreibvorgaenge plus 50 Wiederherstellungen sind 100
+    // Zeilen im Fenster und ergaben vorher einen Fehler.
+    const geschrieben = stapel(50);
+    const zurueck = geschrieben.map((z) => ({
+      ...z,
+      id: `undo-${z.id}`,
+      old_value: "Neuer Satz.",
+      new_value: "Alter Satz.",
+      undo_of: z.id,
+      created_at: "2026-08-22T10:10:00Z",
+    }));
+    const { supabase, aufrufe } = stubSupabase({
+      mcp_write_log: [
+        { data: [...zurueck, ...geschrieben] },
+        { data: geschrieben.map((z) => ({ undo_of: z.id })) },
+      ],
+      businesses: { data: spalten(50, "Alter Satz.") },
+    });
+    const ergebnis = await callTool(supabase, ctx({ scope: "read_write" }), "undo_writes", {
+      workspace_id: WS,
+    });
+    expect(ergebnis.isError).toBeUndefined();
+    expect(aufrufe.some((a) => a.method === "update")).toBe(false);
+    const inhalt = ergebnis.structuredContent as { restored: number; skipped_count: number };
+    expect(inhalt.restored).toBe(0);
+    // 50 Wiederherstellungen plus 50 bereits zurueckgedrehte Schreibvorgaenge.
+    expect(inhalt.skipped_count).toBe(100);
+  });
+
+  it("ein volles Fenster dreht die juengsten fuenfzig zurueck und sagt, was offen bleibt", async () => {
+    const { supabase, aufrufe } = stubSupabase({
+      mcp_write_log: [{ data: stapel(51) }, { data: [] }],
+      businesses: { data: spalten(51, "Neuer Satz.") },
     });
     const ergebnis = await callTool(supabase, ctx({ scope: "read_write" }), "undo_writes", {
       workspace_id: WS,
       since_minutes: 1440,
     });
-    expect(ergebnis.isError).toBe(true);
-    expect(ergebnis.content[0].text).toContain("50");
+    expect(ergebnis.isError).toBeUndefined();
+    expect(aufrufe.filter((a) => a.table === "businesses" && a.method === "update")).toHaveLength(50);
+    expect(ergebnis.structuredContent).toMatchObject({ restored: 50, still_pending: 1 });
+  });
+
+  it("der Probelauf scheitert nie am Deckel und nennt die log_ids", async () => {
+    // Der Probelauf war der einzige Ort, an dem man log_ids ueberhaupt
+    // erfahren konnte, und lief in denselben Deckel wie der echte Aufruf.
+    const { supabase, aufrufe } = stubSupabase({
+      mcp_write_log: [{ data: stapel(60) }, { data: [] }],
+      businesses: { data: spalten(60, "Neuer Satz.") },
+    });
+    const ergebnis = await callTool(supabase, ctx({ scope: "read_write" }), "undo_writes", {
+      workspace_id: WS,
+      since_minutes: 1440,
+      dry_run: true,
+    });
+    expect(ergebnis.isError).toBeUndefined();
     expect(aufrufe.some((a) => a.method === "update")).toBe(false);
+    const inhalt = ergebnis.structuredContent as {
+      would_restore: number;
+      still_pending: number;
+      changes: { log_ids: string[] }[];
+    };
+    expect(inhalt.would_restore).toBe(50);
+    expect(inhalt.still_pending).toBe(10);
+    expect(inhalt.changes[0].log_ids).toEqual(["log-b0"]);
   });
 
   it("verlangt entweder eine Zeitspanne oder IDs, nicht beides", async () => {
