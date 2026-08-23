@@ -1,5 +1,5 @@
 "use client";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { pickPrimaryContactPerBusiness, splitByEngagement, splitBySendability } from "@/lib/contacts";
@@ -374,6 +374,41 @@ export default function NewCampaignPage() {
     [searches]
   );
 
+  /**
+   * Die vorbelegte Auswahl sichtbar machen.
+   *
+   * Beobachtet am 2026-08-23 an einem Entwurf aus dem Claude-Zugang: die
+   * richtige Liste war angehakt (die Vorschau nannte exakt die 272 Empfaenger
+   * aus dem dry_run), stand aber weit unten in einem Kasten mit sechzig
+   * gleich aussehenden Maps-Suchen. Sichtbar war nur der ungehakte Anfang der
+   * Liste -- auf den ersten Blick also eine leere Auswahl, und dahinter die
+   * Suche nach etwas, das laengst stimmt.
+   *
+   * Der Kasten wird deshalb einmal auf den ersten Treffer gescrollt. Bewusst
+   * ueber scrollTop und nicht ueber scrollIntoView: letzteres scrollt auch die
+   * Seite mit und wuerfe die Ueberschrift aus dem Bild. Der einmalige Lauf ist
+   * Absicht -- wer danach selbst haekelt, soll seinen Kasten dort behalten, wo
+   * er ihn stehen gelassen hat.
+   *
+   * Gilt fuer jede Vorbelegung, nicht nur die aus ?draft=: ein
+   * wiederhergestellter Entwurf und ein ?searchId= aus einer Suchdetailseite
+   * haben dasselbe Problem.
+   */
+  const listenBoxRef = useRef<HTMLDivElement>(null);
+  const schonGescrollt = useRef(false);
+  useEffect(() => {
+    if (schonGescrollt.current) return;
+    if (!searches || searchIds.length === 0) return;
+    const box = listenBoxRef.current;
+    const treffer = box?.querySelector<HTMLElement>("[data-ausgewaehlt='true']");
+    if (!box || !treffer) return;
+    schonGescrollt.current = true;
+    // Differenz der Rechtecke statt offsetTop: unabhaengig davon, welcher
+    // Vorfahr gerade positioniert ist. Die 8 Pixel lassen die Zeile darueber
+    // anschneiden, damit erkennbar bleibt, dass der Kasten gescrollt ist.
+    box.scrollTop += treffer.getBoundingClientRect().top - box.getBoundingClientRect().top - 8;
+  }, [searches, searchIds]);
+
   const blocked = (readiness?.blockers ?? 0) > 0;
 
   async function create() {
@@ -478,23 +513,37 @@ export default function NewCampaignPage() {
         <p className="mb-1.5 text-xs font-medium text-faint">{F.searchLabel}</p>
         <p className="mb-2 text-xs text-faint">{F.searchHint}</p>
         {searches !== null && searches.length === 0 && <p className="text-xs text-faint">{F.noSearches}</p>}
-        <div className="max-h-64 space-y-1 overflow-y-auto rounded-lg border border-edge2 bg-field p-2">
+        <div
+          ref={listenBoxRef}
+          className="max-h-64 space-y-1 overflow-y-auto rounded-lg border border-edge2 bg-field p-2"
+        >
           {listenOptionen.map(({ row: s, searchIds: ids }) => {
             // "Bereits verknuepft" gilt fuer eine Gruppe erst, wenn ALLE ihre
             // Teilsuchen an einer Kampagne haengen: die Verknuepfung schreibt
             // die API auf die Teilsuchen, nie auf die Huelle.
             const linked = ids.every((i) => !!listenNachId.get(i)?.instantly_campaign_id);
+            const ausgewaehlt = ids.every((i) => searchIds.includes(i));
             return (
+              // Die ausgewaehlte Zeile bekommt eine eigene Flaeche. Bei sechzig
+              // Eintraegen, die sich nur in der Stadt unterscheiden, ist ein
+              // gesetztes Haekchen allein zu leise -- das Auge findet die
+              // Faerbung, bevor es die Kaestchen einzeln abliest. Das
+              // data-Attribut ist gleichzeitig der Anker fuers Scrollen oben.
               <label
                 key={s.id}
+                data-ausgewaehlt={ausgewaehlt ? "true" : undefined}
                 className={
                   "flex items-center gap-2.5 rounded-md px-2 py-1.5 text-sm " +
-                  (linked ? "cursor-not-allowed text-mute" : "cursor-pointer text-ink hover:bg-chip")
+                  (linked
+                    ? "cursor-not-allowed text-mute"
+                    : ausgewaehlt
+                      ? "cursor-pointer bg-sky-500/10 font-medium text-ink"
+                      : "cursor-pointer text-ink hover:bg-chip")
                 }
               >
                 <input
                   type="checkbox"
-                  checked={ids.every((i) => searchIds.includes(i))}
+                  checked={ausgewaehlt}
                   disabled={linked}
                   onChange={() => toggleSearch(ids)}
                 />

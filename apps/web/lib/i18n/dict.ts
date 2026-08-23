@@ -1344,6 +1344,12 @@ const de = {
       copiedOk: "Kopiert",
       doneButton: "Fertig",
       setupHeading: "Einrichtung",
+      // Steht im Schnipsel, solange kein Token frisch erzeugt wurde. Sieht
+      // absichtlich wie ein echter Token aus (gleiches Praefix), damit
+      // erkennbar ist, was ersetzt gehoert.
+      setupTokenPlaceholder: "fbk_mcp_DEIN_TOKEN",
+      setupTokenPlaceholderHint:
+        "In den Schnipseln steht ein Platzhalter statt eines echten Tokens. Setz deinen eigenen dafür ein — zu sehen ist er nur direkt nach dem Erzeugen.",
       setupClaudeCodeLabel: "Claude Code",
       setupClaudeCodeHint: "Claude Code verbindet sich direkt mit einem entfernten MCP-Server: Adresse und Token in die Konfiguration eintragen, fertig.",
       setupClaudeDesktopLabel: "Claude Desktop",
@@ -3782,6 +3788,9 @@ const en: Dictionary = {
       copiedOk: "Copied",
       doneButton: "Done",
       setupHeading: "Setup",
+      setupTokenPlaceholder: "fbk_mcp_YOUR_TOKEN",
+      setupTokenPlaceholderHint:
+        "The snippets contain a placeholder instead of a real token. Put your own in its place — it's only visible right after you create it.",
       setupClaudeCodeLabel: "Claude Code",
       setupClaudeCodeHint: "Claude Code connects to a remote MCP server directly: add the address and this token to its configuration, and that's it.",
       setupClaudeDesktopLabel: "Claude Desktop",

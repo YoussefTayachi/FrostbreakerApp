@@ -175,9 +175,24 @@ export default function McpPage() {
 
   const origin = typeof window === "undefined" ? "" : window.location.origin;
 
+  /**
+   * Der Token in den Konfigurationsschnipseln.
+   *
+   * Die Einrichtung steht seit dem 2026-08-23 dauerhaft auf der Seite und
+   * nicht mehr nur im einmaligen Panel: wer gestern einen Token angelegt hat
+   * und heute ein zweites Geraet einrichtet, kam sonst an die Anleitung nur
+   * heran, indem er einen weiteren Token erzeugte.
+   *
+   * Der Klartext existiert aber weiterhin nur direkt nach dem Erzeugen, und
+   * ein dauerhaft eingesetzter echter Token waere ein Geheimnis auf einer
+   * Seite, die neben dem Nutzer auch jeder Mitleser sieht. Also: frischer
+   * Token, solange einer offen ist, sonst der Platzhalter.
+   */
+  const snippetToken = created ?? T.setupTokenPlaceholder;
+
   const claudeCodeSnippet =
     `claude mcp add --transport http frostbreaker ${origin}/api/mcp ` +
-    `--header "Authorization: Bearer ${created ?? ""}"`;
+    `--header "Authorization: Bearer ${snippetToken}"`;
 
   // ACHTUNG, diese Schreibweise ist kein Versehen und darf nicht "aufgeraeumt"
   // werden:
@@ -195,7 +210,7 @@ export default function McpPage() {
     "frostbreaker": {
       "command": "npx",
       "args": ["mcp-remote", "${origin}/api/mcp", "--transport", "http-only", "--header", "Authorization:\${AUTH_HEADER}"],
-      "env": { "AUTH_HEADER": "Bearer ${created ?? ""}" }
+      "env": { "AUTH_HEADER": "Bearer ${snippetToken}" }
     }
   }
 }`;
@@ -237,47 +252,6 @@ export default function McpPage() {
               {T.copyButton}
             </button>
           </div>
-
-          <h3 className="mt-6 text-sm font-semibold text-ink">{T.setupHeading}</h3>
-
-          <div className="mt-3">
-            <p className="text-xs font-medium text-ink">{T.setupClaudeCodeLabel}</p>
-            <p className="mt-0.5 text-xs leading-relaxed text-faint">{T.setupClaudeCodeHint}</p>
-            <pre className="mt-2 overflow-x-auto rounded-md bg-panel2 px-3 py-2 font-mono text-[11px] leading-relaxed text-ink">
-              {claudeCodeSnippet}
-            </pre>
-            <button onClick={() => copy(claudeCodeSnippet)} className={secondaryBtnCls + " mt-2"}>
-              {T.copyButton}
-            </button>
-          </div>
-
-          <div className="mt-5">
-            <p className="text-xs font-medium text-ink">{T.setupClaudeDesktopLabel}</p>
-            <p className="mt-0.5 text-xs leading-relaxed text-faint">{T.setupClaudeDesktopHint}</p>
-            {/* Nummerierte Schritte statt eines Fliesstextes: der Weg hat vier
-                Stationen, und an zweien davon ist der Nutzer beim ersten
-                Einrichten am 2026-08-22 tatsaechlich haengengeblieben -- er
-                suchte die Konfigurationsdatei am dokumentierten Pfad (die
-                Store-Fassung legt sie woanders ab) und schloss danach nur das
-                Fenster, waehrend die alte Instanz mit der alten Konfiguration
-                weiterlief. Beides steht deshalb ausdruecklich hier. */}
-            <ol className="mt-2 list-decimal space-y-1.5 pl-4 text-xs leading-relaxed text-soft">
-              {T.setupClaudeDesktopSteps.map((schritt) => (
-                <li key={schritt}>{schritt}</li>
-              ))}
-            </ol>
-            <p className="mt-2 rounded-md border border-amber-500/30 bg-amber-500/5 px-2.5 py-1.5 text-[11px] leading-relaxed text-amber-700 dark:text-amber-500">
-              {T.setupClaudeDesktopQuitWarning}
-            </p>
-            <pre className="mt-2 overflow-x-auto rounded-md bg-panel2 px-3 py-2 font-mono text-[11px] leading-relaxed text-ink">
-              {claudeDesktopSnippet}
-            </pre>
-            <button onClick={() => copy(claudeDesktopSnippet)} className={secondaryBtnCls + " mt-2"}>
-              {T.copyButton}
-            </button>
-          </div>
-
-          <p className="mt-5 text-xs leading-relaxed text-faint">{T.setupWebNote}</p>
 
           <button onClick={() => setCreated(null)} className={primaryBtnCls + " mt-5"}>
             {T.doneButton}
@@ -346,6 +320,63 @@ export default function McpPage() {
             {T.createButton}
           </button>
         </div>
+      </div>
+
+      {/* Die Einrichtung, dauerhaft sichtbar.
+          Bis zum 2026-08-23 stand dieser ganze Block INNERHALB von
+          {created && …}, also nur in den Minuten direkt nach dem Erzeugen
+          eines Tokens. Am Live-Stand mit zwei bestehenden Tokens nachgesehen:
+          die Seite zeigte Einleitung, Formular und Liste, aber keine
+          Anleitung -- wer ein zweites Geraet einrichten wollte, musste einen
+          ueberfluessigen Token erzeugen, nur um den Schnipsel wiederzusehen.
+          Der Weg, die Pfade, die Warnung und die Reihenfolge stehen deshalb
+          jetzt immer hier; geheim ist an ihnen nichts. Geheim ist allein der
+          Token, und der ist hier ein Platzhalter, solange keiner frisch
+          erzeugt wurde (siehe snippetToken oben). */}
+      <div className={cardCls}>
+        <h2 className="text-sm font-semibold text-ink">{T.setupHeading}</h2>
+        {!created && (
+          <p className="mt-1 text-xs leading-relaxed text-faint">{T.setupTokenPlaceholderHint}</p>
+        )}
+
+        <div className="mt-4">
+          <p className="text-xs font-medium text-ink">{T.setupClaudeCodeLabel}</p>
+          <p className="mt-0.5 text-xs leading-relaxed text-faint">{T.setupClaudeCodeHint}</p>
+          <pre className="mt-2 overflow-x-auto rounded-md bg-panel2 px-3 py-2 font-mono text-[11px] leading-relaxed text-ink">
+            {claudeCodeSnippet}
+          </pre>
+          <button onClick={() => copy(claudeCodeSnippet)} className={secondaryBtnCls + " mt-2"}>
+            {T.copyButton}
+          </button>
+        </div>
+
+        <div className="mt-5">
+          <p className="text-xs font-medium text-ink">{T.setupClaudeDesktopLabel}</p>
+          <p className="mt-0.5 text-xs leading-relaxed text-faint">{T.setupClaudeDesktopHint}</p>
+          {/* Nummerierte Schritte statt eines Fliesstextes: der Weg hat vier
+              Stationen, und an zweien davon ist der Nutzer beim ersten
+              Einrichten am 2026-08-22 tatsaechlich haengengeblieben -- er
+              suchte die Konfigurationsdatei am dokumentierten Pfad (die
+              Store-Fassung legt sie woanders ab) und schloss danach nur das
+              Fenster, waehrend die alte Instanz mit der alten Konfiguration
+              weiterlief. Beides steht deshalb ausdruecklich hier. */}
+          <ol className="mt-2 list-decimal space-y-1.5 pl-4 text-xs leading-relaxed text-soft">
+            {T.setupClaudeDesktopSteps.map((schritt) => (
+              <li key={schritt}>{schritt}</li>
+            ))}
+          </ol>
+          <p className="mt-2 rounded-md border border-amber-500/30 bg-amber-500/5 px-2.5 py-1.5 text-[11px] leading-relaxed text-amber-700 dark:text-amber-500">
+            {T.setupClaudeDesktopQuitWarning}
+          </p>
+          <pre className="mt-2 overflow-x-auto rounded-md bg-panel2 px-3 py-2 font-mono text-[11px] leading-relaxed text-ink">
+            {claudeDesktopSnippet}
+          </pre>
+          <button onClick={() => copy(claudeDesktopSnippet)} className={secondaryBtnCls + " mt-2"}>
+            {T.copyButton}
+          </button>
+        </div>
+
+        <p className="mt-5 text-xs leading-relaxed text-faint">{T.setupWebNote}</p>
       </div>
 
       <div className={cardCls}>

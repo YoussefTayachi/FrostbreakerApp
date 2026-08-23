@@ -71,7 +71,13 @@ export default function InstantlyCampaignsPage() {
   const entwuerfe = (items ?? []).filter((c) => c.is_draft).length;
 
   return (
-    <div className="max-w-4xl space-y-6">
+    // max-w-6xl statt 4xl: acht Spalten brauchen mehr als die 896 Pixel von
+    // 4xl (siehe min-w an der Tabelle unten). Der Deckel ist damit hoeher als
+    // der Platzbedarf der Tabelle, statt knapp darunter zu liegen -- sonst
+    // stuende auf einem gewoehnlichen Bildschirm dauerhaft ein waagerechter
+    // Scrollbalken, obwohl daneben Platz frei ist. `main` deckelt ohnehin bei
+    // 1216, breiter wird die Seite dadurch nicht.
+    <div className="max-w-6xl space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight text-ink">{C.title}</h1>
@@ -114,8 +120,21 @@ export default function InstantlyCampaignsPage() {
       )}
 
       {!error && items !== null && items.length > 0 && (
-        <div className="overflow-hidden rounded-lg border border-edge/60">
-          <table className="w-full text-sm">
+        /* overflow-x-auto statt overflow-hidden, und ein Mindestmass an der
+           Tabelle.
+
+           Gemessen am 2026-08-23 im Live-Stand bei 1568 Pixel Fensterbreite:
+           acht Spalten passten nicht in die 896 Pixel des Containers, die
+           Tabelle lief darueber hinaus, und overflow-hidden schnitt sie
+           einfach ab -- die letzte Spalte endete mitten im Wort ("Dele"), und
+           "Review and create" brach auf drei Zeilen um. Wegschneiden ist die
+           schlechteste aller Antworten auf zu wenig Platz.
+
+           Jetzt scrollt die Tabelle in ihrem eigenen Container, genau wie in
+           pipeline-list und calls/call-list; der Seitenkoerper scrollt
+           weiterhin nie waagerecht. */
+        <div className="overflow-x-auto rounded-lg border border-edge/60">
+          <table className="w-full min-w-[58rem] text-sm">
             <thead className="bg-panel2 text-left text-xs text-faint">
               <tr>
                 <th className="px-4 py-3 font-medium">{C.columnName}</th>
@@ -202,7 +221,12 @@ export default function InstantlyCampaignsPage() {
                       {c.stats?.bounced_count ?? "–"}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-right">
+                  {/* whitespace-nowrap: "Review and create" ist die laengste
+                      Aktion und darf nicht umbrechen -- in einer Aktionsspalte
+                      ist ein dreizeiliger Link kein Link mehr, sondern ein
+                      Absatz. Die Breite, die er dadurch beansprucht, steckt im
+                      min-w der Tabelle. */}
+                  <td className="whitespace-nowrap px-4 py-3 text-right">
                     <span className="flex items-center justify-end gap-3">
                       <Link
                         href={c.is_draft ? `/instantly/campaigns/new?draft=${c.id}` : `/instantly/campaigns/${c.id}`}
