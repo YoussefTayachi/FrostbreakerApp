@@ -14,7 +14,13 @@ from datetime import datetime, timedelta, timezone
 
 from worker import queue
 from worker.db import sb
-from worker.pipelines import find_decisionmaker, get_businesses, hunt_persons, personalize
+from worker.pipelines import (
+    check_website,
+    find_decisionmaker,
+    get_businesses,
+    hunt_persons,
+    personalize,
+)
 from worker.search_state import SearchCancelled
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
@@ -24,6 +30,26 @@ HANDLERS = {
     "get_businesses": get_businesses.run,
     "find_decisionmaker": find_decisionmaker.run,
     "hunt_persons": hunt_persons.run,
+    # WARUM DER WEBSITE-CHECK EIN EIGENER JOB IST
+    #
+    # Er haette an drei bestehende Jobs angehaengt werden koennen, und alle
+    # drei waeren schlechter:
+    #
+    #   find_decisionmaker  laeuft nur im Maps-Weg. Bei corporate, apollo und
+    #                       prospeo gaebe es dann gar keinen Befund, also
+    #                       ausgerechnet dort nicht, wo keine company_summary
+    #                       entsteht und der Aufhaenger am duennsten ist.
+    #   get_businesses      hiesse 300 Website-Abrufe nacheinander in EINEM
+    #                       Job. Der scheitert am 217. und wiederholt beim
+    #                       Retry die ganze Suche, und bis dahin haengt eine
+    #                       von zwei Repliken minutenlang an fremden Servern.
+    #   personalize         zu spaet: der Befund soll in der Leadliste stehen,
+    #                       BEVOR personalisiert wird.
+    #
+    # Der Preis ist ein zusaetzlicher Job pro Lead. Vertretbar, weil dieser
+    # Job der billigste der ganzen Queue ist: ein HTTP-GET mit Zeitlimit,
+    # kein Fremd-Credit, kein Modellaufruf.
+    "check_website": check_website.run,
     "personalize": personalize.run,
     # Phase 3 (interne Sende-Engine): send_batch, poll_inbox, bewusst nicht gebaut,
     # siehe Differenzierungs-Plan Punkt 0: Instantly bleibt Sende-Infrastruktur.

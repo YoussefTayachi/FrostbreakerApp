@@ -3,7 +3,8 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { inputCls } from "@/lib/ui";
-import type { SequenceProblem } from "@/lib/copy/sequence-prompt";
+import { WEBSITE_DESIGN_OFFER_TEMPLATE } from "@/lib/copy/offer-templates";
+import { signatureFor, type SequenceProblem } from "@/lib/copy/sequence-prompt";
 import { useT } from "../../language-provider";
 import { useToast } from "../../toast-provider";
 import { useWorkspace } from "../../workspace-provider";
@@ -29,7 +30,15 @@ import type { Step } from "./campaign-form";
  * darunter zeigen, woran.
  */
 
-type OfferOption = { id: string; name: string; is_default: boolean };
+/** language und signature nur fuer die Vorlage: sie entscheiden, in welcher
+ *  Sprache die vier Stufen kommen und was unter ihnen steht. */
+type OfferOption = {
+  id: string;
+  name: string;
+  is_default: boolean;
+  language: string | null;
+  signature: string | null;
+};
 
 /** Vier Stufen, damit die Fläche während der Arbeit zeigt, was entsteht. */
 const STUFEN = [0, 1, 2, 3];
@@ -51,13 +60,17 @@ export default function GenerateSequence({
   const [offers, setOffers] = useState<OfferOption[] | null>(null);
   const [offerId, setOfferId] = useState<string>("");
   const [busy, setBusy] = useState(false);
+  /** Der Vorlagenweg hat einen eigenen Zustand: er ist nach einer kurzen
+   *  Abfrage fertig und darf nicht den Streifen und das "Schreibt..." des
+   *  Modellaufrufs auslösen, der Minuten dauern kann. */
+  const [setzt, setSetzt] = useState(false);
   const [fertig, setFertig] = useState(0);
   const [problems, setProblems] = useState<SequenceProblem[]>([]);
 
   useEffect(() => {
     createClient()
       .from("offers")
-      .select("id, name, is_default")
+      .select("id, name, is_default, language, signature")
       .eq("workspace_id", workspaceId)
       .order("created_at", { ascending: true })
       .then(({ data }) => {
@@ -90,6 +103,49 @@ export default function GenerateSequence({
     setFertig(steps.length);
     setProblems((body.problems ?? []) as SequenceProblem[]);
     push(G.done, "success");
+  }
+
+  /**
+   * Die fertige Vorlage statt eines Modellaufrufs.
+   *
+   * Der ruhigere Weg fuer jemanden, der noch kein ausgefuelltes Angebot hat
+   * oder erst einmal sehen will, wie so eine Sequenz aussieht: dieselben vier
+   * Stufen, sofort und ohne Kosten.
+   *
+   * Die Unterschrift MUSS hier drangehaengt werden. Die Vorlage endet ohne
+   * sie, weil sie den Namen des Nutzers nicht kennt (siehe den Dateikopf von
+   * lib/copy/offer-templates.ts); ohne diesen Schritt meldete
+   * sequenceProblems() an allen vier Stufen "endet ohne deine Unterschrift",
+   * an einem Text, den die App selbst geliefert hat. signatureFor() ist
+   * dieselbe Funktion, die der Generator benutzt, damit nicht zwei Wahrheiten
+   * ueber die Unterschrift entstehen.
+   */
+  async function vorlageEinsetzen() {
+    const offer = offers?.find((o) => o.id === offerId);
+    if (!offer) return;
+    setSetzt(true);
+    const { data } = await createClient()
+      .from("workspaces")
+      .select("reply_sender_name")
+      .eq("id", workspaceId)
+      .maybeSingle();
+    setSetzt(false);
+    const sprache = offer.language === "en" ? "en" : "de";
+    const unterschrift = signatureFor(
+      { signature: offer.signature ?? "", language: sprache },
+      data?.reply_sender_name ?? null
+    );
+    const steps: Step[] = WEBSITE_DESIGN_OFFER_TEMPLATE[sprache].sequence.map((stufe) => ({
+      delayDays: stufe.delayDays,
+      variants: stufe.variants.map((v) => ({
+        subject: v.subject,
+        body: unterschrift ? `${v.body}\n\n${unterschrift}` : v.body,
+      })),
+    }));
+    onGenerated(steps);
+    setFertig(steps.length);
+    setProblems([]);
+    push(G.templateDone, "success");
   }
 
   if (offers === null) return null;
@@ -197,6 +253,27 @@ export default function GenerateSequence({
             );
           })}
         </div>
+
+        {/* Der zweite Weg, und sichtbar der zweite: eine Zeile unter den
+            Stufen statt eines zweiten Knopfes neben dem ersten. Sobald ein
+            Angebot ausgefuellt ist, ist der erzeugte Text besser, und die
+            Gestaltung soll das sagen, nicht verschweigen. Waehrend des
+            Modellaufrufs verschwindet die Zeile: dann ist die Frage
+            beantwortet. */}
+        {!busy && (
+          <p className="mt-3 text-xs leading-5 text-faint">
+            {G.templateHint}{" "}
+            <button
+              type="button"
+              onClick={vorlageEinsetzen}
+              disabled={setzt}
+              title={G.templateTitle}
+              className="rounded font-medium text-soft underline decoration-dotted underline-offset-2 transition-colors hover:text-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 disabled:opacity-50"
+            >
+              {G.templateUse}
+            </button>
+          </p>
+        )}
 
         {/* Was nach der Korrekturrunde uebrig blieb. Sichtbar, aber nicht
             blockierend: ein Text, an dem noch zwei Woerter zu viel haengen, ist

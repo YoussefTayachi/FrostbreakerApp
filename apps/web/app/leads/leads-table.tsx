@@ -6,6 +6,14 @@ import { createClient } from "@/lib/supabase/client";
 import { OUTREACH_STAGES, stageRank } from "@/lib/crm/stages";
 import { pickPrimaryContactPerBusiness } from "@/lib/contacts";
 import { contactSourceBadgeClass } from "@/lib/search-source";
+import { formatDate } from "@/lib/format-time";
+import {
+  AUDIT_CODES,
+  isAuditCode,
+  topFinding,
+  type AuditCode,
+  type WebsiteAudit,
+} from "@/lib/website-audit";
 import CompanyLogo from "../company-logo";
 import ContactTimeline from "../crm/contact-timeline";
 import DealsPanel from "../crm/deals-panel";
@@ -15,6 +23,7 @@ import { useT } from "../language-provider";
 import { useToast } from "../toast-provider";
 import { useWorkspace } from "../workspace-provider";
 import type { Dictionary } from "@/lib/i18n/dict";
+import type { Lang } from "@/lib/i18n/lang";
 
 type Contact = {
   id: string;
@@ -44,6 +53,12 @@ type Contact = {
     traffic_rank?: number | null;
     traffic_rank_source?: string | null;
     hunter_status?: string | null;
+    /** Website-Befund, Migration 0102. Optional getippt, weil die Spalten am
+     *  Tag des Deployments noch fehlen koennen und PostgREST dann gar nichts
+     *  dazu liefert. */
+    website_audit?: WebsiteAudit | null;
+    website_audit_status?: string | null;
+    website_audit_at?: string | null;
   } | null;
 };
 
@@ -82,6 +97,12 @@ type Group = {
    *  Null heisst "unbekannt", NICHT "wenig Besucher". */
   traffic_rank: number | null;
   traffic_rank_source: string | null;
+  /** Der Website-Befund dieser Firma (Migration 0102). `null` heisst "nie
+   *  geprueft", `status = 'ok'` heisst "geprueft", NICHT "alles gut": die
+   *  Maengel stehen in website_audit.findings. */
+  website_audit: WebsiteAudit | null;
+  website_audit_status: string | null;
+  website_audit_at: string | null;
   contacts: Merged[];
 };
 
@@ -214,6 +235,9 @@ function groupContacts(contacts: Contact[]): Group[] {
         hunter_status: b?.hunter_status ?? null,
         traffic_rank: b?.traffic_rank ?? null,
         traffic_rank_source: b?.traffic_rank_source ?? null,
+        website_audit: b?.website_audit ?? null,
+        website_audit_status: b?.website_audit_status ?? null,
+        website_audit_at: b?.website_audit_at ?? null,
         contacts: [],
       };
       groups.set(key, g);
@@ -383,6 +407,150 @@ function statusToState(s: string | null | undefined): "done" | "active" | "pendi
   return "pending";
 }
 
+/**
+ * Die bekannten Befunde einer Firma in der Rangfolge des Pruefers.
+ *
+ * KEINE zweite Rangfolge: die Reihenfolge kommt aus derselben exportierten
+ * Liste AUDIT_CODES, aus der auch topFinding() seine holt (lib/website-audit.ts).
+ * Unbekannte Codes fallen weg, weil es fuer sie hier weder Beschriftung noch
+ * Folgesatz gibt; einen Befund ohne Text zu zeigen waere schlechter als keinen.
+ * Doppelte Codes fallen mit weg, das Set entscheidet.
+ */
+function auditCodes(audit: WebsiteAudit | null | undefined): AuditCode[] {
+  const findings = audit?.findings;
+  if (!Array.isArray(findings)) return [];
+  const vorhanden = new Set(
+    findings.filter((f) => f && typeof f.code === "string" && isAuditCode(f.code)).map((f) => f.code)
+  );
+  return AUDIT_CODES.filter((code) => vorhanden.has(code));
+}
+
+/** Der Text zum gespeicherten Zustand, oder null bei einem unbekannten. */
+function auditStatusLabel(status: string | null | undefined, L: LeadsDict): string | null {
+  if (status === "pending" || status === "ok" || status === "unreachable" || status === "skipped") {
+    return L.audit.status[status];
+  }
+  return null;
+}
+
+/**
+ * Der ranghoechste Befund als Plakette in der Firmenzeile.
+ *
+ * Beantwortet die eine Frage beim Ueberfliegen der Liste: wo ist ueberhaupt
+ * ein Aufhaenger? Deshalb erscheint sie NUR, wenn einer da ist. Bernstein wie
+ * ueberall in dieser Liste (PipelineStep "empty"), nicht Rot: das ist kein
+ * Fehler des Nutzers, sondern seine Chance.
+ *
+ * 'pending' bekommt bewusst kein eigenes Zeichen. Direkt nach einer Suche
+ * stuende es an jeder zweiten Zeile, es loest sich binnen Sekunden von selbst
+ * auf (die Suchdetailseite laedt sich alle fuenf Sekunden nach), und eine
+ * zweite Plakette in derselben Ecke wuerde die eine Aussage verwaessern, die
+ * die Liste hier trifft. Im Drawer steht der Zustand, dort ist Platz dafuer.
+ *
+ * Unter md faellt sie weg, spaeter als die Listen-Plakette daneben (die ab
+ * sm erscheint): in dieser Zeile stehen schon Firmenname, Domain, Liste und
+ * Kontaktzahl, und der Name ist das, woran der Nutzer die Zeile erkennt. Er
+ * darf nicht auf vier Buchstaben schrumpfen, damit eine Plakette voll
+ * ausgeschrieben danebenpasst. Auf dem Handy fuehrt der Weg ueber den Drawer,
+ * der dort die volle Breite hat.
+ *
+ * Die Beschriftungen sind Saetze und keine Schlagworte (sie stehen so in
+ * dict.ts und gehoeren dem Pruefer): auf mittleren Breiten schneidet sie
+ * deshalb truncate ab. Der volle Text steht im title und im Drawer.
+ */
+function AuditPill({ g, t: L }: { g: Group; t: LeadsDict }) {
+  const top = topFinding(g.website_audit);
+  if (!top || !isAuditCode(top.code)) return null;
+  const label = L.audit[top.code].label;
+  return (
+    <span
+      title={L.audit.pillTitle(label)}
+      className="hidden max-w-28 shrink-0 truncate rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[10px] font-medium text-amber-700 md:block lg:max-w-44 xl:max-w-60 dark:text-amber-300"
+    >
+      {label}
+    </span>
+  );
+}
+
+/**
+ * Der volle Befund im Drawer.
+ *
+ * Steht direkt ueber der Personalisierung, weil er ihr Material ist: wer
+ * beides untereinander sieht, versteht ohne Erklaerung, woher der erste Satz
+ * der Mail kommt.
+ *
+ * Genau EIN Befund geht in die Mail (lib/copy/playbook.ts: eine Friction ueber
+ * alle vier Stufen). Deshalb traegt der ranghoechste hier Beschriftung,
+ * Folgesatz und die Plakette "Geht in die Mail", waehrend die uebrigen
+ * darunter als kurze Liste stehen. Alle gleich gross zu zeigen hiesse, dem
+ * Nutzer fuenf Maengel in einer Mail zu versprechen, in der einer steht.
+ */
+function WebsiteAuditPanel({ g, t: L, lang }: { g: Group; t: LeadsDict; lang: Lang }) {
+  const codes = auditCodes(g.website_audit);
+  const status = g.website_audit_status;
+  // Nie geprueft oder ohne Website: gar nichts. Ein Kasten, der nur meldet,
+  // dass nichts geprueft wurde, beantwortet keine Frage, die hier jemand hat.
+  if (codes.length === 0 && (!status || status === "skipped")) return null;
+
+  const audit = g.website_audit;
+  const url = (audit?.final_url || audit?.checked_url || "").replace(/^https?:\/\//, "");
+  const meta = [url, g.website_audit_at ? L.audit.checkedAt(formatDate(g.website_audit_at, lang)) : ""]
+    .filter(Boolean)
+    .join(" · ");
+
+  return (
+    <>
+      <p className="mb-2 text-xs font-medium uppercase tracking-wider text-faint">{L.audit.heading}</p>
+      <div className="mb-5 rounded-lg border border-edge/60 bg-surface/60 p-3">
+        {codes.length === 0 ? (
+          <>
+            <p className="text-sm text-soft">{auditStatusLabel(status, L)}</p>
+            {/* Waehrend der Pruefung ein Balken in der Form des Befundes, der
+                gleich hier steht, statt eines Kreisels: er zeigt, wo etwas
+                hinkommt, und wie viel. */}
+            {status === "pending" && <span className="skeleton mt-2 block h-3 w-2/3" aria-hidden />}
+          </>
+        ) : (
+          <>
+            <div className="flex items-start gap-2.5">
+              <span aria-hidden className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-amber-400" />
+              <div className="min-w-0 flex-1">
+                <p className="text-sm leading-snug text-ink">{L.audit[codes[0]].label}</p>
+                <p className="mt-0.5 text-xs leading-relaxed text-soft">{L.audit[codes[0]].consequence}</p>
+                {/* Unter dem Befund und nicht neben ihm: der Drawer ist 400
+                    Pixel breit, und eine Plakette rechts nimmt der
+                    Beschriftung genau die Zeilen, die sie zum Lesen braucht. */}
+                <span
+                  title={L.audit.inMailTitle}
+                  className="mt-1.5 inline-block rounded-full border border-edge2 bg-chip px-1.5 py-0.5 text-[10px] text-faint"
+                >
+                  {L.audit.inMail}
+                </span>
+              </div>
+            </div>
+            {codes.length > 1 && (
+              <div className="mt-3 border-t border-edge/60 pt-2.5">
+                <p className="text-[11px] text-faint">{L.audit.alsoFound}</p>
+                <ul className="mt-1.5 space-y-1">
+                  {codes.slice(1).map((code) => (
+                    <li key={code} className="flex items-start gap-2.5 text-xs leading-snug text-soft">
+                      <span aria-hidden className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-amber-400/60" />
+                      {L.audit[code].label}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </>
+        )}
+        {/* Was geprueft wurde und wann. break-words statt truncate: sonst
+            frisst eine lange Adresse das Datum dahinter auf. */}
+        {meta && <p className="mt-3 text-[11px] leading-4 break-words text-faint">{meta}</p>}
+      </div>
+    </>
+  );
+}
+
 export default function LeadsTable({
   contacts,
   searches,
@@ -394,7 +562,7 @@ export default function LeadsTable({
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { t } = useT();
+  const { t, lang } = useT();
   const { push } = useToast();
   const { workspaceId } = useWorkspace();
 
@@ -420,6 +588,9 @@ export default function LeadsTable({
   }, [searchParams]);
   const [onlyEmail, setOnlyEmail] = useState(false);
   const [onlyPhone, setOnlyPhone] = useState(false);
+  // Die direkte Antwort auf die Frage, die die Plakette in der Zeile stellt:
+  // zeig mir nur die Firmen, bei denen es etwas anzusprechen gibt.
+  const [onlyFinding, setOnlyFinding] = useState(false);
   // Mehrfachauswahl statt einer einzelnen Suche: z.B. bei einem
   // Fan-out ueber mehrere Staedte will man alle zugehoerigen Suchen
   // zusammen filtern und in einem Rutsch verifizieren, statt jede einzeln.
@@ -504,8 +675,11 @@ export default function LeadsTable({
       // (phone_national aus Google Places) ist fuer jeden Ansprechpartner
       // dieser Firma anrufbar, nicht nur fuer den, an dessen Kontaktzeile eine
       // eigene Durchwahl haengt.
-      .filter((g) => !onlyPhone || !!g.phone_national || g.contacts.some((c) => !!c.phone));
-  }, [allGroups, q, onlyEmail, onlyPhone, searchFilters, statusFilter, emailTypeFilter]);
+      .filter((g) => !onlyPhone || !!g.phone_national || g.contacts.some((c) => !!c.phone))
+      // Auf Gruppenebene wie der Telefon-Filter: der Befund haengt an der
+      // Firma, nicht an einer Person.
+      .filter((g) => !onlyFinding || topFinding(g.website_audit) !== null);
+  }, [allGroups, q, onlyEmail, onlyPhone, onlyFinding, searchFilters, statusFilter, emailTypeFilter]);
 
   async function updateStatus(contactId: string, status: string) {
     setStatusOverrides((prev) => ({ ...prev, [contactId]: status }));
@@ -661,6 +835,7 @@ export default function LeadsTable({
   }
   if (onlyEmail) activeChips.push({ label: L.onlyWithEmail, clear: () => setOnlyEmail(false) });
   if (onlyPhone) activeChips.push({ label: L.onlyWithPhone, clear: () => setOnlyPhone(false) });
+  if (onlyFinding) activeChips.push({ label: L.onlyWithFinding, clear: () => setOnlyFinding(false) });
   if (statusFilter) {
     activeChips.push({ label: L.statusLabels[statusFilter], clear: () => setStatusFilter("") });
   }
@@ -741,6 +916,18 @@ export default function LeadsTable({
               className="h-4 w-4 rounded accent-sky-500"
             />
             {L.onlyWithPhone}
+          </label>
+          <label
+            className="flex cursor-pointer items-center gap-2 text-sm text-soft"
+            title={L.onlyWithFindingTitle}
+          >
+            <input
+              type="checkbox"
+              checked={onlyFinding}
+              onChange={(e) => setOnlyFinding(e.target.checked)}
+              className="h-4 w-4 rounded accent-sky-500"
+            />
+            {L.onlyWithFinding}
           </label>
           <label
             className="flex cursor-pointer items-center gap-2 text-sm text-soft"
@@ -866,6 +1053,10 @@ export default function LeadsTable({
                           {L.trafficRankBadge(g.traffic_rank)}
                         </span>
                       )}
+                      {/* Der Aufhaenger, sofern es einen gibt. Innerhalb des
+                          Knopfes und nicht daneben: ein Klick darauf oeffnet
+                          den Drawer, in dem der volle Befund steht. */}
+                      <AuditPill g={g} t={L} />
                     </span>
                   </button>
                   {/* Zu welcher Lead-Liste gehoert dieser Treffer?
@@ -1151,6 +1342,11 @@ export default function LeadsTable({
                 }
               />
             </div>
+
+            {/* Befund und Aufhaenger untereinander: das eine ist das Material
+                des anderen. Diese Nachbarschaft ist der Zweck, nicht die
+                Reihenfolge im Datensatz. */}
+            <WebsiteAuditPanel g={drawer} t={L} lang={lang} />
 
             {drawer.personalization && (
               <>

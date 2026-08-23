@@ -16,7 +16,10 @@ export default async function LeadsPage() {
   const [contactsRes, searchesRes, suppressionRes] = await Promise.all([
     supabase
       .from("contacts")
-      .select("*, businesses(name, website, personalization, company_summary, search_id, address, phone_national, decisionmaker_status, hunter_status, traffic_rank, traffic_rank_source)")
+      // website_audit* seit Migration 0102: der Website-Befund ist das
+      // Material des Aufhaengers und steht deshalb in der Liste und im Drawer
+      // direkt neben ihm.
+      .select("*, businesses(name, website, personalization, company_summary, search_id, address, phone_national, decisionmaker_status, hunter_status, traffic_rank, traffic_rank_source, website_audit, website_audit_status, website_audit_at)")
       .eq("workspace_id", workspaceId)
       .order("created_at", { ascending: false })
       .limit(1000),

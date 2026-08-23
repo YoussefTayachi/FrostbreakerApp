@@ -58,7 +58,8 @@ export default async function SearchDetailPage({
       .eq("parent_search_id", id),
     supabase
       .from("contacts")
-      .select("*, businesses!inner(name, website, personalization, company_summary, search_id, address, phone_national, decisionmaker_status, hunter_status)")
+      // website_audit* seit Migration 0102, siehe leads/page.tsx.
+      .select("*, businesses!inner(name, website, personalization, company_summary, search_id, address, phone_national, decisionmaker_status, hunter_status, website_audit, website_audit_status, website_audit_at)")
       .eq("workspace_id", workspaceId)
       .eq("businesses.search_id", id)
       .order("created_at", { ascending: false })
@@ -125,7 +126,7 @@ export default async function SearchDetailPage({
     ? await Promise.all([
         supabase
           .from("contacts")
-          .select("*, businesses!inner(name, website, personalization, company_summary, search_id, address, phone_national, decisionmaker_status, hunter_status)")
+          .select("*, businesses!inner(name, website, personalization, company_summary, search_id, address, phone_national, decisionmaker_status, hunter_status, website_audit, website_audit_status, website_audit_at)")
           .eq("workspace_id", workspaceId)
           .in("businesses.search_id", leadIds)
           .order("created_at", { ascending: false })

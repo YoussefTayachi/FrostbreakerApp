@@ -15,6 +15,7 @@ import {
   type OfferStageId,
   type OfferTextField,
 } from "@/lib/offers";
+import { WEBSITE_DESIGN_OFFER_TEMPLATE } from "@/lib/copy/offer-templates";
 import type { OfferSuggestion } from "@/lib/copy/offer-from-website";
 import type { OfferProduct } from "@/lib/copy/offer-products";
 import {
@@ -219,7 +220,7 @@ export default function OffersEditor({
    *  und die Vorschlaege von Core und Aim auf sie zeigen. */
   initialFieldDefs: OfferFieldDefRow[];
 }) {
-  const { t } = useT();
+  const { t, lang } = useT();
   const O = t.offers;
   const { push } = useToast();
   const { workspaceId } = useWorkspace();
@@ -309,6 +310,15 @@ export default function OffersEditor({
   const produktCache = useRef(new Map<string, OfferProduct[]>());
   const [neuerName, setNeuerName] = useState("");
   const [legeAn, setLegeAn] = useState(initial.length === 0);
+  /**
+   * Womit das neue Angebot startet.
+   *
+   * Nur im Anlege-Dialog, weil nur hier das Angebot noch leer ist. Spaeter
+   * wuerde eine Vorlage ueberschreiben, was der Nutzer schon getippt hat, und
+   * eine dritte Karte, die verspricht Felder zu fuellen, haette diese Seite
+   * endgueltig ueberladen.
+   */
+  const [vorlage, setVorlage] = useState<"leer" | "website">("leer");
   const [speichert, setSpeichert] = useState(false);
   const [fehler, setFehler] = useState(false);
   /**
@@ -475,10 +485,17 @@ export default function OffersEditor({
     const name = neuerName.trim();
     if (!name) return;
     setBusy(true);
+    // Die Vorlage in der Sprache der Oberflaeche: eine andere Angabe gibt es
+    // in diesem Moment nicht, und sie setzt zugleich offer.language, an dem
+    // spaeter die erzeugten Mails haengen.
+    const felder = vorlage === "website" ? WEBSITE_DESIGN_OFFER_TEMPLATE[lang].offer : null;
     const { data, error } = await createClient()
       .from("offers")
       .insert({
+        ...(felder ?? {}),
         workspace_id: workspaceId,
+        // Der getippte Name schlaegt den der Vorlage: er steht im Feld
+        // darueber, und was dort steht, gilt.
         name: name.slice(0, 80),
         // Das erste Angebot ist automatisch das Standardangebot: sonst muesste
         // der Nutzer eine Auswahl treffen, bei der es nichts zu waehlen gibt.
@@ -490,6 +507,7 @@ export default function OffersEditor({
     if (error) return push(t.common.error + error.message, "error");
     setNeuerName("");
     setLegeAn(false);
+    setVorlage("leer");
     await neuLaden(data.id);
     push(O.created, "success");
   }
@@ -1085,6 +1103,32 @@ export default function OffersEditor({
               </button>
             )}
           </div>
+          {/* Zwei Moeglichkeiten sind keine Auswahlliste. Eine zweite Zeile
+              unter dem Namen, nicht daneben: der Name ist die Pflichtangabe,
+              die Vorlage die Zugabe. Mehr darf hier nicht dazukommen, sonst
+              wird aus einem Dialog ein Formular. */}
+          <div role="group" aria-label={O.templateLabel} className="mt-3 flex flex-wrap items-center gap-2">
+            <span aria-hidden className="fb-label mr-1 text-mute">
+              {O.templateLabel}
+            </span>
+            <Schalter active={vorlage === "leer"} onClick={() => setVorlage("leer")}>
+              {O.templateEmpty}
+            </Schalter>
+            <Schalter
+              active={vorlage === "website"}
+              onClick={() => {
+                setVorlage("website");
+                // Der Name der Vorlage als Vorschlag, aber nur ins leere Feld:
+                // was der Nutzer selbst getippt hat, bleibt stehen.
+                if (!neuerName.trim()) setNeuerName(WEBSITE_DESIGN_OFFER_TEMPLATE[lang].offer.name);
+              }}
+            >
+              {O.templateWebsite}
+            </Schalter>
+          </div>
+          {vorlage === "website" && (
+            <p className="mt-2 text-xs leading-relaxed text-faint">{O.templateWebsiteHint}</p>
+          )}
           {offers.length === 0 && <p className="mt-2.5 text-xs leading-relaxed text-mute">{O.emptyHint}</p>}
         </Karte>
       )}

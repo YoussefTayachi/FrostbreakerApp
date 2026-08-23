@@ -97,7 +97,10 @@ body {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .fade-up, .bar-rise { animation: none; }
+  /* .skeleton gehoert dazu: shimmer laeuft endlos, und genau eine endlose
+     Schleife ist das, was diese Einstellung abstellen soll. Der Platzhalter
+     bleibt sichtbar, er hoert nur auf zu pulsieren. */
+  .fade-up, .bar-rise, .skeleton { animation: none; }
 }
 
 /* ============================================================================

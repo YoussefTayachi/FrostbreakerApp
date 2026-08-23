@@ -725,6 +725,31 @@ def run(job: dict) -> None:
         raise
 
 
+def _queue_website_audits(ws: str, rows: list[dict]) -> None:
+    """Website-Check fuer alle Firmen dieser Liste einreihen, die eine Website haben.
+
+    OHNE WEBSITE KEIN JOB. Dort gibt es nichts zu pruefen, und der Fall ist
+    schon abgedeckt: personalize.pain_point_hint macht aus "keine auffindbare
+    Website" selbst ein Zusatzsignal.
+
+    Die Reihenfolge in dieser Funktion ist nicht beliebig. Erst wird
+    website_audit_status auf 'pending' gesetzt, DANN werden die Jobs
+    eingereiht. Andersherum koennte ein personalize-Job den Lead erwischen,
+    solange der Status noch null ist; er wuerde dann nicht auf den Befund
+    warten (siehe personalize.audit_pending) und ohne Aufhaenger schreiben.
+
+    Ein einziges Update fuer die ganze Liste statt eines pro Firma: bei 300
+    Firmen waeren das 300 zusaetzliche Netzaufrufe, bevor der erste Job
+    ueberhaupt losgelaufen ist.
+    """
+    ids = [b["id"] for b in rows if (b.get("website") or "").strip()]
+    if not ids:
+        return
+    sb().table("businesses").update({"website_audit_status": "pending"}).in_("id", ids).execute()
+    for business_id in ids:
+        enqueue(ws, "check_website", {"business_id": business_id})
+
+
 def _finish(search_id: str, ws: str, auto_enrich: bool, source: str) -> None:
     sb().table("searches").update({"status": "completed"}).eq("id", search_id).execute()
     if not auto_enrich:
@@ -741,16 +766,22 @@ def _finish(search_id: str, ws: str, auto_enrich: bool, source: str) -> None:
         # wird dadurch spezifischer. personalize.py faellt bei fehlender
         # summary ohnehin auf die Website zurueck; der Zweig ist deshalb
         # fuer beide derselbe.
-        for b in (
+        rows = (
             sb()
             .table("businesses")
-            .select("id")
+            # website steht hier mit in der Auswahl, seit es den Website-Check
+            # gibt: fuer den personalize-Job allein reichte die id.
+            .select("id,website")
             .eq("search_id", search_id)
             .eq("decisionmaker_status", "found")
             .execute()
             .data
             or []
-        ):
+        )
+        # VOR dem personalize-Enqueue, damit der Befund vorliegt, bevor
+        # jemand ihn braucht.
+        _queue_website_audits(ws, rows)
+        for b in rows:
             enqueue(ws, "personalize", {"business_id": b["id"]})
         return
     # Genau EINE Adressquelle pro Suchweg. Vorher liefen bei Maps beide
@@ -774,7 +805,7 @@ def _finish(search_id: str, ws: str, auto_enrich: bool, source: str) -> None:
     # hunt_persons je wieder fuer Maps aktiviert, muss das mitbedenken: dann
     # schreiben zwei Jobs dasselbe Feld.
     use_hunter = source == "corporate"
-    for b in (
+    rows = (
         sb()
         .table("businesses")
         .select("id,website")
@@ -782,7 +813,12 @@ def _finish(search_id: str, ws: str, auto_enrich: bool, source: str) -> None:
         .eq("decisionmaker_status", "pending")
         .execute()
         .data
-    ):
+        or []
+    )
+    # VOR dem personalize-Enqueue weiter unten, aus demselben Grund wie im
+    # apollo/prospeo-Zweig.
+    _queue_website_audits(ws, rows)
+    for b in rows:
         if use_hunter:
             if b.get("website"):
                 enqueue(ws, "hunt_persons", {"business_id": b["id"]})

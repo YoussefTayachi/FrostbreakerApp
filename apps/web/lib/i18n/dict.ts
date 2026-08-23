@@ -655,6 +655,8 @@ const de = {
     onlyWithEmail: "Nur mit E-Mail",
     onlyWithPhone: "Nur mit Telefonnummer",
     onlyWithPhoneTitle: "Zeigt nur Firmen mit einer Telefonnummer: eigene Durchwahl des Kontakts oder Firmennummer.",
+    onlyWithFinding: "Nur mit Befund",
+    onlyWithFindingTitle: "Zeigt nur Firmen, bei denen der Website-Check einen Mangel gefunden hat.",
     excludeInvalidExport: "Ungültige aus Export ausschließen",
     excludeInvalidExportTitle: "Kontakte mit als ungültig verifizierter E-Mail beim Export weglassen",
     verifyEmails: "E-Mails verifizieren",
@@ -748,6 +750,65 @@ const de = {
       "Firma", "Website", "Firmenbeschreibung", "Vorname", "Nachname", "Position", "E-Mail",
       "Confidence", "Telefon", "LinkedIn", "Quellen", "Personalisierung",
     ],
+    // Die acht Website-Befunde des Prüfers (apps/worker/worker/website_audit.py)
+    // plus die vier Zustände. "ok" heißt ausschließlich, dass die Prüfung ohne
+    // technischen Fehler durchgelaufen ist, nicht dass nichts gefunden wurde.
+    // Ein Lead mit dem Zustand "ok" und mehreren Befunden ist der Normalfall,
+    // nicht die Ausnahme: die Befunde stehen unabhängig davon in findings.
+    audit: {
+      ssl_broken: {
+        label: "Sicherheitszertifikat ungültig oder abgelaufen",
+        consequence: `Browser zeigen vor der Seite eine ganzseitige Warnung, die meisten Besucher klicken nicht weiter.`,
+      },
+      no_https: {
+        label: "Seite läuft ohne Verschlüsselung (kein HTTPS)",
+        consequence: `Chrome markiert die Adresszeile seit 2018 mit „Nicht sicher", das schreckt Besucher ab.`,
+      },
+      no_viewport: {
+        label: "Auf dem Handy nicht nutzbar (kein Mobil-Format)",
+        consequence: `Ohne dieses Format vergrößert das Handy die Desktop-Ansicht automatisch, Besucher müssen zum Lesen zoomen und tippen daneben.`,
+      },
+      stale_copyright: {
+        label: "Jahreszahl im Fußbereich veraltet",
+        consequence: `Ein altes Jahr im Footer liest sich wie eine verlassene Seite, Besucher zweifeln, ob das Unternehmen noch aktiv ist.`,
+      },
+      mixed_content: {
+        label: "Schloss-Symbol trotz HTTPS gebrochen (unverschlüsselte Inhalte)",
+        consequence: `Browser blockieren die unverschlüsselten Teile automatisch oder zeigen die Seite trotz HTTPS als nicht vollständig sicher an.`,
+      },
+      site_builder: {
+        label: "Seite läuft auf einem Baukasten (z. B. Wix, Jimdo)",
+        consequence: `Der Auftritt sieht aus wie viele andere auf demselben Baukasten, eigene Anpassungen sind nur im Rahmen des Systems möglich.`,
+      },
+      legacy_markup: {
+        label: "Technisch veraltet gebaut (vor Responsive Design)",
+        consequence: `Elemente wie frameset, center oder marquee stammen aus der Zeit vor Smartphones, ihr Einsatz zeigt, dass die Seite seit Jahren nicht überarbeitet wurde.`,
+      },
+      no_meta_description: {
+        label: "Keine Meta-Description hinterlegt",
+        consequence: `Google zieht sich selbst einen Satz von der Seite oder schreibt den Suchtreffer automatisch, der Treffer wirkt zufällig und unkontrolliert.`,
+      },
+      status: {
+        pending: "Wird geprüft",
+        ok: "Geprüft",
+        unreachable: "Nicht erreichbar",
+        // Deckt drei Fälle ab, ohne einen davon zu benennen: keine brauchbare
+        // Adresse hinterlegt, eine Antwort ohne HTML (z. B. PDF oder JSON),
+        // oder die Lead-Liste liegt im Papierkorb. Der Grund ist für den
+        // Nutzer nicht entscheidbar, deshalb bleibt der Text allgemein.
+        skipped: "Nicht geprüft",
+      },
+      // Beschriftungen rund um den Befund. Bewusst von den acht Codes
+      // getrennt: die stehen fest und gehören dem Prüfer, diese hier gehören
+      // der Oberfläche, die sie zeigt.
+      heading: "Website-Check",
+      inMail: "Geht in die Mail",
+      inMailTitle:
+        "Genau ein Befund wird zum Aufhänger der ersten Mail, immer der oberste, und bleibt das Thema der ganzen Sequenz. Die übrigen Befunde bleiben draußen.",
+      alsoFound: "Ebenfalls gefunden, bleibt aus der Mail heraus:",
+      checkedAt: (date: string) => `geprüft am ${date}`,
+      pillTitle: (label: string) => `Website-Check: ${label}`,
+    },
   },
   crm: {
     timelineHeading: "Verlauf",
@@ -1770,6 +1831,13 @@ const de = {
     namePlaceholder: "z. B. Shopify-Betreuung",
     emptyHint:
       "Ein Name genügt zum Anlegen. Die Felder danach kannst du aus deiner Website übernehmen lassen.",
+    // Die Wahl im Anlege-Dialog. Nur hier, weil nur hier das Angebot noch
+    // leer ist: später würde eine Vorlage überschreiben, was schon getippt ist.
+    templateLabel: "Vorlage",
+    templateEmpty: "Leer",
+    templateWebsite: "Website-Design",
+    templateWebsiteHint:
+      "Legt das Angebot mit allen Feldern fertig ausgefüllt an. Du kannst danach jedes davon ändern.",
     cancel: "Abbrechen",
     created: "Angebot angelegt",
     deleted: "Angebot gelöscht",
@@ -2020,6 +2088,12 @@ const de = {
     hint: "Vier Stufen mit je zwei Fassungen aus deinem Angebot. Du kannst danach alles ändern — abgeschickt wird nichts.",
     noOffer: "Dafür braucht die App zuerst dein Angebot: was du verkaufst, an wen und mit welchem Nutzen.",
     createOffer: "Angebot anlegen",
+    // Der zweite, leisere Weg: dieselben vier Stufen, ohne Modellaufruf.
+    templateHint: "Angebot noch dünn?",
+    templateUse: "Fertige Vorlage einsetzen",
+    templateTitle:
+      "Vier fertige Stufen für Website-Design, sofort und ohne Modellaufruf. Aus deinem Angebot wird der Text besser, sobald es ausgefüllt ist.",
+    templateDone: "Vorlage eingesetzt",
     problems: {
       stepCount: (got: number) => `Es kamen ${got} statt 4 Stufen zurück.`,
       variantCount: (step: number) => `Stufe ${step} hat nicht zwei Fassungen.`,
@@ -3125,6 +3199,8 @@ const en: Dictionary = {
     onlyWithEmail: "Only with email",
     onlyWithPhone: "Only with phone",
     onlyWithPhoneTitle: "Shows only companies with a phone number: the contact's own line or the company number.",
+    onlyWithFinding: "Only with a finding",
+    onlyWithFindingTitle: "Shows only companies where the website check found an issue.",
     excludeInvalidExport: "Exclude invalid from export",
     excludeInvalidExportTitle: "Leave out contacts whose email was verified as invalid when exporting",
     verifyEmails: "Verify emails",
@@ -3218,6 +3294,62 @@ const en: Dictionary = {
       "Company", "Website", "Company summary", "First name", "Last name", "Title", "Email",
       "Confidence", "Phone", "LinkedIn", "Sources", "Personalization",
     ],
+    // The auditor's eight website findings (apps/worker/worker/website_audit.py)
+    // plus the four states. "ok" means only that the check ran without a
+    // technical error, not that nothing was found. A lead with "ok" and
+    // several findings is the normal case, not the exception: the findings
+    // live independently in the findings array.
+    audit: {
+      ssl_broken: {
+        label: "Security certificate is invalid or expired",
+        consequence: "Browsers show a full warning screen before the page loads, most visitors never click through.",
+      },
+      no_https: {
+        label: "Site runs without HTTPS",
+        consequence: `Chrome has flagged the address bar with "Not secure" since 2018, and visitors bounce.`,
+      },
+      no_viewport: {
+        label: "Unusable on phones (no mobile format)",
+        consequence: "Without it, phones zoom in on the desktop layout automatically, visitors have to zoom to read and miss the buttons.",
+      },
+      stale_copyright: {
+        label: "Copyright year in the footer is outdated",
+        consequence: "An old year in the footer reads like an abandoned site, visitors start to wonder if the business is still active.",
+      },
+      mixed_content: {
+        label: "Padlock broken despite HTTPS (unencrypted content loads)",
+        consequence: "Browsers block the unencrypted parts automatically or mark the page as not fully secure despite HTTPS.",
+      },
+      site_builder: {
+        label: "Built on a website builder (e.g. Wix, Jimdo)",
+        consequence: "The site looks like many others on the same builder, customization is limited to what the system allows.",
+      },
+      legacy_markup: {
+        label: "Built with outdated markup (pre-responsive design)",
+        consequence: "Tags like frameset, center or marquee predate smartphones, using them shows the site hasn't been touched in years.",
+      },
+      no_meta_description: {
+        label: "No meta description set",
+        consequence: "Google pulls a sentence from the page itself or writes the snippet automatically, so the search result looks arbitrary and uncontrolled.",
+      },
+      status: {
+        pending: "Checking now",
+        ok: "Checked",
+        unreachable: "Couldn't be reached",
+        // Covers three cases without naming any of them: no usable address
+        // on file, a response that isn't HTML (a PDF or JSON, say), or the
+        // lead list sitting in the trash. The user can't tell which applies,
+        // so the text stays general.
+        skipped: "Not checked",
+      },
+      heading: "Website check",
+      inMail: "Goes into the email",
+      inMailTitle:
+        "Exactly one finding becomes the opening line of the first email, always the top one, and stays the throughline for the whole sequence. The rest stay out.",
+      alsoFound: "Also found, stays out of the email:",
+      checkedAt: (date: string) => `checked on ${date}`,
+      pillTitle: (label: string) => `Website check: ${label}`,
+    },
   },
   crm: {
     timelineHeading: "History",
@@ -4195,6 +4327,11 @@ const en: Dictionary = {
     namePrompt: "What should this offer be called?",
     namePlaceholder: "e.g. Shopify retainer",
     emptyHint: "A name is enough to start. The fields below can be filled in from your website.",
+    templateLabel: "Template",
+    templateEmpty: "Blank",
+    templateWebsite: "Website design",
+    templateWebsiteHint:
+      "Creates the offer with every field already filled in. You can change any of them afterwards.",
     cancel: "Cancel",
     created: "Offer created",
     deleted: "Offer deleted",
@@ -4424,6 +4561,11 @@ const en: Dictionary = {
     hint: "Four steps with two variants each, from your offer. You can change everything afterwards — nothing is sent.",
     noOffer: "For this the app needs your offer first: what you sell, to whom and with what benefit.",
     createOffer: "Create an offer",
+    templateHint: "Offer still thin?",
+    templateUse: "Insert the ready-made template",
+    templateTitle:
+      "Four ready-made steps for website design, right away and without an AI call. Once your offer is filled in, the generated copy gets better.",
+    templateDone: "Template inserted",
     problems: {
       stepCount: (got: number) => `${got} steps came back instead of 4.`,
       variantCount: (step: number) => `Step ${step} does not have two variants.`,

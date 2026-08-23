@@ -5,6 +5,12 @@ fuer die Akquise-Mail. Nutzt je nach Workspace-Einstellung (personalization_sour
 entweder die vom find_decisionmaker-Job recherchierte Firmenbeschreibung
 (businesses.company_summary), den gecrawlten Website-Text, oder beides.
 
+Unabhaengig von dieser Wahl haengt build_context ein Zusatzsignal an: entweder
+den ranghoechsten Befund des Website-Checks (audit_hint, Migration 0102) oder,
+wenn es keinen gibt, den bisherigen pain_point_hint. Bewusst als Ergaenzung und
+nicht als vierte personalization_source: so wirkt der Befund fuer alle Quellen,
+ohne Migration am Quellen-Enum und ohne Aenderung an der Oberflaeche.
+
 Der System-Prompt ist vollstaendig ueberschreibbar (workspaces.personalization_prompt);
 ohne eigene Vorgabe gilt DEFAULT_PROMPT. Wortzahl und verbotene Woerter werden nach
 der Generierung geprueft; bei Verstoss gibt es genau einen Korrektur-Versuch mit
@@ -27,13 +33,14 @@ Dasselbe gilt fuer den Wert 'anthropic' in den CHECK-Constraints von api_keys
 und api_usage.
 """
 import re
+from datetime import datetime, timedelta, timezone
 
 import httpx
 import trafilatura
 from openai import OpenAI
 from tenacity import retry, stop_after_attempt, wait_exponential
 
-from worker import usage
+from worker import usage, website_audit, website_fetch
 from worker.db import sb
 from worker.search_state import BUSINESS_WITH_SEARCH, search_is_deleted
 
@@ -235,14 +242,16 @@ class NotReadyYet(Exception):
 
 
 def fetch_website_text(url: str) -> str | None:
-    r = httpx.get(
-        url,
-        timeout=20,
-        follow_redirects=True,
-        headers={"User-Agent": "Mozilla/5.0 (compatible; ThawBot/1.0)"},
-    )
-    r.raise_for_status()
-    return trafilatura.extract(r.text)
+    """Lesbarer Text der Website.
+
+    Der Abruf selbst liegt seit dem Website-Check in worker/website_fetch.py:
+    dieselbe Seite wird jetzt an zwei Stellen geholt (hier fuer den Text, im
+    check_website-Job fuer das rohe HTML), und User-Agent, Zeitlimit und
+    Weiterleitungsverhalten sollen dabei nicht auseinanderlaufen. Verhalten
+    unveraendert, auch die geworfene httpx.HTTPError.
+    """
+    page = website_fetch.fetch_page(url)
+    return trafilatura.extract(page.html)
 
 
 def _safe_website_text(website: str | None) -> str | None:
@@ -271,15 +280,111 @@ def pain_point_hint(biz: dict) -> str | None:
     return None
 
 
+# Wie lange auf einen noch laufenden Website-Check gewartet wird, gerechnet ab
+# businesses.created_at.
+#
+# GESETZTE GRENZE, KEIN MESSWERT. Sie beantwortet eine einzige Frage: was
+# passiert, wenn der check_website-Job nie fertig wird (Worker abgestuerzt,
+# Status haengt dauerhaft auf 'pending')? Ohne Deckel bekaeme dieser Lead nie
+# einen Icebreaker.
+#
+# DIE ZAHL HAENGT AM RETRY-BUDGET DER QUEUE, nicht an der Dauer des Checks.
+# Ein wartender personalize-Job hat genau drei Laeufe: sofort, nach 60
+# Sekunden und nach weiteren 240 (queue.fail_job, max_attempts = 3, Backoff
+# 60 * attempts^2). Danach steht er endgueltig auf 'failed'. Ein Deckel von
+# einer halben Stunde waere deshalb wirkungslos gewesen: der Job waere lange
+# vorher aufgegeben worden, und das Warten haette genau das erzeugt, was es
+# verhindern soll. Vier Minuten sind kleiner als diese fuenf, der letzte
+# Versuch laeuft also verlaesslich durch, notfalls ohne Befund.
+#
+# Dass dabei ein Befund verlorengehen koennte, ist unwahrscheinlich: die
+# check_website-Jobs einer Liste werden VOR ihren personalize-Jobs eingereiht
+# (get_businesses._queue_website_audits) und claim_job arbeitet nach run_at,
+# holt sie also auch zuerst. Wenn ein personalize-Job an die Reihe kommt, ist
+# der Check seiner Firma normalerweise laengst durch.
+#
+# Die Fehlerrichtung ist bewusst diese: lieber ein Icebreaker ohne Aufhaenger
+# als eine Lead-Liste, die stehen bleibt.
+AUDIT_WAIT_LIMIT = timedelta(minutes=4)
+
+
+def _created_at(biz: dict) -> datetime | None:
+    """businesses.created_at als datetime, oder None wenn unlesbar."""
+    raw = biz.get("created_at")
+    if not isinstance(raw, str) or not raw:
+        return None
+    try:
+        # PostgREST liefert "+00:00"; das "Z"-Format kann fromisoformat erst
+        # ab Python 3.11, und dieses Paket erlaubt 3.10.
+        return datetime.fromisoformat(raw.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+
+
+def audit_pending(biz: dict) -> bool:
+    """Laeuft der Website-Check fuer diese Firma noch?
+
+    'pending' setzt ausschliesslich get_businesses._queue_website_audits, und
+    zwar genau fuer die Firmen, fuer die es auch einen Job einreiht. Steht der
+    Status auf null, obwohl eine Website hinterlegt ist (Zeilen aus der Zeit
+    vor Migration 0102, von Hand angelegte Firmen), wird deshalb NICHT
+    gewartet: es prueft ja niemand.
+    """
+    if biz.get("website_audit_status") != "pending":
+        return False
+    created = _created_at(biz)
+    if created is None:
+        return True
+    return datetime.now(timezone.utc) - created < AUDIT_WAIT_LIMIT
+
+
+def audit_hint(biz: dict) -> str | None:
+    """Der EINE ranghoechste Website-Befund als Zusatzsignal, Tatsache und Folge.
+
+    Warum genau einer und nicht alle: siehe website_audit.top_finding. Und
+    warum ueberhaupt hier und nicht als eigene personalization_source: der
+    Befund ist kein Ersatz fuer die Firmenbeschreibung, sondern ein weiteres
+    Datenfeld. An dieser Stelle wirkt er fuer alle drei Quellen
+    (company_summary, website_text, both), ohne Migration am Quellen-Enum und
+    ohne Aenderung an der Oberflaeche.
+    """
+    finding = website_audit.top_finding(biz.get("website_audit"))
+    if not finding:
+        return None
+    code = finding["code"]
+    fact = website_audit.FACT_DE.get(code)
+    consequence = website_audit.CONSEQUENCE_DE.get(code)
+    if not fact or not consequence:
+        return None  # Code ohne hinterlegten Text: lieber kein Signal als ein halbes
+    evidence = (finding.get("evidence") or "").strip()
+    # Der Beleg ist ein Zitat von der Seite und steht deshalb in Klammern
+    # dahinter, nicht im Satz: er soll nachschlagbar sein, nicht formuliert
+    # wirken.
+    evidence_note = f" (auf der Seite gefunden: {evidence})" if evidence else ""
+    return f"Zusatzsignal: {fact}{evidence_note} {consequence}"
+
+
 def build_context(biz: dict, source: str) -> str | None:
     """Baut den Kontext-Text fuer den Prompt je nach gewaehlter Datenquelle.
-    Wirft NotReadyYet, wenn company_summary gebraucht wird, die Recherche
-    dafuer aber noch laeuft (statt permanent leer zu personalisieren)."""
+    Wirft NotReadyYet, wenn company_summary oder der Website-Check gebraucht
+    werden, aber noch laufen (statt permanent leer zu personalisieren)."""
+    if audit_pending(biz):
+        # Gleiches Muster wie bei der noch laufenden company_summary: der Job
+        # geht ueber fail_job mit Backoff zurueck in die Queue. Der Deckel in
+        # audit_pending sorgt dafuer, dass daraus keine Endlosschleife wird.
+        raise NotReadyYet("Website-Check laeuft noch")
+
     summary = (biz.get("company_summary") or "").strip() or None
     decisionmaker_pending = biz.get("decisionmaker_status") in ("pending", "running")
 
     def with_hint(text: str | None) -> str | None:
-        hint = pain_point_hint(biz)
+        # Der Website-Befund ERSETZT den pain_point_hint, er kommt nicht
+        # zusaetzlich. Er ist spezifischer (ein konkreter Mangel statt "die
+        # Bewertung ist niedrig") und vom Empfaenger selbst nachpruefbar.
+        # Ohne Website gibt es ohnehin keinen Befund, und genau dort ist der
+        # pain_point_hint stark ("hat gar keine Website") -- die beiden
+        # treten sich also nicht auf die Fuesse.
+        hint = audit_hint(biz) or pain_point_hint(biz)
         if not hint:
             return text
         return (text + "\n\n" + hint) if text else hint
