@@ -56,6 +56,7 @@ export default function CampaignStepCard({
   canRemove,
   offerId,
   onActive,
+  inlinePreview,
 }: {
   index: number;
   step: Step;
@@ -69,6 +70,19 @@ export default function CampaignStepCard({
    *  Die Mail-Vorschau unter dem Formular folgt dem: sonst muesste man jeden
    *  Wechsel zweimal machen, einmal im Editor und einmal in der Vorschau. */
   onActive?: (variantIndex: number) => void;
+  /**
+   * Die kleine Vorschau unter dem Textfeld zeigen.
+   *
+   * Nur dort true, wo es die grosse Mail-Vorschau (mail-preview.tsx) NICHT
+   * gibt -- gemessen am 2026-08-24 ist das allein die Detailseite einer
+   * laufenden Kampagne, an der keine Lead-Listen haengen. Im Anlegen-Formular
+   * standen sonst zwei Vorschauen untereinander, die beide "so kommt die Mail
+   * an" versprachen: die hier laesst {{firstName}} und {{websiteFinding}}
+   * stehen, die grosse setzt echte Lead-Daten ein. Wer die obere aufklappt,
+   * haelt die Merge-Tags fuer einen Fehler und sucht die untere gar nicht
+   * erst. Eine Vorschau je Formular, und die bessere gewinnt.
+   */
+  inlinePreview?: boolean;
 }) {
   const { t } = useT();
   const F = t.instantly.campaigns.form;
@@ -329,17 +343,19 @@ export default function CampaignStepCard({
         rows={4}
         highlights={highlights}
       />
-      {/* Vorschau auf das, was tatsaechlich rausgeht.
+      {/* Die Ersatz-Vorschau: nur Form, keine Daten.
           Das Textfeld zeigt Klartext, versendet wird aber HTML — und wie die
-          Absaetze dort ankommen, sah man bisher erst NACH dem Versand. Hier
+          Absaetze dort ankommen, sah man sonst erst NACH dem Versand. Hier
           wird genau derselbe Aufruf gerendert, der auch an Instantly geht
-          (plainTextToInstantlyHtml), inklusive der Merge-Tags: die bleiben
-          bewusst als {{firstName}} stehen, weil pro Empfaenger etwas anderes
-          eingesetzt wird und eine erfundene Beispielperson hier mehr
-          verspraeche, als die Vorschau halten kann.
+          (plainTextToInstantlyHtml). Die Merge-Tags bleiben als
+          {{firstName}} stehen: ohne Lead-Liste gibt es hier niemanden
+          einzusetzen, und eine erfundene Beispielperson verspraeche mehr, als
+          diese Vorschau halten kann. Genau deshalb heisst der Aufklapper
+          "Absaetze und Zeilenumbrueche" und nicht mehr "so kommt die Mail an"
+          — das sagt jetzt die grosse Vorschau, und die meint es auch.
           dangerouslySetInnerHTML ist unkritisch: plainTextToInstantlyHtml
           maskiert &, < und > und setzt danach ausschliesslich eigene Tags. */}
-      {variant.body.trim().length > 0 && (
+      {inlinePreview && variant.body.trim().length > 0 && (
         <details className="mt-2 rounded-lg border border-edge2/70">
           <summary className="cursor-pointer px-3 py-1.5 text-[11px] text-faint hover:text-soft">
             {F.previewToggle}

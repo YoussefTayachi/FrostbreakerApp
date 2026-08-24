@@ -181,6 +181,7 @@ export default function CampaignForm({
             canRemove={value.steps.length > 1}
             offerId={offerId}
             onActive={(variant) => setPreviewSel({ step: i, variant })}
+            inlinePreview={previewSearchIds === undefined}
           />
         ))}
         <button type="button" onClick={addStep} className="text-xs font-medium text-sky-600 hover:text-sky-500 dark:text-sky-400">
