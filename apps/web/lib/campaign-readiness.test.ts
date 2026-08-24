@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
   BOUNCE_MIN_SAMPLE,
-  WEBSITE_FINDING_WORDS,
   assessCampaign,
   estimateWords,
   hasLink,
@@ -10,6 +9,9 @@ import {
   type ReadinessFacts,
   type Severity,
 } from "./campaign-readiness";
+// Dieselbe Zahl, die estimateWords fuer {{websiteFinding}} einsetzt, aus
+// derselben Quelle: sonst prueft der Test eine Zahl gegen sich selbst.
+import { FINDING_MAX_WORDS } from "./website-finding-defaults";
 
 /** Ein Zustand, bei dem nichts zu beanstanden ist; die Tests aendern je einen Punkt daran. */
 function facts(patch: Partial<ReadinessFacts> = {}): ReadinessFacts {
@@ -206,9 +208,9 @@ describe("estimateWords", () => {
    * liesse sich unbemerkt reissen.
    */
   it("zaehlt den Website-Befund mit seiner echten Laenge", () => {
-    expect(estimateWords("{{websiteFinding}}", 22)).toBe(WEBSITE_FINDING_WORDS);
+    expect(estimateWords("{{websiteFinding}}", 22)).toBe(FINDING_MAX_WORDS);
     expect(estimateWords("Hi {{firstName}}, {{personalization}} {{websiteFinding}}", 22)).toBe(
-      1 + 1 + 22 + WEBSITE_FINDING_WORDS
+      1 + 1 + 22 + FINDING_MAX_WORDS
     );
   });
 });

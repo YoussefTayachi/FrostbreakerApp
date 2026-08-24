@@ -1600,7 +1600,7 @@ const de = {
         variableCompanyName: "Firma",
         variableEmail: "E-Mail",
         variablePersonalization: "Icebreaker",
-        variableWebsiteFinding: "Website-Mangel",
+        variableWebsiteFinding: "Website-Befund",
         variableOptOut: "Abmelde-Link",
         previewToggle: "Vorschau: so kommt die Mail an",
         scheduleLabel: "Sende-Fenster",
@@ -1624,6 +1624,33 @@ const de = {
         mcpDraftReplacedLocal:
           "Dein hier zuletzt begonnener Entwurf wurde dabei verworfen: es kann nur einer im Formular stehen.",
         mcpDraftMissing: "Dieser Entwurf wurde nicht gefunden. Vielleicht ist die Kampagne bereits angelegt.",
+        /** Die Mail-Vorschau unter den Schritt-Karten (mail-preview.tsx): ein
+         *  echter Lead, eine echte Mail, und der Name der Variable, die bei
+         *  ihm leer geblieben ist. */
+        mailPreview: {
+          heading: "So kommt die Mail beim Empfänger an",
+          sample: (n: number) => `Stichprobe aus ${n} versendbaren Leads`,
+          counter: (i: number, n: number) => `${i} von ${n}`,
+          prev: "Voriger Lead",
+          next: "Nächster Lead",
+          caseWithFinding: "Dieser Lead hat einen Website-Befund.",
+          caseWithoutFinding: "Dieser Lead hat keinen Website-Befund.",
+          noSearch: "Wähle oben eine Lead-Liste, dann steht hier die Mail an einen echten Empfänger daraus.",
+          loading: "Empfänger werden geladen…",
+          error: "Die Empfänger für die Vorschau konnten nicht geladen werden.",
+          retry: "Nochmal versuchen",
+          noLeads:
+            "Aus dieser Auswahl geht niemand raus: alle Adressen sind blockiert, ungültig oder haben schon reagiert.",
+          emptySequence: "Sobald Betreff und Text stehen, siehst du hier die fertige Mail.",
+          noSubject: "(kein Betreff)",
+          empty: (tags: string) => `Leer geblieben, an dieser Stelle steht beim Empfänger nichts: ${tags}`,
+          unknown: (tags: string) =>
+            `Diese Platzhalter kennt Instantly nicht. Sie gehen wörtlich so an den Empfänger raus: ${tags}`,
+          allFilled: "Alle Variablen dieser Fassung sind gefüllt.",
+          heldBack:
+            "Dieser Lead wird beim Start zurückgehalten: die Sequenz benutzt den Website-Befund, und für ihn gibt es keinen. Er bekommt also keine dieser Mails.",
+          gapsElsewhere: "Auch hier fehlt bei diesem Lead etwas:",
+        },
         quality: {
           heading: "Textqualität",
           showDetails: "Details",
@@ -2173,6 +2200,7 @@ const de = {
     languageOptions: { de: "Deutsch", en: "Englisch" } as Record<string, string>,
     languageHint:
       "Unabhängig von der Sprache der Oberfläche: eine deutsche Ansicht und amerikanische Zielkunden sind der Normalfall. Die Vorgabe gilt auch für einen selbst geschriebenen Prompt.",
+    languageScope: "Sie gilt für beide erzeugten Texte, also auch für den Website-Befund.",
     sourceHeading: "Datenquelle",
     sourceSubtitle: "Worauf soll sich die Personalisierung stützen?",
     sourceOptions: [
@@ -2199,6 +2227,16 @@ const de = {
     limitsInPromptHint:
       "Beide Vorgaben werden dem Modell direkt im Prompt genannt, nicht erst hinterher geprüft. Ändert sich hier etwas, gilt es ab dem nächsten erzeugten Aufhänger.",
     bannedWords: "Verbotene Wörter (kommagetrennt)",
+    maxWordsScope: "Gilt nur für den Aufhänger.",
+    bannedWordsScope: "Gilt für den Aufhänger und den Website-Befund.",
+    findingHeading: "Website-Befund",
+    findingSummary:
+      "Der zweite Satz, der pro Lead entsteht: ein geprüfter Mangel der Website als {{websiteFinding}}.",
+    findingDefaultBadge: "Standardtext",
+    findingDescription:
+      "Eigener Prompt, damit der Aufhänger nichts von Website-Mängeln wissen muss. Er bekommt genau einen gemessenen Befund und formt daraus einen Satz. Findet der Check nichts, bleibt das Feld leer, und das ist ein richtiges Ergebnis.",
+    findingLimitsHint: (n: number) =>
+      `Feste Grenze von ${n} Wörtern, keine Einstellung: der Satz nennt Mangel und Folge, sonst nichts. Sprache und verbotene Wörter kommen von oben.`,
     save: "Speichern",
     liveTestHeading: "Live-Test",
     liveTestDescription: "Testet die aktuellen (noch ungespeicherten) Einstellungen an einer echten recherchierten Firma, ohne etwas zu speichern.",
@@ -2271,8 +2309,20 @@ const de = {
     helpLink: "Wie funktioniert das?",
   },
   icebreakerReview: {
-    title: "Aufhänger prüfen",
+    title: "Texte prüfen",
     subtitle: "Die KI-Eröffnungszeilen, die in den Kampagnen als {{personalization}} landen.",
+    kindSwitchLabel: "Textsorte",
+    kinds: { icebreaker: "Aufhänger", finding: "Website-Befund" } as Record<string, string>,
+    findingSubtitle:
+      "Der geprüfte Mangel der Lead-Website, der in den Kampagnen als {{websiteFinding}} landet.",
+    findingSettingsHint: (max: number, banned: string) =>
+      `Feste ${max} Wörter · verboten: ${banned}`,
+    findingNoneHint:
+      "Leads ohne Befund stehen nicht in dieser Liste. Kein Befund ist ein richtiges Ergebnis und keine Aufgabe: keine Website, Seite nicht erreichbar, oder es war nichts zu beanstanden. Wie viele davon eine Kampagne zurückhält, steht bei „Vor dem Start“, bevor sie losläuft.",
+    findingEmpty:
+      "Noch keine Website-Befunde. Sie entstehen automatisch, während eine Suche läuft, und nur dort, wo der Website-Check etwas gefunden hat.",
+    findingAllClean: "Nichts zu prüfen: alle Website-Befunde halten sich an die Vorgaben.",
+    emptyRow: "Kein Befund für diesen Lead.",
     explainer:
       "Geprüft wird gegen die heute geltenden Vorgaben, nicht gegen die Markierung von damals. Ändert sich eine Regel, ändert sich diese Liste mit.",
     settingsHint: (max: number, banned: string) => `Höchstens ${max} Wörter · verboten: ${banned}`,
@@ -2282,6 +2332,7 @@ const de = {
       failing: "Fehlerhaft",
       stale: "Veraltet markiert",
       clean: "Sauber",
+      empty: "Kein Befund",
     } as Record<string, string>,
     staleExplain:
       "Diese Zeilen tragen noch eine Markierung aus einer Zeit, in der strengere Regeln galten. Nach den heutigen Vorgaben sind sie in Ordnung.",
@@ -2295,25 +2346,37 @@ const de = {
     words: (n: number, max: number) => `${n} von ${max} Wörtern`,
     queued: (n: number) => `${n} zur Neuerzeugung eingereiht. Der Worker arbeitet sie in den nächsten Minuten ab.`,
     queuedNone: "Für diese Firmen läuft schon ein Auftrag.",
+    // Ab hier bewusst neutral formuliert ("Texte" statt "Aufhänger"): dieselben
+    // Meldungen gelten seit dem 2026-08-24 auch für den Website-Befund.
     regenerateAllHint:
-      "Erzeugt alle Aufhänger im aktiven Filter neu — mit den Vorgaben, die heute gelten. Jeder Aufhänger ist ein Modellaufruf.",
+      "Erzeugt alle Texte im aktiven Filter neu, mit den Vorgaben, die heute gelten. Jeder Text ist ein Modellaufruf.",
     regenerateAllConfirm: (n: number) =>
-      `${n} Aufhänger neu erzeugen lassen? Das sind ${n} Modellaufrufe und dauert einige Minuten. Die bisherigen Texte werden überschrieben.`,
+      `${n} Texte neu erzeugen lassen? Das sind ${n} Modellaufrufe und dauert einige Minuten. Die bisherigen Texte werden überschrieben.`,
     regenerating: (n: number) =>
       n === 1
-        ? "1 Aufhänger wird gerade neu erzeugt — die Liste aktualisiert sich von selbst."
-        : `${n} Aufhänger werden gerade neu erzeugt — die Liste aktualisiert sich von selbst.`,
+        ? "1 Text wird gerade neu erzeugt. Die Liste aktualisiert sich von selbst."
+        : `${n} Texte werden gerade neu erzeugt. Die Liste aktualisiert sich von selbst.`,
     regeneratingRow: "wird neu erzeugt",
     regenerateTimeout:
-      "Einige Aufhänger sind nach vier Minuten noch nicht fertig. Häufigste Ursache: kein OpenAI-Guthaben. Lade die Seite später neu.",
+      "Einige Texte sind nach vier Minuten noch nicht fertig. Häufigste Ursache: kein OpenAI-Guthaben. Lade die Seite später neu.",
     alreadyExportedWarning: (n: number) =>
-      `Achtung: ${n} dieser Kontakte wurden bereits an Instantly übergeben. Dort liegt eine Kopie des alten Textes — die Mail geht mit dem alten Aufhänger raus.`,
+      `Achtung: ${n} dieser Kontakte wurden bereits an Instantly übergeben. Dort liegt eine Kopie des alten Textes, die Mail geht also mit dem alten Text raus.`,
     accepted: (n: number) => `${n} abgehakt.`,
-    savedWithProblems: "Gespeichert — verstößt weiter gegen die Vorgaben.",
+    savedWithProblems: "Gespeichert, verstößt weiter gegen die Vorgaben.",
     saved: "Gespeichert.",
     empty: "Keine Aufhänger vorhanden. Sie entstehen automatisch, während eine Suche läuft.",
     allClean: "Nichts zu prüfen — alle Aufhänger halten sich an die Vorgaben.",
     truncated: "Sehr viele Zeilen — es werden die ersten 2000 gezeigt.",
+    // Der Ausgang aus der Sackgasse: schlägt das Laden fehl, stand die Liste
+    // vorher unbegrenzt im Skelettzustand. Wortwahl wie bei der Mail-Vorschau
+    // (instantly.campaigns.form.mailPreview.error/retry), es ist dieselbe Art
+    // Fehler an derselben Art Stelle.
+    loadError: "Die Liste konnte nicht geladen werden.",
+    retry: "Nochmal versuchen",
+    // Fällt nur, wenn businesses.name leer ist; die Spalte ist seit Migration
+    // 0001 not null, der Fall ist also selten. Vorher stand hier ein
+    // Gedankenstrich, der weder etwas aussagt noch erlaubt ist.
+    noName: "Ohne Namen",
   },
   campaignReadiness: {
     title: "Vor dem Start",
@@ -4115,7 +4178,7 @@ const en: Dictionary = {
         variableCompanyName: "Company",
         variableEmail: "Email",
         variablePersonalization: "Icebreaker",
-        variableWebsiteFinding: "Website flaw",
+        variableWebsiteFinding: "Website finding",
         variableOptOut: "Opt-out link",
         previewToggle: "Preview: how the email arrives",
         scheduleLabel: "Sending window",
@@ -4138,6 +4201,30 @@ const en: Dictionary = {
         mcpDraftReplacedLocal:
           "The draft you started here was discarded: the form can only hold one at a time.",
         mcpDraftMissing: "This draft wasn't found. The campaign may already have been created.",
+        mailPreview: {
+          heading: "How the email arrives at the recipient",
+          sample: (n: number) => `Sample from ${n} sendable leads`,
+          counter: (i: number, n: number) => `${i} of ${n}`,
+          prev: "Previous lead",
+          next: "Next lead",
+          caseWithFinding: "This lead has a website finding.",
+          caseWithoutFinding: "This lead has no website finding.",
+          noSearch: "Pick a lead list above and you'll see the email to a real recipient from it.",
+          loading: "Loading recipients…",
+          error: "The recipients for the preview could not be loaded.",
+          retry: "Try again",
+          noLeads:
+            "Nobody from this selection goes out: every address is blocked, invalid or has already replied.",
+          emptySequence: "As soon as subject and body are written, the finished email shows up here.",
+          noSubject: "(no subject)",
+          empty: (tags: string) => `Left empty, the recipient sees nothing in this spot: ${tags}`,
+          unknown: (tags: string) =>
+            `Instantly does not know these placeholders. They go out to the recipient verbatim: ${tags}`,
+          allFilled: "Every variable in this version is filled.",
+          heldBack:
+            "This lead is held back at launch: the sequence uses the website finding and there is none for this lead. So none of these emails reach them.",
+          gapsElsewhere: "Something is missing for this lead here as well:",
+        },
         quality: {
           heading: "Copy quality",
           showDetails: "Details",
@@ -4651,6 +4738,7 @@ const en: Dictionary = {
     languageOptions: { de: "German", en: "English" } as Record<string, string>,
     languageHint:
       "Independent of the interface language: a German interface with US prospects is the normal case. The setting also applies to a prompt you wrote yourself.",
+    languageScope: "It applies to both generated texts, including the website finding.",
     sourceHeading: "Data source",
     sourceSubtitle: "What should the personalization be based on?",
     sourceOptions: [
@@ -4677,6 +4765,16 @@ const en: Dictionary = {
     limitsInPromptHint:
       "Both rules are stated to the model in the prompt itself, not just checked afterwards. Change them here and the next generated icebreaker follows them.",
     bannedWords: "Banned words (comma-separated)",
+    maxWordsScope: "Applies to the icebreaker only.",
+    bannedWordsScope: "Applies to the icebreaker and the website finding.",
+    findingHeading: "Website finding",
+    findingSummary:
+      "The second sentence written per lead: one verified flaw on their website, used as {{websiteFinding}}.",
+    findingDefaultBadge: "Default text",
+    findingDescription:
+      "A prompt of its own, so the icebreaker never has to know about website flaws. It gets exactly one measured finding and turns it into a sentence. If the check finds nothing, the field stays empty, and that is a correct result.",
+    findingLimitsHint: (n: number) =>
+      `A fixed limit of ${n} words, not a setting: the sentence names the flaw and its consequence, nothing else. Language and banned words come from above.`,
     save: "Save",
     liveTestHeading: "Live test",
     liveTestDescription: "Tests the current (unsaved) settings against a real researched company, without saving anything.",
@@ -4749,8 +4847,20 @@ const en: Dictionary = {
     helpLink: "How does this work?",
   },
   icebreakerReview: {
-    title: "Review icebreakers",
+    title: "Review texts",
     subtitle: "The AI opening lines that end up in campaigns as {{personalization}}.",
+    kindSwitchLabel: "Type of text",
+    kinds: { icebreaker: "Icebreaker", finding: "Website finding" },
+    findingSubtitle:
+      "The verified flaw on the lead's website that ends up in campaigns as {{websiteFinding}}.",
+    findingSettingsHint: (max: number, banned: string) =>
+      `Fixed at ${max} words · banned: ${banned}`,
+    findingNoneHint:
+      "Leads without a finding are not in this list. No finding is a correct result and not a task: no website, site unreachable, or nothing worth flagging. How many of them a campaign holds back shows up under \"Before you start\".",
+    findingEmpty:
+      "No website findings yet. They are written automatically while a search runs, and only where the website check found something.",
+    findingAllClean: "Nothing to review: every website finding follows the rules.",
+    emptyRow: "No finding for this lead.",
     explainer:
       "Checked against the rules that apply today, not the flag from back then. Change a rule and this list changes with it.",
     settingsHint: (max: number, banned: string) => `Max ${max} words · banned: ${banned}`,
@@ -4760,6 +4870,7 @@ const en: Dictionary = {
       failing: "Failing",
       stale: "Stale flag",
       clean: "Clean",
+      empty: "No finding",
     },
     staleExplain:
       "These lines still carry a flag from a time when stricter rules applied. Under today's rules they are fine.",
@@ -4773,25 +4884,30 @@ const en: Dictionary = {
     words: (n: number, max: number) => `${n} of ${max} words`,
     queued: (n: number) => `${n} queued for regeneration. The worker will get through them in the next few minutes.`,
     queuedNone: "A job is already running for these companies.",
+    // Deliberately neutral from here on ("texts" instead of "icebreakers"):
+    // the same messages cover the website finding since 2026-08-24.
     regenerateAllHint:
-      "Regenerates every icebreaker in the active filter using the rules that apply today. Each one is a model call.",
+      "Regenerates every text in the active filter using the rules that apply today. Each one is a model call.",
     regenerateAllConfirm: (n: number) =>
-      `Regenerate ${n} icebreakers? That is ${n} model calls and takes a few minutes. The current texts will be overwritten.`,
+      `Regenerate ${n} texts? That is ${n} model calls and takes a few minutes. The current texts will be overwritten.`,
     regenerating: (n: number) =>
       n === 1
-        ? "1 icebreaker is being regenerated — the list updates on its own."
-        : `${n} icebreakers are being regenerated — the list updates on its own.`,
+        ? "1 text is being regenerated. The list updates on its own."
+        : `${n} texts are being regenerated. The list updates on its own.`,
     regeneratingRow: "regenerating",
     regenerateTimeout:
-      "Some icebreakers are still not done after four minutes. Most common cause: no OpenAI credit. Reload the page later.",
+      "Some texts are still not done after four minutes. Most common cause: no OpenAI credit. Reload the page later.",
     alreadyExportedWarning: (n: number) =>
-      `Careful: ${n} of these contacts were already pushed to Instantly. A copy of the old text lives there — the email will go out with the old icebreaker.`,
+      `Careful: ${n} of these contacts were already pushed to Instantly. A copy of the old text lives there, so the email will go out with the old text.`,
     accepted: (n: number) => `${n} cleared.`,
-    savedWithProblems: "Saved — still violates the rules.",
+    savedWithProblems: "Saved, still violates the rules.",
     saved: "Saved.",
     empty: "No icebreakers yet. They are written automatically while a search runs.",
     allClean: "Nothing to review — every icebreaker follows the rules.",
     truncated: "Very many rows — showing the first 2000.",
+    loadError: "The list could not be loaded.",
+    retry: "Try again",
+    noName: "No name",
   },
   campaignReadiness: {
     title: "Before you start",

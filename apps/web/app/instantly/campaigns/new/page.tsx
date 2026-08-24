@@ -577,6 +577,10 @@ export default function NewCampaignPage() {
         value={value}
         onChange={setValue}
         offerId={offerId}
+        // Die Mail-Vorschau holt sich daraus echte Empfaenger (api/campaigns/
+        // preview-leads). Nur hier gesetzt: die Detailseite kennt keine
+        // Lead-Listen, dort bleibt die Vorschau deshalb ganz weg.
+        previewSearchIds={searchIds}
         onSubmit={create}
         submitting={creating}
         submitLabel={F.create}

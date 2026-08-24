@@ -9,6 +9,7 @@ import EmailQualityPanel from "./email-quality-panel";
 import HighlightedTextarea from "../../highlighted-textarea";
 import type { Highlights } from "@/lib/email-quality";
 import type { StepVariant } from "@/lib/instantly/campaigns";
+import type { Dictionary } from "@/lib/i18n/dict";
 import type { Step } from "./campaign-form";
 
 // Eine Karte der Sequenz: Betreff, Text, Variablen-Buttons und die
@@ -17,6 +18,36 @@ import type { Step } from "./campaign-form";
 // Befund wie die Liste darunter); in der Schleife ueber alle Schritte in
 // campaign-form.tsx liesse sich dafuer kein State halten.
 
+/**
+ * Die Merge-Tags mit ihrer Beschriftung.
+ *
+ * Namen/Syntax ({{firstName}} etc.) muessen exakt Instantlys vordefinierten
+ * Lead-Variablen entsprechen (siehe https://help.instantly.ai/en/articles/6135930),
+ * sonst wird beim Versand nichts ersetzt.
+ *
+ * {{websiteFinding}} ist die eine Ausnahme: keine vordefinierte Variable,
+ * sondern ein Feld, das mit dem Lead hochgeladen wird (WEBSITE_FINDING_FIELD
+ * in lib/instantly/campaigns.ts). Der Name steht deshalb nicht doppelt hier,
+ * sondern kommt aus derselben Konstante wie der Upload-Schluessel.
+ *
+ * Als Funktion und exportiert, weil die Mail-Vorschau (mail-preview.tsx)
+ * dieselbe Zuordnung braucht: sie benennt die Variable, die bei einem Lead
+ * leer geblieben ist. Zwei Listen wuerden auseinanderlaufen, und dann hiesse
+ * derselbe Tag im Editor "Website-Mangel" und in der Vorschau anders.
+ */
+export function mergeTagOptions(
+  F: Dictionary["instantly"]["campaigns"]["form"]
+): { token: string; label: string }[] {
+  return [
+    { token: "{{firstName}}", label: F.variableFirstName },
+    { token: "{{lastName}}", label: F.variableLastName },
+    { token: "{{companyName}}", label: F.variableCompanyName },
+    { token: "{{email}}", label: F.variableEmail },
+    { token: "{{personalization}}", label: F.variablePersonalization },
+    { token: `{{${WEBSITE_FINDING_FIELD}}}`, label: F.variableWebsiteFinding },
+  ];
+}
+
 export default function CampaignStepCard({
   index,
   step,
@@ -24,6 +55,7 @@ export default function CampaignStepCard({
   onRemove,
   canRemove,
   offerId,
+  onActive,
 }: {
   index: number;
   step: Step;
@@ -33,6 +65,10 @@ export default function CampaignStepCard({
   /** Zusammenhang fuers Nachschaerfen. Optional: ohne Angebot kennt das
    *  Modell nur den vorhandenen Text. */
   offerId?: string | null;
+  /** "An dieser Karte wird gerade gearbeitet", mit der Nummer der Fassung.
+   *  Die Mail-Vorschau unter dem Formular folgt dem: sonst muesste man jeden
+   *  Wechsel zweimal machen, einmal im Editor und einmal in der Vorschau. */
+  onActive?: (variantIndex: number) => void;
 }) {
   const { t } = useT();
   const F = t.instantly.campaigns.form;
@@ -79,6 +115,7 @@ export default function CampaignStepCard({
     // Gegenentwurf.
     onChange({ variants: [...step.variants, { subject: "", body: "" }] });
     setActiveVariant(step.variants.length);
+    onActive?.(step.variants.length);
   }
 
   function removeVariant() {
@@ -108,24 +145,9 @@ export default function CampaignStepCard({
   }
 
   // Variablen per Klick einfuegen statt selbst tippen zu muessen: fuegt im
-  // zuletzt fokussierten Feld an der Cursor-Position ein. Namen/Syntax
-  // ({{firstName}} etc.) muessen exakt Instantlys vordefinierten
-  // Lead-Variablen entsprechen (siehe https://help.instantly.ai/en/articles/6135930),
-  // sonst wird beim Versand nichts ersetzt.
-  //
-  // {{websiteFinding}} ist die eine Ausnahme: keine vordefinierte Variable,
-  // sondern ein Feld, das mit dem Lead hochgeladen wird
-  // (WEBSITE_FINDING_FIELD in lib/instantly/campaigns.ts). Der Name
-  // steht deshalb nicht doppelt hier, sondern kommt aus derselben Konstante
-  // wie der Upload-Schluessel.
-  const VARIABLES: { token: string; label: string }[] = [
-    { token: "{{firstName}}", label: F.variableFirstName },
-    { token: "{{lastName}}", label: F.variableLastName },
-    { token: "{{companyName}}", label: F.variableCompanyName },
-    { token: "{{email}}", label: F.variableEmail },
-    { token: "{{personalization}}", label: F.variablePersonalization },
-    { token: `{{${WEBSITE_FINDING_FIELD}}}`, label: F.variableWebsiteFinding },
-  ];
+  // zuletzt fokussierten Feld an der Cursor-Position ein. Die Liste steht in
+  // mergeTagOptions (oben), weil die Mail-Vorschau dieselbe Zuordnung braucht.
+  const VARIABLES = mergeTagOptions(F);
 
   // Eigener Opt-out-Link statt eines weiteren Instantly-Merge-Tags: die
   // Workspace-ID ist schon zum Einfuegezeitpunkt bekannt und wird direkt in
@@ -185,7 +207,10 @@ export default function CampaignStepCard({
   }
 
   return (
-    <div className="rounded-lg border border-edge2 p-3">
+    // onFocusCapture statt onClick: es meldet die Karte auch dann als aktiv,
+    // wenn man mit der Tabulatortaste hineinwandert, und feuert nicht bei
+    // jedem Klick daneben.
+    <div className="rounded-lg border border-edge2 p-3" onFocusCapture={() => onActive?.(vi)}>
       <div className="mb-2 flex items-center justify-between">
         <span className="text-xs font-medium text-soft">{F.stepLabel(index + 1)}</span>
         <div className="flex items-center gap-2">
@@ -218,7 +243,10 @@ export default function CampaignStepCard({
             <button
               key={i}
               type="button"
-              onClick={() => setActiveVariant(i)}
+              onClick={() => {
+                setActiveVariant(i);
+                onActive?.(i);
+              }}
               className={
                 "rounded-md border px-2.5 py-1 text-[11px] font-medium transition-colors " +
                 (i === vi

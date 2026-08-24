@@ -3,24 +3,36 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentWorkspace } from "@/lib/workspace/server";
 import {
-  reviewIcebreakers,
+  maxWordsFor,
+  parseReviewKind,
+  REVIEW_FIELDS,
   reviewSettingsFromWorkspace,
+  reviewTexts,
   sortVerdicts,
   summarizeReview,
-  type IcebreakerRow,
   type IcebreakerState,
+  type ReviewKind,
+  type ReviewRow,
   type ReviewSettings,
 } from "@/lib/personalization/review";
+import { requeueFailure } from "@/lib/personalization/requeue";
 import { validateIcebreaker } from "@/lib/personalization-defaults";
 
 /**
- * Die Pruefschleife fuer die KI-Aufhaenger.
+ * Die Pruefschleife fuer die erzeugten Texte.
  *
  * Warum es diese Route gibt: businesses.personalization_needs_review wird vom
  * Worker gesetzt, wenn ein erzeugter Aufhaenger die Vorgaben zweimal
  * verfehlt. Am 2026-08-04 trugen 766 von 1032 Zeilen diese Markierung, und
  * sie kam in der gesamten Web-App an keiner Stelle vor. Drei Viertel aller
  * Aufhaenger waren als mangelhaft bekannt und sind trotzdem rausgegangen.
+ *
+ * Seit dem 2026-08-24 bedient dieselbe Route den Website-Befund (Migration
+ * 0103), der genau dasselbe Problem hatte: das Feld
+ * businesses.website_finding_needs_review wurde geschrieben und nirgends
+ * angezeigt. Welche Textsorte gemeint ist, sagt der Parameter `kind`; OHNE
+ * Angabe bleibt es beim Aufhaenger, damit bestehende Aufrufe unveraendert
+ * wirken (parseReviewKind).
  *
  * Alle Bewertung passiert in lib/personalization/review.ts (mit Tests). Hier
  * steht nur, woher die Zeilen kommen und was die drei Handgriffe in der
@@ -36,7 +48,19 @@ import { validateIcebreaker } from "@/lib/personalization-defaults";
  */
 const MAX_ROWS = 2000;
 
-const SELECT = "id, name, personalization, personalization_needs_review";
+/**
+ * Die Spaltenliste je Textsorte.
+ *
+ * Zusammengebaut und nicht als zwei Literale hingeschrieben: die Namen stehen
+ * in REVIEW_FIELDS, und zwei Orte fuer dieselben vier Spalten waeren genau die
+ * Doppelung, gegen die es diese Tabelle gibt. Supabase leitet aus einem
+ * zusammengesetzten String keine Feldtypen ab (anders als bei einem Literal),
+ * deshalb sind die Zeilen unten ausdruecklich als ReviewRow getypt.
+ */
+function selectFor(kind: ReviewKind): string {
+  const f = REVIEW_FIELDS[kind];
+  return `id, name, ${f.text}, ${f.flag}`;
+}
 
 async function context(supabase: SupabaseClient) {
   const {
@@ -52,6 +76,12 @@ async function context(supabase: SupabaseClient) {
 /**
  * Die Vorgaben, gegen die geprueft wird: dieselben, die auch der Worker beim
  * Erzeugen anlegt (workspaces.personalization_*).
+ *
+ * Fuer BEIDE Textsorten dieselben Spalten, und das ist kein Versehen: Sprache
+ * und verbotene Zeichen sind Eigenschaften des Workspaces und gelten fuer
+ * beide Saetze (Migration 0103, Abschnitt 4; ebenso
+ * website_finding.load_config). Nur die Wortgrenze unterscheidet sich, und die
+ * loest maxWordsFor auf.
  */
 async function loadSettings(
   supabase: SupabaseClient,
@@ -78,6 +108,10 @@ async function loadSettings(
  * dagegen bekommt beim Export eine KOPIE als lead-Variable. Wird der Text
  * danach neu erzeugt, aendert sich unsere Zeile, die Kopie bei Instantly
  * nicht: die Mail geht mit dem alten Aufhaenger raus.
+ *
+ * Fuer den Website-Befund gilt dasselbe: er geht als eigene Lead-Variable
+ * {{websiteFinding}} mit (lib/instantly/campaigns.ts) und ist damit genauso
+ * eine Kopie.
  *
  * Das laesst sich hier nicht heilen (Instantlys API kennt kein Aktualisieren
  * einer bereits uebergebenen Lead-Variable, und ein Loeschen samt neu Anlegen
@@ -106,33 +140,45 @@ export async function GET(req: Request) {
 
   const url = new URL(req.url);
   const lang = url.searchParams.get("lang") === "en" ? "en" : "de";
+  const kind = parseReviewKind(url.searchParams.get("kind"));
+  const f = REVIEW_FIELDS[kind];
   const settings = await loadSettings(supabase, ctx.workspaceId, lang);
 
   /**
-   * Bewusst ALLE Firmen mit Aufhaenger, nicht nur die markierten.
+   * Bewusst ALLE Firmen mit Text, nicht nur die markierten.
    *
-   * Ein Filter auf personalization_needs_review wuerde genau die Zeilen
-   * verstecken, die nie markiert wurden und heute trotzdem gegen die Vorgaben
-   * verstossen, an echten Daten 31 Stueck. Siehe die ausfuehrliche
-   * Begruendung in lib/personalization/review.ts.
+   * Ein Filter auf das needs_review-Feld wuerde genau die Zeilen verstecken,
+   * die nie markiert wurden und heute trotzdem gegen die Vorgaben verstossen,
+   * an echten Daten 31 Stueck. Siehe die ausfuehrliche Begruendung in
+   * lib/personalization/review.ts.
    *
    * Suchen im Papierkorb bleiben draussen: an deren Texten will niemand mehr
    * arbeiten. Der !inner-Join ist dafuer notwendig: ein loser Join wuerde
    * die Firmenzeile behalten und nur die eingebettete Suche auf null setzen.
+   *
+   * Beim Befund faellt hier der HAEUFIGE Fall raus, dass gar keiner erzeugt
+   * wurde (keine Website, Seite nicht erreichbar, keine der acht Pruefungen
+   * schlaegt an). Das ist Absicht und in reviewTexts begruendet: diese Zeilen
+   * waeren die Mehrheit und es gibt an ihnen nichts abzuarbeiten. Wer sie
+   * zaehlen will, fragt den Torwart vor dem Kampagnenstart.
    */
   const { data, error } = await supabase
     .from("businesses")
-    .select(`${SELECT}, searches!inner(deleted_at)`)
+    .select(`${selectFor(kind)}, searches!inner(deleted_at)`)
     .eq("workspace_id", ctx.workspaceId)
     .is("searches.deleted_at", null)
-    .not("personalization", "is", null)
+    .not(f.text, "is", null)
     .limit(MAX_ROWS);
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  const verdicts = sortVerdicts(reviewIcebreakers((data ?? []) as unknown as IcebreakerRow[], settings));
+  const verdicts = sortVerdicts(reviewTexts((data ?? []) as unknown as ReviewRow[], settings, kind));
   return NextResponse.json({
-    settings: { maxWords: settings.maxWords, bannedWords: settings.bannedWords },
+    kind,
+    // Die Wortgrenze der ANGEFRAGTEN Textsorte: der Befund hat seine feste
+    // (FINDING_MAX_WORDS), der Aufhaenger die des Workspaces. Die Ansicht
+    // zeigt sie an, und sie muss dieselbe sein, gegen die hier gerechnet wurde.
+    settings: { maxWords: maxWordsFor(kind, settings), bannedWords: settings.bannedWords },
     summary: summarizeReview(verdicts),
     items: verdicts,
     truncated: (data?.length ?? 0) >= MAX_ROWS,
@@ -156,14 +202,16 @@ export async function PATCH(req: Request) {
   const id = (body?.id as string | undefined)?.trim();
   const text = (body?.text as string | undefined)?.trim();
   const lang = body?.lang === "en" ? "en" : "de";
+  const kind = parseReviewKind(body?.kind as string | undefined);
+  const f = REVIEW_FIELDS[kind];
   if (!id || !text) return NextResponse.json({ error: "id und text noetig" }, { status: 400 });
 
   const settings = await loadSettings(supabase, ctx.workspaceId, lang);
-  const problems = validateIcebreaker(text, settings.maxWords, settings.bannedWords, lang);
+  const problems = validateIcebreaker(text, maxWordsFor(kind, settings), settings.bannedWords, lang);
 
   const { error } = await supabase
     .from("businesses")
-    .update({ personalization: text, personalization_needs_review: problems.length > 0 })
+    .update({ [f.text]: text, [f.flag]: problems.length > 0 })
     .eq("id", id)
     .eq("workspace_id", ctx.workspaceId);
 
@@ -180,6 +228,8 @@ export async function POST(req: Request) {
   const action = body?.action as string | undefined;
   const ids = Array.isArray(body?.ids) ? (body.ids as string[]) : [];
   const lang = body?.lang === "en" ? "en" : "de";
+  const kind = parseReviewKind(body?.kind as string | undefined);
+  const f = REVIEW_FIELDS[kind];
 
   if (action === "accept") {
     // Von Hand abgenommen: der Text bleibt, wie er ist. Das ist die Antwort
@@ -187,7 +237,7 @@ export async function POST(req: Request) {
     if (ids.length === 0) return NextResponse.json({ error: "ids noetig" }, { status: 400 });
     const { error } = await supabase
       .from("businesses")
-      .update({ personalization_needs_review: false })
+      .update({ [f.flag]: false })
       .in("id", ids)
       .eq("workspace_id", ctx.workspaceId);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
@@ -210,21 +260,21 @@ export async function POST(req: Request) {
     const settings = await loadSettings(supabase, ctx.workspaceId, lang);
     const { data, error } = await supabase
       .from("businesses")
-      .select(SELECT)
+      .select(selectFor(kind))
       .eq("workspace_id", ctx.workspaceId)
-      .eq("personalization_needs_review", true)
-      .not("personalization", "is", null)
+      .eq(f.flag, true)
+      .not(f.text, "is", null)
       .limit(MAX_ROWS);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-    const stale = reviewIcebreakers((data ?? []) as IcebreakerRow[], settings)
+    const stale = reviewTexts((data ?? []) as unknown as ReviewRow[], settings, kind)
       .filter((v) => v.state === "stale")
       .map((v) => v.id);
     if (stale.length === 0) return NextResponse.json({ ok: true, accepted: 0 });
 
     const { error: updateError } = await supabase
       .from("businesses")
-      .update({ personalization_needs_review: false })
+      .update({ [f.flag]: false })
       .in("id", stale)
       .eq("workspace_id", ctx.workspaceId);
     if (updateError) return NextResponse.json({ error: updateError.message }, { status: 500 });
@@ -233,13 +283,13 @@ export async function POST(req: Request) {
 
   if (action === "regenerate") {
     /**
-     * Neu erzeugen lassen: ein personalize-Job je Firma.
+     * Neu erzeugen lassen: ein Job je Firma.
      *
-     * Ueber die Funktion aus Migration 0070 statt per Insert: public.jobs
-     * hat bewusst nur eine Lese-Policy. Dort sitzen auch die beiden
-     * Pruefungen, die hier nicht verlassen werden duerfen: nur eigene Firmen,
-     * und kein zweiter Job, solange noch einer offen ist (jeder ist ein
-     * bezahlter Modellaufruf).
+     * Ueber die Funktion aus Migration 0070 (Aufhaenger) bzw. 0104 (Befund)
+     * statt per Insert: public.jobs hat bewusst nur eine Lese-Policy. Dort
+     * sitzen auch die beiden Pruefungen, die hier nicht verlassen werden
+     * duerfen: nur eigene Firmen, und kein zweiter Job, solange noch einer
+     * offen ist (jeder ist ein bezahlter Modellaufruf).
      *
      * Derselbe Jobtyp, den auch die Suche einreiht; der Worker holt sich
      * die aktuellen Vorgaben des Workspaces selbst. Eine geaenderte
@@ -247,10 +297,11 @@ export async function POST(req: Request) {
      * muesste.
      */
     if (ids.length === 0) return NextResponse.json({ error: "ids noetig" }, { status: 400 });
-    const { data: queued, error } = await supabase.rpc("requeue_personalization", {
-      p_business_ids: ids,
-    });
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    const { data: queued, error } = await supabase.rpc(f.requeue, { p_business_ids: ids });
+    if (error) {
+      const failure = requeueFailure(f.requeue, error);
+      return NextResponse.json({ error: failure.error, reason: failure.reason }, { status: failure.status });
+    }
     return NextResponse.json({
       ok: true,
       queued: queued ?? 0,
@@ -282,21 +333,24 @@ export async function POST(req: Request) {
 
     const { data, error } = await supabase
       .from("businesses")
-      .select(`${SELECT}, searches!inner(deleted_at)`)
+      .select(`${selectFor(kind)}, searches!inner(deleted_at)`)
       .eq("workspace_id", ctx.workspaceId)
       .is("searches.deleted_at", null)
-      .not("personalization", "is", null)
+      .not(f.text, "is", null)
       .limit(MAX_ROWS);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-    const verdicts = reviewIcebreakers((data ?? []) as unknown as IcebreakerRow[], settings);
+    const verdicts = reviewTexts((data ?? []) as unknown as ReviewRow[], settings, kind);
     const targets = (state ? verdicts.filter((v) => v.state === state) : verdicts).map((v) => v.id);
     if (targets.length === 0) return NextResponse.json({ ok: true, queued: 0, alreadyExported: 0 });
 
-    const { data: queued, error: rpcError } = await supabase.rpc("requeue_personalization", {
+    const { data: queued, error: rpcError } = await supabase.rpc(f.requeue, {
       p_business_ids: targets,
     });
-    if (rpcError) return NextResponse.json({ error: rpcError.message }, { status: 500 });
+    if (rpcError) {
+      const failure = requeueFailure(f.requeue, rpcError);
+      return NextResponse.json({ error: failure.error, reason: failure.reason }, { status: failure.status });
+    }
     return NextResponse.json({
       ok: true,
       queued: queued ?? 0,

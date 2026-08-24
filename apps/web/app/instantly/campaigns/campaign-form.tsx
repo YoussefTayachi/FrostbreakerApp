@@ -7,7 +7,9 @@ import {
   defaultInstantlyTimezone,
   type StepVariant,
 } from "@/lib/instantly/campaigns";
+import type { PreviewSelection } from "@/lib/instantly/preview-selection";
 import CampaignStepCard from "./campaign-step-card";
+import MailPreview from "./mail-preview";
 
 type Account = { email: string; status: number };
 /** Ein Sequenzschritt im Formular. Mindestens eine Fassung, siehe StepVariant. */
@@ -63,6 +65,7 @@ export default function CampaignForm({
   beforeSubmit,
   submitDisabled,
   offerId,
+  previewSearchIds,
 }: {
   value: CampaignFormValue;
   onChange: (v: CampaignFormValue) => void;
@@ -79,10 +82,30 @@ export default function CampaignForm({
    *  funktioniert das Nachschaerfen weiter, das Modell kennt dann nur den
    *  vorhandenen Text und nicht das Geschaeft dahinter. */
   offerId?: string | null;
+  /**
+   * Die Lead-Listen, aus denen die Mail-Vorschau echte Empfaenger holt.
+   *
+   * UNDEFINED heisst: keine Vorschau. Genau das ist der Fall auf der
+   * Detailseite einer laufenden Kampagne ([id]/campaign-detail.tsx): an
+   * campaigns haengen keine searchIds, und eine Vorschau ohne Empfaenger waere
+   * dort eine leere Karte, die nach einem Fehler aussieht. Ein leeres Array
+   * ist etwas anderes -- es heisst "es gibt eine Auswahl, sie ist nur noch
+   * leer", und dazu sagt die Vorschau einen Satz.
+   */
+  previewSearchIds?: string[];
 }) {
   const { t } = useT();
   const F = t.instantly.campaigns.form;
   const [accounts, setAccounts] = useState<Account[] | null>(null);
+  /**
+   * Welche Stufe/Fassung die Mail-Vorschau zeigt.
+   *
+   * Liegt hier und nicht in der Vorschau, weil sie von zwei Seiten gesetzt
+   * wird: von den Stufenkarten (wer eine Karte anfasst, will sie unten sehen)
+   * und von der Vorschau selbst. Zwei Zustaende dafuer waeren zwei
+   * Wahrheiten, und eine davon waere immer die falsche.
+   */
+  const [previewSel, setPreviewSel] = useState<PreviewSelection>({ step: 0, variant: 0 });
 
   useEffect(() => {
     fetch("/api/instantly/accounts")
@@ -157,12 +180,27 @@ export default function CampaignForm({
             onRemove={() => removeStep(i)}
             canRemove={value.steps.length > 1}
             offerId={offerId}
+            onActive={(variant) => setPreviewSel({ step: i, variant })}
           />
         ))}
         <button type="button" onClick={addStep} className="text-xs font-medium text-sky-600 hover:text-sky-500 dark:text-sky-400">
           {F.addStep}
         </button>
       </div>
+
+      {/* UNTER den Stufenkarten und in voller Breite, nicht neben ihnen: die
+          Vorschau ist das Ergebnis der Karten darueber, und wer sie liest,
+          liest eine Mail und keine Spalte. Sie steht ausserdem vor dem
+          Zeitplan, weil sie zum Text gehoert -- zwischen Absenden-Knopf und
+          Text waere sie das, was man nach dem Schreiben ueberspringt. */}
+      {previewSearchIds !== undefined && (
+        <MailPreview
+          searchIds={previewSearchIds}
+          steps={value.steps}
+          selection={previewSel}
+          onSelectionChange={setPreviewSel}
+        />
+      )}
 
       <div>
         <p className="mb-1.5 text-xs font-medium text-faint">{F.scheduleLabel}</p>

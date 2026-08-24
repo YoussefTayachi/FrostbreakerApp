@@ -30,6 +30,9 @@
  * gleiche, die der Live-Test im AI-Agent-Tab benutzt. Sie muss inhaltlich mit
  * validate() in apps/worker/worker/pipelines/personalize.py uebereinstimmen:
  * dort entsteht das Flag.
+ *
+ * Seit dem 2026-08-24 bewertet dieselbe Logik auch den Website-Befund
+ * (Migration 0103). Was daran anders ist, steht bei ReviewKind.
  */
 import {
   DEFAULT_BANNED_WORDS,
@@ -37,6 +40,37 @@ import {
   validateIcebreaker,
   wordCount,
 } from "../personalization-defaults";
+import { FINDING_MAX_WORDS } from "../website-finding-defaults";
+
+/**
+ * ═══════════════════════════════════════════════════════════════════════
+ * ZWEI TEXTSORTEN, EINE BEWERTUNG
+ * ═══════════════════════════════════════════════════════════════════════
+ *
+ * Seit Migration 0103 gibt es pro Lead zwei erzeugte Saetze: den Icebreaker
+ * (businesses.personalization) und den Website-Befund
+ * (businesses.website_finding). Beide gehen durch dieselbe Wortzaehlung und
+ * dieselbe Zeichen-Verbotsliste, beide bekommen vom Worker eine Markierung,
+ * wenn zwei Versuche daran scheitern. Eine zweite Fassung dieser Datei fuer
+ * den Befund wuerde bei der naechsten Regelaenderung an einer Stelle
+ * nachgezogen und an der anderen vergessen.
+ *
+ * Genau ZWEI Unterschiede, beide unten im Code benannt:
+ *   1. die Wortgrenze (Einstellung vs. feste 20, siehe FINDING_MAX_WORDS)
+ *   2. leer ist beim Befund ein richtiges Ergebnis, kein Mangel
+ */
+export type ReviewKind = "icebreaker" | "finding";
+
+/**
+ * Die Wortgrenze des Befundsatzes.
+ *
+ * Steht seit dem 2026-08-24 in lib/website-finding-defaults.ts, zusammen mit
+ * den Standardtexten, die ebenfalls aus website_finding.py gespiegelt sind:
+ * ein Test dort haelt beide Seiten zeichengenau zusammen. Hier nur
+ * weitergereicht, damit bestehende Importe aus dieser Datei unveraendert
+ * bleiben und niemand die Zahl ein zweites Mal hinschreibt.
+ */
+export { FINDING_MAX_WORDS };
 
 /** Die Felder aus public.businesses, die fuer die Bewertung gebraucht werden. */
 export type IcebreakerRow = {
@@ -46,24 +80,92 @@ export type IcebreakerRow = {
   personalization_needs_review: boolean | null;
 };
 
+/** Dieselbe Zeile, um die Spalten des Website-Befunds erweitert. Beide Paare
+ *  optional, weil eine Abfrage immer nur eine Textsorte laedt. */
+export type ReviewRow = Partial<IcebreakerRow> & {
+  id: string;
+  name: string | null;
+  website_finding?: string | null;
+  website_finding_needs_review?: boolean | null;
+};
+
+/**
+ * Spalten- und Funktionsnamen je Textsorte, an einer Stelle.
+ *
+ * Die Route baut daraus ihre Abfragen; ohne diese Tabelle stuende
+ * "website_finding_needs_review" dort fuenfmal einzeln getippt.
+ */
+export type ReviewFieldNames = {
+  text: "personalization" | "website_finding";
+  flag: "personalization_needs_review" | "website_finding_needs_review";
+  /** Die Datenbankfunktion fuer "nochmal erzeugen" (Migrationen 0084 / 0104). */
+  requeue: "requeue_personalization" | "requeue_website_finding";
+};
+
+export const REVIEW_FIELDS: Record<ReviewKind, ReviewFieldNames> = {
+  icebreaker: {
+    text: "personalization",
+    flag: "personalization_needs_review",
+    requeue: "requeue_personalization",
+  },
+  finding: {
+    text: "website_finding",
+    flag: "website_finding_needs_review",
+    requeue: "requeue_website_finding",
+  },
+};
+
+/** Aus einem Parameter der Route eine Textsorte machen. Ohne Angabe bleibt
+ *  alles beim Icebreaker, damit bestehende Aufrufe unveraendert wirken. */
+export function parseReviewKind(raw: string | null | undefined): ReviewKind {
+  return raw === "finding" ? "finding" : "icebreaker";
+}
+
 /**
  * failing: verstoesst gegen die geltenden Vorgaben, muss angefasst werden.
  * stale:   traegt die Markierung, ist nach heutigen Regeln aber sauber.
  * clean:   unauffaellig.
+ *
+ * BEWUSST NICHT ERWEITERT: die Pruefliste der Icebreaker zaehlt diese drei
+ * Zustaende einzeln auf (app/icebreaker/icebreaker-review.tsx, Record ueber
+ * diesen Typ). Ein vierter Wert hier waere kein Zugewinn, sondern ein Fall,
+ * den diese Ansicht nicht darstellen kann.
  */
 export type IcebreakerState = "failing" | "stale" | "clean";
 
-export type IcebreakerVerdict = {
+/**
+ * Der Befund kennt einen vierten Zustand: es gibt keinen.
+ *
+ * Kein Mangel, sondern ein haeufiges, richtiges Ergebnis (keine Website,
+ * Seite nicht erreichbar, keine der acht Pruefungen schlaegt an, siehe
+ * worker/pipelines/website_finding.py).
+ *
+ * WARUM DAS NICHT WIE BEIM ICEBREAKER "clean" ODER "stale" HEISSEN KANN:
+ * reviewIcebreaker gibt einer leeren Zeile heute clean (oder stale, wenn die
+ * Markierung steht). Fuer den Icebreaker ist das folgenlos, weil eine leere
+ * Zeile die Pruefliste gar nicht erreicht -- sie ist dort ein Erzeugungsfall
+ * fuer den Torwart. Beim Befund wuerde "clean" behaupten, ein Text habe die
+ * Pruefung bestanden, wo es keinen Text gibt, und "stale" wuerde jemanden
+ * einladen, eine Markierung an einer leeren Zeile abzuraeumen. Deshalb ein
+ * eigener Zustand, und er schlaegt die Markierung: der Worker markiert nur,
+ * was er geschrieben hat, beides zusammen ist ein Widerspruch.
+ */
+export type ReviewState = IcebreakerState | "empty";
+
+export type ReviewVerdict = {
   id: string;
   name: string | null;
   text: string;
   words: number;
   /** Menschenlesbar und in der Sprache der Oberflaeche, siehe validateIcebreaker. */
   problems: string[];
-  state: IcebreakerState;
+  state: ReviewState;
   /** Was in der Datenbank steht, fuer die Erklaerung "warum steht das hier". */
   wasFlagged: boolean;
 };
+
+/** Das Urteil ueber einen Icebreaker: dieselbe Form, nur ohne "empty". */
+export type IcebreakerVerdict = Omit<ReviewVerdict, "state"> & { state: IcebreakerState };
 
 export type ReviewSettings = {
   maxWords: number;
@@ -103,10 +205,26 @@ export function reviewSettingsFromWorkspace(
   };
 }
 
-export function reviewIcebreaker(row: IcebreakerRow, settings: ReviewSettings): IcebreakerVerdict {
-  const text = (row.personalization ?? "").trim();
-  const wasFlagged = Boolean(row.personalization_needs_review);
-  const problems = text ? validateIcebreaker(text, settings.maxWords, settings.bannedWords, settings.lang) : [];
+/**
+ * Die Wortgrenze dieser Textsorte.
+ *
+ * Der Icebreaker nimmt die Einstellung des Workspaces
+ * (personalization_max_words), der Befund seine feste Grenze. Steht hier als
+ * eigene Funktion, weil die Route dieselbe Zahl auch anzeigen muss und sie
+ * sonst zweimal entschieden wuerde.
+ */
+export function maxWordsFor(kind: ReviewKind, settings: ReviewSettings): number {
+  return kind === "finding" ? FINDING_MAX_WORDS : settings.maxWords;
+}
+
+/** Einen der beiden Texte einer Zeile bewerten. */
+export function reviewText(row: ReviewRow, settings: ReviewSettings, kind: ReviewKind): ReviewVerdict {
+  const f = REVIEW_FIELDS[kind];
+  const text = (row[f.text] ?? "").trim();
+  const wasFlagged = Boolean(row[f.flag]);
+  const problems = text
+    ? validateIcebreaker(text, maxWordsFor(kind, settings), settings.bannedWords, settings.lang)
+    : [];
 
   return {
     id: row.id,
@@ -116,9 +234,26 @@ export function reviewIcebreaker(row: IcebreakerRow, settings: ReviewSettings): 
     problems,
     // Reihenfolge der Pruefung ist die Reihenfolge der Wichtigkeit: ein echter
     // Verstoss bleibt einer, egal ob er damals schon aufgefallen ist.
-    state: problems.length > 0 ? "failing" : wasFlagged ? "stale" : "clean",
+    //
+    // "empty" gibt es nur beim Befund, siehe ReviewState. Beim Icebreaker
+    // bleibt es bei clean/stale, damit die bestehende Pruefliste unveraendert
+    // arbeitet.
+    state:
+      problems.length > 0
+        ? "failing"
+        : !text && kind === "finding"
+          ? "empty"
+          : wasFlagged
+            ? "stale"
+            : "clean",
     wasFlagged,
   };
+}
+
+export function reviewIcebreaker(row: IcebreakerRow, settings: ReviewSettings): IcebreakerVerdict {
+  // Die Verengung ist keine Annahme, sondern die Bedingung oben: bei
+  // kind = "icebreaker" entsteht "empty" nicht.
+  return reviewText(row, settings, "icebreaker") as IcebreakerVerdict;
 }
 
 /**
@@ -127,16 +262,38 @@ export function reviewIcebreaker(row: IcebreakerRow, settings: ReviewSettings): 
  * Eine Firma ohne Icebreaker ist kein Pruef-, sondern ein Erzeugungsfall:
  * sie gehoert in den Torwart vor dem Kampagnenstart ("X Leads ohne Aufhaenger"),
  * nicht in eine Liste, in der man Texte gegeneinander abwaegt.
+ *
+ * Fuer den Befund gilt dasselbe, aber aus dem anderen Grund: dort ist "kein
+ * Text" ein fertiges, richtiges Ergebnis und nichts, was jemand abarbeiten
+ * koennte. In einer Liste, in der man Texte gegeneinander abwaegt, waeren
+ * diese Zeilen nur Rauschen -- und sie waeren die Mehrheit. Wer sie zaehlen
+ * will, fragt den Torwart vor dem Kampagnenstart; wer eine einzelne Zeile
+ * beurteilen will, bekommt von reviewText den Zustand "empty".
  */
-export function reviewIcebreakers(rows: IcebreakerRow[], settings: ReviewSettings): IcebreakerVerdict[] {
+export function reviewTexts(
+  rows: ReviewRow[],
+  settings: ReviewSettings,
+  kind: ReviewKind
+): ReviewVerdict[] {
+  const f = REVIEW_FIELDS[kind];
   return rows
-    .filter((r) => (r.personalization ?? "").trim().length > 0)
-    .map((r) => reviewIcebreaker(r, settings));
+    .filter((r) => (r[f.text] ?? "").trim().length > 0)
+    .map((r) => reviewText(r, settings, kind));
 }
 
+export function reviewIcebreakers(rows: IcebreakerRow[], settings: ReviewSettings): IcebreakerVerdict[] {
+  return reviewTexts(rows, settings, "icebreaker") as IcebreakerVerdict[];
+}
+
+/**
+ * Nur die drei Zustaende der Pruefliste. "empty" fehlt hier bewusst: aus
+ * reviewTexts kommt es nicht (leere Zeilen sind vorher raus), und ein Feld,
+ * das immer 0 waere, wuerde in der Anzeige eine Kategorie vortaeuschen, die
+ * niemand abarbeiten kann.
+ */
 export type ReviewSummary = Record<IcebreakerState, number> & { total: number };
 
-export function summarizeReview(verdicts: IcebreakerVerdict[]): ReviewSummary {
+export function summarizeReview(verdicts: ReviewVerdict[]): ReviewSummary {
   return {
     failing: verdicts.filter((v) => v.state === "failing").length,
     stale: verdicts.filter((v) => v.state === "stale").length,
@@ -152,8 +309,10 @@ export function summarizeReview(verdicts: IcebreakerVerdict[]): ReviewSummary {
  * erlaubten 22 hat, ist ein anderer Fall als wer 23 hat, und der erste ist
  * die Zeile, bei der sich das Nachbessern lohnt.
  */
-export function sortVerdicts(verdicts: IcebreakerVerdict[]): IcebreakerVerdict[] {
-  const rank: Record<IcebreakerState, number> = { failing: 0, stale: 1, clean: 2 };
+export function sortVerdicts<T extends ReviewVerdict>(verdicts: T[]): T[] {
+  // "empty" ganz nach hinten: da ist nichts zu tun, es steht nur zur
+  // Kenntnis da.
+  const rank: Record<ReviewState, number> = { failing: 0, stale: 1, clean: 2, empty: 3 };
   return [...verdicts].sort((a, b) => {
     const diff = rank[a.state] - rank[b.state];
     if (diff !== 0) return diff;

@@ -5,6 +5,12 @@
 // dieser Datei-Kopf als einziger Ort gilt, an dem man nachschauen muss, wenn
 // sich Instantlys Kampagnen-Schema aendert.
 
+// Nur der Typ, kein Laufzeit-Import: die Liste der Platzhalter, die Instantly
+// beim Versand ersetzt, steht in lib/copy/sequence-prompt.ts, weil sie dort
+// auch in die Prompts geht. Sie wird hier gebraucht, damit mergeTagValues
+// nachweislich JEDEN dieser Tags mit einem Wert belegt.
+import type { EmailMergeTag } from "@/lib/copy/sequence-prompt";
+
 /**
  * Eine Fassung eines Sequenzschritts.
  *
@@ -51,6 +57,95 @@ export function usesWebsiteFinding(
 ): boolean {
   const alles = variants.flatMap((v) => [v.subject ?? "", v.body ?? ""]).join("\n");
   return new RegExp(`\\{\\{\\s*${WEBSITE_FINDING_FIELD}\\s*\\}\\}`).test(alles);
+}
+
+/**
+ * Ein Lead, soweit er Werte fuer die Merge-Tags liefert.
+ *
+ * Strukturell genau die Spalten, die create-campaign.ts ohnehin laedt
+ * (CampaignContactRow). Bewusst als eigener, kleinerer Typ hier und nicht als
+ * Import von dort: create-campaign.ts zieht den Instantly-Client, die
+ * Abo-Pruefung und die Sperrlisten mit, und die Vorschau im Browser braucht
+ * davon nichts.
+ */
+export type MergeTagSource = {
+  email: string | null;
+  first_name: string | null;
+  last_name: string | null;
+  businesses: {
+    name: string | null;
+    personalization: string | null;
+    website_finding: string | null;
+  } | null;
+};
+
+/**
+ * Die sechs Werte eines Leads, benannt wie die Tags IM TEXT.
+ *
+ * Record<EmailMergeTag, string> ist hier die eigentliche Absicherung: die
+ * Liste der Tags steht in lib/copy/sequence-prompt.ts (EMAIL_MERGE_TAGS, von
+ * dort kommt auch die Pruefung auf erfundene Platzhalter). Kommt dort ein Tag
+ * dazu, kompiliert mergeTagValues nicht mehr, bis er auch hier einen Wert
+ * hat. Ein Tag ohne Wert wuerde sonst unbemerkt als leer beim Empfaenger
+ * ankommen.
+ */
+export type MergeTagValues = Record<EmailMergeTag, string>;
+
+/**
+ * ═══════════════════════════════════════════════════════════════════════
+ * DIE EINE STELLE, AN DER LEAD-SPALTE UND MERGE-TAG ZUSAMMENFINDEN
+ * ═══════════════════════════════════════════════════════════════════════
+ *
+ * Zwei Aufrufer, die nicht auseinanderlaufen duerfen:
+ *
+ *   buildInstantlyLead()  -> was beim Kampagnen-Upload tatsaechlich an
+ *                            Instantly geht (lib/instantly/create-campaign.ts)
+ *   renderVariables()     -> was die Vorschau als Mail des Empfaengers zeigt
+ *                            (lib/instantly/preview.ts)
+ *
+ * Eine Vorschau, die anders zuordnet als der Upload, luegt: sie zeigt einen
+ * Firmennamen, wo beim Empfaenger ein Loch steht, oder umgekehrt. Deshalb
+ * liest sie nicht selbst aus den Spalten, sondern nimmt genau dieses Objekt.
+ *
+ * Leer bleibt leer. Kein Rueckfallwert, keine Ersatztexte: dieselbe Haltung
+ * wie in splitByWebsiteFinding und in worker/usage.py. Wer den Wert braucht,
+ * soll sehen, dass er fehlt.
+ */
+export function mergeTagValues(lead: MergeTagSource): MergeTagValues {
+  return {
+    firstName: lead.first_name ?? "",
+    lastName: lead.last_name ?? "",
+    companyName: lead.businesses?.name ?? "",
+    email: lead.email ?? "",
+    personalization: lead.businesses?.personalization ?? "",
+    [WEBSITE_FINDING_FIELD]: lead.businesses?.website_finding ?? "",
+  };
+}
+
+/**
+ * Das Lead-Objekt fuer POST /api/v2/leads/add.
+ *
+ * Die Schluessel sind Instantlys eigene (first_name, company_name, ...), die
+ * Werte kommen aus mergeTagValues. Leere Werte werden zu undefined und fallen
+ * damit aus dem JSON: ein leerer String wuerde bei Instantly als gesetzter
+ * Wert liegen, und der Unterschied zwischen "nicht uebergeben" und "leer
+ * uebergeben" ist an ihrer API nicht nachgemessen. Verhalten dadurch
+ * unveraendert gegenueber der Fassung, die bis zum 2026-08-24 direkt in
+ * create-campaign.ts stand.
+ */
+export function buildInstantlyLead(lead: MergeTagSource) {
+  const v = mergeTagValues(lead);
+  return {
+    email: v.email,
+    first_name: v.firstName || undefined,
+    last_name: v.lastName || undefined,
+    company_name: v.companyName || undefined,
+    personalization: v.personalization || undefined,
+    // Eigenes Feld, nicht in den Icebreaker gemischt: die beiden Saetze haben
+    // verschiedene Aufgaben und sollen an verschiedenen Stellen der Mail
+    // stehen duerfen (Migration 0103).
+    [WEBSITE_FINDING_FIELD]: v[WEBSITE_FINDING_FIELD] || undefined,
+  };
 }
 
 /** Alle Fassungen einer Sequenz, ueber alle Stufen. */

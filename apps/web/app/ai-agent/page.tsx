@@ -7,6 +7,7 @@ import {
   MAX_PERSONALIZATION_EXAMPLES,
   getDefaultPrompt,
 } from "@/lib/personalization-defaults";
+import { FINDING_MAX_WORDS, getDefaultFindingPrompt } from "@/lib/website-finding-defaults";
 import { cardCls, inputCls, primaryBtnCls, secondaryBtnCls } from "@/lib/ui";
 import { useT } from "../language-provider";
 import { useToast } from "../toast-provider";
@@ -74,6 +75,36 @@ export default function AiAgentPage() {
   const [bannedWordsText, setBannedWordsText] = useState(DEFAULT_BANNED_WORDS.join(", "));
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>("default");
 
+  /**
+   * Der zweite Prompt: der Website-Befund (workspaces.website_finding_prompt,
+   * Migration 0103).
+   *
+   * ═══════════════════════════════════════════════════════════════════════
+   * WARUM ER HIER EINGEKLAPPT STEHT UND NICHT ALS ZWEITE HAELFTE
+   * ═══════════════════════════════════════════════════════════════════════
+   *
+   * Der Aufhaenger ist der Hauptfall: er geht an JEDEN Lead. Der Befundsatz
+   * entsteht nur, wenn der Website-Check ueberhaupt etwas gefunden hat, und
+   * leer ist dort ein haeufiges, richtiges Ergebnis (siehe
+   * worker/pipelines/website_finding.py). Zwei gleich grosse Textfelder
+   * untereinander wuerden zwei gleich wichtige Aufgaben behaupten und den
+   * Blick auf den Prompt lenken, den die meisten nie anfassen muessen.
+   *
+   * Keine eigene Vorlagenauswahl, keine Datenquelle, keine Beispiel-Paare:
+   * die gehoeren zum Aufhaenger. Der Befund bekommt sein Material aus
+   * businesses.website_audit und nichts sonst.
+   *
+   * findingIsCustom entspricht selectedTemplateId !== "default" beim
+   * Aufhaenger: es merkt sich, ob hier ein eigener Text steht. Nur davon haengt
+   * ab, ob ein Sprachwechsel den angezeigten Standardtext mit austauscht. Was
+   * gespeichert wird, entscheidet dagegen der Textvergleich in save(): wer
+   * seinen eigenen Text wieder auf den Standard bringt, soll auch wieder null
+   * gespeichert bekommen.
+   */
+  const [findingPrompt, setFindingPrompt] = useState("");
+  const [findingIsCustom, setFindingIsCustom] = useState(false);
+  const [findingOpen, setFindingOpen] = useState(false);
+
   const [examples, setExamples] = useState<Example[]>([]);
   const [savingExample, setSavingExample] = useState(false);
   /**
@@ -109,7 +140,7 @@ export default function AiAgentPage() {
       .select(
         // Ein Literal, keine Konkatenation: Supabase leitet die Feldtypen aus
         // dem String ab und faellt sonst auf GenericStringError zurueck.
-        "personalization_prompt, personalization_source, personalization_max_words, personalization_banned_words, personalization_language"
+        "personalization_prompt, personalization_source, personalization_max_words, personalization_banned_words, personalization_language, website_finding_prompt"
       )
       .eq("id", wsId)
       .single()
@@ -117,6 +148,16 @@ export default function AiAgentPage() {
         if (!data) return;
         const saved: "de" | "en" = data.personalization_language === "en" ? "en" : "de";
         setOutputLang(saved);
+        // Leer heisst "es gilt der Standard in der eingestellten Sprache",
+        // genau wie beim Aufhaenger und wie es der Worker aufloest
+        // (website_finding.load_config).
+        if (data.website_finding_prompt) {
+          setFindingPrompt(data.website_finding_prompt);
+          setFindingIsCustom(true);
+        } else {
+          setFindingPrompt(getDefaultFindingPrompt(saved));
+          setFindingIsCustom(false);
+        }
         setSource(data.personalization_source || "company_summary");
         setMaxWords(data.personalization_max_words || DEFAULT_MAX_WORDS);
         setBannedWordsText(data.personalization_banned_words || DEFAULT_BANNED_WORDS.join(", "));
@@ -149,6 +190,12 @@ export default function AiAgentPage() {
   useEffect(() => {
     if (selectedTemplateId === "default") {
       setSystemPrompt(getDefaultPrompt(outputLang));
+    }
+    // Derselbe Fall fuer den Befund: die Sprachwahl gilt fuer BEIDE Texte
+    // (Migration 0103, Abschnitt 4), also muss auch der zweite Standardtext
+    // mitwechseln. Ein eigener Text bleibt unangetastet.
+    if (!findingIsCustom) {
+      setFindingPrompt(getDefaultFindingPrompt(outputLang));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [outputLang]);
@@ -345,6 +392,16 @@ export default function AiAgentPage() {
         personalization_max_words: maxWords,
         personalization_banned_words:
           bannedWordsText.trim() === DEFAULT_BANNED_WORDS.join(", ") ? null : bannedWordsText.trim(),
+        // Gleiche Regel wie beim Aufhaenger: der unveraenderte Standardtext
+        // wird als null gespeichert, damit spaetere Verbesserungen am Standard
+        // in diesem Workspace ankommen (Migration 0103, Abschnitt 3). Das
+        // setzt voraus, dass die Web-Fassung des Textes zeichengenau der des
+        // Workers entspricht -- dafuer gibt es
+        // lib/website-finding-defaults.test.ts.
+        website_finding_prompt:
+          findingPrompt.trim() === getDefaultFindingPrompt(outputLang).trim()
+            ? null
+            : findingPrompt.trim(),
       })
       .eq("id", wsId);
 
@@ -414,6 +471,10 @@ export default function AiAgentPage() {
   ).length;
   const openExampleId =
     openExample === "letztes" ? (examples[examples.length - 1]?.id ?? null) : openExample;
+  // Steht im Befund-Feld noch der Standardtext? Bewusst am Textvergleich und
+  // nicht an findingIsCustom: die Plakette soll sagen, was drinsteht, nicht,
+  // was jemand mal angeklickt hat.
+  const findingIsDefault = findingPrompt.trim() === getDefaultFindingPrompt(outputLang).trim();
 
   return (
     <div className="fade-up max-w-3xl space-y-6">
@@ -680,7 +741,12 @@ export default function AiAgentPage() {
             </label>
           ))}
         </div>
-        <p className="mt-3 max-w-[68ch] text-xs leading-relaxed text-faint">{t.aiAgent.languageHint}</p>
+        {/* Ein Satz mehr, seit es zwei erzeugte Texte gibt: beide stehen in
+            derselben Mail, zwei Sprachen darin waeren ein Fehler (Migration
+            0103, Abschnitt 4). */}
+        <p className="mt-3 max-w-[68ch] text-xs leading-relaxed text-faint">
+          {t.aiAgent.languageHint} {t.aiAgent.languageScope}
+        </p>
       </div>
 
       <div className={cardCls}>
@@ -832,6 +898,12 @@ export default function AiAgentPage() {
           className={inputCls + " w-full resize-y font-mono text-[13px] leading-relaxed"}
         />
 
+        {/* Die Reichweite steht seit dem 2026-08-24 an beiden Feldern, und
+            zwar weil es seither zwei erzeugte Texte gibt: die Wortgrenze
+            gilt nur fuer den Aufhaenger, die verbotenen Zeichen fuer beide
+            (Migration 0103, Abschnitt 4). Solange es nur einen Prompt gab,
+            war die Frage nicht zu stellen; mit zweien ist sie eine echte
+            Fehlerquelle. */}
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
           <div>
             <label className="mb-1 block text-xs font-medium text-faint">{t.aiAgent.maxWords}</label>
@@ -843,6 +915,10 @@ export default function AiAgentPage() {
               onChange={(e) => setMaxWords(Number(e.target.value) || DEFAULT_MAX_WORDS)}
               className={inputCls + " w-28"}
             />
+            {/* text-faint statt text-mute: die Reichweite einer Einstellung ist
+                Inhalt, kein Platzhalter. text-mute kommt auf Weiss auf 2,4:1 --
+                lesbar war der Satz nur, wenn man wusste, dass er dasteht. */}
+            <p className="mt-1 text-xs leading-relaxed text-faint">{t.aiAgent.maxWordsScope}</p>
           </div>
           <div>
             <label className="mb-1 block text-xs font-medium text-faint">{t.aiAgent.bannedWords}</label>
@@ -851,6 +927,7 @@ export default function AiAgentPage() {
               onChange={(e) => setBannedWordsText(e.target.value)}
               className={inputCls + " w-full"}
             />
+            <p className="mt-1 text-xs leading-relaxed text-faint">{t.aiAgent.bannedWordsScope}</p>
           </div>
         </div>
 
@@ -860,7 +937,95 @@ export default function AiAgentPage() {
             erst im Korrekturversuch und lag im Schnitt darueber. */}
         <p className="mt-3 max-w-[68ch] text-xs leading-relaxed text-faint">{t.aiAgent.limitsInPromptHint}</p>
 
-        <div className="mt-4 flex items-center gap-3">
+        {/* Der zweite Prompt: eingeklappt, in derselben Karte, oberhalb des
+            Speichern-Knopfes. Oberhalb, weil derselbe Knopf beide Texte
+            speichert; darunter saehe er aus, als gehoere er nicht dazu.
+            Aufbau wie die Beispielzeilen weiter oben: eigener Knopf mit
+            aria-expanded, gedrehte Spitze, Inhalt hinter einer Linie. */}
+        {/* mt-6 statt mt-4: bis hierher gehoert alles zum Aufhaenger (Feld,
+            zwei Einstellungen, drei Hinweise). Der Befund ist der Zusatz und
+            braucht die Luft davor, damit die Karte zwei Gruppen zeigt statt
+            sieben gleich weit auseinander stehender Zeilen. */}
+        <div className="mt-6 rounded-lg border border-edge2">
+          <button
+            type="button"
+            onClick={() => setFindingOpen((v) => !v)}
+            aria-expanded={findingOpen}
+            aria-controls="finding-prompt-body"
+            /* hover:bg-chip: ein Streifen ueber die volle Breite, der sich beim
+               Ueberfahren nicht regt, sieht nicht nach Schaltflaeche aus. Die
+               unteren Ecken nur, solange nichts darunter haengt -- sonst liefe
+               die Flaeche im offenen Zustand ueber die Trennlinie hinaus. */
+            className={
+              "flex w-full items-center gap-2.5 px-3 py-2.5 text-left transition-colors hover:bg-chip " +
+              "focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 " +
+              (findingOpen ? "rounded-t-lg" : "rounded-lg")
+            }
+          >
+            <span
+              aria-hidden
+              className="shrink-0 text-faint transition-transform duration-200"
+              style={{ transform: findingOpen ? "rotate(90deg)" : "none" }}
+            >
+              ›
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-sm font-medium text-ink">{t.aiAgent.findingHeading}</span>
+              <span className="mt-0.5 block text-xs leading-relaxed text-faint">
+                {t.aiAgent.findingSummary}
+              </span>
+            </span>
+            {/* Nur der Standardfall bekommt eine Plakette: sie sagt, dass hier
+                nichts eingerichtet werden muss. Ein eigener Text braucht
+                keine, den sieht man beim Aufklappen. */}
+            {findingIsDefault && (
+              /* 11px: die kleinste Schriftgroesse, die diese App sonst
+                 vergibt. 10px waere eine eigene Stufe fuer genau ein Element. */
+              <span className="shrink-0 rounded-full border border-edge2 bg-chip px-2 py-0.5 text-[11px] font-medium text-soft">
+                {t.aiAgent.findingDefaultBadge}
+              </span>
+            )}
+          </button>
+
+          {findingOpen && (
+            <div id="finding-prompt-body" className="fade-up border-t border-edge px-3 pb-4 pt-3.5">
+              <div className="mb-2 flex items-start justify-between gap-3">
+                <p className="max-w-[68ch] text-xs leading-relaxed text-faint">
+                  {t.aiAgent.findingDescription}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFindingPrompt(getDefaultFindingPrompt(outputLang));
+                    setFindingIsCustom(false);
+                  }}
+                  className="shrink-0 text-xs text-faint hover:text-ink"
+                >
+                  {t.aiAgent.resetToDefault}
+                </button>
+              </div>
+              <textarea
+                value={findingPrompt}
+                onChange={(e) => {
+                  setFindingPrompt(e.target.value);
+                  setFindingIsCustom(true);
+                }}
+                rows={10}
+                className={inputCls + " w-full resize-y font-mono text-[13px] leading-relaxed"}
+              />
+              {/* Die feste Wortgrenze gehoert hierhin und nicht ins Formular
+                  oben: sie ist eine Eigenschaft dieser Textsorte und bewusst
+                  keine vierte Einstellung (Migration 0103, Abschnitt 4). */}
+              <p className="mt-2 max-w-[68ch] text-xs leading-relaxed text-faint">
+                {t.aiAgent.findingLimitsHint(FINDING_MAX_WORDS)}
+              </p>
+            </div>
+          )}
+        </div>
+
+        {/* mt-5: der Knopf speichert BEIDE Prompts und gehoert damit der
+            ganzen Karte, nicht dem Kasten direkt darueber. */}
+        <div className="mt-5 flex items-center gap-3">
           <button onClick={save} className={primaryBtnCls}>{t.aiAgent.save}</button>
         </div>
       </div>
@@ -893,7 +1058,11 @@ export default function AiAgentPage() {
         )}
 
         {testResult && (
-          <div className="lock-pop mt-4 rounded-lg border-l-2 border-sky-500/50 bg-sky-500/5 p-4">
+          /* Voller Haarrahmen statt eines 2 Pixel dicken Streifens links: jeder
+             andere sky-Hinweis der App steht in border border-sky-500/40
+             bg-sky-500/5 (campaigns/new, Pruefliste). Der einseitige Balken war
+             die einzige Stelle mit einer eigenen Sprache. */
+          <div className="lock-pop mt-4 rounded-lg border border-sky-500/40 bg-sky-500/5 p-4">
             <p className="text-sm italic leading-relaxed text-ink">{testResult.text}</p>
             <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
               <span className="text-faint">{testResult.wordCount} {t.aiAgent.words}</span>

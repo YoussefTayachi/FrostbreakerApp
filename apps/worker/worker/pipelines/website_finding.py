@@ -49,6 +49,10 @@ log = logging.getLogger("worker.website_finding")
 
 # Wortgrenze dieses Satzes.
 #
+# Gegenstueck: FINDING_MAX_WORDS in apps/web/lib/website-finding-defaults.ts.
+# Die Pruefliste rechnet damit nach, was hier erzeugt wurde; wer die Zahl nur
+# hier aendert, laesst dort Verstoesse auflaufen, die keine sind.
+#
 # BEWUSST EINE KONSTANTE UND KEINE VIERTE WORKSPACE-EINSTELLUNG. Ein
 # Befundsatz ist kuerzer als ein Icebreaker: der Icebreaker braucht einen
 # Fakt UND den Anschluss "deswegen melde ich mich" (deshalb dort 35 Woerter,
@@ -62,9 +66,15 @@ log = logging.getLogger("worker.website_finding")
 # Grund daneben), so wie es bei DEFAULT_MAX_WORDS am 2026-08-13 passiert ist.
 FINDING_MAX_WORDS = 20
 
-# Der Standard-Prompt. FUNKTIONAL FORMULIERT, NOCH NICHT GETEXTET: er ist ein
-# Nutzertext wie DEFAULT_PROMPT_DE und gehoert vor dem ersten echten Versand
-# durch den copywriter.
+# Der Standard-Prompt. Getextet vom copywriter am 2026-08-24, wie DEFAULT_PROMPT_DE
+# in apps/web/lib/personalization-defaults.ts.
+#
+# WOERTLICHES GEGENSTUECK: DEFAULT_FINDING_PROMPT_DE / _EN in
+# apps/web/lib/website-finding-defaults.ts. Der AI-Agent-Tab zeigt diesen Text
+# an und speichert ihn als NULL, solange er unveraendert ist; weicht die
+# Web-Fassung auch nur um ein Zeichen ab, gilt ein angezeigter Standardtext als
+# eigener Prompt und wird gespeichert. Die Gleichheit haelt der Test
+# apps/web/lib/website-finding-defaults.test.ts fest, der diese Datei liest.
 #
 # Zwei Vorgaben stehen absichtlich drin, obwohl sie auch im constraint_block
 # stehen koennten: "keine Zahlen erfinden" und "nur diesen einen Mangel". Der
@@ -74,17 +84,18 @@ DEFAULT_FINDING_PROMPT_DE = (
     "Deine Aufgabe ist es, aus einem geprüften Mangel der Website eines Unternehmens "
     "einen einzelnen Satz für eine Cold-Email zu formulieren.\n"
     "Regeln für den Satz:\n"
-    "- Nenne genau den einen Mangel, der dir gegeben wurde, und die Folge, die dabei "
-    "steht. Erfinde keinen zweiten Mangel, keine Zahlen und keine Prozentwerte.\n"
-    "- Der Mangel ist gemessen, nicht vermutet. Schreibe ihn als Tatsache, ohne "
+    "- Nenne ausschließlich den einen Mangel, der dir übergeben wurde, und die "
+    "dazugehörige Folge. Erfinde keinen zweiten Mangel, keine Zahlen und keine "
+    "Prozentwerte.\n"
+    "- Der Mangel ist gemessen, nicht vermutet: Schreibe ihn als Tatsache, ohne "
     "Abschwächung wie „vielleicht\" oder „unter Umständen\".\n"
     "- Erwähne NICHT, woher du das weißt: kein „Ich habe gesehen\", kein „Mir ist "
     "aufgefallen\", kein Werkzeug, kein Test, keine Prüfung. Nenne einfach den Mangel.\n"
     "- Baue KEINEN Namen, keine Begrüßung und keine Verabschiedung ein.\n"
     "- Beschreibe oder verkaufe deine eigene Leistung NICHT. Der Satz benennt das "
     "Problem, nicht die Lösung.\n"
-    "- Tonalität: sachlich, direkt, ohne Fachjargon und ohne Dramatik. Kein Vorwurf "
-    "und kein Alarm.\n"
+    "- Tonfall: sachlich, direkt und ohne Fachjargon, aber ohne Dramatik, Vorwurf "
+    "oder Alarm.\n"
     "- Schreibe in der „Du\"-Form, nicht in der „Sie\"-Form.\n"
     "- Der Satz wird an einer beliebigen Stelle in die Mail eingesetzt und muss dort "
     "für sich allein stehen: er beginnt mit einem Großbuchstaben und endet mit einem "
@@ -98,16 +109,16 @@ DEFAULT_FINDING_PROMPT_EN = (
     "Your task is to turn one verified flaw on a company's website into a single "
     "sentence for a cold email.\n"
     "Rules for the sentence:\n"
-    "- Name exactly the one flaw you were given and the consequence stated with it. "
-    "Do not invent a second flaw, any numbers or any percentages.\n"
-    "- The flaw was measured, not guessed. State it as a fact, without hedging like "
+    "- Name only the one flaw you were given and its stated consequence. Do not "
+    "invent a second flaw, any numbers or any percentages.\n"
+    "- The flaw was measured, not guessed: state it as a fact, without hedging like "
     "\"maybe\" or \"possibly\".\n"
     "- Do NOT mention how you know: no \"I saw\", no \"I noticed\", no tool, no test, "
     "no audit. Just state the flaw.\n"
     "- Do NOT include any name, greeting or sign-off.\n"
     "- Do NOT describe or pitch your own service. The sentence names the problem, not "
     "the solution.\n"
-    "- Tone: plain, direct, no jargon and no drama. No blame, no alarm.\n"
+    "- Tone: plain, direct and free of jargon, but without drama, blame or alarm.\n"
     "- Always write in the informal \"you\" form.\n"
     "- The sentence is dropped into the email at an arbitrary position and has to "
     "stand on its own there: it starts with a capital letter and ends with a full "

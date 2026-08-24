@@ -31,6 +31,7 @@
  * Komponente verstreut liegen. Die Fakten sammelt api/campaigns/readiness.
  */
 import { wordCount } from "./personalization-defaults";
+import { FINDING_MAX_WORDS } from "./website-finding-defaults";
 
 export type Severity = "blocker" | "warning" | "ok";
 
@@ -139,13 +140,21 @@ const PERSONALIZATION_PLACEHOLDER = "personalization";
  *
  * Anders als beim Aufhaenger ist die Laenge hier KEINE Workspace-Einstellung,
  * sondern eine Konstante im Worker (FINDING_MAX_WORDS in
- * apps/worker/worker/pipelines/website_finding.py). Sie steht deshalb als Zahl
- * hier und nicht als Parameter. Wer sie dort aendert, muss sie hier
- * nachziehen, sonst rechnet der Torwart die erste Mail kuerzer, als sie
- * ankommt.
+ * apps/worker/worker/pipelines/website_finding.py). Sie ist deshalb kein
+ * Parameter von estimateWords, sondern kommt importiert aus
+ * lib/website-finding-defaults.ts, wo die Spiegelung des Workers liegt und
+ * unter Test steht.
+ *
+ * IMPORTIERT STATT HIER NOCHMAL HINGESCHRIEBEN: es ist dieselbe Zahl, und
+ * zwar zwangslaeufig. Der Torwart rechnet den Platzhalter mit der Laenge, die
+ * der Satz hoechstens haben kann, und dieses Hoechstmass IST die Grenze, mit
+ * der der Worker erzeugt und prueft. Stuenden hier eigene 20, wuerde eine
+ * Aenderung im Worker die Pruefliste stillschweigend falsch rechnen lassen:
+ * die erste Mail kaeme kuerzer heraus, als sie ankommt, und die 90-Woerter-
+ * Grenze liesse sich reissen, ohne dass jemand etwas sieht. Genau die Drift,
+ * gegen die website-finding-defaults.test.ts den Worker-Quelltext einliest.
  */
 const WEBSITE_FINDING_PLACEHOLDER = "websitefinding";
-export const WEBSITE_FINDING_WORDS = 20;
 
 /** Platzhalter der Form {{name}}. */
 const PLACEHOLDER = /\{\{\s*([\w.]+)\s*\}\}/g;
@@ -161,7 +170,7 @@ export function estimateWords(body: string, personalizationWords: number): numbe
   const filled = body.replace(PLACEHOLDER, (_m, name: string) => {
     const key = name.toLowerCase();
     if (key === PERSONALIZATION_PLACEHOLDER) return "x ".repeat(personalizationWords);
-    if (key === WEBSITE_FINDING_PLACEHOLDER) return "x ".repeat(WEBSITE_FINDING_WORDS);
+    if (key === WEBSITE_FINDING_PLACEHOLDER) return "x ".repeat(FINDING_MAX_WORDS);
     return "x";
   });
   return wordCount(filled);

@@ -29,6 +29,7 @@ import {
   allVariants,
   buildCampaignSchedule,
   buildCampaignSequence,
+  buildInstantlyLead,
   primaryVariant,
   toLocalStatus,
   usesWebsiteFinding,
@@ -65,7 +66,11 @@ export type CampaignContactRow = {
   } | null;
 };
 
-const CONTACT_COLUMNS =
+/** Exportiert, weil die Mail-Vorschau (api/campaigns/preview-leads) dieselben
+ *  Zeilen braucht: sie zeigt Leads, die tatsaechlich in die Kampagne gingen,
+ *  und muss deshalb durch dieselbe Abfrage und dieselben Filter
+ *  (planCampaignLeads) gehen wie der Versand. */
+export const CONTACT_COLUMNS =
   "id, email, first_name, last_name, title, business_id, is_primary, outreach_status, email_verification_status, businesses!inner(name, website, personalization, website_finding, search_id)";
 
 /**
@@ -470,19 +475,15 @@ export async function createInstantlyCampaign(
           : "Keine kontaktierbaren Leads in dieser Suche gefunden (alle bereits blockiert oder ohne Interesse).",
     };
   }
-  const leads = rows.map((c) => ({
-    email: c.email as string,
-    first_name: c.first_name || undefined,
-    last_name: c.last_name || undefined,
-    company_name: c.businesses?.name || undefined,
-    personalization: c.businesses?.personalization || undefined,
-    // Eigenes Feld, nicht in den Icebreaker gemischt: die beiden Saetze haben
-    // verschiedene Aufgaben und sollen an verschiedenen Stellen der Mail
-    // stehen duerfen (Migration 0103). Leere Werte kommen hier nicht mehr an:
-    // benutzt die Sequenz die Variable, sind die betroffenen Leads oben schon
-    // zurueckgehalten worden.
-    [WEBSITE_FINDING_FIELD]: c.businesses?.website_finding || undefined,
-  }));
+  // Die Zuordnung Spalte -> Instantly-Feld steht bewusst NICHT hier, sondern
+  // in buildInstantlyLead (lib/instantly/campaigns.ts). Dieselbe Zuordnung
+  // braucht die Mail-Vorschau, und eine abgeschriebene Vorschau zeigt
+  // irgendwann etwas anderes, als der Empfaenger bekommt.
+  //
+  // Leere website_finding-Werte kommen hier nicht mehr an: benutzt die
+  // Sequenz die Variable, sind die betroffenen Leads oben schon
+  // zurueckgehalten worden.
+  const leads = rows.map((c) => buildInstantlyLead(c));
 
   const bericht: CreateCampaignReport = {
     dryRun,
