@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
+  allVariants,
   buildCampaignSequence,
   instantlyHtmlToPlainText,
   plainTextToInstantlyHtml,
+  usesWebsiteFinding,
   sequenceFromInstantly,
 } from "./campaigns";
 
@@ -299,5 +301,37 @@ describe("Varianten je Schritt", () => {
       sequences: [{ steps: buildCampaignSequence(original)[0].steps }],
     });
     expect(back).toEqual(original);
+  });
+});
+
+describe("usesWebsiteFinding", () => {
+  const stufe = (subject: string, body: string) => ({ variants: [{ subject, body }] });
+
+  it("findet die Variable im Text", () => {
+    expect(usesWebsiteFinding(allVariants([stufe("betreff", "Hi\n\n{{websiteFinding}}\n\nGruss")]))).toBe(
+      true
+    );
+  });
+
+  it("findet sie auch im Betreff und in Fassung B", () => {
+    // Eine Variable, die nur in Fassung B steht, geht trotzdem an die
+    // Haelfte der Empfaenger.
+    const step = {
+      variants: [
+        { subject: "a", body: "ohne" },
+        { subject: "b", body: "mit {{websiteFinding}}" },
+      ],
+    };
+    expect(usesWebsiteFinding(allVariants([step]))).toBe(true);
+    expect(usesWebsiteFinding(allVariants([stufe("{{websiteFinding}}", "ohne")]))).toBe(true);
+  });
+
+  it("vertraegt Leerzeichen in den Klammern", () => {
+    expect(usesWebsiteFinding([{ body: "{{ websiteFinding }}" }])).toBe(true);
+  });
+
+  it("sagt nein, wenn sie nirgends steht", () => {
+    expect(usesWebsiteFinding(allVariants([stufe("betreff", "nur {{personalization}}")]))).toBe(false);
+    expect(usesWebsiteFinding([])).toBe(false);
   });
 });

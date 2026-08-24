@@ -20,6 +20,7 @@ from worker.pipelines import (
     get_businesses,
     hunt_persons,
     personalize,
+    website_finding,
 )
 from worker.search_state import SearchCancelled
 
@@ -51,6 +52,40 @@ HANDLERS = {
     # kein Fremd-Credit, kein Modellaufruf.
     "check_website": check_website.run,
     "personalize": personalize.run,
+    # WARUM DER BEFUNDSATZ EIN EIGENER JOB IST UND KEIN ZWEITER AUFRUF IN
+    # personalize
+    #
+    # Beide Wege kosten dasselbe Geld: einen zusaetzlichen OpenAI-Aufruf pro
+    # Lead mit Befund. Der Unterschied liegt im Retry, und der entscheidet.
+    #
+    # Ein zweiter Aufruf innerhalb von personalize haette genau zwei moegliche
+    # Formen, und beide sind kaputt:
+    #
+    #   Erst Icebreaker schreiben, dann Befundsatz. Scheitert der zweite
+    #   Aufruf, faellt der ganze Job auf 'failed'. Beim Retry greift ganz oben
+    #   die Abkuerzung "personalization ist schon da, also fertig": der Job
+    #   kehrt sofort um, der Befundsatz wird NIE geschrieben, und niemand
+    #   sieht einen Fehler.
+    #
+    #   Beides am Ende in EINEM Update schreiben. Scheitert der zweite Aufruf,
+    #   ist auch der Icebreaker nicht gespeichert, und der Retry erzeugt ihn
+    #   ein zweites Mal. Das ist genau der Fehler, wegen dem mehrere Commits
+    #   in der Historie existieren: fremde API-Credits doppelt verbraucht,
+    #   weil ein Fehlschlag einen bereits bezahlten Aufruf mitreisst.
+    #
+    # Als eigener Job hat jeder der beiden Texte sein eigenes Feld, seine
+    # eigene Abkuerzung gegen doppelte Zustellung und seinen eigenen Retry.
+    # Ein Fehlschlag auf der einen Seite laesst die andere unberuehrt.
+    #
+    # Der Preis ist ein Job pro Lead mehr. Er faellt kaum ins Gewicht: Leads
+    # ohne Befund (keine Website, Seite tot, keine Pruefung schlaegt an)
+    # beenden ihn ohne Modellaufruf und ohne Schreibvorgang.
+    #
+    # Die Wartelogik auf den check_website-Job teilt er sich NICHT mit
+    # personalize, sondern hat sie geerbt: sie ist mit dem Rueckbau des
+    # Icebreaker-Zusatzsignals von personalize.py nach website_finding.py
+    # gewandert, weil nur noch dieser Job auf den Befund angewiesen ist.
+    "write_website_finding": website_finding.run,
     # Phase 3 (interne Sende-Engine): send_batch, poll_inbox, bewusst nicht gebaut,
     # siehe Differenzierungs-Plan Punkt 0: Instantly bleibt Sende-Infrastruktur.
 }

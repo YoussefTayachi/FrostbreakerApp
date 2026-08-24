@@ -3555,6 +3555,10 @@ export const TOOLS: Record<ToolName, McpTool> = {
             suppressed_or_unsubscribed: ergebnis.skippedSuppressed,
             already_replied_or_declined: ergebnis.skippedEngaged,
             invalid_address: ergebnis.skippedUnverified,
+            // Nur besetzt, wenn die Sequenz {{websiteFinding}} benutzt: dann
+            // gehen Leads ohne Website-Befund nicht mit, statt eine Mail mit
+            // einer leeren Zeile zu bekommen.
+            no_website_finding: ergebnis.skippedWithoutFinding,
           },
           mailboxes: gewaehlt,
           available_mailboxes: postfaecher.emails,
@@ -3584,6 +3588,7 @@ export const TOOLS: Record<ToolName, McpTool> = {
           suppressed_or_unsubscribed: ergebnis.skippedSuppressed,
           already_replied_or_declined: ergebnis.skippedEngaged,
           invalid_address: ergebnis.skippedUnverified,
+          no_website_finding: ergebnis.skippedWithoutFinding,
         },
         mailboxes: gewaehlt,
         discarded_drafts: ergebnis.discardedDrafts,

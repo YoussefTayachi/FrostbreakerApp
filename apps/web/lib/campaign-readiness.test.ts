@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   BOUNCE_MIN_SAMPLE,
+  WEBSITE_FINDING_WORDS,
   assessCampaign,
   estimateWords,
   hasLink,
@@ -17,6 +18,8 @@ function facts(patch: Partial<ReadinessFacts> = {}): ReadinessFacts {
     unverifiedLeads: 0,
     leadsWithoutIcebreaker: 0,
     leadsWithFailingIcebreaker: 0,
+    sequenceUsesWebsiteFinding: false,
+    leadsWithoutWebsiteFinding: 0,
     domains: [{ domain: "acme.de", spf: true, dkim: true, dmarc: true }],
     sentSoFar: 1000,
     bouncedSoFar: 5,
@@ -46,7 +49,7 @@ describe("assessCampaign — der saubere Fall", () => {
   // beantwortet nicht, ob ueberhaupt hingeschaut wurde.
   it("gibt jede Pruefung zurueck, auch die bestandenen", () => {
     const r = assessCampaign(facts());
-    expect(r.checks.length).toBe(11);
+    expect(r.checks.length).toBe(12);
     expect(r.checks.every((c) => c.severity === "ok")).toBe(true);
   });
 });
@@ -99,6 +102,37 @@ describe("Warnungen", () => {
   it("ab einem Viertel ungeprueften Adressen", () => {
     expect(severityOf(facts({ sendableLeads: 100, unverifiedLeads: 25 }), "verification")).toBe("warning");
     expect(severityOf(facts({ sendableLeads: 100, unverifiedLeads: 24 }), "verification")).toBe("ok");
+  });
+
+  /**
+   * Der Website-Befund. Anders als beim Aufhaenger gibt es KEINE
+   * Prozentschwelle: die Pruefung erscheint nur, wenn die Sequenz die
+   * Variable wirklich benutzt, und dann ist jeder einzelne zurueckgehaltene
+   * Lead eine Zahl, die vor dem Start auf den Tisch gehoert.
+   */
+  it("meldet schon einen einzigen Lead ohne Website-Befund", () => {
+    const f = facts({ sequenceUsesWebsiteFinding: true, leadsWithoutWebsiteFinding: 1 });
+    expect(severityOf(f, "websiteFindingMissing")).toBe("warning");
+    // Aber kein Blocker: die betroffenen Leads werden zurueckgehalten, es
+    // geht keine Mail mit einem Loch raus, die Kampagne wird nur kleiner.
+    expect(assessCampaign(f).canStart).toBe(true);
+  });
+
+  it("schweigt, wenn die Sequenz den Befund gar nicht benutzt", () => {
+    const f = facts({ sequenceUsesWebsiteFinding: false, leadsWithoutWebsiteFinding: 500 });
+    expect(severityOf(f, "websiteFindingMissing")).toBe("ok");
+  });
+
+  it("zaehlt die Zurueckgehaltenen zur Gesamtzahl dazu", () => {
+    // sendableLeads ist die Zahl, die HOCHGEHT; "3 von 203" beantwortet die
+    // Frage, "3 von 200" waere die falsche Bezugsgroesse.
+    const f = facts({
+      sendableLeads: 200,
+      sequenceUsesWebsiteFinding: true,
+      leadsWithoutWebsiteFinding: 3,
+    });
+    const check = assessCampaign(f).checks.find((c) => c.id === "websiteFindingMissing");
+    expect(check?.values).toEqual({ count: 3, total: 203 });
   });
 
   it("ab einem Fuenftel fehlender oder fehlerhafter Aufhaenger", () => {
@@ -163,6 +197,19 @@ describe("estimateWords", () => {
 
   it("kommt mit Leerraum im Platzhalter klar", () => {
     expect(estimateWords("{{ personalization }}", 10)).toBe(10);
+  });
+
+  /**
+   * Der Website-Befund waere als ein Wort gezaehlt worden, kommt aber mit
+   * rund zwanzig an. Bei einer Mail 1 mit beiden Platzhaltern waeren das
+   * neunzehn Woerter, die der Torwart nicht sieht, und die Grenze von 90
+   * liesse sich unbemerkt reissen.
+   */
+  it("zaehlt den Website-Befund mit seiner echten Laenge", () => {
+    expect(estimateWords("{{websiteFinding}}", 22)).toBe(WEBSITE_FINDING_WORDS);
+    expect(estimateWords("Hi {{firstName}}, {{personalization}} {{websiteFinding}}", 22)).toBe(
+      1 + 1 + 22 + WEBSITE_FINDING_WORDS
+    );
   });
 });
 

@@ -24,6 +24,40 @@ export type StepVariant = { subject: string; body: string; disabled?: boolean };
 
 export type SequenceStep = { variants: StepVariant[]; delayDays?: number };
 
+/**
+ * Der Name, unter dem der Website-Befund als Instantly-Variable ankommt.
+ *
+ * Anders als firstName, lastName, companyName und personalization ist das
+ * KEINE von Instantlys vordefinierten Lead-Variablen, sondern ein eigenes
+ * Feld, das mit dem Lead hochgeladen wird. Der Schluessel im Upload und der
+ * Name im Text muessen deshalb zeichengenau gleich sein: ein Tippfehler wird
+ * nicht ersetzt und geht als "{{websiteFinding}}" an den Empfaenger raus.
+ */
+export const WEBSITE_FINDING_FIELD = "websiteFinding";
+
+/**
+ * Benutzt diese Sequenz den Website-Befund?
+ *
+ * Davon haengt ab, ob Leads OHNE Befund mitgehen duerfen. Steht die Variable
+ * nirgends im Text, ist ein fehlender Befund voellig belanglos; steht sie
+ * drin, wuerde jeder solche Lead eine Mail mit einem Loch bekommen.
+ *
+ * Geprueft werden ALLE Fassungen und auch die Betreffzeilen, nicht nur
+ * Fassung A des ersten Schrittes: eine Variable, die nur in Fassung B steht,
+ * wird trotzdem an die Haelfte der Empfaenger versendet.
+ */
+export function usesWebsiteFinding(
+  variants: { subject?: string | null; body?: string | null }[]
+): boolean {
+  const alles = variants.flatMap((v) => [v.subject ?? "", v.body ?? ""]).join("\n");
+  return new RegExp(`\\{\\{\\s*${WEBSITE_FINDING_FIELD}\\s*\\}\\}`).test(alles);
+}
+
+/** Alle Fassungen einer Sequenz, ueber alle Stufen. */
+export function allVariants(steps: SequenceStep[]): { subject: string; body: string }[] {
+  return steps.flatMap((s) => s.variants ?? []);
+}
+
 /** Variante A eines Schrittes, der Text, der auf jeden Fall existiert. */
 export function primaryVariant(step: SequenceStep): StepVariant {
   return step.variants[0] ?? { subject: "", body: "" };

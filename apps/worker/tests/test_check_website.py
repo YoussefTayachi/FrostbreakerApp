@@ -1,8 +1,10 @@
 """Der check_website-Job und alles, was um ihn herum haengt:
-Abruf-Hilfen (website_fetch), das Einreihen in get_businesses und der Weg des
-Befunds in den personalize-Kontext.
+Abruf-Hilfen (website_fetch), das Einreihen in get_businesses und der Nachweis,
+dass der Befund NICHT mehr im Icebreaker landet.
+
+Was der Befund stattdessen wird, steht in tests/test_website_finding.py.
 """
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 
 import httpx
 import pytest
@@ -298,10 +300,18 @@ def test_queue_website_audits_setzt_pending_vor_dem_einreihen(monkeypatch):
         ],
     )
     kinds = [c[0] for c in calls]
-    assert kinds == ["update", "in_", "enqueue", "enqueue"]
+    assert kinds == ["update", "in_", "enqueue", "enqueue", "enqueue", "enqueue"]
     assert calls[0][1] == {"website_audit_status": "pending"}
     assert calls[1][1] == ["b-1", "b-4"]  # ohne Website kein Job
-    assert [c[2] for c in calls[2:]] == ["b-1", "b-4"]
+    assert [c[2] for c in calls[2:]] == ["b-1", "b-4", "b-1", "b-4"]
+    # ERST alle Pruefungen, DANN alle Befundsaetze: verschraenkt eingereiht
+    # traefe jeder Befundsatz-Job seine eigene Pruefung noch laufend an.
+    assert [c[1] for c in calls[2:]] == [
+        "check_website",
+        "check_website",
+        "write_website_finding",
+        "write_website_finding",
+    ]
 
 
 def test_queue_website_audits_ruehrt_nichts_an_wenn_niemand_eine_website_hat(monkeypatch):
@@ -312,7 +322,13 @@ def test_queue_website_audits_ruehrt_nichts_an_wenn_niemand_eine_website_hat(mon
     get_businesses._queue_website_audits("ws-1", [{"id": "b-1", "website": None}])
 
 
-# ── Der Weg in den Icebreaker ──────────────────────────────────────────────
+# ── Der Rueckbau: der Befund geht NICHT in den Icebreaker ──────────────────
+#
+# Bis zum 2026-08-24 haengte personalize.build_context den ranghoechsten
+# Befund als Zusatzsignal an den Kontext (audit_hint) und wartete dafuer auf
+# den Website-Check. Beides ist entfallen; der Befund hat seit Migration 0103
+# einen eigenen Job (tests/test_website_finding.py). Diese Tests halten den
+# Rueckbau fest, damit ihn niemand versehentlich rueckgaengig macht.
 
 
 def business(**over) -> dict:
@@ -334,53 +350,27 @@ def business(**over) -> dict:
     return row
 
 
-def test_audit_hint_nennt_tatsache_folge_und_beleg():
-    hint = personalize.audit_hint(business())
-    assert hint.startswith("Zusatzsignal: ")
-    assert "HTTPS" in hint  # der ranghoechste Befund, nicht der erste in der Liste
-    assert "http://muster.de/" in hint
-    assert "Nicht sicher" in hint
-    assert "Wix" not in hint  # genau EIN Befund, nie eine Liste
+def test_icebreaker_bekommt_den_befund_nicht_mehr():
+    context = personalize.build_context(business(), "company_summary")
+    assert "Nicht sicher" not in context  # CONSEQUENCE_DE von no_https
+    assert "HTTPS" not in context
+    assert context == "Malerbetrieb aus Kassel."
 
 
-def test_audit_hint_ohne_befund_ist_none():
-    assert personalize.audit_hint(business(website_audit={"findings": []})) is None
-    assert personalize.audit_hint(business(website_audit={})) is None
-
-
-def test_befund_ersetzt_den_pain_point_hint():
-    """Der Befund ist spezifischer und nachpruefbar; beides zusammen waere eine
-    Maengelliste."""
-    biz = business(rating=2.1)
-    context = personalize.build_context(biz, "company_summary")
-    assert "Nicht sicher" in context
-    assert "Google-Bewertung" not in context
-
-
-def test_ohne_befund_bleibt_der_pain_point_hint_unberuehrt():
-    biz = business(rating=2.1, website_audit={}, website_audit_status=None)
-    context = personalize.build_context(biz, "company_summary")
+def test_pain_point_hint_wirkt_wieder_neben_einem_befund():
+    """Er war zwischenzeitlich vom Befund verdraengt. Jetzt ist er wieder das
+    einzige Zusatzsignal des Icebreakers."""
+    context = personalize.build_context(business(rating=2.1), "company_summary")
     assert "Google-Bewertung" in context
 
 
-def test_personalize_wartet_auf_den_laufenden_check():
+def test_icebreaker_wartet_nicht_mehr_auf_den_check():
+    """Der laufende Check darf den Icebreaker nicht mehr aufhalten: er braucht
+    ihn nicht, und jedes Warten waere ein verschenkter Queue-Versuch."""
     biz = business(website_audit_status="pending", website_audit={})
-    with pytest.raises(personalize.NotReadyYet):
-        personalize.build_context(biz, "company_summary")
-
-
-def test_personalize_wartet_nicht_ewig():
-    """Stirbt der check_website-Job, muss der Icebreaker trotzdem entstehen.
-    Lieber ohne Aufhaenger als eine Liste, die stehen bleibt."""
-    alt = datetime.now(timezone.utc) - personalize.AUDIT_WAIT_LIMIT - timedelta(minutes=1)
-    biz = business(
-        website_audit_status="pending", website_audit={}, created_at=alt.isoformat()
-    )
     assert personalize.build_context(biz, "company_summary") == "Malerbetrieb aus Kassel."
 
 
-def test_personalize_wartet_nicht_wenn_niemand_prueft():
-    """Status null bei vorhandener Website (alte Zeilen, von Hand angelegte
-    Firmen): es ist kein Job unterwegs, also gibt es nichts zu erwarten."""
-    biz = business(website_audit_status=None, website_audit={})
-    assert personalize.build_context(biz, "company_summary") == "Malerbetrieb aus Kassel."
+def test_audit_hint_gibt_es_nicht_mehr():
+    assert not hasattr(personalize, "audit_hint")
+    assert not hasattr(personalize, "audit_pending")

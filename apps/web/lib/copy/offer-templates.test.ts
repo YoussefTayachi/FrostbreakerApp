@@ -209,6 +209,46 @@ describe("WEBSITE_DESIGN_OFFER_TEMPLATE", () => {
         expect(mitStrich).toEqual([]);
       });
 
+      // ── Die beiden Platzhalter ────────────────────────────────────────
+      //
+      // Beide Pruefungen kommen aus .claude/skills/cold-email-copy/SKILL.md
+      // und nicht aus dem Playbook: der Skill legt den AUFBAU von Mail 1
+      // fest (Anrede, {{personalization}}, dann als zweiter Beweispunkt die
+      // nachpruefbare Beobachtung) und verbietet Saetze, die auf einen
+      // Platzhalter angewiesen sind.
+      it("stellt den Website-Befund direkt hinter den Aufhaenger", () => {
+        for (const v of vorlage.sequence[0].variants) {
+          const zeilen = v.body
+            .split("\n")
+            .map((l) => l.trim())
+            .filter(Boolean);
+          const iAufhaenger = zeilen.indexOf("{{personalization}}");
+          const iBefund = zeilen.indexOf("{{websiteFinding}}");
+          expect(iAufhaenger).toBeGreaterThanOrEqual(0);
+          expect(iBefund).toBe(iAufhaenger + 1);
+        }
+      });
+
+      // Der teuerste Fehler waere ein Satz, der ohne einen Platzhalter
+      // zerfaellt ("was SONST NOCH kaputt ist"): {{personalization}} kann
+      // leer bleiben, und dann liest der Empfaenger eine halbe Mail.
+      // Gemessen wird, was uebrig bleibt, wenn beide Zeilen wegfallen.
+      it("traegt Mail 1 auch mit leeren Platzhaltern", () => {
+        const rueckverweise = /sonst noch|die ganze Liste|what else|the full list/i;
+        for (const v of vorlage.sequence[0].variants) {
+          const ohne = v.body
+            .replace(/\{\{personalization\}\}/g, "")
+            .replace(/\{\{websiteFinding\}\}/g, "")
+            .split("\n")
+            .map((l) => l.trim())
+            .filter(Boolean);
+          // Anrede, mindestens ein eigener Satz, Micro-Yes.
+          expect(ohne.length).toBeGreaterThanOrEqual(3);
+          expect(ohne[ohne.length - 1]).toBe(vorlage.offer.cta);
+          expect(ohne.some((l) => rueckverweise.test(l))).toBe(false);
+        }
+      });
+
       it("hat keine Gedankenstriche in den Mails", () => {
         const mitStrich = vorlage.sequence.flatMap((step, i) =>
           step.variants.filter((v) => DASH.test(v.subject + v.body)).map(() => i + 1)

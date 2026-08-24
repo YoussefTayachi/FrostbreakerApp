@@ -23,14 +23,30 @@
  * Das bedeutet: `friction` unten schreibt bewusst die ALLGEMEINE Form dessen,
  * was der Pruefer misst ("ein technischer Mangel, den der Inhaber selbst
  * nachpruefen kann"), nicht den Versuch, an dieser Stelle schon konkret zu
- * werden. Konkret wird es erst im Icebreaker, den {{personalization}} in
- * Mail 1 einsetzt: er nennt den einen Befund dieses Leads (z. B. "kein
- * gueltiges Sicherheitszertifikat") als BELEG der Friction, nicht als zweite
- * Friction. Wuerde die Vorlage hier schon einen einzelnen Befund festlegen
- * ("eure Website laedt zu langsam"), widerspraeche sie sich selbst, sobald
- * der Pruefer bei einem Lead einen anderen Code liefert (z. B. no_viewport
- * statt Ladezeit) -- genau der Fehler, den das Playbook mit "EINE Friction
- * ueber alle vier Stufen" ausschliessen soll.
+ * werden. Konkret wird es in Mail 1, und zwar durch {{websiteFinding}}: dort
+ * steht der eine Befund DIESES Leads (z. B. "kein gueltiges
+ * Sicherheitszertifikat") als BELEG der Friction, nicht als zweite Friction.
+ * Wuerde die Vorlage hier schon einen einzelnen Befund festlegen ("eure
+ * Website laedt zu langsam"), widerspraeche sie sich selbst, sobald der
+ * Pruefer bei einem Lead einen anderen Code liefert (z. B. no_viewport statt
+ * Ladezeit) -- genau der Fehler, den das Playbook mit "EINE Friction ueber
+ * alle vier Stufen" ausschliessen soll.
+ *
+ * ZWEI PLATZHALTER, ZWEI AUFGABEN (seit Migration 0103)
+ *
+ * {{personalization}} ist der Icebreaker: er beweist, dass man die Welt des
+ * Empfaengers versteht. {{websiteFinding}} benennt den Mangel. Bis zum
+ * 2026-08-24 steckte der Befund im Icebreaker, und die Vorlage brauchte
+ * deshalb eine eigene Zeile ("Sowas uebersieht man an der eigenen Seite
+ * leicht"), um ihn einzuordnen. Diese Zeile ist entfallen: der Befundsatz
+ * bringt seine Folge selbst mit (CONSEQUENCE_DE in worker/website_audit.py),
+ * und sie noch einmal zu erklaeren waere dieselbe Aussage zweimal.
+ *
+ * PREIS DIESER ENTSCHEIDUNG, den man kennen muss: eine Kampagne mit dieser
+ * Vorlage laesst Leads OHNE Befund zurueck (splitByWebsiteFinding in
+ * lib/instantly/create-campaign.ts). Das ist gewollt -- ohne Befund gibt es
+ * fuer dieses Angebot nichts zu schreiben -- und der Torwart sagt die Zahl
+ * vorher an.
  *
  * ═══════════════════════════════════════════════════════════════════════
  * WARUM DIE SEQUENZ FEST GESCHRIEBEN IST UND NICHT VOM MODELL ERZEUGT
@@ -38,8 +54,9 @@
  *
  * Diese vier Mails (mit je zwei Fassungen, wie buildSequencePrompt es auch
  * verlangt) sind von Hand geschrieben, nicht von einem Modell. Sie nutzen
- * denselben Merge-Tag-Mechanismus wie ein KI-Entwurf: {{personalization}}
- * traegt den lead-spezifischen Befund in Stufe 1, {{firstName}} die Anrede.
+ * denselben Merge-Tag-Mechanismus wie ein KI-Entwurf: {{personalization}} und
+ * {{websiteFinding}} tragen das Lead-Spezifische in Stufe 1, {{firstName}} die
+ * Anrede.
  * Der Nutzer muss beim Uebernehmen der Vorlage NICHTS von Hand ausfuellen --
  * genau das war die Vorgabe ("keine Platzhalter, die der Nutzer fuellen
  * muss, wenn die App das schon weiss").
@@ -95,6 +112,22 @@ export type OfferTemplate = {
 
 // ── Deutsch ──────────────────────────────────────────────────────────────
 
+// ── Wo die beiden Platzhalter stehen ─────────────────────────────────────
+//
+// Stufe 1 folgt dem Aufbau aus .claude/skills/cold-email-copy/SKILL.md:
+// Anrede, {{personalization}}, dann als ZWEITER Beweispunkt die
+// nachpruefbare Beobachtung. Genau dort steht {{websiteFinding}}. Der Skill
+// verlangt fuer diese Zeile ausdruecklich einen angewandten Filter statt
+// einer Vermutung, und der Website-Check ist genau das: acht deterministische
+// Pruefungen am echten HTML.
+//
+// KEIN SATZ DIESER VORLAGE DARF AUF EINEN DER BEIDEN PLATZHALTER ANGEWIESEN
+// SEIN. Auch das steht so im Skill, und es ist der Grund, warum unten "was
+// auf deiner Seite kaputt ist" steht und nicht "was SONST NOCH kaputt ist":
+// die zweite Fassung zerfaellt, sobald eine der beiden Zeilen leer bleibt,
+// und sie liest sich dann wie eine halbe Mail. Ein Test in
+// offer-templates.test.ts leert beide Platzhalter und misst nach.
+
 /** Der Micro-Yes, wortgleich in jeder Stufe und in offer.cta. */
 const MICRO_YES_DE = "Willst du sehen, was an deiner Website kaputt ist?";
 /** Zwei Betreffs, je Fassung derselbe ueber alle vier Stufen (subjectDrift). */
@@ -143,9 +176,9 @@ const SEQUENCE_DE: DraftStep[] = [
           "",
           "{{personalization}}",
           "",
-          "Sowas übersieht man an der eigenen Seite leicht, Besuchern fällt es sofort auf und das kostet Vertrauen.",
+          "{{websiteFinding}}",
           "",
-          "Ich zeige dir kostenlos, was genau kaputt ist: eine kurze schriftliche Liste, Lesezeit unter einer Minute.",
+          "Ich zeige dir kostenlos, was auf deiner Seite kaputt ist: eine kurze Liste, Lesezeit unter einer Minute.",
           "",
           MICRO_YES_DE,
         ].join("\n"),
@@ -157,9 +190,9 @@ const SEQUENCE_DE: DraftStep[] = [
           "",
           "{{personalization}}",
           "",
-          "Jeder neue Besucher sieht diese Lücke zuerst, noch bevor er dein Angebot überhaupt liest.",
+          "{{websiteFinding}}",
           "",
-          "Sag mir Bescheid, dann bekommst du kostenlos eine kurze Liste dazu, Lesezeit unter einer Minute.",
+          "Sag mir Bescheid, dann bekommst du kostenlos eine Liste der Fehler auf deiner Seite.",
           "",
           MICRO_YES_DE,
         ].join("\n"),
@@ -274,9 +307,9 @@ const SEQUENCE_EN: DraftStep[] = [
           "",
           "{{personalization}}",
           "",
-          "You might miss that on your own site, but visitors notice it right away and it costs you trust.",
+          "{{websiteFinding}}",
           "",
-          "I'll show you what's broken for free, a short list, under a minute to read.",
+          "I'll show you what is broken on your site for free, a short list, under a minute.",
           "",
           MICRO_YES_EN,
         ].join("\n"),
@@ -288,9 +321,9 @@ const SEQUENCE_EN: DraftStep[] = [
           "",
           "{{personalization}}",
           "",
-          "Every new visitor sees that gap before they see what you offer, and it costs you customers more than time.",
+          "{{websiteFinding}}",
           "",
-          "Let me know and I'll send over a short list for free, under a minute to read.",
+          "Let me know and I'll send a free list of what is broken on your site.",
           "",
           MICRO_YES_EN,
         ].join("\n"),

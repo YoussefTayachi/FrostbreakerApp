@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { planCampaignLeads, type CampaignContactRow } from "./create-campaign";
+import { planCampaignLeads, splitByWebsiteFinding, type CampaignContactRow } from "./create-campaign";
 
 /**
  * Wer beim Anlegen einer Kampagne tatsaechlich hochgeladen wird.
@@ -22,7 +22,7 @@ function kontakt(overrides: Partial<CampaignContactRow> & { id: string }): Campa
     is_primary: false,
     outreach_status: "new",
     email_verification_status: "valid",
-    businesses: { name: "Firma", website: "firma.de", personalization: null },
+    businesses: { name: "Firma", website: "firma.de", personalization: null, website_finding: null },
     ...overrides,
   };
 }
@@ -51,7 +51,7 @@ describe("planCampaignLeads", () => {
 
   it("eine gesperrte Domain trifft auch die Firmen-Website", () => {
     const plan = planCampaignLeads(
-      [kontakt({ id: "a", email: "info@anders.de", businesses: { name: "F", website: "https://www.gesperrt.de/impressum", personalization: null } })],
+      [kontakt({ id: "a", email: "info@anders.de", businesses: { name: "F", website: "https://www.gesperrt.de/impressum", personalization: null, website_finding: null } })],
       [{ email: null, domain: "gesperrt.de" }],
       []
     );
@@ -132,5 +132,38 @@ describe("planCampaignLeads", () => {
     // Und er zaehlt in keiner der drei Aussortier-Zahlen mit: er war nie ein
     // moeglicher Empfaenger.
     expect(plan.engaged.length + plan.suppressed.length + plan.unsendable.length).toBe(0);
+  });
+});
+
+/**
+ * Der Leerfall des Website-Befunds.
+ *
+ * Nicht jeder Lead hat einen. Diese Tests halten die Entscheidung fest, was
+ * dann passiert: der Lead geht nicht mit, statt eine Mail mit einem Loch zu
+ * bekommen. Die Begruendung steht bei splitByWebsiteFinding.
+ */
+describe("splitByWebsiteFinding", () => {
+  const mitBefund = kontakt({
+    id: "mit",
+    businesses: { name: "F", website: "f.de", personalization: null, website_finding: "Kein HTTPS." },
+  });
+  const ohneBefund = kontakt({ id: "ohne" });
+  const leerzeichen = kontakt({
+    id: "leer",
+    businesses: { name: "F", website: "f.de", personalization: null, website_finding: "   " },
+  });
+
+  it("haelt Leads ohne Befund zurueck, wenn die Sequenz ihn benutzt", () => {
+    const split = splitByWebsiteFinding([mitBefund, ohneBefund, leerzeichen], true);
+    expect(split.rows.map((c) => c.id)).toEqual(["mit"]);
+    expect(split.withoutFinding.map((c) => c.id)).toEqual(["ohne", "leer"]);
+  });
+
+  it("laesst alle durch, wenn die Sequenz ihn nicht benutzt", () => {
+    // Sonst wuerde eine ganz normale Kampagne Leads verlieren, weil
+    // irgendwann einmal ein Website-Check nichts gefunden hat.
+    const split = splitByWebsiteFinding([mitBefund, ohneBefund], false);
+    expect(split.rows).toHaveLength(2);
+    expect(split.withoutFinding).toHaveLength(0);
   });
 });

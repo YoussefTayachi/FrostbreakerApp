@@ -4,7 +4,7 @@ import { useT } from "../../language-provider";
 import { useToast } from "../../toast-provider";
 import { useWorkspace } from "../../workspace-provider";
 import { inputCls } from "@/lib/ui";
-import { plainTextToInstantlyHtml, variantLabel } from "@/lib/instantly/campaigns";
+import { plainTextToInstantlyHtml, variantLabel, WEBSITE_FINDING_FIELD } from "@/lib/instantly/campaigns";
 import EmailQualityPanel from "./email-quality-panel";
 import HighlightedTextarea from "../../highlighted-textarea";
 import type { Highlights } from "@/lib/email-quality";
@@ -112,12 +112,19 @@ export default function CampaignStepCard({
   // ({{firstName}} etc.) muessen exakt Instantlys vordefinierten
   // Lead-Variablen entsprechen (siehe https://help.instantly.ai/en/articles/6135930),
   // sonst wird beim Versand nichts ersetzt.
+  //
+  // {{websiteFinding}} ist die eine Ausnahme: keine vordefinierte Variable,
+  // sondern ein Feld, das mit dem Lead hochgeladen wird
+  // (WEBSITE_FINDING_FIELD in lib/instantly/campaigns.ts). Der Name
+  // steht deshalb nicht doppelt hier, sondern kommt aus derselben Konstante
+  // wie der Upload-Schluessel.
   const VARIABLES: { token: string; label: string }[] = [
     { token: "{{firstName}}", label: F.variableFirstName },
     { token: "{{lastName}}", label: F.variableLastName },
     { token: "{{companyName}}", label: F.variableCompanyName },
     { token: "{{email}}", label: F.variableEmail },
     { token: "{{personalization}}", label: F.variablePersonalization },
+    { token: `{{${WEBSITE_FINDING_FIELD}}}`, label: F.variableWebsiteFinding },
   ];
 
   // Eigener Opt-out-Link statt eines weiteren Instantly-Merge-Tags: die

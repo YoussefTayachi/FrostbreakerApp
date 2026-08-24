@@ -726,17 +726,26 @@ def run(job: dict) -> None:
 
 
 def _queue_website_audits(ws: str, rows: list[dict]) -> None:
-    """Website-Check fuer alle Firmen dieser Liste einreihen, die eine Website haben.
+    """Website-Check und Befundsatz fuer alle Firmen dieser Liste mit Website einreihen.
 
-    OHNE WEBSITE KEIN JOB. Dort gibt es nichts zu pruefen, und der Fall ist
-    schon abgedeckt: personalize.pain_point_hint macht aus "keine auffindbare
-    Website" selbst ein Zusatzsignal.
+    OHNE WEBSITE KEIN JOB. Dort gibt es nichts zu pruefen, und damit auch
+    keinen Befund zu formulieren. Der Fall ist an anderer Stelle abgedeckt:
+    personalize.pain_point_hint macht aus "keine auffindbare Website" selbst
+    ein Zusatzsignal fuer den Icebreaker.
 
-    Die Reihenfolge in dieser Funktion ist nicht beliebig. Erst wird
-    website_audit_status auf 'pending' gesetzt, DANN werden die Jobs
-    eingereiht. Andersherum koennte ein personalize-Job den Lead erwischen,
-    solange der Status noch null ist; er wuerde dann nicht auf den Befund
-    warten (siehe personalize.audit_pending) und ohne Aufhaenger schreiben.
+    Die Reihenfolge in dieser Funktion ist nicht beliebig, und zwar zweimal:
+
+      1. Erst wird website_audit_status auf 'pending' gesetzt, DANN werden die
+         Jobs eingereiht. Andersherum koennte ein write_website_finding-Job
+         den Lead erwischen, solange der Status noch null ist; er wuerde dann
+         nicht auf den Befund warten (siehe website_finding.audit_pending) und
+         still ohne Satz enden.
+      2. ERST alle Pruefungen, DANN alle Befundsaetze. Verschraenkt eingereiht
+         ("pruefen, formulieren, pruefen, formulieren") liefe jeder
+         Befundsatz-Job Gefahr, seine eigene Pruefung noch laufend
+         anzutreffen, und ginge fuer 60 Sekunden in den Backoff. Getrennt
+         eingereiht sind bei 300 Firmen praktisch alle Pruefungen durch, bevor
+         der erste Satz an die Reihe kommt.
 
     Ein einziges Update fuer die ganze Liste statt eines pro Firma: bei 300
     Firmen waeren das 300 zusaetzliche Netzaufrufe, bevor der erste Job
@@ -748,6 +757,8 @@ def _queue_website_audits(ws: str, rows: list[dict]) -> None:
     sb().table("businesses").update({"website_audit_status": "pending"}).in_("id", ids).execute()
     for business_id in ids:
         enqueue(ws, "check_website", {"business_id": business_id})
+    for business_id in ids:
+        enqueue(ws, "write_website_finding", {"business_id": business_id})
 
 
 def _finish(search_id: str, ws: str, auto_enrich: bool, source: str) -> None:
@@ -778,8 +789,10 @@ def _finish(search_id: str, ws: str, auto_enrich: bool, source: str) -> None:
             .data
             or []
         )
-        # VOR dem personalize-Enqueue, damit der Befund vorliegt, bevor
-        # jemand ihn braucht.
+        # VOR dem personalize-Enqueue. Nicht weil personalize den Befund
+        # braucht (seit Migration 0103 nicht mehr), sondern damit die
+        # Pruefungen ganz vorn in der Queue stehen: an ihnen haengt der
+        # write_website_finding-Job, den diese Funktion mit einreiht.
         _queue_website_audits(ws, rows)
         for b in rows:
             enqueue(ws, "personalize", {"business_id": b["id"]})

@@ -73,8 +73,8 @@ FINDING_CODES: tuple[str, ...] = (
 # ═══════════════════════════════════════════════════════════════════════════
 #
 # FACT_DE nennt die Tatsache, CONSEQUENCE_DE die Folge fuers Unternehmen.
-# Zusammen ergeben sie das Zusatzsignal, das personalize an den Kontext
-# haengt (siehe personalize.audit_hint).
+# Zusammen ergeben sie das Material, aus dem der write_website_finding-Job
+# seinen Satz formuliert (siehe pipelines/website_finding.finding_context).
 #
 # Diese beiden Woerterbuecher sind Textarbeit, kein Programmcode: sie stehen
 # absichtlich als ein zusammenhaengender Block hier und nicht verstreut bei

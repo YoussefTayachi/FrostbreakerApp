@@ -1600,6 +1600,7 @@ const de = {
         variableCompanyName: "Firma",
         variableEmail: "E-Mail",
         variablePersonalization: "Icebreaker",
+        variableWebsiteFinding: "Website-Mangel",
         variableOptOut: "Abmelde-Link",
         previewToggle: "Vorschau: so kommt die Mail an",
         scheduleLabel: "Sende-Fenster",
@@ -2369,6 +2370,13 @@ const de = {
           `${count} von ${total} Aufhängern (${percent} %) verstoßen gegen die Vorgaben`,
         why: "Zu lang oder mit verbotenen Zeichen — beides fällt Empfängern als KI-Text auf.",
         action: "Aufhänger prüfen",
+      },
+      websiteFindingMissing: {
+        ok: "Jeder Lead hat einen Website-Befund",
+        bad: (count: number, total: number) =>
+          `${count} von ${total} Leads haben keinen Website-Befund und gehen nicht mit`,
+        why: "Deine Sequenz benutzt {{websiteFinding}}. Leads ohne Befund (keine Website, Seite nicht erreichbar, nichts gefunden) werden zurückgehalten, damit keine Mail mit einer leeren Zeile rausgeht.",
+        action: "Leads mit Befund ansehen",
       },
       sequence: {
         ok: (steps: number) => `${steps} Schritte in der Sequenz`,
@@ -4107,6 +4115,7 @@ const en: Dictionary = {
         variableCompanyName: "Company",
         variableEmail: "Email",
         variablePersonalization: "Icebreaker",
+        variableWebsiteFinding: "Website flaw",
         variableOptOut: "Opt-out link",
         previewToggle: "Preview: how the email arrives",
         scheduleLabel: "Sending window",
@@ -4839,6 +4848,13 @@ const en: Dictionary = {
           `${count} of ${total} icebreakers (${percent}%) violate the rules`,
         why: "Too long or containing banned characters — both read as AI text to recipients.",
         action: "Review icebreakers",
+      },
+      websiteFindingMissing: {
+        ok: "Every lead has a website finding",
+        bad: (count: number, total: number) =>
+          `${count} of ${total} leads have no website finding and will be held back`,
+        why: "Your sequence uses {{websiteFinding}}. Leads without a finding (no website, site unreachable, nothing found) are held back so no mail goes out with an empty line in it.",
+        action: "Show leads with a finding",
       },
       sequence: {
         ok: (steps: number) => `${steps} steps in the sequence`,

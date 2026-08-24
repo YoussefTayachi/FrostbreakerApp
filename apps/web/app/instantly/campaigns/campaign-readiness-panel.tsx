@@ -74,13 +74,20 @@ export default function CampaignReadinessPanel({
       fetch("/api/campaigns/readiness", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        // Geprueft wird Variante A: sie geht an jeden Empfaenger raus, die
-        // weiteren nur an einen Teil. Was hier auffaellt, faellt damit bei
-        // allen auf.
+        // Laenge und Link werden an Variante A gemessen: sie geht an jeden
+        // Empfaenger raus, die weiteren nur an einen Teil. Was dort
+        // auffaellt, faellt damit bei allen auf.
+        //
+        // Die Platzhalter-Pruefung braucht dagegen ALLE Fassungen samt
+        // Betreff: {{websiteFinding}} nur in Fassung B geht immer noch an die
+        // Haelfte der Empfaenger.
         body: JSON.stringify({
           searchIds,
           mailboxes,
-          steps: steps.map((s) => ({ body: s.variants[0]?.body ?? "" })),
+          steps: steps.map((s) => ({
+            body: s.variants[0]?.body ?? "",
+            variants: s.variants.map((v) => ({ subject: v.subject, body: v.body })),
+          })),
         }),
       })
         .then((r) => r.json())
@@ -225,6 +232,15 @@ function describe(check: ReadinessCheck, L: Labels): { text: string; why?: strin
         why: L.icebreakerFailing.why,
         href: "/icebreaker",
         action: L.icebreakerFailing.action,
+      };
+    case "websiteFindingMissing":
+      return {
+        text: ok
+          ? L.websiteFindingMissing.ok
+          : L.websiteFindingMissing.bad(Number(v.count), Number(v.total)),
+        why: L.websiteFindingMissing.why,
+        href: "/leads",
+        action: L.websiteFindingMissing.action,
       };
     case "sequence":
       return { text: ok ? L.sequence.ok(Number(v.steps)) : L.sequence.bad, why: L.sequence.why };

@@ -5,6 +5,8 @@ import { runDeliverabilityCheck } from "@/lib/deliverability";
 import { pickPrimaryContactPerBusiness, splitByEngagement, splitBySendability } from "@/lib/contacts";
 import { filterSuppressed } from "@/lib/suppression";
 import { assessCampaign, stepFacts, type DomainAuth, type ReadinessFacts } from "@/lib/campaign-readiness";
+import { usesWebsiteFinding } from "@/lib/instantly/campaigns";
+import { splitByWebsiteFinding, type CampaignContactRow } from "@/lib/instantly/create-campaign";
 import { reviewIcebreaker, reviewSettingsFromWorkspace } from "@/lib/personalization/review";
 
 /**
@@ -25,7 +27,17 @@ export const maxDuration = 30;
 type Body = {
   searchIds?: string[];
   mailboxes?: string[];
-  steps?: { subject?: string; body?: string }[];
+  /**
+   * body ist Fassung A und traegt die Laengen- und Link-Pruefung; variants
+   * traegt ALLE Fassungen samt Betreff und wird fuer die Frage gebraucht,
+   * ob irgendwo {{websiteFinding}} steht. Beides in einem Objekt, damit die
+   * Oberflaeche nicht zwei Listen desselben Inhalts schicken muss.
+   */
+  steps?: {
+    subject?: string;
+    body?: string;
+    variants?: { subject?: string; body?: string }[];
+  }[];
 };
 
 /** Die Domain hinter einer Absenderadresse: SPF/DKIM/DMARC haengen an ihr, nicht am Postfach. */
@@ -79,7 +91,8 @@ export async function POST(req: Request) {
         .from("contacts")
         .select(
           "id, email, title, business_id, is_primary, outreach_status, email_verification_status, " +
-            "businesses!inner(search_id, website, personalization, personalization_needs_review, name, id)"
+            "businesses!inner(search_id, website, personalization, personalization_needs_review, " +
+            "website_finding, name, id)"
         )
         .eq("workspace_id", workspaceId)
         .in("businesses.search_id", searchIds)
@@ -100,6 +113,7 @@ export async function POST(req: Request) {
       website: string | null;
       personalization: string | null;
       personalization_needs_review: boolean | null;
+      website_finding: string | null;
     } | null;
   };
 
@@ -110,13 +124,30 @@ export async function POST(req: Request) {
   const { sendable } = splitBySendability(filterSuppressed(notDeclined, suppression ?? []));
   const finalLeads = pickPrimaryContactPerBusiness(sendable) as unknown as Row[];
 
+  /**
+   * Dieselbe Trennung wie beim tatsaechlichen Anlegen: benutzt die Sequenz
+   * {{websiteFinding}}, gehen Leads ohne Befund nicht mit (splitByWebsiteFinding
+   * in lib/instantly/create-campaign.ts).
+   *
+   * Sie steht VOR allen Zaehlungen darunter, nicht dahinter. Sonst rechnete
+   * der Torwart Anteile ("20 % ohne Aufhaenger") gegen eine groessere Menge,
+   * als er als sendbar meldet, und die Prozente koennten ueber 100 gehen.
+   */
+  const nutztBefund = usesWebsiteFinding(
+    steps.flatMap((s) => s.variants ?? [{ subject: s.subject, body: s.body }])
+  );
+  const { rows: versandLeads, withoutFinding } = splitByWebsiteFinding(
+    finalLeads as unknown as CampaignContactRow[],
+    nutztBefund
+  ) as unknown as { rows: Row[]; withoutFinding: Row[] };
+
   // "Unverifiziert" meint ausdruecklich: nie geprueft. Als ungueltig erkannte
   // Adressen sind oben schon rausgefallen; die zaehlen hier nicht nochmal.
-  const unverifiedLeads = finalLeads.filter((c) => !c.email_verification_status).length;
+  const unverifiedLeads = versandLeads.filter((c) => !c.email_verification_status).length;
 
   let leadsWithoutIcebreaker = 0;
   let leadsWithFailingIcebreaker = 0;
-  for (const lead of finalLeads) {
+  for (const lead of versandLeads) {
     const biz = lead.businesses;
     const text = (biz?.personalization ?? "").trim();
     if (!text) {
@@ -164,10 +195,12 @@ export async function POST(req: Request) {
   );
 
   const facts: ReadinessFacts = {
-    sendableLeads: finalLeads.length,
+    sendableLeads: versandLeads.length,
     unverifiedLeads,
     leadsWithoutIcebreaker,
     leadsWithFailingIcebreaker,
+    sequenceUsesWebsiteFinding: nutztBefund,
+    leadsWithoutWebsiteFinding: withoutFinding.length,
     domains: domainAuth,
     sentSoFar: (stats ?? []).reduce((sum, s) => sum + (s.emails_sent_count ?? 0), 0),
     bouncedSoFar: (stats ?? []).reduce((sum, s) => sum + (s.bounced_count ?? 0), 0),

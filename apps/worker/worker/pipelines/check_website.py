@@ -72,8 +72,8 @@ def run(job: dict) -> None:
 
     if search_is_deleted(biz):
         # Liste im Papierkorb. Kein Abruf mehr, aber trotzdem einen Endstatus
-        # setzen: bliebe 'pending' stehen, wuerde personalize fuer diese
-        # Firma bis zum Zeitdeckel warten (siehe personalize.audit_pending).
+        # setzen: bliebe 'pending' stehen, wuerde write_website_finding fuer diese
+        # Firma bis zum Zeitdeckel warten (siehe website_finding.audit_pending).
         _write(business_id, "skipped")
         return
 

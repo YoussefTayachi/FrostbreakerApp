@@ -67,7 +67,19 @@ import {
  * Ein erfundener Platzhalter wird NICHT ersetzt: er geht als
  * "{{painPoint}}" an den Empfaenger raus, und das faellt erst dort auf.
  */
-export const EMAIL_MERGE_TAGS = ["firstName", "lastName", "companyName", "email", "personalization"] as const;
+export const EMAIL_MERGE_TAGS = [
+  "firstName",
+  "lastName",
+  "companyName",
+  "email",
+  "personalization",
+  // Kein vordefiniertes Instantly-Tag, sondern ein Feld, das mit dem Lead
+  // hochgeladen wird (WEBSITE_FINDING_FIELD in lib/instantly/campaigns.ts).
+  // Es steht hier, damit unknownTags() es nicht als erfundenen Platzhalter
+  // meldet: eine handgeschriebene Sequenz, die es benutzt, waere sonst
+  // dauerhaft rot.
+  "websiteFinding",
+] as const;
 export type EmailMergeTag = (typeof EMAIL_MERGE_TAGS)[number];
 
 /** Vier Stufen: Erstkontakt, anderer Blickwinkel, kurze Nachfrage, Abschied. */
@@ -327,6 +339,24 @@ export function buildSequencePrompt(
     `- Step 1: at most ${budget} words of your own (the token above counts for roughly ${opts.personalizationWords} more).`,
     "- Step 1 must contain NO link and NO URL of any kind.",
     `- Placeholders: only ${EMAIL_MERGE_TAGS.map((t) => `{{${t}}}`).join(", ")}. Any other {{...}} is never replaced and reaches the recipient as-is.`,
+    // {{websiteFinding}} ist OPTIONAL, und das ist Absicht.
+    //
+    // Das Modell wird nicht angewiesen, den Platzhalter zu benutzen: wer ihn
+    // benutzt, verliert alle Leads ohne Website-Befund (sie werden beim
+    // Anlegen zurueckgehalten, siehe splitByWebsiteFinding). Diese Abwaegung
+    // gehoert dem Menschen, der die Zahl im Torwart sieht, nicht einem
+    // Sprachmodell, das die Lead-Liste gar nicht kennt.
+    //
+    // Wenn es ihn benutzt, gelten zwei Grenzen, und die erste ist die
+    // wichtigere: der Befund ist der BELEG der einen Friction, nicht eine
+    // zweite. Genau das schliesst die Playbook-Regel "EINE Friction ueber
+    // alle vier Stufen" aus, und sie bleibt unangetastet.
+    "- {{websiteFinding}} is one measured, verifiable flaw on THIS recipient's website,",
+    "  written as a complete sentence. It is OPTIONAL: use it only when the friction of the",
+    "  offer above is about their website, and then use it in step 1 only.",
+    "- If you use it, it is EVIDENCE for the one friction, never a second problem and never a",
+    "  second question. Write nothing before it and nothing after it on that line, exactly like",
+    "  {{personalization}}.",
     "- Never use square brackets or angle brackets as fill-in blanks ([Name], <company>). If you do not know something, leave it out.",
     // Gleiche Begruendung wie DEFAULT_BANNED_WORDS in personalize.py: ein
     // Gedankenstrich mitten im Satz ist inzwischen das deutlichste
@@ -735,8 +765,18 @@ export function sequenceProblems(
 
     // Kompression. Verglichen wird die laengste Fassung je Stufe: eine kurze
     // Variante rettet keine lange.
+    //
+    // Gemessen wird die Mail, wie sie ANKOMMT (estimateWords), nicht der
+    // rohe Text. Der Unterschied betrifft praktisch nur Stufe 1: dort stehen
+    // {{personalization}} und moeglicherweise {{websiteFinding}}, zusammen
+    // ueber fuenfzig Woerter, die als zwei Zeichenketten gezaehlt wuerden.
+    // Roh gemessen sah eine Stufe 1 mit beiden Platzhaltern KUERZER aus als
+    // ihr eigenes Follow-up, und die Kompressionsregel meldete einen Bruch an
+    // einer Sequenz, die beim Empfaenger sauber schrumpft. Die Stufen 2 bis 4
+    // enthalten nur {{firstName}}, dort sind beide Zahlen gleich.
     if (i > 0) {
-      const laengste = (s: DraftStep) => Math.max(...s.variants.map((v) => wordCount(v.body)), 0);
+      const laengste = (s: DraftStep) =>
+        Math.max(...s.variants.map((v) => estimateWords(v.body, opts.personalizationWords)), 0);
       if (laengste(step) >= laengste(steps[i - 1])) {
         problems.push({ kind: "notShorter", step: i + 1 });
       }

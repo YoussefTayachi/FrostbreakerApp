@@ -93,6 +93,10 @@ export async function POST(req: Request) {
     // Aussortierte ungueltige Adressen mitgeben statt sie stillschweigend zu
     // schlucken: der Nutzer soll sehen, dass die Verifizierung gewirkt hat.
     skipped_unverified: ergebnis.skippedUnverified,
+    // Aus demselben Grund: benutzt die Sequenz {{websiteFinding}}, bleiben
+    // Leads ohne Befund zurueck, und die Zahl gehoert in den Bericht statt in
+    // eine Differenz, die niemand nachrechnet.
+    skipped_without_finding: ergebnis.skippedWithoutFinding,
     leads_added: ergebnis.leadsAdded,
   });
 }

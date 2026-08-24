@@ -26,10 +26,13 @@ import type { BillingStatus } from "@/lib/billing";
 import { filterSuppressed } from "@/lib/suppression";
 import { pickPrimaryContactPerBusiness, splitByEngagement, splitBySendability } from "@/lib/contacts";
 import {
+  allVariants,
   buildCampaignSchedule,
   buildCampaignSequence,
   primaryVariant,
   toLocalStatus,
+  usesWebsiteFinding,
+  WEBSITE_FINDING_FIELD,
   type InstantlyCampaign,
   type SequenceStep,
 } from "./campaigns";
@@ -52,11 +55,61 @@ export type CampaignContactRow = {
   is_primary: boolean;
   outreach_status: string;
   email_verification_status: string | null;
-  businesses: { name: string | null; website: string | null; personalization: string | null } | null;
+  businesses: {
+    name: string | null;
+    website: string | null;
+    personalization: string | null;
+    /** Der Website-Befund als eigener Satz (Migration 0103). LEER IST HAEUFIG
+     *  und richtig: kein Befund, keine Website, Seite nicht erreichbar. */
+    website_finding: string | null;
+  } | null;
 };
 
 const CONTACT_COLUMNS =
-  "id, email, first_name, last_name, title, business_id, is_primary, outreach_status, email_verification_status, businesses!inner(name, website, personalization, search_id)";
+  "id, email, first_name, last_name, title, business_id, is_primary, outreach_status, email_verification_status, businesses!inner(name, website, personalization, website_finding, search_id)";
+
+/**
+ * Leads ohne Website-Befund von einer Sequenz trennen, die ihn benutzt.
+ *
+ * ═══════════════════════════════════════════════════════════════════════
+ * DIE STELLE, AN DER DIESES FEATURE TRAEGT ODER PEINLICH WIRD
+ * ═══════════════════════════════════════════════════════════════════════
+ *
+ * Nicht jeder Lead hat einen Befund. Keine Website, Seite nicht erreichbar,
+ * oder keine der acht Pruefungen schlaegt an: dann ist businesses.website_finding
+ * leer, und das ist ein richtiges Ergebnis, kein Fehler (siehe
+ * apps/worker/worker/pipelines/website_finding.py).
+ *
+ * Es gibt drei Umgangsformen damit, und zwei davon sind schlechter:
+ *
+ *   Einen Rueckfallsatz einsetzen. Waere eine erfundene Tatsachenbehauptung
+ *   ueber eine fremde Website in einer Kaltmail. Genau das tut diese App
+ *   nirgends: unbekannte Preise bleiben leer (worker/usage.py), fehlende
+ *   Referenzen erzeugen ein Verbot statt einer Erfindung (Migration 0090).
+ *
+ *   Die leere Variable einfach mitschicken. Instantly setzt dann nichts ein,
+ *   und in der Mail steht ein Loch, im schlimmsten Fall ein leerer Absatz
+ *   mitten im Text. Es faellt beim Empfaenger auf und sonst nirgends.
+ *
+ * Deshalb: der Lead geht nicht mit. Das ist derselbe Handgriff, den die App
+ * fuer gesperrte, ungueltige und bereits engagierte Adressen ohnehin macht,
+ * mit demselben Nachweis im Bericht (skippedWithoutFinding). Und er wird
+ * VORHER angesagt: lib/campaign-readiness.ts meldet die Zahl, bevor jemand
+ * auf Start drueckt, und die Leadliste kann nach "hat einen Befund" filtern.
+ *
+ * KEIN Filter, wenn die Sequenz die Variable gar nicht benutzt. Sonst wuerde
+ * eine ganz normale Kampagne Leads verlieren, weil irgendwann einmal ein
+ * Website-Check nichts gefunden hat.
+ */
+export function splitByWebsiteFinding(
+  rows: CampaignContactRow[],
+  sequenceUsesFinding: boolean
+): { rows: CampaignContactRow[]; withoutFinding: CampaignContactRow[] } {
+  if (!sequenceUsesFinding) return { rows, withoutFinding: [] };
+  const withoutFinding = rows.filter((c) => !(c.businesses?.website_finding ?? "").trim());
+  const ohneIds = new Set(withoutFinding.map((c) => c.id));
+  return { rows: rows.filter((c) => !ohneIds.has(c.id)), withoutFinding };
+}
 
 /**
  * Wer aus den Lead-Listen tatsaechlich angeschrieben wird.
@@ -166,6 +219,9 @@ export type CreateCampaignReport = {
   skippedUnverified: number;
   skippedSuppressed: number;
   skippedEngaged: number;
+  /** Zurueckgehalten, weil die Sequenz {{websiteFinding}} benutzt und diese
+   *  Leads keinen Befund haben. Immer 0, wenn die Sequenz ihn nicht benutzt. */
+  skippedWithoutFinding: number;
   searchIds: string[];
 };
 
@@ -376,11 +432,32 @@ export async function createInstantlyCampaign(
   // Sicherheitsnetz gegen versehentliches erneutes Anschreiben. Die Regeln
   // stehen vollstaendig in planCampaignLeads, damit beide Wege in diese
   // Kampagne (Formular und MCP) durch dieselben vier Filter gehen.
-  const { rows, engaged, suppressed, unsendable } = planCampaignLeads(
+  const { rows: erlaubte, engaged, suppressed, unsendable } = planCampaignLeads(
     (contacts ?? []) as unknown as CampaignContactRow[],
     (suppression ?? []) as { email: string | null; domain: string | null }[],
     ((archived ?? []) as { email: string | null }[]).map((a) => a.email)
   );
+
+  // NACH den vier CAN-SPAM-Filtern und bewusst nicht in planCampaignLeads:
+  // das hier ist kein Recht des Empfaengers, sondern eine Frage der
+  // Textqualitaet. Begruendung in splitByWebsiteFinding.
+  const { rows, withoutFinding } = splitByWebsiteFinding(
+    erlaubte,
+    usesWebsiteFinding(allVariants(steps))
+  );
+
+  if (rows.length === 0 && withoutFinding.length > 0) {
+    return {
+      ok: false,
+      status: 400,
+      reason: "no_sendable_leads",
+      error:
+        `Keine versendbaren Leads: die Sequenz benutzt {{${WEBSITE_FINDING_FIELD}}}, aber ` +
+        `keiner der ${withoutFinding.length} Leads hat einen Website-Befund. Entweder die ` +
+        "Variable aus der Sequenz nehmen oder eine Liste waehlen, deren Leads eine " +
+        "erreichbare Website haben.",
+    };
+  }
 
   if (rows.length === 0) {
     return {
@@ -399,6 +476,12 @@ export async function createInstantlyCampaign(
     last_name: c.last_name || undefined,
     company_name: c.businesses?.name || undefined,
     personalization: c.businesses?.personalization || undefined,
+    // Eigenes Feld, nicht in den Icebreaker gemischt: die beiden Saetze haben
+    // verschiedene Aufgaben und sollen an verschiedenen Stellen der Mail
+    // stehen duerfen (Migration 0103). Leere Werte kommen hier nicht mehr an:
+    // benutzt die Sequenz die Variable, sind die betroffenen Leads oben schon
+    // zurueckgehalten worden.
+    [WEBSITE_FINDING_FIELD]: c.businesses?.website_finding || undefined,
   }));
 
   const bericht: CreateCampaignReport = {
@@ -412,6 +495,7 @@ export async function createInstantlyCampaign(
     skippedUnverified: unsendable.length,
     skippedSuppressed: suppressed.length,
     skippedEngaged: engaged.length,
+    skippedWithoutFinding: withoutFinding.length,
     searchIds,
   };
 

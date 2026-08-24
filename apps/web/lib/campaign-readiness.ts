@@ -43,6 +43,7 @@ export type CheckId =
   | "verification"
   | "icebreakerMissing"
   | "icebreakerFailing"
+  | "websiteFindingMissing"
   | "sequence"
   | "firstMailLength"
   | "firstMailLink";
@@ -68,6 +69,21 @@ export type ReadinessFacts = {
   leadsWithoutIcebreaker: number;
   /** Sendbare Leads, deren Aufhaenger gegen die geltenden Vorgaben verstoesst. */
   leadsWithFailingIcebreaker: number;
+  /**
+   * Benutzt die Sequenz die Variable {{websiteFinding}}?
+   *
+   * Ohne sie ist ein fehlender Befund belanglos, und die Pruefung darunter
+   * schweigt. Eine Warnung, die auch dann erscheint, wenn sie niemanden
+   * betrifft, ist genau die Sorte Rot, die man beim dritten Mal wegklickt.
+   */
+  sequenceUsesWebsiteFinding: boolean;
+  /**
+   * Leads OHNE Website-Befund, die deshalb zurueckgehalten werden.
+   *
+   * Nicht in sendableLeads enthalten: die Zahl dort ist die, die tatsaechlich
+   * hochgeht (siehe splitByWebsiteFinding in lib/instantly/create-campaign.ts).
+   */
+  leadsWithoutWebsiteFinding: number;
   domains: DomainAuth[];
   /** Versand und Bounces des Workspaces ueber alle bisherigen Kampagnen. */
   sentSoFar: number;
@@ -118,6 +134,19 @@ export const FIRST_MAIL_MAX_WORDS = 90;
  */
 const PERSONALIZATION_PLACEHOLDER = "personalization";
 
+/**
+ * Dasselbe fuer {{websiteFinding}}.
+ *
+ * Anders als beim Aufhaenger ist die Laenge hier KEINE Workspace-Einstellung,
+ * sondern eine Konstante im Worker (FINDING_MAX_WORDS in
+ * apps/worker/worker/pipelines/website_finding.py). Sie steht deshalb als Zahl
+ * hier und nicht als Parameter. Wer sie dort aendert, muss sie hier
+ * nachziehen, sonst rechnet der Torwart die erste Mail kuerzer, als sie
+ * ankommt.
+ */
+const WEBSITE_FINDING_PLACEHOLDER = "websitefinding";
+export const WEBSITE_FINDING_WORDS = 20;
+
 /** Platzhalter der Form {{name}}. */
 const PLACEHOLDER = /\{\{\s*([\w.]+)\s*\}\}/g;
 
@@ -129,9 +158,12 @@ const PLACEHOLDER = /\{\{\s*([\w.]+)\s*\}\}/g;
  * Zahl entscheidet, ob sie noch kurz ist.
  */
 export function estimateWords(body: string, personalizationWords: number): number {
-  const filled = body.replace(PLACEHOLDER, (_m, name: string) =>
-    name.toLowerCase() === PERSONALIZATION_PLACEHOLDER ? "x ".repeat(personalizationWords) : "x"
-  );
+  const filled = body.replace(PLACEHOLDER, (_m, name: string) => {
+    const key = name.toLowerCase();
+    if (key === PERSONALIZATION_PLACEHOLDER) return "x ".repeat(personalizationWords);
+    if (key === WEBSITE_FINDING_PLACEHOLDER) return "x ".repeat(WEBSITE_FINDING_WORDS);
+    return "x";
+  });
   return wordCount(filled);
 }
 
@@ -259,6 +291,38 @@ export function assessCampaign(facts: ReadinessFacts): Readiness {
       count: facts.leadsWithFailingIcebreaker,
       total: leads,
       percent: Math.round(failingShare * 100),
+    },
+  });
+
+  /**
+   * Leads ohne Website-Befund bei einer Sequenz, die ihn benutzt.
+   *
+   * WARUM WARNUNG UND NICHT BLOCKER
+   *
+   * Nach der Trennlinie oben ist ein Blocker etwas, das mit Sicherheit
+   * schiefgeht. Hier geht nichts schief: die betroffenen Leads werden beim
+   * Anlegen zurueckgehalten (splitByWebsiteFinding), es geht also keine Mail
+   * mit einem Loch raus. Die Kampagne wird nur kleiner als die Liste.
+   *
+   * Ein Blocker waere hier ausserdem eine Wand ohne Tuer. Eine Kampagne wird
+   * aus ganzen Lead-Listen gebaut, nicht aus einzelnen Leads; ein Nutzer, dem
+   * drei von fuenfhundert Leads fehlen, koennte den Blocker nur aufloesen,
+   * indem er die Variable wieder aus der Sequenz nimmt. Und in fast jeder
+   * Liste fehlt irgendjemandem eine erreichbare Website.
+   *
+   * Anders als icebreakerMissing gibt es hier KEINE Prozentschwelle: die
+   * Pruefung erscheint nur, wenn die Sequenz die Variable wirklich benutzt,
+   * und dann ist jeder einzelne zurueckgehaltene Lead eine Zahl, die der
+   * Nutzer vor dem Start sehen will. Ohne diese Bedingung waere eine
+   * Schwelle noetig, mit ihr waere sie Verschleierung.
+   */
+  checks.push({
+    id: "websiteFindingMissing",
+    severity:
+      facts.sequenceUsesWebsiteFinding && facts.leadsWithoutWebsiteFinding > 0 ? "warning" : "ok",
+    values: {
+      count: facts.leadsWithoutWebsiteFinding,
+      total: leads + facts.leadsWithoutWebsiteFinding,
     },
   });
 
