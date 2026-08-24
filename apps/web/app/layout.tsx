@@ -11,6 +11,7 @@ import CommandPalette, { CommandPaletteTrigger } from "./command-palette";
 import { ToastProvider } from "./toast-provider";
 import { WorkspaceProvider } from "./workspace-provider";
 import WorkspaceSwitcher from "./workspace-switcher";
+import { Analytics } from "@vercel/analytics/next";
 
 export const metadata = {
   title: "Frostbreaker · Lead-Gen & Outreach",
@@ -37,6 +38,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           <LanguageProvider lang={lang}>
             <ToastProvider>{children}</ToastProvider>
           </LanguageProvider>
+          <Analytics />
         </body>
       </html>
     );
@@ -58,6 +60,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
               Kein Workspace gefunden. Bitte kontaktiere den Support.
             </div>
           </LanguageProvider>
+          <Analytics />
         </body>
       </html>
     );
@@ -132,6 +135,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             </ToastProvider>
           </WorkspaceProvider>
         </LanguageProvider>
+        <Analytics />
       </body>
     </html>
   );
