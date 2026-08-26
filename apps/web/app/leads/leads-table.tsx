@@ -59,6 +59,10 @@ type Contact = {
     website_audit?: WebsiteAudit | null;
     website_audit_status?: string | null;
     website_audit_at?: string | null;
+    /** Der aus website_audit geschriebene Satz fuer {{websiteFinding}} in
+     *  Mail 1 (Migration 0103). Leer heisst: kein Befund, siehe
+     *  website_audit.top_finding, nicht "noch nicht geprueft". */
+    website_finding?: string | null;
   } | null;
 };
 
@@ -103,6 +107,8 @@ type Group = {
   website_audit: WebsiteAudit | null;
   website_audit_status: string | null;
   website_audit_at: string | null;
+  /** Siehe Contact["businesses"]["website_finding"]. */
+  website_finding: string | null;
   contacts: Merged[];
 };
 
@@ -238,6 +244,7 @@ function groupContacts(contacts: Contact[]): Group[] {
         website_audit: b?.website_audit ?? null,
         website_audit_status: b?.website_audit_status ?? null,
         website_audit_at: b?.website_audit_at ?? null,
+        website_finding: b?.website_finding ?? null,
         contacts: [],
       };
       groups.set(key, g);
@@ -1355,6 +1362,28 @@ export default function LeadsTable({
                 </p>
                 <p className="mb-5 rounded-lg border-l-2 border-sky-500/50 bg-sky-500/5 p-3 text-sm italic leading-relaxed text-soft">
                   {drawer.personalization}
+                </p>
+              </>
+            )}
+
+            {/* Der Satz fuer {{websiteFinding}} in Mail 1 (Migration 0103),
+                bislang nirgends in diesem Drawer zu sehen, obwohl die
+                Variable in Instantly laengst gefuellt wird. Eigene Farbe statt
+                sky wie bei personalization: es ist ein zweites, unabhaengiges
+                Textfeld, keine Fortsetzung des Aufhaengers darueber. */}
+            {drawer.website_finding && (
+              <>
+                <p className="mb-2 text-xs font-medium uppercase tracking-wider text-faint">
+                  {L.websiteFindingHeading}
+                </p>
+                {/* whitespace-pre-line, anders als beim Aufhaenger darueber:
+                    der Aufhaenger ist EIN Satz, der Befund sind mehrere
+                    Absaetze (ein Mangel je Absatz, getrennt durch eine
+                    Leerzeile). Ohne diese Klasse faltet der Browser die
+                    Umbrueche weg und drei Mangel stehen als eine Textwand da --
+                    genau so, wie sie in der Mail NICHT ankommen. */}
+                <p className="mb-5 whitespace-pre-line rounded-lg border-l-2 border-violet-500/50 bg-violet-500/5 p-3 text-sm italic leading-relaxed text-soft">
+                  {drawer.website_finding}
                 </p>
               </>
             )}

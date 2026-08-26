@@ -18,8 +18,10 @@ export default async function LeadsPage() {
       .from("contacts")
       // website_audit* seit Migration 0102: der Website-Befund ist das
       // Material des Aufhaengers und steht deshalb in der Liste und im Drawer
-      // direkt neben ihm.
-      .select("*, businesses(name, website, personalization, company_summary, search_id, address, phone_national, decisionmaker_status, hunter_status, traffic_rank, traffic_rank_source, website_audit, website_audit_status, website_audit_at)")
+      // direkt neben ihm. website_finding seit Migration 0103: der daraus
+      // geschriebene Satz fuer {{websiteFinding}} in Mail 1, bislang nirgends
+      // in dieser Ansicht abgerufen, obwohl er laengst in der Datenbank steht.
+      .select("*, businesses(name, website, personalization, company_summary, search_id, address, phone_national, decisionmaker_status, hunter_status, traffic_rank, traffic_rank_source, website_audit, website_audit_status, website_audit_at, website_finding)")
       .eq("workspace_id", workspaceId)
       .order("created_at", { ascending: false })
       .limit(1000),

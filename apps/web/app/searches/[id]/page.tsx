@@ -58,8 +58,23 @@ export default async function SearchDetailPage({
       .eq("parent_search_id", id),
     supabase
       .from("contacts")
-      // website_audit* seit Migration 0102, siehe leads/page.tsx.
-      .select("*, businesses!inner(name, website, personalization, company_summary, search_id, address, phone_national, decisionmaker_status, hunter_status, website_audit, website_audit_status, website_audit_at)")
+      /**
+       * website_audit* seit Migration 0102, siehe leads/page.tsx.
+       *
+       * website_finding kam am 2026-08-27 dazu, und der Grund ist eine
+       * gemeldete Verwirrung: diese Seite reicht ihre Zeilen an DIESELBE
+       * LeadsTable wie /leads, und deren Drawer zeigt den Befund laengst an.
+       * Er wurde hier nur nie geladen. Im Drawer stand deshalb die
+       * Stichpunktliste aus website_audit ("Built on a website builder") und
+       * darunter der ausformulierte Aufhaenger, aber nirgends der Satz, der
+       * als {{websiteFinding}} tatsaechlich in Mail 1 landet. Wer die beiden
+       * Spalten nicht auseinanderhaelt, liest die Stichpunkte als das, was
+       * verschickt wird.
+       *
+       * Die Spaltenliste muss deshalb mit der in leads/page.tsx
+       * uebereinstimmen: was hier fehlt, fehlt im Drawer, und zwar lautlos.
+       */
+      .select("*, businesses!inner(name, website, personalization, company_summary, search_id, address, phone_national, decisionmaker_status, hunter_status, website_audit, website_audit_status, website_audit_at, website_finding)")
       .eq("workspace_id", workspaceId)
       .eq("businesses.search_id", id)
       .order("created_at", { ascending: false })
@@ -126,7 +141,11 @@ export default async function SearchDetailPage({
     ? await Promise.all([
         supabase
           .from("contacts")
-          .select("*, businesses!inner(name, website, personalization, company_summary, search_id, address, phone_national, decisionmaker_status, hunter_status, website_audit, website_audit_status, website_audit_at)")
+          // Muss Spalte fuer Spalte dem Select oben entsprechen: dieselbe
+          // LeadsTable bekommt beide Ergebnisse. Eine gebuendelte Suche haette
+          // sonst im Drawer keinen Befund und eine einzelne schon, was nach
+          // "der Lead hat keinen" aussieht statt nach "hier fehlt eine Spalte".
+          .select("*, businesses!inner(name, website, personalization, company_summary, search_id, address, phone_national, decisionmaker_status, hunter_status, website_audit, website_audit_status, website_audit_at, website_finding)")
           .eq("workspace_id", workspaceId)
           .in("businesses.search_id", leadIds)
           .order("created_at", { ascending: false })
