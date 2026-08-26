@@ -162,7 +162,7 @@ function logZeilen(aufrufe: Aufruf[]): Record<string, unknown>[] {
 }
 
 describe("listTools", () => {
-  it("bietet genau die einundzwanzig vereinbarten Werkzeuge, in fester Reihenfolge", () => {
+  it("bietet genau die zweiundzwanzig vereinbarten Werkzeuge, in fester Reihenfolge", () => {
     // Feste Reihenfolge, weil die Spezifikation eine deterministische
     // Sortierung verlangt -- und weil sie den Arbeitsweg abbildet: erst der
     // Workspace, dann die Liste, dann die Leads, und ganz zum Schluss das,
@@ -183,6 +183,9 @@ describe("listTools", () => {
       "get_briefing",
       "set_lead_icebreaker",
       "set_lead_icebreakers",
+      // Direkt hinter den Icebreakern: derselbe Arbeitsschritt am selben
+      // Lead, nur das andere der beiden personalisierten Felder.
+      "set_lead_website_finding",
       "set_contact_status",
       "add_note",
       "set_offer_field",
@@ -194,11 +197,12 @@ describe("listTools", () => {
     ]);
   });
 
-  it("kennzeichnet elf Werkzeuge als nur lesend und zehn als schreibend", () => {
+  it("kennzeichnet elf Werkzeuge als nur lesend und elf als schreibend", () => {
     const schreibend = listTools().filter((t) => t.annotations.readOnlyHint === false);
     expect(schreibend.map((t) => t.name)).toEqual([
       "set_lead_icebreaker",
       "set_lead_icebreakers",
+      "set_lead_website_finding",
       "set_contact_status",
       "add_note",
       "set_offer_field",
@@ -643,6 +647,144 @@ describe("set_lead_icebreaker", () => {
     const ergebnis = await callTool(supabase, ctx({ scope: "read_write" }), "set_lead_icebreaker", {
       ...args,
       icebreaker: "x".repeat(5000),
+    });
+    expect(ergebnis.isError).toBe(true);
+    expect(aufrufe.some((a) => a.method === "update")).toBe(false);
+  });
+});
+
+describe("set_lead_website_finding", () => {
+  const args = {
+    workspace_id: WS,
+    business_id: "b1",
+    website_finding: "Eure Seite laedt auf dem Handy in elf Sekunden.",
+  };
+  const lead = {
+    businesses: {
+      data: { id: "b1", name: "Alpha GmbH", website: "alpha.de", website_finding: "Alter Befund." },
+    },
+    workspaces: { data: { personalization_language: "de" } },
+  };
+
+  it("ein read-Token schreibt nicht, und fragt auch nicht", async () => {
+    const { supabase, aufrufe } = stubSupabase();
+    const ergebnis = await callTool(supabase, ctx({ scope: "read" }), "set_lead_website_finding", args);
+    expect(ergebnis.isError).toBe(true);
+    expect(ergebnis.content[0].text).toBe(SCOPE_DENIED_MESSAGE);
+    expect(aufrufe).toHaveLength(0);
+  });
+
+  it("schreibt mit beiden Filtern und protokolliert den alten Wert", async () => {
+    const { supabase, aufrufe } = stubSupabase(lead);
+    const ergebnis = await callTool(supabase, ctx({ scope: "read_write" }), "set_lead_website_finding", args);
+    expect(ergebnis.isError).toBeUndefined();
+
+    // Beide Bedingungen: mit Service-Role wuerde .eq("id", ...) allein jede
+    // Zeile der Datenbank treffen, auch die eines fremden Kunden.
+    expect(hatFilter(aufrufe, "businesses", "workspace_id", WS)).toBe(true);
+    expect(hatFilter(aufrufe, "businesses", "id", "b1")).toBe(true);
+
+    expect(logZeilen(aufrufe)[0]).toMatchObject({
+      workspace_id: WS,
+      business_id: "b1",
+      field: "businesses.website_finding",
+      old_value: "Alter Befund.",
+      new_value: args.website_finding,
+    });
+  });
+
+  /**
+   * ═════════════════════════════════════════════════════════════════════
+   * DER TEST, UM DEN ES BEI DIESEM WERKZEUG GEHT
+   * ═════════════════════════════════════════════════════════════════════
+   *
+   * Der Befund hat eine EIGENE Wortgrenze (FINDING_MAX_WORDS = 20), nicht die
+   * des Icebreakers. Ein Workspace, der seinen Icebreaker auf 35 Woerter
+   * stellt, darf damit nicht auch 35-Wort-Befunde durchwinken -- der Worker
+   * haette denselben Satz markiert, und die beiden Wege muessen dasselbe
+   * Ergebnis liefern. Faellt dieser Test, misst das Werkzeug wieder an der
+   * falschen Zahl.
+   */
+  it("misst an der Wortgrenze des Befunds, nicht an der des Icebreakers", async () => {
+    const { supabase, aufrufe } = stubSupabase({
+      ...lead,
+      // Grosszuegige Icebreaker-Grenze. Der Befund darf sie NICHT erben.
+      workspaces: { data: { personalization_language: "de", personalization_max_words: 35 } },
+    });
+    const fuenfundzwanzig = Array.from({ length: 25 }, (_, i) => `wort${i}`).join(" ");
+    const ergebnis = await callTool(supabase, ctx({ scope: "read_write" }), "set_lead_website_finding", {
+      ...args,
+      website_finding: fuenfundzwanzig,
+    });
+
+    const inhalt = ergebnis.structuredContent as {
+      needs_review: boolean;
+      max_words: number;
+      words: number;
+    };
+    expect(inhalt.max_words).toBe(20);
+    expect(inhalt.words).toBe(25);
+    expect(inhalt.needs_review).toBe(true);
+
+    // Geprueft wird, abgelehnt wird nicht: der Satz steht trotzdem in der
+    // Spalte, samt Markierung -- wie beim Icebreaker und aus demselben Grund.
+    const update = aufrufe.find((a) => a.table === "businesses" && a.method === "update");
+    expect(update!.args[0]).toEqual({
+      website_finding: fuenfundzwanzig,
+      website_finding_needs_review: true,
+    });
+  });
+
+  it("ein sauberer Satz raeumt die Markierung wieder ab", async () => {
+    const { supabase, aufrufe } = stubSupabase(lead);
+    const ergebnis = await callTool(supabase, ctx({ scope: "read_write" }), "set_lead_website_finding", args);
+    const update = aufrufe.find((a) => a.table === "businesses" && a.method === "update");
+    expect(update!.args[0]).toMatchObject({ website_finding_needs_review: false });
+    expect(ergebnis.structuredContent).toMatchObject({ needs_review: false, problems: [] });
+  });
+
+  it("ein leerer Text loescht das Feld und markiert nichts", async () => {
+    // Leer ist ein gueltiger Zustand: der Worker laesst das Feld genauso
+    // leer, wenn er nichts Nachpruefbares gefunden hat. Eine Markierung an
+    // einer leeren Spalte waere ein Eintrag in der Pruefliste ohne Zeile zum
+    // Ansehen.
+    const { supabase, aufrufe } = stubSupabase(lead);
+    const ergebnis = await callTool(supabase, ctx({ scope: "read_write" }), "set_lead_website_finding", {
+      ...args,
+      website_finding: "   ",
+    });
+    const update = aufrufe.find((a) => a.table === "businesses" && a.method === "update");
+    expect(update!.args[0]).toEqual({ website_finding: null, website_finding_needs_review: false });
+    const inhalt = ergebnis.structuredContent as { website_finding: null; cleared_note: string };
+    expect(inhalt.website_finding).toBeNull();
+    // Der Satz, der erklaert, was das fuer die Kampagne heisst.
+    expect(inhalt.cleared_note).toContain("websiteFinding");
+  });
+
+  it("schreibt NICHT in die Icebreaker-Spalte", async () => {
+    // Die eine Verwechslung, gegen die dieses Werkzeug gebaut ist: beides
+    // sind personalisierte Saetze aus der Website, und ein Aufhaenger im
+    // Befundfeld (oder umgekehrt) setzt in der Sequenz den falschen Satz an
+    // die falsche Stelle.
+    const { supabase, aufrufe } = stubSupabase(lead);
+    await callTool(supabase, ctx({ scope: "read_write" }), "set_lead_website_finding", args);
+    const update = aufrufe.find((a) => a.table === "businesses" && a.method === "update");
+    expect(update!.args[0]).not.toHaveProperty("personalization");
+    expect(update!.args[0]).not.toHaveProperty("personalization_needs_review");
+  });
+
+  it("ein unbekannter Lead wird wie ein fremder behandelt", async () => {
+    const { supabase, aufrufe } = stubSupabase({ businesses: { data: null } });
+    const ergebnis = await callTool(supabase, ctx({ scope: "read_write" }), "set_lead_website_finding", args);
+    expect(ergebnis.isError).toBe(true);
+    expect(aufrufe.some((a) => a.method === "update")).toBe(false);
+  });
+
+  it("ein ganzer Pruefbericht statt eines Satzes wird abgelehnt", async () => {
+    const { supabase, aufrufe } = stubSupabase(lead);
+    const ergebnis = await callTool(supabase, ctx({ scope: "read_write" }), "set_lead_website_finding", {
+      ...args,
+      website_finding: "x".repeat(2000),
     });
     expect(ergebnis.isError).toBe(true);
     expect(aufrufe.some((a) => a.method === "update")).toBe(false);
@@ -2603,6 +2745,52 @@ describe("undo_writes", () => {
       // zurueckgedreht wurde -- sonst waere undo_writes ein Kippschalter.
       undo_of: "log-1",
     });
+  });
+
+  it("dreht auch den Website-Befund zurueck, mit SEINER Wortgrenze", async () => {
+    /**
+     * Zwei Dinge auf einmal, und beide gingen ohne die Ergaenzung in
+     * buendleNachZeile schief:
+     *
+     * 1. businesses.website_finding steht in UNDOABLE_FIELDS -- ohne den
+     *    Eintrag waere der Schreibvorgang zwar protokolliert, aber nicht
+     *    umkehrbar, und undo_writes haette ihn mit Grund uebersprungen.
+     * 2. Die Markierung wird mit pruefeBefund neu gerechnet, nicht mit
+     *    pruefeIcebreaker. Der zurueckgeholte Satz hat hier 25 Woerter: unter
+     *    der Icebreaker-Grenze von 35 waere er sauber, unter der des Befunds
+     *    (20) ist er es nicht. Faellt der Test, traegt ein zurueckgeholter
+     *    Befund wieder die Bewertung des falschen Feldes.
+     */
+    const zuLang = Array.from({ length: 25 }, (_, i) => `wort${i}`).join(" ");
+    const { supabase, aufrufe } = stubSupabase({
+      mcp_write_log: [
+        {
+          data: [
+            {
+              ...eintrag,
+              field: "businesses.website_finding",
+              old_value: zuLang,
+              new_value: "Kurzer neuer Befund.",
+            },
+          ],
+        },
+        { data: [] },
+      ],
+      businesses: { data: [{ id: "b1", website_finding: "Kurzer neuer Befund." }] },
+      workspaces: { data: { personalization_language: "de", personalization_max_words: 35 } },
+    });
+    const ergebnis = await callTool(supabase, ctx({ scope: "read_write" }), "undo_writes", {
+      workspace_id: WS,
+    });
+    expect(ergebnis.structuredContent).toMatchObject({ restored: 1 });
+
+    const update = aufrufe.find((a) => a.table === "businesses" && a.method === "update");
+    expect(update!.args[0]).toEqual({
+      website_finding: zuLang,
+      website_finding_needs_review: true,
+    });
+    // Und nicht versehentlich am Icebreaker mitgeschrieben.
+    expect(update!.args[0]).not.toHaveProperty("personalization");
   });
 
   it("laesst in Ruhe, was seither in der App geaendert wurde", async () => {

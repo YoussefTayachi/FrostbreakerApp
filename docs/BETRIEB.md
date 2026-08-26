@@ -133,12 +133,12 @@ Endpunkt ist zustandslos und prüft bei **jedem** Aufruf neu, ob der Token gilt
 und in welchen Workspaces sein Besitzer laut `workspace_members` Mitglied ist.
 Er läuft mit Service-Role (ohne Session wäre `auth.uid()` NULL und jede
 RLS-Policy false); der Ausgleich ist der ausdrückliche `workspace_id`-Filter in
-jeder Abfrage, siehe `apps/web/lib/mcp/authorize.ts`. Einundzwanzig Werkzeuge,
+jeder Abfrage, siehe `apps/web/lib/mcp/authorize.ts`. Zweiundzwanzig Werkzeuge,
 davon elf lesend. Schreibend sind `set_lead_icebreaker`, `set_lead_icebreakers`,
-`set_contact_status`, `add_note`, `set_offer_field`, `create_campaign`,
-`set_campaign_sequence`, `update_campaign`, `publish_campaign` und
-`undo_writes`; jedes davon fasst genau einen Datensatz je Aufruf an. Mit einer
-Ausnahme.
+`set_lead_website_finding`, `set_contact_status`, `add_note`, `set_offer_field`,
+`create_campaign`, `set_campaign_sequence`, `update_campaign`,
+`publish_campaign` und `undo_writes`; jedes davon fasst genau einen Datensatz je
+Aufruf an. Mit einer Ausnahme.
 
 Die Ausnahme ist `set_lead_icebreakers` (seit 2026-08-22): bis zu **50** Leads
 je Aufruf, jeder einzeln über seine `business_id` benannt (keine Filterform),
@@ -150,6 +150,37 @@ Begründung in `lib/mcp/untrusted.ts` hinfällig. `undo_writes` schreibt aus
 der App geändert wurde, und markiert jede Wiederherstellung über
 `mcp_write_log.undo_of` (Migration 0101), damit ein zweiter Aufruf kein
 Kippschalter ist.
+
+### Die zwei personalisierten Felder eines Leads
+
+`set_lead_icebreaker` schreibt `businesses.personalization`,
+`set_lead_website_finding` (seit 2026-08-26) schreibt
+`businesses.website_finding`. Beides sind personalisierte Sätze aus der
+Website, sie tun aber Verschiedenes und stehen in der Sequenz an verschiedenen
+Stellen — `{{icebreaker}}` ist der Aufhänger, `{{websiteFinding}}` der gemessene
+Mangel mit seiner Folge. Deshalb wurden sie mit Migration 0103 getrennt, und
+deshalb hat der Befund ein eigenes Werkzeug statt eines Parameters am
+bestehenden.
+
+**Die Wortgrenzen sind verschieden, und das ist der Punkt.** Der Befund wird
+gegen `FINDING_MAX_WORDS` (20, in `lib/website-finding-defaults.ts` und
+`website_finding.py`) geprüft, nicht gegen die Icebreaker-Grenze des Workspaces
+(Vorgabe 35). Nur so bewertet der MCP-Weg einen Satz genauso, wie ihn der
+Worker bewertet hätte. Verbotene Wörter und Ausgabesprache kommen dagegen aus
+den normalen Vorgaben: die gelten für jeden Satz, der in eine Mail gerät.
+
+Ein leerer Befund ist ein gültiger Zustand — der Worker lässt das Feld genauso
+leer, wenn er nichts Nachprüfbares gefunden hat. `publish_campaign` hält solche
+Leads dann aus jeder Kampagne heraus, deren Sequenz `{{websiteFinding}}`
+benutzt, und meldet sie als `no_website_finding`.
+
+Wer ein drittes geprüftes Textfeld ergänzt, muss es an **vier** Stellen
+eintragen, sonst geht es still halb kaputt: `UNDOABLE_FIELDS`,
+`buendleNachZeile` (sonst behält ein zurückgeschriebener Satz die Markierung
+des Satzes, der ihn überschrieben hatte), `GEPRUEFTE_SPALTEN` in `undo_writes`,
+und die Spaltenliste in `ladeAktuelleWerte` — die letzte war beim Befund
+tatsächlich vergessen, und der Fehler sah aus wie „`changed_since`, obwohl
+niemand etwas angefasst hat".
 
 ### Der Konnektor (seit 2026-08-26, Migration 0105)
 

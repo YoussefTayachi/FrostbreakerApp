@@ -25,6 +25,7 @@ import {
   SUBJECT_IDEAL_WORDS,
   SUBJECT_MAX_WORDS,
 } from "@/lib/copy/playbook";
+import { FINDING_MAX_WORDS } from "@/lib/website-finding-defaults";
 import { getApiKey } from "@/lib/api-keys";
 import { getBillingStatusForUser } from "@/lib/billing";
 import { instantlyRequest, InstantlyApiError } from "@/lib/instantly";
@@ -327,6 +328,11 @@ const MAX_FOREIGN_TEXT_CHARS = 1200;
  *  eine ganze Mail hineinschreibt. */
 const MAX_ICEBREAKER_CHARS = 2000;
 
+/** Der Website-Befund ist EIN Satz (FINDING_MAX_WORDS = 20). 600 Zeichen
+ *  lassen auch einem langen deutschen Satz Luft und fangen ab, wenn ein Modell
+ *  statt des Satzes seinen ganzen Pruefbericht hineinschreibt. */
+const MAX_FINDING_CHARS = 600;
+
 /** Eine Notiz ist ein Gespraechsvermerk, kein Dokument. 5000 Zeichen sind
  *  grosszuegig fuer "telefoniert, will im Q4 nochmal reden" und fangen den
  *  Fall ab, in dem ein Modell einen ganzen Mail-Verlauf hineinkopiert. */
@@ -547,6 +553,7 @@ const TIME_PATTERN = /^([01]\d|2[0-3]):[0-5]\d$/;
  */
 const UNDOABLE_FIELDS = {
   "businesses.personalization": { table: "businesses", column: "personalization" },
+  "businesses.website_finding": { table: "businesses", column: "website_finding" },
   "contacts.outreach_status": { table: "contacts", column: "outreach_status" },
 } as const;
 
@@ -615,6 +622,25 @@ type Pruefung = { problems: string[]; words: number; needsReview: boolean };
  */
 function pruefeIcebreaker(text: string, regeln: WritingRules): Pruefung {
   const problems = validateIcebreaker(text, regeln.maxWords, regeln.bannedWords, regeln.language);
+  return { problems, words: wordCount(text), needsReview: problems.length > 0 };
+}
+
+/**
+ * Dasselbe fuer den Website-Befund -- mit einer anderen Wortgrenze.
+ *
+ * NICHT regeln.maxWords: das ist die Grenze des Icebreakers. Der Befund hat
+ * seine eigene, FINDING_MAX_WORDS (20), und die steht so auch im Worker
+ * (website_finding.py). Die beiden Zahlen auseinanderzuhalten ist der ganze
+ * Sinn dieser zweiten Funktion: ein Befund, der an der Icebreaker-Grenze
+ * gemessen wird, landet je nach Workspace entweder grundlos in der Pruefliste
+ * oder rutscht zu lang durch -- und in beiden Faellen weicht die Bewertung von
+ * der ab, die der Worker demselben Satz gegeben haette.
+ *
+ * Verbotene Woerter und Sprache kommen dagegen aus denselben Vorgaben: die
+ * gelten fuer jeden Satz, der in eine Mail dieses Workspaces geraet.
+ */
+function pruefeBefund(text: string, regeln: WritingRules): Pruefung {
+  const problems = validateIcebreaker(text, FINDING_MAX_WORDS, regeln.bannedWords, regeln.language);
   return { problems, words: wordCount(text), needsReview: problems.length > 0 };
 }
 
@@ -2353,6 +2379,154 @@ export const TOOLS: Record<ToolName, McpTool> = {
     },
   },
 
+  // ── set_lead_website_finding ───────────────────────────────────────────
+  /**
+   * Der zweite personalisierte Satz eines Leads: der gepruefte Mangel seiner
+   * Website.
+   *
+   * ═══════════════════════════════════════════════════════════════════════
+   * WARUM DAS EIN EIGENES FELD IST UND NICHT DER ICEBREAKER
+   * ═══════════════════════════════════════════════════════════════════════
+   *
+   * Beides sind personalisierte Saetze, und beide entstehen aus der Website.
+   * Sie tun aber Verschiedenes und stehen in der Sequenz an verschiedenen
+   * Stellen: {{icebreaker}} ist der Aufhaenger ("dass ihr seit dem Umzug
+   * dreimal so viele Standorte habt"), {{websiteFinding}} ist der Mangel mit
+   * seiner Folge ("Eure Seite laedt auf dem Handy in elf Sekunden"). Wer
+   * beides in dieselbe Spalte schreibt, kann in einer Sequenz nicht mehr beide
+   * benutzen -- und genau dafuer wurden sie am 2026-08-24 getrennt
+   * (Migration 0103).
+   *
+   * ═══════════════════════════════════════════════════════════════════════
+   * DIE WORTGRENZE IST EINE ANDERE
+   * ═══════════════════════════════════════════════════════════════════════
+   *
+   * Geprueft wird gegen FINDING_MAX_WORDS (20), NICHT gegen regeln.maxWords
+   * (35, die Grenze des Icebreakers). Diese Zahl steht genauso im Worker
+   * (website_finding.py), und nur so bewertet dieses Werkzeug einen Satz
+   * gleich, wie der Worker denselben Satz bewertet haette. Verbotene Woerter
+   * und Sprache kommen dagegen aus den normalen Vorgaben des Workspaces: die
+   * gelten fuer jeden Satz, der in eine Mail geraet.
+   *
+   * Geprueft wird, abgelehnt wird nicht -- aus demselben Grund wie bei
+   * set_lead_icebreaker, der dort ausgeschrieben steht.
+   */
+  set_lead_website_finding: {
+    title: "Set lead website finding",
+    description: TOOL_DESCRIPTIONS.set_lead_website_finding,
+    inputSchema: {
+      type: "object",
+      properties: {
+        workspace_id: WORKSPACE_PROPERTY,
+        business_id: { type: "string", description: "The business_id from get_leads." },
+        website_finding: {
+          type: "string",
+          description:
+            "The one-sentence finding to store. Empty string clears the field, which takes the lead out of any campaign whose sequence uses {{websiteFinding}}.",
+        },
+      },
+      required: ["workspace_id", "business_id", "website_finding"],
+      additionalProperties: false,
+    },
+    // Zweimal derselbe Text ergibt denselben Zustand.
+    annotations: WRITE_ANNOTATIONS("Set lead website finding", true),
+    scope: "read_write",
+    async handler(supabase, ctx, args) {
+      const tor = gate(ctx, args, "read_write");
+      if (!tor.ok) return tor.result;
+
+      const businessId = readString(args, "business_id");
+      if (!businessId) return fail('Argument "business_id" is required. Call get_leads to get one.');
+      const befund = args.website_finding;
+      if (typeof befund !== "string") {
+        return fail('Argument "website_finding" is required and must be a string.');
+      }
+      if (befund.length > MAX_FINDING_CHARS) {
+        return fail(
+          `Argument "website_finding" is longer than ${MAX_FINDING_CHARS} characters. The finding is a single sentence naming one flaw and its consequence.`
+        );
+      }
+
+      // Erst lesen: ohne den alten Wert liesse sich im Protokoll hinterher
+      // nicht sagen, was ein missverstandener Prompt ueberschrieben hat.
+      const [{ data: vorher, error: leseFehler }, regeln] = await Promise.all([
+        supabase
+          .from("businesses")
+          .select("id, name, website, website_finding")
+          .eq("id", businessId)
+          .eq("workspace_id", tor.workspaceId)
+          .maybeSingle(),
+        ladeSchreibregeln(supabase, tor.workspaceId),
+      ]);
+      if (leseFehler) return dbFail("set_lead_website_finding", leseFehler);
+      if (!vorher) {
+        // Gleiche Formulierung fuer "gibt es nicht" und "gehoert einem anderen
+        // Workspace", wie ueberall hier.
+        return fail(
+          "Unknown business_id in this workspace. Call get_leads for the workspace to get valid ids."
+        );
+      }
+
+      // Leer heisst "kein Befund", und das ist ein gueltiger Zustand: der
+      // Worker laesst das Feld genauso leer, wenn er nichts Nachpruefbares
+      // gefunden hat. Eine Markierung an einer leeren Spalte waere ein Eintrag
+      // in der Pruefliste ohne Zeile zum Ansehen, deshalb dann needs_review
+      // ausdruecklich false.
+      const leer = befund.trim() === "";
+      const pruefung = leer
+        ? { problems: [] as string[], words: 0, needsReview: false }
+        : pruefeBefund(befund, regeln);
+
+      const { error: schreibFehler } = await supabase
+        .from("businesses")
+        .update({
+          website_finding: leer ? null : befund,
+          website_finding_needs_review: pruefung.needsReview,
+        })
+        .eq("id", businessId)
+        // BEIDE Bedingungen, nicht nur die id: die id allein wuerde mit
+        // Service-Role jede Zeile der Datenbank treffen.
+        .eq("workspace_id", tor.workspaceId);
+      if (schreibFehler) return dbFail("set_lead_website_finding", schreibFehler);
+
+      const logId = await protokolliere(supabase, ctx, tor.workspaceId, {
+        business_id: businessId,
+        field: "businesses.website_finding",
+        old_value: vorher.website_finding ?? null,
+        new_value: leer ? null : befund,
+      });
+
+      return okJson({
+        business_id: businessId,
+        company: vorher.name,
+        website: vorher.website ?? null,
+        previous_website_finding: vorher.website_finding ?? null,
+        website_finding: leer ? null : befund,
+        written: true,
+        words: pruefung.words,
+        max_words: FINDING_MAX_WORDS,
+        problems: pruefung.problems,
+        needs_review: pruefung.needsReview,
+        ...(pruefung.needsReview
+          ? {
+              review_note:
+                "The finding was written, but it breaks this workspace's rules and is now flagged for review in Frostbreaker, where a person has to deal with it. Call get_writing_rules and write it again to clear the flag. Note the finding has its own word limit, which is lower than the icebreaker's.",
+            }
+          : {}),
+        ...(leer
+          ? {
+              cleared_note:
+                "The field is now empty. This lead will be held back from any campaign whose sequence uses {{websiteFinding}}.",
+            }
+          : {}),
+        ...(logId ? { log_id: logId } : {}),
+        undo_hint: logId
+          ? `Call undo_writes with log_ids ["${logId}"] to put the previous finding back.`
+          : "Call undo_writes to put the previous finding back.",
+      });
+    },
+  },
+
   // ── set_contact_status ─────────────────────────────────────────────────
   set_contact_status: {
     title: "Set contact status",
@@ -3936,11 +4110,18 @@ export const TOOLS: Record<ToolName, McpTool> = {
        *
        * Deshalb wird sie beim Zurueckschreiben neu gerechnet, mit derselben
        * Pruefung wie beim Schreiben. Die Regeln werden nur geholt, wenn
-       * ueberhaupt ein Icebreaker im Plan steht: bei einem Status oder einem
-       * Angebotsfeld waere es eine Abfrage fuer nichts.
+       * ueberhaupt ein geprueftes Textfeld im Plan steht: bei einem Status
+       * oder einem Angebotsfeld waere es eine Abfrage fuer nichts.
+       *
+       * Zwei Felder sind das, mit je eigener Wortgrenze: personalization
+       * (Icebreaker) und website_finding (der Befund, seit 2026-08-26). Wer
+       * hier ein drittes ergaenzt, muss es auch in buendleNachZeile
+       * eintragen -- sonst wird es zwar zurueckgeschrieben, behaelt aber die
+       * Markierung des Satzes, der es ueberschrieben hatte.
        */
+      const GEPRUEFTE_SPALTEN = ["personalization", "website_finding"];
       const regeln = auszufuehren.some(
-        (p) => p.ziel.table === "businesses" && p.ziel.column === "personalization"
+        (p) => p.ziel.table === "businesses" && GEPRUEFTE_SPALTEN.includes(p.ziel.column)
       )
         ? await ladeSchreibregeln(supabase, tor.workspaceId)
         : null;
@@ -4606,14 +4787,22 @@ async function ladeAktuelleWerte(
   }
 
   if (ids.businesses.size > 0) {
+    // BEIDE umkehrbaren Spalten von businesses. Steht eine davon hier nicht
+    // drin, hat ihr Eintrag keinen Ist-Wert -- und der Vergleich "seither in
+    // der App geaendert?" schlaegt dann bei JEDEM Aufruf an, weil undefined
+    // nie dem protokollierten neuen Wert gleicht. Der Schreibvorgang waere
+    // damit still nicht umkehrbar: undo_writes meldete "changed_since" fuer
+    // eine Zeile, die niemand angefasst hat. Genau so verhielt sich
+    // website_finding, bevor es hier ergaenzt wurde.
     const { data, error } = await supabase
       .from("businesses")
-      .select("id, personalization")
+      .select("id, personalization, website_finding")
       .eq("workspace_id", workspaceId)
       .in("id", [...ids.businesses]);
     if (error) return { ok: false, error };
     for (const zeile of data ?? []) {
       werte.set(`businesses.personalization|${zeile.id}`, (zeile.personalization as string | null) ?? null);
+      werte.set(`businesses.website_finding|${zeile.id}`, (zeile.website_finding as string | null) ?? null);
     }
   }
 
@@ -4707,13 +4896,24 @@ function buendleNachZeile(
       vorhanden.patch.custom_fields = bisher;
     } else {
       vorhanden.patch[eintrag.ziel.column] = eintrag.to;
-      if (eintrag.ziel.table === "businesses" && eintrag.ziel.column === "personalization" && regeln) {
+      if (eintrag.ziel.table === "businesses" && regeln) {
         // Kein Text heisst nichts zu pruefen: eine Markierung an einer leeren
         // Spalte waere ein Eintrag in der Pruefliste ohne Zeile zum Ansehen.
-        vorhanden.patch.personalization_needs_review =
-          typeof eintrag.to === "string" && eintrag.to.trim() !== ""
-            ? pruefeIcebreaker(eintrag.to, regeln).needsReview
+        const hatText = typeof eintrag.to === "string" && eintrag.to.trim() !== "";
+        if (eintrag.ziel.column === "personalization") {
+          vorhanden.patch.personalization_needs_review = hatText
+            ? pruefeIcebreaker(eintrag.to as string, regeln).needsReview
             : false;
+        } else if (eintrag.ziel.column === "website_finding") {
+          // Eigene Pruefung, eigene Wortgrenze -- siehe pruefeBefund. Ohne
+          // diesen Zweig behielte ein zurueckgeschriebener Befund die
+          // Markierung des Satzes, der ihn ueberschrieben hatte: die
+          // Pruefliste zeigte dann eine Zeile, an der nichts mehr zu
+          // beanstanden ist.
+          vorhanden.patch.website_finding_needs_review = hatText
+            ? pruefeBefund(eintrag.to as string, regeln).needsReview
+            : false;
+        }
       }
     }
     vorhanden.eintraege.push(eintrag);
