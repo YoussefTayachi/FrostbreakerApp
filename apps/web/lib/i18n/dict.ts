@@ -1405,6 +1405,7 @@ const de = {
       copyButton: "Kopieren",
       copiedOk: "Kopiert",
       doneButton: "Fertig",
+      kindConnector: "Konnektor",
       connectorHeading: "Verbinden",
       connectorIntro:
         "Adresse kopieren, in Claude als eigenen Konnektor einfügen, anmelden. Nichts abzutippen.",
@@ -4004,6 +4005,7 @@ const en: Dictionary = {
       copyButton: "Copy",
       copiedOk: "Copied",
       doneButton: "Done",
+      kindConnector: "Connector",
       connectorHeading: "Connect",
       connectorIntro:
         "Copy the address, add it in Claude as a custom connector, sign in. Nothing to type out.",

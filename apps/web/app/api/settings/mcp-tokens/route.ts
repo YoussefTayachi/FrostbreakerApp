@@ -31,11 +31,20 @@ import type { McpScope } from "@/lib/mcp/authorize";
  * CLAUDE.md, "haeufigste Fehlerquelle").
  */
 
-/** Was der Client sehen darf. token_hash steht bewusst NICHT drin: der Hash
- *  ist zwar kein Klartext, aber er ist der Wert, gegen den der Server
- *  vergleicht -- er hat im Browser nichts verloren. */
+/** Was der Client sehen darf. token_hash und refresh_token_hash stehen bewusst
+ *  NICHT drin: ein Hash ist zwar kein Klartext, aber er ist der Wert, gegen den
+ *  der Server vergleicht -- er hat im Browser nichts verloren.
+ *
+ *  kind und refresh_expires_at kamen mit dem Konnektor dazu (Migration 0105).
+ *  Ohne sie zeigte die Liste eine Konnektor-Verbindung eine Stunde nach dem
+ *  Verbinden als "abgelaufen" an: der Zugriffstoken laeuft tatsaechlich nach
+ *  einer Stunde ab, aber der Konnektor erneuert ihn selbsttaetig, und die
+ *  Verbindung besteht so lange weiter, wie refresh_expires_at in der Zukunft
+ *  liegt. Ein "abgelaufen" an einer Verbindung, die einwandfrei arbeitet, ist
+ *  genau die Sorte Anzeige, nach der jemand einen funktionierenden Zugang
+ *  wegwirft und neu einrichtet. */
 const PUBLIC_COLUMNS =
-  "id, name, token_prefix, scope, workspace_id, created_at, last_used_at, expires_at, revoked_at";
+  "id, name, token_prefix, scope, workspace_id, created_at, last_used_at, expires_at, revoked_at, kind, refresh_expires_at";
 
 /** Der Name dient nur der Wiedererkennung in der Liste. 80 Zeichen sind mehr,
  *  als in eine Tabellenzelle passen; alles darueber ist ein Versehen oder ein

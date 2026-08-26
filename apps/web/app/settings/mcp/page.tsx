@@ -42,6 +42,13 @@ type McpToken = {
   last_used_at: string | null;
   expires_at: string | null;
   revoked_at: string | null;
+  /** 'pat' = hier von Hand erzeugt, 'oauth' = ueber den Konnektor
+   *  ausgestellt (Migration 0105). */
+  kind: "pat" | "oauth";
+  /** Nur bei kind = 'oauth' gesetzt. Solange dieser Zeitpunkt in der Zukunft
+   *  liegt, besteht die Verbindung -- auch wenn expires_at laengst
+   *  vorbei ist. */
+  refresh_expires_at: string | null;
 };
 
 /** Muss zu EXPIRY_DAYS in app/api/settings/mcp-tokens/route.ts passen: die
@@ -49,9 +56,21 @@ type McpToken = {
  *  geschickt. */
 const EXPIRY_CHOICES = ["", "30", "90", "365"] as const;
 
+/**
+ * Der Zustand, wie ihn ein Mensch versteht.
+ *
+ * Fuer einen Konnektor gilt eine andere Frist als fuer einen von Hand
+ * erzeugten Token: sein Zugriffstoken laeuft nach EINER STUNDE ab und wird
+ * dann selbsttaetig erneuert. Waere expires_at hier massgeblich, stuende die
+ * Verbindung eine Stunde nach dem Verbinden als "abgelaufen" in der Liste,
+ * obwohl sie einwandfrei arbeitet -- und jemand wuerde einen
+ * funktionierenden Zugang wegwerfen und neu einrichten. Massgeblich ist
+ * deshalb refresh_expires_at: bis dahin besteht die Verbindung.
+ */
 function statusOf(token: McpToken): "active" | "revoked" | "expired" {
   if (token.revoked_at) return "revoked";
-  if (token.expires_at && new Date(token.expires_at).getTime() <= Date.now()) return "expired";
+  const frist = token.kind === "oauth" ? token.refresh_expires_at : token.expires_at;
+  if (frist && new Date(frist).getTime() <= Date.now()) return "expired";
   return "active";
 }
 
@@ -451,7 +470,19 @@ export default function McpPage() {
                 >
                   <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm text-ink">{token.name}</p>
+                      <p className="truncate text-sm text-ink">
+                        {token.name}
+                        {/* Der Name eines Konnektors kommt aus seiner
+                            Registrierung ("Claude") und sieht damit aus wie
+                            ein selbst vergebener. Diese Marke sagt, welcher
+                            der beiden Wege dahintersteht -- was zaehlt, wenn
+                            jemand entscheidet, was er widerruft. */}
+                        {token.kind === "oauth" && (
+                          <span className="ml-2 rounded border border-edge2 bg-chip px-1.5 py-0.5 align-middle text-[11px] text-faint">
+                            {T.kindConnector}
+                          </span>
+                        )}
+                      </p>
                       <code className="font-mono text-[11px] text-mute">{token.token_prefix}…</code>
                     </div>
                     <span
@@ -494,7 +525,14 @@ export default function McpPage() {
                     <div>
                       <dt className="text-faint">{T.colExpires}</dt>
                       <dd className="text-soft">
-                        {token.expires_at ? formatDateTime(token.expires_at, lang) : T.noExpiry}
+                        {/* Dieselbe Fallunterscheidung wie in statusOf: beim
+                            Konnektor ist die Frist die des Refresh-Tokens,
+                            nicht die des Zugriffstokens. */}
+                        {(() => {
+                          const frist =
+                            token.kind === "oauth" ? token.refresh_expires_at : token.expires_at;
+                          return frist ? formatDateTime(frist, lang) : T.noExpiry;
+                        })()}
                       </dd>
                     </div>
                   </dl>
