@@ -175,6 +175,10 @@ export default function McpPage() {
 
   const origin = typeof window === "undefined" ? "" : window.location.origin;
 
+  /** Was der Mensch in die Konnektor-Maske einsetzt. Dieselbe Adresse wie in
+   *  den Token-Schnipseln, nur ohne Token daneben -- sie ist kein Geheimnis. */
+  const connectorUrl = `${origin}/api/mcp`;
+
   /**
    * Der Token in den Konfigurationsschnipseln.
    *
@@ -258,6 +262,40 @@ export default function McpPage() {
           </button>
         </div>
       )}
+
+      {/* Der Konnektor steht ueber dem Token-Formular, weil er seit dem
+          2026-08-26 der Normalweg ist. Vorher gab es ihn nicht: claude.ai und
+          Claude Desktop haben in ihrer Maske kein Feld fuer einen eigenen
+          Header, der Zugang lief also zwingend ueber einen abgetippten Token
+          und mcp-remote. Genau daher kamen die wiederkehrenden Fehler.
+
+          Hier steht bewusst KEIN Geheimnis: die Adresse ist oeffentlich, die
+          Anmeldung passiert unter /oauth/authorize mit der Sitzung, die dieser
+          Mensch ohnehin schon hat. */}
+      <div className={cardCls}>
+        <h2 className="text-sm font-semibold text-ink">{T.connectorHeading}</h2>
+        <p className="mt-1 text-xs leading-relaxed text-faint">{T.connectorIntro}</p>
+
+        <div className="mt-4">
+          <p className="text-xs font-medium text-ink">{T.connectorUrlLabel}</p>
+          <div className="mt-1.5 flex flex-wrap items-center gap-2">
+            <code className="min-w-0 flex-1 overflow-x-auto rounded-md bg-panel2 px-3 py-2 font-mono text-xs text-ink">
+              {connectorUrl}
+            </code>
+            <button onClick={() => copy(connectorUrl)} className={secondaryBtnCls}>
+              {T.copyButton}
+            </button>
+          </div>
+        </div>
+
+        <ol className="mt-4 list-decimal space-y-1.5 pl-4 text-xs leading-relaxed text-soft">
+          {T.connectorSteps.map((schritt) => (
+            <li key={schritt}>{schritt}</li>
+          ))}
+        </ol>
+
+        <p className="mt-3 text-xs leading-relaxed text-faint">{T.connectorNote}</p>
+      </div>
 
       <div className={cardCls}>
         <h2 className="text-sm font-semibold text-ink">{T.createButton}</h2>

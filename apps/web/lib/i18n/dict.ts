@@ -718,6 +718,7 @@ const de = {
     pipelinePersonalizeRunning: "wird gerade erzeugt — dauert meist unter einer Minute",
     companySummaryHeading: "Firmenbeschreibung",
     personalizationHeading: "Personalisierung",
+    websiteFindingHeading: "Website Befund",
     contactsHeading: (n: number) => `Kontakte (${n})`,
     primaryContactBadge: "Wird kontaktiert",
     makePrimaryContact: "Diesen kontaktieren",
@@ -1404,7 +1405,18 @@ const de = {
       copyButton: "Kopieren",
       copiedOk: "Kopiert",
       doneButton: "Fertig",
-      setupHeading: "Einrichtung",
+      connectorHeading: "Verbinden",
+      connectorIntro:
+        "Adresse kopieren, in Claude als eigenen Konnektor einfügen, anmelden. Nichts abzutippen.",
+      connectorUrlLabel: "Server-Adresse",
+      connectorSteps: [
+        "In claude.ai: Einstellungen → Konnektoren → Eigenen Konnektor hinzufügen. In Claude Desktop steht derselbe Punkt unter Einstellungen → Konnektoren.",
+        "Die Adresse oben einsetzen und hinzufügen.",
+        "Claude schickt dich hierher zurück. Dort wählst du, was der Konnektor darf, und bestätigst.",
+      ] as string[],
+      connectorNote:
+        "Der Zugang erneuert sich selbst und taucht danach unten in der Liste auf. Widerrufen kannst du ihn dort jederzeit.",
+      setupHeading: "Alternative: Token von Hand",
       // Steht im Schnipsel, solange kein Token frisch erzeugt wurde. Sieht
       // absichtlich wie ein echter Token aus (gleiches Praefix), damit
       // erkennbar ist, was ersetzt gehoert.
@@ -1415,7 +1427,7 @@ const de = {
       setupClaudeCodeHint: "Claude Code verbindet sich direkt mit einem entfernten MCP-Server: Adresse und Token in die Konfiguration eintragen, fertig.",
       setupClaudeDesktopLabel: "Claude Desktop",
       setupClaudeDesktopHint:
-        "Claude Desktop kann einen entfernten Server nicht direkt eintragen. Die Brücke mcp-remote, gestartet über npx, übernimmt die Verbindung stellvertretend für dich. Node.js muss dafür installiert sein.",
+        "Nur für ältere Fassungen ohne Konnektoren. Die Brücke mcp-remote, gestartet über npx, übernimmt die Verbindung stellvertretend; Node.js muss dafür installiert sein. Wenn dein Claude Desktop Konnektoren kennt, nimm den Weg oben — dieser hier ist die fehleranfälligere Variante.",
       setupClaudeDesktopSteps: [
         "In Claude Desktop: Einstellungen → Entwickler → Konfiguration bearbeiten. Das öffnet die richtige Datei, egal wo sie liegt — such sie nicht selbst, der Pfad unterscheidet sich je nach Installationsart.",
         "Den Block unten hineinkopieren. Steht dort schon ein mcpServers-Abschnitt, kommt frostbreaker als weiterer Eintrag hinein.",
@@ -1424,7 +1436,8 @@ const de = {
       ] as string[],
       setupClaudeDesktopQuitWarning:
         "Schritt 4 ist der, an dem die meisten scheitern. Claude Desktop läuft nach dem Schließen des Fensters im Hintergrund weiter und liest die Konfiguration dann nicht neu — es sieht so aus, als hätte der Eintrag nicht funktioniert.",
-      setupWebNote: "Über claude.ai im Browser geht das bewusst noch nicht, weil das eine OAuth-Anbindung voraussetzt.",
+      setupWebNote:
+        "Ein von Hand erzeugter Token läuft nur ab, wenn du oben eine Gültigkeit gewählt hast. Über claude.ai im Browser lässt er sich nicht eintragen — dort geht ausschließlich der Konnektor.",
       emptyTitle: "Noch kein Token",
       emptyBody: "Hier stehen deine Zugriffstoken für Claude, sobald du den ersten erzeugt hast.",
       colName: "Name",
@@ -3333,6 +3346,7 @@ const en: Dictionary = {
     pipelinePersonalizeRunning: "being generated — usually takes under a minute",
     companySummaryHeading: "Company summary",
     personalizationHeading: "Personalization",
+    websiteFindingHeading: "Website finding",
     contactsHeading: (n: number) => `Contacts (${n})`,
     primaryContactBadge: "Will be contacted",
     makePrimaryContact: "Contact this one",
@@ -3990,7 +4004,18 @@ const en: Dictionary = {
       copyButton: "Copy",
       copiedOk: "Copied",
       doneButton: "Done",
-      setupHeading: "Setup",
+      connectorHeading: "Connect",
+      connectorIntro:
+        "Copy the address, add it in Claude as a custom connector, sign in. Nothing to type out.",
+      connectorUrlLabel: "Server address",
+      connectorSteps: [
+        "In claude.ai: Settings → Connectors → Add custom connector. In Claude Desktop the same entry sits under Settings → Connectors.",
+        "Paste the address above and add it.",
+        "Claude sends you back here. You pick what the connector may do, and confirm.",
+      ] as string[],
+      connectorNote:
+        "The access renews itself and shows up in the list below afterwards. You can revoke it there at any time.",
+      setupHeading: "Alternative: token by hand",
       setupTokenPlaceholder: "fbk_mcp_YOUR_TOKEN",
       setupTokenPlaceholderHint:
         "The snippets contain a placeholder instead of a real token. Put your own in its place — it's only visible right after you create it.",
@@ -3998,7 +4023,7 @@ const en: Dictionary = {
       setupClaudeCodeHint: "Claude Code connects to a remote MCP server directly: add the address and this token to its configuration, and that's it.",
       setupClaudeDesktopLabel: "Claude Desktop",
       setupClaudeDesktopHint:
-        "Claude Desktop can't add a remote server directly. The bridge mcp-remote, started via npx, makes the connection on its behalf. Node.js has to be installed for this.",
+        "Only for older versions without connectors. The bridge mcp-remote, started via npx, makes the connection on its behalf; Node.js has to be installed for this. If your Claude Desktop knows connectors, take the route above — this one is the more fragile variant.",
       setupClaudeDesktopSteps: [
         "In Claude Desktop: Settings → Developer → Edit Config. That opens the right file wherever it lives — don't go looking for it yourself, the path differs by install type.",
         "Paste the block below. If an mcpServers section is already there, add frostbreaker as another entry inside it.",
@@ -4007,7 +4032,8 @@ const en: Dictionary = {
       ] as string[],
       setupClaudeDesktopQuitWarning:
         "Step 4 is where most people get stuck. Closing the window leaves Claude Desktop running in the background, where it never re-reads the config — and it looks like the entry simply didn't work.",
-      setupWebNote: "Through claude.ai in the browser this isn't possible yet, deliberately, because that requires an OAuth connection.",
+      setupWebNote:
+        "A hand-made token only expires if you picked a validity above. It can't be entered in claude.ai in the browser — there, the connector is the only route.",
       emptyTitle: "No token yet",
       emptyBody: "Your Claude access tokens will appear here once you create the first one.",
       colName: "Name",
