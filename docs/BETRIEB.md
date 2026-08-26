@@ -103,7 +103,7 @@ URL mitwandern, sonst laufen Signup-Meldungen ins Leere.
 
 Region `fra1`. Deployt bei jedem Push auf `main`.
 
-Fünf Routen laufen bewusst **ohne** Supabase-Session und prüfen ihre
+Sieben Routen laufen bewusst **ohne** Supabase-Session und prüfen ihre
 Authentifizierung selbst; sie sind deshalb im Middleware-Matcher
 ausgenommen (siehe `apps/web/middleware.ts`):
 
@@ -113,10 +113,22 @@ ausgenommen (siehe `apps/web/middleware.ts`):
 | `api/cron/*` | `CRON_SECRET` |
 | `api/internal/*` | `INTERNAL_NOTIFY_SECRET` |
 | `api/mcp` | Bearer-Token aus `mcp_tokens` (SHA-256-Vergleich) |
+| `api/oauth/*` | je Endpunkt anders, siehe unten |
+| `.well-known/*` | bewusst nichts (RFC 9728/8414 verlangen offene Metadaten) |
 | `api/unsubscribe` | bewusst nichts (CAN-SPAM verlangt Opt-out ohne Hürden) |
 
-`api/mcp` ist der MCP-Server: der Nutzer trägt einen Token aus den
-Einstellungen in seinem eigenen Claude ein und liest damit seine Leads. Der
+`.well-known/` und `api/oauth/` kamen am 2026-08-26 dazu. Vorher gemessen: ein
+GET auf `/.well-known/oauth-protected-resource` antwortete mit **307 auf
+/login**, ein Client bekam also eine HTML-Anmeldeseite, wo er JSON erwartete.
+Wer diese Einträge entfernt, macht den Konnektor damit unbrauchbar.
+
+Nicht ausgenommen ist die Seite `/oauth/authorize`: dort ist die Umleitung auf
+`/login` gewünscht. Die Middleware hängt dafür ein `?next=` an, das **Pfad und
+Parameter** trägt — ohne das landete der Mensch nach dem Anmelden auf dem
+Dashboard, und der Konnektor wartete auf einen Code, der nie kam.
+
+`api/mcp` ist der MCP-Server: der Nutzer verbindet ihn als Konnektor oder trägt
+einen Token aus den Einstellungen in seinem eigenen Claude ein. Der
 Endpunkt ist zustandslos und prüft bei **jedem** Aufruf neu, ob der Token gilt
 und in welchen Workspaces sein Besitzer laut `workspace_members` Mitglied ist.
 Er läuft mit Service-Role (ohne Session wäre `auth.uid()` NULL und jede
@@ -138,6 +150,56 @@ Begründung in `lib/mcp/untrusted.ts` hinfällig. `undo_writes` schreibt aus
 der App geändert wurde, und markiert jede Wiederherstellung über
 `mcp_write_log.undo_of` (Migration 0101), damit ein zweiter Aufruf kein
 Kippschalter ist.
+
+### Der Konnektor (seit 2026-08-26, Migration 0105)
+
+Bis dahin gab es nur den statischen Token aus den Einstellungen. Der
+funktioniert in Claude Code, wo eine Konfigurationsdatei einen eigenen Header
+aufnehmen kann — **nicht** in claude.ai und Claude Desktop: deren
+Konnektor-Maske kennt nur „offen" oder „OAuth". Der Ausweg war `mcp-remote`,
+ein npx-Paket, das bei jedem Start aus dem Netz kommt, unter Windows an
+Leerzeichen in `args` zerbricht und bei einem 405 auf GET auf das abgeschaffte
+SSE zurückfällt. **Daher kamen die wiederkehrenden MCP-Fehler, nicht aus dem
+Server.**
+
+Der Fluss ist OAuth 2.1 für öffentliche Clients, ohne `client_secret`, mit
+PKCE-S256 als einziger Methode:
+
+| Endpunkt | Was |
+|---|---|
+| `.well-known/oauth-protected-resource[/api/mcp]` | RFC 9728. Beide Pfade, weil Clients sich uneinig sind, welchen sie fragen |
+| `.well-known/oauth-authorization-server` | RFC 8414 |
+| `api/oauth/register` | RFC 7591, **offen**. Eine Registrierung gewährt nichts, sie erlaubt nur, um Zustimmung zu fragen |
+| `/oauth/authorize` | Die Zustimmungsseite. Braucht eine Sitzung, rendert ohne App-Hülle |
+| `api/oauth/authorize` | Nimmt die Zustimmung entgegen, gibt den Code. **Origin-Prüfung ist hier eine Zugriffsentscheidung** (CSRF) |
+| `api/oauth/token` | Code→Token und Refresh→Token, mit Rotation |
+| `api/oauth/revoke` | RFC 7009. Antwortet immer 200, auch bei unbekanntem Token |
+
+Drei Punkte, die beim Umbauen leicht kaputtgehen:
+
+- **Die ausgestellten Token sind Zeilen in `mcp_tokens`**, keine eigene
+  Tabelle. `kind = 'oauth'`, dazu `client_id`, `refresh_token_hash`,
+  `refresh_expires_at`. Grund: der Prüfpfad in `app/api/mcp/route.ts` ist genau
+  ein Hash-Lookup in genau einer Tabelle. Eine zweite Tokentabelle wäre ein
+  zweiter Prüfpfad — die Sorte Verdopplung, bei der ein Widerruf später in der
+  einen wirkt und in der anderen nicht.
+- **Der Zugriffstoken lebt eine Stunde**, das Refresh-Token 90 Tage und wird
+  bei jeder Nutzung rotiert. In der Token-Liste zählt deshalb
+  `refresh_expires_at`, nicht `expires_at` — sonst stünde eine einwandfrei
+  arbeitende Verbindung eine Stunde nach dem Verbinden als „abgelaufen" da.
+- **Der Autorisierungscode wird in der Datenbank verbraucht**, per
+  `update … where consumed_at is null … returning`, nicht per „lesen, prüfen,
+  schreiben". Bei zwei gleichzeitigen Anfragen bekämen sonst beide einen Token.
+  Ein zweites Einlösen widerruft zusätzlich alle Token dieses Clients
+  (RFC 6749 §4.1.2).
+
+Nachgeprüft am 2026-08-26 gegen die Live-App: Registrierung, untaugliche
+`redirect_uri` (400), falscher Verifier (400), derselbe Code danach erneut
+(400), Erfolgsfall, Zugriff auf `/api/mcp`, Nur-Lesen zeigt elf statt
+einundzwanzig Werkzeugen, Erneuern, alter Refresh tot, alter Zugriffstoken
+tot, Widerruf.
+
+### Hausordnung beim Schreiben
 
 Seit dem 2026-08-23 schreibt der Server nicht mehr an der Hausordnung des
 Workspaces vorbei. Anlass war ein über `set_lead_icebreaker` gesetzter
