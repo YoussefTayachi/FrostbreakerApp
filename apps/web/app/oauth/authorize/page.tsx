@@ -1,5 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
+import { getLangServer } from "@/lib/i18n/lang";
+import { dict } from "@/lib/i18n/dict";
 import { listWorkspaces } from "@/lib/workspace/server";
 import {
   OAUTH_SCOPE_WRITE,
@@ -50,6 +52,7 @@ function einzeln(v: string | string[] | undefined): string | null {
 
 export default async function AuthorizePage({ searchParams }: { searchParams: Promise<Suche> }) {
   const params = await searchParams;
+  const T = dict[await getLangServer()].settings.mcp;
   const clientId = einzeln(params.client_id);
   const redirectUri = einzeln(params.redirect_uri);
   const responseType = einzeln(params.response_type);
@@ -61,7 +64,7 @@ export default async function AuthorizePage({ searchParams }: { searchParams: Pr
 
   // ── Der Teil, der hier bleibt ────────────────────────────────────────
   if (!clientId || !redirectUri) {
-    return <Abbruch grund="Der Aufruf nennt keine client_id oder kein redirect_uri." />;
+    return <Abbruch titel={T.consentFailTitle} grund={T.consentFailNoParams} hinweis={T.consentFailNote} />;
   }
 
   const service = createServiceClient();
@@ -72,11 +75,11 @@ export default async function AuthorizePage({ searchParams }: { searchParams: Pr
     .maybeSingle<{ client_id: string; client_name: string | null; redirect_uris: string[] }>();
 
   if (!client) {
-    return <Abbruch grund="Diese Anwendung ist bei Frostbreaker nicht registriert." />;
+    return <Abbruch titel={T.consentFailTitle} grund={T.consentFailUnknownClient} hinweis={T.consentFailNote} />;
   }
   if (!redirectUriAllowed(client.redirect_uris, redirectUri)) {
     return (
-      <Abbruch grund="Die Ruecksprungadresse gehoert nicht zu dieser Anwendung. Der Vorgang wurde abgebrochen." />
+      <Abbruch titel={T.consentFailTitle} grund={T.consentFailBadRedirect} hinweis={T.consentFailNote} />
     );
   }
 
@@ -129,16 +132,13 @@ export default async function AuthorizePage({ searchParams }: { searchParams: Pr
 /** Der Fehler, der die Seite nicht verlaesst. Bewusst ohne "zurueck"-Knopf:
  *  es gibt kein vertrauenswuerdiges Ziel, sonst waere er weitergeleitet
  *  worden. */
-function Abbruch({ grund }: { grund: string }) {
+function Abbruch({ titel, grund, hinweis }: { titel: string; grund: string; hinweis: string }) {
   return (
     <div className="dot-grid flex min-h-screen items-center justify-center px-4">
       <div className="fade-up w-full max-w-md rounded-lg border border-red-500/30 bg-panel p-6">
-        <h1 className="text-base font-semibold text-ink">Verbindung nicht moeglich</h1>
+        <h1 className="text-base font-semibold text-ink">{titel}</h1>
         <p className="mt-2 text-sm leading-relaxed text-soft">{grund}</p>
-        <p className="mt-4 text-xs leading-relaxed text-faint">
-          Es wurde nichts freigegeben. Wenn du diesen Vorgang nicht selbst gestartet hast, kannst du
-          das Fenster einfach schliessen.
-        </p>
+        <p className="mt-4 text-xs leading-relaxed text-faint">{hinweis}</p>
       </div>
     </div>
   );

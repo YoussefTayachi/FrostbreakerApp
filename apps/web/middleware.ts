@@ -2,7 +2,20 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
 export async function middleware(request: NextRequest) {
-  let response = NextResponse.next({ request });
+  /**
+   * Den Pfad als Request-Header durchreichen.
+   *
+   * Das Root-Layout ist eine Server Component und hat damit kein
+   * usePathname(); es kann aber headers() lesen. Gebraucht wird das genau an
+   * einer Stelle: /oauth/authorize soll ohne die App-Huelle erscheinen. Eine
+   * Zustimmungsseite mit Seitenleiste, Workspace-Waehler und Suchfeld
+   * daneben laedt zum Weiterklicken ein, und der eine Klick, um den es geht,
+   * verschwindet zwischen fuenfzehn anderen.
+   */
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set("x-pathname", request.nextUrl.pathname);
+
+  let response = NextResponse.next({ request: { headers: requestHeaders } });
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -13,7 +26,10 @@ export async function middleware(request: NextRequest) {
         },
         setAll(cookiesToSet: { name: string; value: string; options?: object }[]) {
           cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
-          response = NextResponse.next({ request });
+          // Auch hier die ergaenzten Header weiterreichen, sonst faellt
+          // x-pathname genau in dem Fall weg, in dem Supabase die Sitzung
+          // erneuert -- und das Layout saehe den Pfad dann sporadisch nicht.
+          response = NextResponse.next({ request: { headers: requestHeaders } });
           cookiesToSet.forEach(({ name, value, options }) =>
             response.cookies.set(name, value, options)
           );

@@ -1406,6 +1406,29 @@ const de = {
       copiedOk: "Kopiert",
       doneButton: "Fertig",
       kindConnector: "Konnektor",
+      // Die Zustimmungsseite (/oauth/authorize). Der eine Moment, in dem ein
+      // Mensch entscheidet — deshalb steht dort, WER fragt, WOHIN es danach
+      // geht und WAS die Anwendung darf, und nicht mehr.
+      consentTitle: (client: string) => `${client} mit Frostbreaker verbinden`,
+      consentAs: (email: string, ziel: string) =>
+        `Als ${email}. Nach dem Verbinden geht es zurück an ${ziel}.`,
+      consentScopeLabel: "Was die Anwendung darf",
+      consentScopeReadHint: "Leads, Angebot, Sequenzen und Kampagnenzahlen lesen. Nichts ändern.",
+      consentScopeWriteHint:
+        "Zusätzlich Icebreaker, Notizen, Kontaktstatus und Kampagnenentwürfe schreiben. Verschickt wird dabei nichts.",
+      consentWorkspaceLabel: "Welche Workspaces",
+      consentWorkspaceOne: (name: string) => `Nur ${name}`,
+      consentAllow: "Verbinden",
+      consentAllowBusy: "Verbinde…",
+      consentDeny: "Ablehnen",
+      consentRevokeNote: "Du kannst diese Verbindung jederzeit unter Einstellungen → Claude-Zugang widerrufen.",
+      consentFailTitle: "Verbindung nicht möglich",
+      consentFailNoParams: "Der Aufruf nennt keine client_id oder kein redirect_uri.",
+      consentFailUnknownClient: "Diese Anwendung ist bei Frostbreaker nicht registriert.",
+      consentFailBadRedirect:
+        "Die Rücksprungadresse gehört nicht zu dieser Anwendung. Der Vorgang wurde abgebrochen.",
+      consentFailNote:
+        "Es wurde nichts freigegeben. Wenn du diesen Vorgang nicht selbst gestartet hast, schließ das Fenster einfach.",
       connectorHeading: "Verbinden",
       connectorIntro:
         "Adresse kopieren, in Claude als eigenen Konnektor einfügen, anmelden. Nichts abzutippen.",
@@ -4006,6 +4029,26 @@ const en: Dictionary = {
       copiedOk: "Copied",
       doneButton: "Done",
       kindConnector: "Connector",
+      consentTitle: (client: string) => `Connect ${client} to Frostbreaker`,
+      consentAs: (email: string, ziel: string) =>
+        `As ${email}. After connecting you'll go back to ${ziel}.`,
+      consentScopeLabel: "What the application may do",
+      consentScopeReadHint: "Read leads, offer, sequences and campaign numbers. Change nothing.",
+      consentScopeWriteHint:
+        "Additionally write icebreakers, notes, contact status and campaign drafts. Nothing is sent.",
+      consentWorkspaceLabel: "Which workspaces",
+      consentWorkspaceOne: (name: string) => `Only ${name}`,
+      consentAllow: "Connect",
+      consentAllowBusy: "Connecting…",
+      consentDeny: "Decline",
+      consentRevokeNote: "You can revoke this connection at any time under Settings → Claude access.",
+      consentFailTitle: "Can't connect",
+      consentFailNoParams: "The request names no client_id or no redirect_uri.",
+      consentFailUnknownClient: "This application isn't registered with Frostbreaker.",
+      consentFailBadRedirect:
+        "The return address doesn't belong to this application. The request was cancelled.",
+      consentFailNote:
+        "Nothing was granted. If you didn't start this yourself, just close the window.",
       connectorHeading: "Connect",
       connectorIntro:
         "Copy the address, add it in Claude as a custom connector, sign in. Nothing to type out.",

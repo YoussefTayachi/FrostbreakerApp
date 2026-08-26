@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import { inputCls, primaryBtnCls, secondaryBtnCls } from "@/lib/ui";
+import { useT } from "../../language-provider";
 import type { WorkspaceSummary } from "@/lib/workspace/shared";
 
 /**
@@ -13,10 +14,10 @@ import type { WorkspaceSummary } from "@/lib/workspace/shared";
  * method="post" auf /api/oauth/authorize, und die Route antwortet mit einer
  * 303 auf das Ruecksprungziel. Kein fetch, kein window.location, kein JSON
  * dazwischen. Der Grund ist nicht Sparsamkeit: das Ruecksprungziel ist bei
- * Desktop-Clients ein http://127.0.0.1:PORT/callback, und eine
- * Weiterleitung dorthin per fetch waere eine Cross-Origin-Anfrage, die der
- * Browser blockt. Als Formularabsendung ist es eine gewoehnliche Navigation,
- * und die darf ueberall hin.
+ * Desktop-Clients ein http://127.0.0.1:PORT/callback, und eine Weiterleitung
+ * dorthin per fetch waere eine Cross-Origin-Anfrage, die der Browser blockt.
+ * Als Formularabsendung ist es eine gewoehnliche Navigation, und die darf
+ * ueberall hin.
  *
  * Der Nebeneffekt: die Seite funktioniert auch dann, wenn JavaScript
  * scheitert. Bei einer Seite, deren einzige Aufgabe eine bewusste
@@ -48,6 +49,8 @@ export function ConsentForm({
   userEmail: string;
   workspaces: WorkspaceSummary[];
 }) {
+  const { t } = useT();
+  const T = t.settings.mcp;
   const [scope, setScope] = useState<"read" | "read_write">(wantsWrite ? "read_write" : "read");
   const [workspaceId, setWorkspaceId] = useState("");
   const [busy, setBusy] = useState(false);
@@ -57,8 +60,7 @@ export function ConsentForm({
   // entziffern.
   let ziel = redirectUri;
   try {
-    const u = new URL(redirectUri);
-    ziel = u.host;
+    ziel = new URL(redirectUri).host;
   } catch {
     /* Bleibt die Rohadresse. Geprueft ist sie ohnehin schon. */
   }
@@ -76,44 +78,38 @@ export function ConsentForm({
         </div>
 
         <div className="rounded-lg border border-edge/60 bg-panel p-6 shadow-sm">
-          <h1 className="text-lg font-semibold tracking-tight text-ink">
-            {clientName} mit Frostbreaker verbinden
-          </h1>
-          <p className="mt-1.5 text-sm leading-relaxed text-faint">
-            Als {userEmail}. Nach dem Verbinden geht es zurueck an {ziel}.
-          </p>
+          <h1 className="text-lg font-semibold tracking-tight text-ink">{T.consentTitle(clientName)}</h1>
+          <p className="mt-1.5 text-sm leading-relaxed text-faint">{T.consentAs(userEmail, ziel)}</p>
 
           <div className="mt-5 space-y-4">
             <div>
-              <label className="block text-xs font-medium text-ink">Was die Anwendung darf</label>
+              <label className="block text-xs font-medium text-ink">{T.consentScopeLabel}</label>
               <select
                 name="scope"
                 value={scope}
                 onChange={(e) => setScope(e.target.value as "read" | "read_write")}
                 className={inputCls + " mt-1.5 w-full"}
               >
-                <option value="read">Nur lesen</option>
-                <option value="read_write">Lesen und einzelne Felder schreiben</option>
+                <option value="read">{T.scopeRead}</option>
+                <option value="read_write">{T.scopeReadWrite}</option>
               </select>
               <p className="mt-1 text-xs leading-relaxed text-faint">
-                {scope === "read"
-                  ? "Leads, Angebot, Sequenzen und Kampagnenzahlen lesen. Nichts aendern."
-                  : "Zusaetzlich Icebreaker, Notizen, Kontaktstatus und Kampagnenentwuerfe schreiben. Verschickt wird dabei nichts."}
+                {scope === "read" ? T.consentScopeReadHint : T.consentScopeWriteHint}
               </p>
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-ink">Welche Workspaces</label>
+              <label className="block text-xs font-medium text-ink">{T.consentWorkspaceLabel}</label>
               <select
                 name="workspace_id"
                 value={workspaceId}
                 onChange={(e) => setWorkspaceId(e.target.value)}
                 className={inputCls + " mt-1.5 w-full"}
               >
-                <option value="">Alle, in denen ich Mitglied bin</option>
+                <option value="">{T.workspaceAll}</option>
                 {workspaces.map((w) => (
                   <option key={w.id} value={w.id}>
-                    Nur {w.name}
+                    {T.consentWorkspaceOne(w.name)}
                   </option>
                 ))}
               </select>
@@ -122,7 +118,7 @@ export function ConsentForm({
 
           {/* Alles, was der Fluss braucht, unveraendert weitergereicht. Die
               Route prueft es erneut gegen die Datenbank -- ein verstecktes
-              Feld ist nichts, worauf man sich verlaesst. */}
+              Feld ist ein Vorschlag des Browsers, keine Tatsache. */}
           <input type="hidden" name="client_id" value={clientId} />
           <input type="hidden" name="redirect_uri" value={redirectUri} />
           <input type="hidden" name="code_challenge" value={codeChallenge} />
@@ -137,7 +133,7 @@ export function ConsentForm({
               disabled={busy}
               className={primaryBtnCls + " flex-1"}
             >
-              {busy ? "Verbinde…" : "Verbinden"}
+              {busy ? T.consentAllowBusy : T.consentAllow}
             </button>
             <button
               type="submit"
@@ -146,14 +142,12 @@ export function ConsentForm({
               disabled={busy}
               className={secondaryBtnCls}
             >
-              Ablehnen
+              {T.consentDeny}
             </button>
           </div>
         </div>
 
-        <p className="mt-4 text-center text-xs leading-relaxed text-mute">
-          Du kannst diese Verbindung jederzeit unter Einstellungen &rarr; MCP widerrufen.
-        </p>
+        <p className="mt-4 text-center text-xs leading-relaxed text-mute">{T.consentRevokeNote}</p>
       </form>
     </div>
   );

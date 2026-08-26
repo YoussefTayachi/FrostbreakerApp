@@ -1,5 +1,6 @@
 import "./globals.css";
 import "@fontsource-variable/inter";
+import { headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { getLangServer } from "@/lib/i18n/lang";
 import { getCurrentWorkspace } from "@/lib/workspace/server";
@@ -27,7 +28,24 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const themeScript =
     "try{if(localStorage.getItem('theme')==='dark')document.documentElement.classList.add('dark')}catch(e){}";
 
-  if (!user) {
+  /**
+   * Seiten, die ohne die App-Huelle erscheinen, obwohl jemand angemeldet ist.
+   *
+   * Bisher entschied allein "kein user" darueber (Anmeldung, Registrierung).
+   * /oauth/authorize kam am 2026-08-26 dazu und ist der umgekehrte Fall: dort
+   * MUSS jemand angemeldet sein, und trotzdem gehoert die Huelle weg. Auf dem
+   * Live-Stand nachgesehen, wie es ohne diese Zeile aussah: die
+   * Zustimmungsseite stand mitten in Seitenleiste, Workspace-Waehler und
+   * Suchfeld -- eine Aufforderung zum Weiterklicken auf einer Seite, deren
+   * ganzer Zweck eine einzige bewusste Entscheidung ist.
+   *
+   * Der Pfad kommt als Header aus der Middleware; eine Server Component hat
+   * kein usePathname().
+   */
+  const pathname = (await headers()).get("x-pathname") ?? "";
+  const ohneHuelle = pathname.startsWith("/oauth/");
+
+  if (!user || ohneHuelle) {
     return (
       <html lang={lang} suppressHydrationWarning>
         <head>
