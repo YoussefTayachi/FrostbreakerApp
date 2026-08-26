@@ -200,8 +200,8 @@ async function codeGegenToken(
   if (!verifyPkce(codeVerifier, verbraucht.code_challenge, verbraucht.code_challenge_method)) {
     return json(oauthError("invalid_grant", "code_verifier does not match the code_challenge."), 400);
   }
-  if (verbraucht.resource && verbraucht.resource !== `${origin}/api/mcp`) {
-    // RFC 8707. Ein Token, der fuer eine andere Ressource erbeten wurde, wird
+  if (verbraucht.resource && !zeigtHierher(verbraucht.resource, origin)) {
+    // RFC 8707. Ein Token, der fuer eine FREMDE Ressource erbeten wurde, wird
     // hier nicht ausgestellt.
     return json(oauthError("invalid_target", "The requested resource does not match this server."), 400);
   }
@@ -212,6 +212,32 @@ async function codeGegenToken(
     scope: verbraucht.scope,
     workspaceId: verbraucht.workspace_id,
   });
+}
+
+/**
+ * Meint dieser resource-Parameter (RFC 8707) diesen Server?
+ *
+ * Verglichen wird die HERKUNFT, nicht die vollstaendige Adresse. Der Grund ist
+ * Bestandsaufnahme, nicht Bequemlichkeit: die Clients sind sich uneinig,
+ * was sie hineinschreiben. Manche nennen den kanonischen MCP-Endpunkt
+ * ("https://app.frostbreaker.app/api/mcp"), manche nur den Server
+ * ("https://app.frostbreaker.app"), manche haengen einen Schraegstrich an. Ein
+ * zeichengenauer Vergleich haette bei zweien davon einen harten
+ * Verbindungsabbruch ergeben, und zwar an der Stelle, an der ein Nutzer
+ * bereits zugestimmt hat.
+ *
+ * Was dabei nicht verlorengeht: der Zweck dieser Pruefung ist, einen Token
+ * fuer eine FREMDE Ressource zu verhindern. Dieser Server hat genau eine, und
+ * jede Adresse mit unserer Herkunft meint sie eindeutig. Zeigt der Parameter
+ * woandershin, faellt er hier weiterhin durch.
+ */
+function zeigtHierher(resource: string, origin: string): boolean {
+  try {
+    return new URL(resource).origin === origin;
+  } catch {
+    // Keine gueltige Adresse: dann ist sie auch nicht unsere.
+    return false;
+  }
 }
 
 // ─────────────────────────────────────────────────────────────────────────
