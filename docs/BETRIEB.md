@@ -162,12 +162,25 @@ Mangel mit seiner Folge. Deshalb wurden sie mit Migration 0103 getrennt, und
 deshalb hat der Befund ein eigenes Werkzeug statt eines Parameters am
 bestehenden.
 
-**Die Wortgrenzen sind verschieden, und das ist der Punkt.** Der Befund wird
-gegen `FINDING_MAX_WORDS` (20, in `lib/website-finding-defaults.ts` und
-`website_finding.py`) geprüft, nicht gegen die Icebreaker-Grenze des Workspaces
-(Vorgabe 35). Nur so bewertet der MCP-Weg einen Satz genauso, wie ihn der
-Worker bewertet hätte. Verbotene Wörter und Ausgabesprache kommen dagegen aus
-den normalen Vorgaben: die gelten für jeden Satz, der in eine Mail gerät.
+**Die Spalte trägt zwei Textsorten, und deshalb gibt es drei Wortgrenzen.**
+
+| Wer schreibt | Grenze | Konstante |
+|---|---|---|
+| Worker (`website_finding.py`) | 20 | `FINDING_MAX_WORDS` |
+| Von Hand über MCP | 160 | `MANUAL_FINDING_MAX_WORDS` |
+| (Icebreaker, zum Vergleich) | 35 | `personalization_max_words` |
+
+Der Grund für die zweite Zahl ist gezählt, nicht angenommen: am 2026-08-26
+trugen in der Produktionsdatenbank **20 von 20** Leads mit Befund zwischen 100
+und 143 Wörtern, also den Rumpf der Initial-Mail aus dem
+`website-finding`-Skill. Kein einziger die Ein-Satz-Form des Workers. Hätte
+`set_lead_website_finding` an den 20 gemessen, wäre jeder von Hand geschriebene
+Text in der Prüfliste gelandet, also genau die Arbeit entstanden, die das
+Werkzeug sparen soll.
+
+Verbotene Wörter und Ausgabesprache werden bei **beiden** Formen gleich
+geprüft: die sind Eigenschaften des Workspaces und gelten für jeden Satz, der
+in eine Mail gerät.
 
 Ein leerer Befund ist ein gültiger Zustand — der Worker lässt das Feld genauso
 leer, wenn er nichts Nachprüfbares gefunden hat. `publish_campaign` hält solche

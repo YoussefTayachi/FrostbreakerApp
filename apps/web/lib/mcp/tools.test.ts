@@ -699,22 +699,28 @@ describe("set_lead_website_finding", () => {
    * ═════════════════════════════════════════════════════════════════════
    *
    * Der Befund hat eine EIGENE Wortgrenze (FINDING_MAX_WORDS = 20), nicht die
-   * des Icebreakers. Ein Workspace, der seinen Icebreaker auf 35 Woerter
-   * stellt, darf damit nicht auch 35-Wort-Befunde durchwinken -- der Worker
-   * haette denselben Satz markiert, und die beiden Wege muessen dasselbe
-   * Ergebnis liefern. Faellt dieser Test, misst das Werkzeug wieder an der
-   * falschen Zahl.
+   * des Icebreakers und auch nicht die 20 des Workers, sondern
+   * MANUAL_FINDING_MAX_WORDS (160).
+   *
+   * Die Zahl beruht auf einer Zaehlung vom 2026-08-26: von den 20 Leads mit
+   * einem Befund trug keiner die Ein-Satz-Form, alle lagen zwischen 100 und
+   * 143 Woertern. An den 20 gemessen waere jeder von Hand geschriebene Text
+   * in der Pruefliste gelandet. Faellt dieser Test, misst das Werkzeug wieder
+   * an der falschen Zahl.
    */
   it("misst an der Wortgrenze des Befunds, nicht an der des Icebreakers", async () => {
     const { supabase, aufrufe } = stubSupabase({
       ...lead,
-      // Grosszuegige Icebreaker-Grenze. Der Befund darf sie NICHT erben.
+      // Grosszuegige Icebreaker-Grenze. Der Befund darf sie NICHT erben, in
+      // KEINE der beiden Richtungen: 130 Woerter reissen die 35 des
+      // Icebreakers, sind fuer einen von Hand geschriebenen Befund aber die
+      // normale Laenge.
       workspaces: { data: { personalization_language: "de", personalization_max_words: 35 } },
     });
-    const fuenfundzwanzig = Array.from({ length: 25 }, (_, i) => `wort${i}`).join(" ");
+    const hundertdreissig = Array.from({ length: 130 }, (_, i) => "wort" + i).join(" ");
     const ergebnis = await callTool(supabase, ctx({ scope: "read_write" }), "set_lead_website_finding", {
       ...args,
-      website_finding: fuenfundzwanzig,
+      website_finding: hundertdreissig,
     });
 
     const inhalt = ergebnis.structuredContent as {
@@ -722,15 +728,26 @@ describe("set_lead_website_finding", () => {
       max_words: number;
       words: number;
     };
-    expect(inhalt.max_words).toBe(20);
-    expect(inhalt.words).toBe(25);
-    expect(inhalt.needs_review).toBe(true);
+    expect(inhalt.max_words).toBe(160);
+    expect(inhalt.words).toBe(130);
+    // Der Punkt: KEINE Markierung. An der Icebreaker-Grenze oder an den 20
+    // des Workers gemessen waere dieser Text zur Pruefung gelandet.
+    expect(inhalt.needs_review).toBe(false);
+  });
 
-    // Geprueft wird, abgelehnt wird nicht: der Satz steht trotzdem in der
-    // Spalte, samt Markierung -- wie beim Icebreaker und aus demselben Grund.
+  it("markiert erst, was auch fuer einen Mailrumpf zu lang ist", async () => {
+    const { supabase, aufrufe } = stubSupabase(lead);
+    const zweihundert = Array.from({ length: 200 }, (_, i) => "wort" + i).join(" ");
+    const ergebnis = await callTool(supabase, ctx({ scope: "read_write" }), "set_lead_website_finding", {
+      ...args,
+      website_finding: zweihundert,
+    });
+    expect(ergebnis.structuredContent).toMatchObject({ needs_review: true, words: 200 });
+    // Geprueft wird, abgelehnt wird nicht: der Text steht trotzdem in der
+    // Spalte, samt Markierung.
     const update = aufrufe.find((a) => a.table === "businesses" && a.method === "update");
     expect(update!.args[0]).toEqual({
-      website_finding: fuenfundzwanzig,
+      website_finding: zweihundert,
       website_finding_needs_review: true,
     });
   });
@@ -784,7 +801,7 @@ describe("set_lead_website_finding", () => {
     const { supabase, aufrufe } = stubSupabase(lead);
     const ergebnis = await callTool(supabase, ctx({ scope: "read_write" }), "set_lead_website_finding", {
       ...args,
-      website_finding: "x".repeat(2000),
+      website_finding: "x".repeat(5000),
     });
     expect(ergebnis.isError).toBe(true);
     expect(aufrufe.some((a) => a.method === "update")).toBe(false);
@@ -2756,12 +2773,13 @@ describe("undo_writes", () => {
      *    Eintrag waere der Schreibvorgang zwar protokolliert, aber nicht
      *    umkehrbar, und undo_writes haette ihn mit Grund uebersprungen.
      * 2. Die Markierung wird mit pruefeBefund neu gerechnet, nicht mit
-     *    pruefeIcebreaker. Der zurueckgeholte Satz hat hier 25 Woerter: unter
-     *    der Icebreaker-Grenze von 35 waere er sauber, unter der des Befunds
-     *    (20) ist er es nicht. Faellt der Test, traegt ein zurueckgeholter
-     *    Befund wieder die Bewertung des falschen Feldes.
+     *    pruefeIcebreaker. Der zurueckgeholte Text hat hier 200 Woerter: das
+     *    reisst die Grenze des von Hand geschriebenen Befunds (160), und die
+     *    Markierung muss beim Zurueckschreiben neu gerechnet werden. Faellt
+     *    der Test, traegt ein zurueckgeholter Befund wieder die Bewertung des
+     *    falschen Feldes.
      */
-    const zuLang = Array.from({ length: 25 }, (_, i) => `wort${i}`).join(" ");
+    const zuLang = Array.from({ length: 200 }, (_, i) => "wort" + i).join(" ");
     const { supabase, aufrufe } = stubSupabase({
       mcp_write_log: [
         {

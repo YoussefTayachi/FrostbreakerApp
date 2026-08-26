@@ -75,3 +75,31 @@ export function getDefaultFindingPrompt(lang: "de" | "en"): string {
  * Stelle liegt. review.ts reicht sie unveraendert weiter.
  */
 export const FINDING_MAX_WORDS = 20;
+
+/**
+ * Die Wortgrenze fuer einen VON HAND geschriebenen Befund (MCP).
+ *
+ * ═══════════════════════════════════════════════════════════════════════
+ * WARUM DIESELBE SPALTE ZWEI GRENZEN HAT
+ * ═══════════════════════════════════════════════════════════════════════
+ *
+ * Weil sie zwei Textsorten traegt, und das ist keine Vermutung. Am 2026-08-26
+ * in der Produktionsdatenbank nachgezaehlt: von den 20 Leads mit einem Befund
+ * trug KEIN EINZIGER die Ein-Satz-Form des Workers. Alle lagen zwischen 100
+ * und 143 Woertern, weil dort der Rumpf der Initial-Mail steht, den der
+ * website-finding-Skill mit drei belegten Maengeln schreibt.
+ *
+ * Der Worker erzeugt weiterhin einen Satz und wird weiterhin an
+ * FINDING_MAX_WORDS gemessen. Wer von Hand schreibt, hat drei Maengel mit
+ * Folge unterzubringen, und das geht unter zwanzig Woertern nicht ohne
+ * Verlust. Haette set_lead_website_finding an den zwanzig gemessen, waere
+ * JEDER von Hand geschriebene Text in der Pruefliste gelandet -- also genau
+ * die Arbeit entstanden, die das Werkzeug sparen soll.
+ *
+ * 160 statt 143: der hoechste gemessene Wert plus Luft. Die Grenze faengt
+ * weiterhin den Fall ab, in dem ein Modell einen ganzen Pruefbericht
+ * hineinschreibt, und darum geht es hier. Verbotene Woerter und Ausgabesprache
+ * werden bei BEIDEN Formen gleich geprueft: die sind Eigenschaften des
+ * Workspaces und gelten fuer jeden Satz, der in eine Mail geraet.
+ */
+export const MANUAL_FINDING_MAX_WORDS = 160;

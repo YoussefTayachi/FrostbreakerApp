@@ -25,7 +25,7 @@ import {
   SUBJECT_IDEAL_WORDS,
   SUBJECT_MAX_WORDS,
 } from "@/lib/copy/playbook";
-import { FINDING_MAX_WORDS } from "@/lib/website-finding-defaults";
+import { MANUAL_FINDING_MAX_WORDS } from "@/lib/website-finding-defaults";
 import { getApiKey } from "@/lib/api-keys";
 import { getBillingStatusForUser } from "@/lib/billing";
 import { instantlyRequest, InstantlyApiError } from "@/lib/instantly";
@@ -328,10 +328,11 @@ const MAX_FOREIGN_TEXT_CHARS = 1200;
  *  eine ganze Mail hineinschreibt. */
 const MAX_ICEBREAKER_CHARS = 2000;
 
-/** Der Website-Befund ist EIN Satz (FINDING_MAX_WORDS = 20). 600 Zeichen
- *  lassen auch einem langen deutschen Satz Luft und fangen ab, wenn ein Modell
- *  statt des Satzes seinen ganzen Pruefbericht hineinschreibt. */
-const MAX_FINDING_CHARS = 600;
+/** Der von Hand geschriebene Befund traegt drei Maengel mit Folge, gemessen 100
+ *  bis 143 Woerter (Begruendung an MANUAL_FINDING_MAX_WORDS). 2500 Zeichen
+ *  lassen 160 Woertern Luft und fangen weiterhin ab, wenn ein Modell statt des
+ *  Textes seinen ganzen Pruefbericht hineinschreibt. */
+const MAX_FINDING_CHARS = 2500;
 
 /** Eine Notiz ist ein Gespraechsvermerk, kein Dokument. 5000 Zeichen sind
  *  grosszuegig fuer "telefoniert, will im Q4 nochmal reden" und fangen den
@@ -628,19 +629,18 @@ function pruefeIcebreaker(text: string, regeln: WritingRules): Pruefung {
 /**
  * Dasselbe fuer den Website-Befund -- mit einer anderen Wortgrenze.
  *
- * NICHT regeln.maxWords: das ist die Grenze des Icebreakers. Der Befund hat
- * seine eigene, FINDING_MAX_WORDS (20), und die steht so auch im Worker
- * (website_finding.py). Die beiden Zahlen auseinanderzuhalten ist der ganze
- * Sinn dieser zweiten Funktion: ein Befund, der an der Icebreaker-Grenze
- * gemessen wird, landet je nach Workspace entweder grundlos in der Pruefliste
- * oder rutscht zu lang durch -- und in beiden Faellen weicht die Bewertung von
- * der ab, die der Worker demselben Satz gegeben haette.
+ * NICHT regeln.maxWords (die Grenze des Icebreakers) und NICHT
+ * FINDING_MAX_WORDS (die 20 des Workers), sondern
+ * MANUAL_FINDING_MAX_WORDS. Die Begruendung fuer die dritte Zahl steht dort
+ * ausgeschrieben und beruht auf einer Zaehlung, nicht auf einer Annahme: die
+ * Spalte traegt in der Praxis den Rumpf der Initial-Mail, nicht den Satz des
+ * Workers.
  *
  * Verbotene Woerter und Sprache kommen dagegen aus denselben Vorgaben: die
  * gelten fuer jeden Satz, der in eine Mail dieses Workspaces geraet.
  */
 function pruefeBefund(text: string, regeln: WritingRules): Pruefung {
-  const problems = validateIcebreaker(text, FINDING_MAX_WORDS, regeln.bannedWords, regeln.language);
+  const problems = validateIcebreaker(text, MANUAL_FINDING_MAX_WORDS, regeln.bannedWords, regeln.language);
   return { problems, words: wordCount(text), needsReview: problems.length > 0 };
 }
 
@@ -2398,15 +2398,21 @@ export const TOOLS: Record<ToolName, McpTool> = {
    * (Migration 0103).
    *
    * ═══════════════════════════════════════════════════════════════════════
-   * DIE WORTGRENZE IST EINE ANDERE
+   * DIE WORTGRENZE IST EINE DRITTE
    * ═══════════════════════════════════════════════════════════════════════
    *
-   * Geprueft wird gegen FINDING_MAX_WORDS (20), NICHT gegen regeln.maxWords
-   * (35, die Grenze des Icebreakers). Diese Zahl steht genauso im Worker
-   * (website_finding.py), und nur so bewertet dieses Werkzeug einen Satz
-   * gleich, wie der Worker denselben Satz bewertet haette. Verbotene Woerter
-   * und Sprache kommen dagegen aus den normalen Vorgaben des Workspaces: die
-   * gelten fuer jeden Satz, der in eine Mail geraet.
+   * Weder regeln.maxWords (die des Icebreakers) noch FINDING_MAX_WORDS (die 20
+   * des Workers), sondern MANUAL_FINDING_MAX_WORDS.
+   *
+   * Der Grund ist gezaehlt, nicht angenommen: am 2026-08-26 trug in der
+   * Produktionsdatenbank KEINER der 20 Leads mit Befund die Ein-Satz-Form.
+   * Alle lagen zwischen 100 und 143 Woertern, weil dort der Rumpf der
+   * Initial-Mail steht. An den zwanzig gemessen waere jeder von Hand
+   * geschriebene Text in der Pruefliste gelandet, also genau die Arbeit
+   * entstanden, die dieses Werkzeug sparen soll.
+   *
+   * Verbotene Woerter und Sprache kommen dagegen aus den normalen Vorgaben des
+   * Workspaces: die gelten fuer jeden Satz, der in eine Mail geraet.
    *
    * Geprueft wird, abgelehnt wird nicht -- aus demselben Grund wie bei
    * set_lead_icebreaker, der dort ausgeschrieben steht.
@@ -2504,7 +2510,7 @@ export const TOOLS: Record<ToolName, McpTool> = {
         website_finding: leer ? null : befund,
         written: true,
         words: pruefung.words,
-        max_words: FINDING_MAX_WORDS,
+        max_words: MANUAL_FINDING_MAX_WORDS,
         problems: pruefung.problems,
         needs_review: pruefung.needsReview,
         ...(pruefung.needsReview
