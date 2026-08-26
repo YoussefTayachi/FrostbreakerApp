@@ -5,6 +5,20 @@ import { createClient } from "@/lib/supabase/client";
 import { useT } from "../language-provider";
 import { useToast } from "../toast-provider";
 
+/**
+ * Wohin nach der Anmeldung, wenn die Middleware ein Ziel mitgegeben hat.
+ *
+ * Nur eigene Pfade. Ein "next", das mit "//" oder einem Schema beginnt, waere
+ * eine offene Weiterleitung: ein Angreifer schickt jemandem
+ * /login?next=//boese.example, das Opfer meldet sich bei Frostbreaker an und
+ * landet auf einer fremden Seite, die wie Frostbreaker aussieht. Deshalb muss
+ * der Wert mit genau einem Schraegstrich beginnen, sonst gilt "/".
+ */
+function safeNext(raw: string | null): string {
+  if (!raw || !raw.startsWith("/") || raw.startsWith("//")) return "/";
+  return raw;
+}
+
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -30,7 +44,7 @@ function LoginForm() {
       push(t.login.failed + error.message, "error");
       return;
     }
-    router.push("/");
+    router.push(safeNext(searchParams.get("next")));
     router.refresh();
   }
 

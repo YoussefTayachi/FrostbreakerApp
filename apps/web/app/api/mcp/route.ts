@@ -6,6 +6,7 @@ import {
   type McpTokenRow,
 } from "@/lib/mcp/authorize";
 import { hashToken, parseBearer } from "@/lib/mcp/token";
+import { publicOrigin } from "@/lib/mcp/oauth";
 import { SERVER_INSTRUCTIONS } from "@/lib/mcp/tool-descriptions";
 import { callTool, listToolsForScope, type McpToolContext } from "@/lib/mcp/tools";
 import {
@@ -35,15 +36,24 @@ import {
  * in authorize.ts, die Werkzeuge in tools.ts.
  *
  * ═══════════════════════════════════════════════════════════════════════
- * KEIN OAUTH, UND DAS MIT ABSICHT
+ * DIE 401 ZEIGT JETZT AUF DEN OAUTH-FLUSS
  * ═══════════════════════════════════════════════════════════════════════
  *
- * Ein fehlender oder falscher Token ergibt eine nackte 401 -- OHNE
- * WWW-Authenticate mit OAuth-Metadaten und ohne
- * /.well-known/oauth-protected-resource. Beides waere die ausdrueckliche
- * Einladung an claude.ai, einen OAuth-Fluss zu starten, den es hier nicht
- * gibt: der Nutzer bekaeme statt "Token falsch" ein Anmeldefenster, das ins
- * Leere laeuft.
+ * An dieser Stelle stand bis zum 2026-08-26 das Gegenteil: eine nackte 401
+ * ohne WWW-Authenticate, mit der Begruendung, ein Hinweis auf OAuth waere die
+ * Einladung zu einem Fluss, den es nicht gibt -- der Nutzer bekaeme statt
+ * "Token falsch" ein Anmeldefenster, das ins Leere laeuft.
+ *
+ * Die Begruendung war richtig und ist es nicht mehr: den Fluss gibt es seit
+ * Migration 0105 (app/api/oauth/*, /oauth/authorize, /.well-known/*). Und
+ * ohne diesen Header gibt es keinen Konnektor -- claude.ai und Claude Desktop
+ * haben in ihrer Maske kein Feld fuer einen eigenen Header und finden den
+ * Aussteller ausschliesslich ueber den Weg
+ * "401 -> WWW-Authenticate -> resource_metadata" aus RFC 9728.
+ *
+ * Was das fuer bestehende Token bedeutet: nichts. Ein gueltiger Bearer-Token
+ * kommt an dieser Zeile nie vorbei. Nur wer KEINEN oder einen ungueltigen
+ * schickt, sieht statt einer Sackgasse jetzt den Weg zur Anmeldung.
  *
  * nodejs-Runtime, nicht Edge: hashToken nutzt node:crypto.
  */
@@ -92,14 +102,34 @@ function fehlerAntwort(id: JsonRpcId | undefined, fehler: RpcErrorShape) {
   return json(rpcError(id, fehler), fehler.httpStatus);
 }
 
-function nichtAngemeldet() {
-  return json(
+/**
+ * Die 401 mit dem Wegweiser.
+ *
+ * resource_metadata ist der einzige Teil, der maschinell gelesen wird: der
+ * Client holt sich das Dokument, findet darin den Aussteller und startet den
+ * Fluss. error und error_description daneben sind fuer den Menschen, der in
+ * ein Log schaut.
+ *
+ * Die Adresse wird aus den Weiterleitungs-Headern gebildet und nicht fest
+ * verdrahtet, damit sie auf Vorschau-Deployments und lokal ebenfalls stimmt --
+ * ein Wegweiser auf die Produktionsdomain waere von einem Dev-Server aus eine
+ * falsche Auskunft.
+ */
+function nichtAngemeldet(request: Request) {
+  const origin = publicOrigin(request.headers, request.url);
+  return NextResponse.json(
     {
       error: "unauthorized",
       message:
-        "Missing or invalid bearer token. Create one in Frostbreaker under Settings and send it as 'Authorization: Bearer fbk_mcp_...'.",
+        "Missing or invalid bearer token. Connect Frostbreaker as a connector, or create a token under Settings and send it as 'Authorization: Bearer fbk_mcp_...'.",
     },
-    401
+    {
+      status: 401,
+      headers: {
+        "Content-Type": "application/json",
+        "WWW-Authenticate": `Bearer resource_metadata="${origin}/.well-known/oauth-protected-resource", error="invalid_token", error_description="Missing or invalid access token"`,
+      },
+    }
   );
 }
 
@@ -115,7 +145,7 @@ export async function POST(request: Request) {
 
   // ── 1. Token ──────────────────────────────────────────────────────────
   const klartext = parseBearer(request.headers.get("authorization"));
-  if (!klartext) return nichtAngemeldet();
+  if (!klartext) return nichtAngemeldet(request);
 
   /**
    * Service-Role ist hier zwingend, nicht bequem.
@@ -168,7 +198,7 @@ export async function POST(request: Request) {
   }
   // Unbekannt, abgelaufen und widerrufen ergeben dieselbe Antwort: ein
   // Unterschied verriete, welche Token existieren.
-  if (!token || !isTokenUsable(token)) return nichtAngemeldet();
+  if (!token || !isTokenUsable(token)) return nichtAngemeldet(request);
 
   // ── 2. Reichweite, bei JEDEM Aufruf neu ───────────────────────────────
   // Der Server ist zustandslos; ein "Verbinden", bei dem man das einmal

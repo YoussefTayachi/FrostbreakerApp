@@ -42,7 +42,18 @@ export async function middleware(request: NextRequest) {
 
   if (!user && !isPublicPath) {
     const url = request.nextUrl.clone();
+    // Wohin es nach der Anmeldung zurueckgehen soll. Vorher wurde nur der
+    // Pfad auf /login gesetzt und der Rest der Adresse behalten -- die
+    // Suchparameter ueberlebten also, das Ziel selbst nicht. Fuer das
+    // Dashboard war das folgenlos (nach dem Login geht es ohnehin auf "/"),
+    // fuer /oauth/authorize ist es toedlich: dort steckt der ganze Auftrag in
+    // Pfad UND Parametern, und ein Konnektor, der seinen Nutzer zum Anmelden
+    // schickt, bekaeme ihn nach dem Login auf dem Dashboard wieder -- ohne
+    // Zustimmungsseite und ohne Code.
+    const next = request.nextUrl.pathname + request.nextUrl.search;
     url.pathname = "/login";
+    url.search = "";
+    if (next !== "/") url.searchParams.set("next", next);
     return NextResponse.redirect(url);
   }
 
@@ -82,7 +93,27 @@ export const config = {
   // MCP-Endpunkt ist selbst die Route (/api/mcp). Mit "api/mcp/" wuerde die
   // Ausnahme genau den einen Pfad verfehlen, um den es geht, und Claude
   // bekaeme statt einer Antwort eine Umleitung auf /login.
+  //
+  // .well-known/ und api/oauth/ kamen am 2026-08-26 dazu, als der MCP-Zugang
+  // ein Konnektor wurde. Vorher gemessen: ein GET auf
+  // /.well-known/oauth-protected-resource antwortete mit 307 auf /login. Ein
+  // Client, der dort die Metadaten des geschuetzten Endpunkts sucht, bekam
+  // also eine Umleitung auf eine HTML-Anmeldeseite -- und meldete daraufhin
+  // nicht "keine Metadaten", sondern einen kaputten Server. Diese Dokumente
+  // sind oeffentlich (RFC 9728 / RFC 8414 verlangen das ausdruecklich: sie
+  // muessen ohne Zugangsdaten lesbar sein), eine Anmeldung davor ist ein
+  // Widerspruch in sich.
+  //
+  // api/oauth/ pruefen ihre Auth selbst und muessen es auch: /register ist
+  // laut RFC 7591 offen, /token authentifiziert ueber Code und PKCE statt
+  // ueber eine Sitzung, und /authorize liest die Supabase-Sitzung im Handler,
+  // weil eine 307 auf /login als Antwort auf ein fetch() aus der
+  // Zustimmungsseite nur eine Anmeldeseite in den JSON-Parser schiebt.
+  //
+  // NICHT ausgenommen ist die Seite /oauth/authorize: dort ist die Umleitung
+  // auf /login genau das Gewuenschte -- wer zustimmen soll, muss angemeldet
+  // sein.
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|api/billing/webhook|api/cron/|api/internal/|api/mcp|api/unsubscribe).*)",
+    "/((?!_next/static|_next/image|favicon.ico|\\.well-known/|api/billing/webhook|api/cron/|api/internal/|api/mcp|api/oauth/|api/unsubscribe).*)",
   ],
 };

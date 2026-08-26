@@ -31,11 +31,36 @@ export const MODERN_VERSION = "2026-07-28";
 /**
  * Reihenfolge = Vorliebe, neueste zuerst. Steht so auch in
  * server/discover.supportedVersions.
+ *
+ * ═══════════════════════════════════════════════════════════════════════
+ * WARUM 2025-03-26 UND 2024-11-05 HIER STEHEN
+ * ═══════════════════════════════════════════════════════════════════════
+ *
+ * Bis zum 2026-08-26 endete die Liste bei 2025-06-18. Am Live-Endpunkt
+ * gemessen: ein initialize mit protocolVersion "2024-11-05" bekam
+ * "2025-11-25" zurueck. Die Legacy-Spezifikation laesst das formal zu (der
+ * Server schlaegt vor), sagt im naechsten Satz aber auch, was der Client dann
+ * tut: "If the client does not support the version returned by the server, it
+ * SHOULD disconnect." Genau das ist der Abbruch, der in Claude Desktop und
+ * unter mcp-remote als "MCP error" ankommt -- beide handeln in ihren
+ * ausgelieferten Fassungen 2024-11-05 aus.
+ *
+ * Beide alten Versionen sind hier kostenlos zu koennen: der Unterschied zu
+ * 2025-06-18 ist auf der Serverseite additiv (structuredContent, der
+ * MCP-Protocol-Version-Header). Ein Client, der sie nicht kennt, ueberliest
+ * unbekannte Felder -- das ist bei JSON-RPC der Normalfall und keine Annahme.
  */
-export const SUPPORTED_VERSIONS = [MODERN_VERSION, "2025-11-25", "2025-06-18"] as const;
+export const SUPPORTED_VERSIONS = [
+  MODERN_VERSION,
+  "2025-11-25",
+  "2025-06-18",
+  "2025-03-26",
+  "2024-11-05",
+] as const;
 
 /** Womit ein Legacy-Client abgespeist wird, dessen Wunschversion wir nicht
- *  kennen. */
+ *  kennen. Bewusst NICHT die neueste: wer etwas Unbekanntes verlangt, ist
+ *  eher ein alter als ein neuer Client. */
 export const LATEST_LEGACY_VERSION = "2025-11-25";
 
 export function isSupportedVersion(version: unknown): boolean {
