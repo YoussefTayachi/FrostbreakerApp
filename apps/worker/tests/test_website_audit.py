@@ -276,9 +276,42 @@ def test_ssl_broken_kommt_aus_dem_ausnahmezweig():
     assert audit["findings"][0]["evidence"] is None
 
 
-def test_unreachable_raet_nichts():
-    audit = website_audit.unreachable("https://weg.de/")
-    assert audit == {"checked_url": "https://weg.de/", "findings": []}
+def test_unreachable_raet_nichts_nach_einer_einzelnen_beobachtung():
+    """Ein gescheiterter Abruf ist noch kein Befund: er kann ein Netzaussetzer
+    sein, und "eure Seite laedt gar nicht" ist die staerkste Aussage des
+    Katalogs."""
+    audit = website_audit.unreachable("https://weg.de/", kind="dns", first_seen_at="2026-08-27T10:00:00+00:00")
+    assert audit["findings"] == []
+    assert audit["unreachable_kind"] == "dns"
+    assert audit["unreachable_confirmed_at"] is None
+
+
+def test_unreachable_wird_erst_mit_der_bestaetigung_zum_befund():
+    audit = website_audit.unreachable(
+        "https://weg.de/",
+        kind="dns",
+        first_seen_at="2026-08-27T10:00:00+00:00",
+        confirmed_at="2026-08-27T10:30:00+00:00",
+    )
+    assert [f["code"] for f in audit["findings"]] == ["site_unreachable"]
+    # Kein Beleg: es gibt keine Seite, aus der zitiert werden koennte, und
+    # website_finding.finding_context wuerde ihn als woertliches Zitat von der
+    # Seite beschriften.
+    assert audit["findings"][0]["evidence"] is None
+
+
+def test_site_unreachable_ist_der_staerkste_befund():
+    """Staerker als ssl_broken: dort kommt der Besucher nach einer Warnseite
+    noch durch, hier gar nicht."""
+    assert FINDING_CODES[0] == "site_unreachable"
+    audit = {
+        "findings": [
+            {"code": "no_https", "evidence": None},
+            {"code": "ssl_broken", "evidence": None},
+            {"code": "site_unreachable", "evidence": None},
+        ]
+    }
+    assert top_finding(audit)["code"] == "site_unreachable"
 
 
 # ── Messwerte und Speicherform ─────────────────────────────────────────────

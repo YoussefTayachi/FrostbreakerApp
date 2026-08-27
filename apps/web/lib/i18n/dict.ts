@@ -751,12 +751,16 @@ const de = {
       "Firma", "Website", "Firmenbeschreibung", "Vorname", "Nachname", "Position", "E-Mail",
       "Confidence", "Telefon", "LinkedIn", "Quellen", "Personalisierung",
     ],
-    // Die acht Website-Befunde des Prüfers (apps/worker/worker/website_audit.py)
+    // Die Website-Befunde des Prüfers (apps/worker/worker/website_audit.py)
     // plus die vier Zustände. "ok" heißt ausschließlich, dass die Prüfung ohne
     // technischen Fehler durchgelaufen ist, nicht dass nichts gefunden wurde.
     // Ein Lead mit dem Zustand "ok" und mehreren Befunden ist der Normalfall,
     // nicht die Ausnahme: die Befunde stehen unabhängig davon in findings.
     audit: {
+      site_unreachable: {
+        label: "Website lädt gar nicht",
+        consequence: `Die Adresse führt auf eine Fehlermeldung statt auf die Seite. Zweimal im Abstand einer halben Stunde geprüft, damit kein einzelner Aussetzer als Befund durchgeht.`,
+      },
       ssl_broken: {
         label: "Sicherheitszertifikat ungültig oder abgelaufen",
         consequence: `Browser zeigen vor der Seite eine ganzseitige Warnung, die meisten Besucher klicken nicht weiter.`,
@@ -815,7 +819,7 @@ const de = {
         // Nutzer nicht entscheidbar, deshalb bleibt der Text allgemein.
         skipped: "Nicht geprüft",
       },
-      // Beschriftungen rund um den Befund. Bewusst von den acht Codes
+      // Beschriftungen rund um den Befund. Bewusst von den Codes
       // getrennt: die stehen fest und gehören dem Prüfer, diese hier gehören
       // der Oberfläche, die sie zeigt.
       heading: "Website-Check",
@@ -3419,12 +3423,17 @@ const en: Dictionary = {
       "Company", "Website", "Company summary", "First name", "Last name", "Title", "Email",
       "Confidence", "Phone", "LinkedIn", "Sources", "Personalization",
     ],
-    // The auditor's eight website findings (apps/worker/worker/website_audit.py)
+    // The auditor's website findings (apps/worker/worker/website_audit.py)
     // plus the four states. "ok" means only that the check ran without a
     // technical error, not that nothing was found. A lead with "ok" and
     // several findings is the normal case, not the exception: the findings
     // live independently in the findings array.
     audit: {
+      site_unreachable: {
+        label: "Website does not load at all",
+        consequence:
+          "The address returns an error instead of the site. Checked twice, half an hour apart, so a single blip never becomes a finding.",
+      },
       ssl_broken: {
         label: "Security certificate is invalid or expired",
         consequence: "Browsers show a full warning screen before the page loads, most visitors never click through.",

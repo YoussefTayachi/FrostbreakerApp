@@ -131,7 +131,21 @@ def clear_provider_alert(workspace_id: str, provider: str) -> None:
     ).execute()
 
 
-def enqueue(workspace_id: str, job_type: str, payload: dict | None = None) -> None:
-    sb().table("jobs").insert(
-        {"workspace_id": workspace_id, "type": job_type, "payload": payload or {}}
-    ).execute()
+def enqueue(
+    workspace_id: str, job_type: str, payload: dict | None = None, delay_s: int = 0
+) -> None:
+    """Job einreihen, wahlweise erst in der Zukunft.
+
+    delay_s setzt run_at. claim_job arbeitet nach run_at und laesst einen Job
+    mit einem Datum in der Zukunft liegen; genau das ist der Unterschied
+    zwischen "spaeter nochmal nachsehen" und einem Wiederholungsversuch. Ein
+    Retry belegt eine Replik sofort wieder, ein verzoegerter Job nicht.
+
+    Bisher einziger Nutzer: die zweite Beobachtung einer nicht erreichbaren
+    Website (pipelines/check_website.py). Der Rest der Queue reiht weiterhin
+    ohne Verzoegerung ein, dort ist der Spaltendefault now() das Richtige.
+    """
+    row = {"workspace_id": workspace_id, "type": job_type, "payload": payload or {}}
+    if delay_s > 0:
+        row["run_at"] = (datetime.now(timezone.utc) + timedelta(seconds=delay_s)).isoformat()
+    sb().table("jobs").insert(row).execute()

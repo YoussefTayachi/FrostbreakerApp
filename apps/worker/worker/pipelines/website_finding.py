@@ -16,8 +16,11 @@ das Verhalten eines Prompts, den er verfasst hat.
 
 LEER IST EIN ERGEBNIS
 
-Nicht jeder Lead hat einen Befund: keine Website, Seite nicht erreichbar, oder
-keine der acht Pruefungen schlaegt an. Dann bleibt website_finding leer, und
+Nicht jeder Lead hat einen Befund: keine Website hinterlegt, keine Pruefung
+schlaegt an, oder die Seite war nicht abrufbar und der Fehlschlag liess sich
+nicht bestaetigen (seit dem 2026-08-27 wird aus einer bestaetigten
+Unerreichbarkeit dagegen der Befund site_unreachable, siehe
+pipelines/confirm_unreachable.py). Dann bleibt website_finding leer, und
 dieser Job macht KEINEN Modellaufruf. Es gibt bewusst keinen Rueckfallsatz: ein
 erfundener Mangel waere in einer Kaltmail eine falsche Tatsachenbehauptung, und
 ein allgemeiner Satz ("deine Website hat sicher Verbesserungspotenzial") ist

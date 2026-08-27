@@ -62,7 +62,14 @@ from datetime import date, datetime, timezone
 # nicht hinten angehaengt: no_contact_route und no_tel_link kosten unmittelbar
 # Anfragen und stehen deshalb weit oben, no_og_image und no_h1 sind wahr, aber
 # erklaerungsbeduerftig, und stehen unten bei no_meta_description.
+#
+# site_unreachable steht seit dem 2026-08-27 GANZ OBEN, vor ssl_broken. Es gibt
+# keinen staerkeren Befund: bei ssl_broken kommt der Besucher nach einer
+# Warnseite noch durch, hier kommt er gar nicht an. Der Befund entsteht als
+# einziger nicht aus dem HTML, sondern aus zwei getrennten Beobachtungen des
+# Scheiterns; wie er abgesichert wird, steht in pipelines/confirm_unreachable.py.
 FINDING_CODES: tuple[str, ...] = (
+    "site_unreachable",
     "ssl_broken",
     "no_https",
     "no_viewport",
@@ -101,6 +108,7 @@ FINDING_CODES: tuple[str, ...] = (
 # lib/i18n/dict.ts unter leads.audit.<code>.*: das Frontend zeigt sie in zwei
 # Sprachen, der Worker schreibt nur den deutschen Prompt-Kontext.
 FACT_DE: dict[str, str] = {
+    "site_unreachable": "Die Website laedt unter der hinterlegten Adresse gar nicht.",
     "ssl_broken": "Das SSL-Zertifikat der Website ist abgelaufen oder ungueltig.",
     "no_https": "Die Website laeuft ohne durchgehende HTTPS-Verschluesselung.",
     "no_viewport": "Die Website ist nicht fuer Mobilgeraete eingerichtet.",
@@ -116,6 +124,10 @@ FACT_DE: dict[str, str] = {
 }
 
 CONSEQUENCE_DE: dict[str, str] = {
+    "site_unreachable": (
+        "Wer die Adresse aufruft, landet auf einer Fehlermeldung, und jede Anfrage, "
+        "die dort haette entstehen sollen, geht an den naechsten Anbieter."
+    ),
     "ssl_broken": (
         "Jeder Browser blendet davor eine ganzseitige Warnung ein, die der Besucher "
         "erst wegklicken muss, bevor er die Seite ueberhaupt sieht."
@@ -649,14 +661,44 @@ def analyze(
     }
 
 
-def unreachable(checked_url: str) -> dict:
+def unreachable(
+    checked_url: str,
+    *,
+    kind: str,
+    first_seen_at: str | None = None,
+    confirmed_at: str | None = None,
+) -> dict:
     """Der Befund fuer eine Seite, die sich nicht abrufen liess.
 
-    Leere Befundliste statt geratener Maengel. Ein nicht erreichbarer Server
-    ist ein Ergebnis, kein Fehler; deshalb gibt es dafuer auch keinen
-    Status 'failed' und keinen zweiten Versuch.
+    EINE BEOBACHTUNG IST KEIN BEFUND. Ohne confirmed_at bleibt die Liste leer,
+    genau wie vor dem 2026-08-27: der erste Fehlschlag wird festgehalten, aber
+    er behauptet nichts. Erst wenn ein zweiter Abruf spaeter dasselbe sagt,
+    setzt pipelines/confirm_unreachable.py confirmed_at, und dann steht hier
+    site_unreachable.
+
+    Warum das noetig ist: "eure Seite laedt gar nicht" ist die staerkste
+    Aussage des ganzen Katalogs und zugleich die einzige, die ein einzelner
+    Netzaussetzer erfinden kann. Alle anderen Befunde stehen im HTML und
+    aendern sich nicht dadurch, dass man zweimal hinsieht.
+
+    kind ist die Fehlerart aus website_fetch.classify_failure. Sie wird
+    mitgeschrieben, damit spaeter nachvollziehbar bleibt, WORAN es lag (Name
+    loest nicht auf, niemand lauscht, TLS bricht ab); ein Befund ohne diese
+    Angabe waere von aussen nicht mehr nachpruefbar.
+
+    KEIN evidence am Befund. Der Beleg ist sonst ein woertliches Zitat von der
+    Seite, und website_finding.finding_context beschriftet ihn auch so ("Wörtlich
+    auf der Seite gefunden"). Hier gibt es keine Seite, aus der zitiert werden
+    koennte; die gepruefte Adresse steht ohnehin in checked_url.
     """
-    return {"checked_url": checked_url, "findings": []}
+    findings = [_finding("site_unreachable")] if confirmed_at else []
+    return {
+        "checked_url": checked_url,
+        "findings": findings,
+        "unreachable_kind": kind,
+        "unreachable_first_seen_at": first_seen_at,
+        "unreachable_confirmed_at": confirmed_at,
+    }
 
 
 def ssl_broken(checked_url: str) -> dict:

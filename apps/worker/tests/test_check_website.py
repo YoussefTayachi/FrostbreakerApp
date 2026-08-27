@@ -130,18 +130,68 @@ def test_redirects_to_https_ist_none_wenn_port_80_nicht_antwortet():
     assert website_fetch.redirects_to_https("https://muster.de/") is None
 
 
-def test_is_ssl_error_findet_das_zertifikat_in_der_ursachenkette():
-    import ssl
+# ── classify_failure ───────────────────────────────────────────────────────
 
-    inner = ssl.SSLCertVerificationError("certificate has expired")
+
+def _wrapped(inner: BaseException) -> httpx.HTTPError:
+    """Wie httpx es liefert: der echte Fehler steckt in der Ursachenkette."""
     outer = httpx.ConnectError("Verbindung fehlgeschlagen")
     outer.__cause__ = inner
-    assert website_fetch.is_ssl_error(outer) is True
+    return outer
 
 
-def test_is_ssl_error_ist_false_bei_einem_normalen_netzfehler():
-    assert website_fetch.is_ssl_error(httpx.ConnectError("getaddrinfo failed")) is False
-    assert website_fetch.is_ssl_error(httpx.ConnectTimeout("zu langsam")) is False
+def test_classify_findet_das_zertifikat_in_der_ursachenkette():
+    import ssl
+
+    error = _wrapped(ssl.SSLCertVerificationError("certificate verify failed: expired"))
+    assert website_fetch.classify_failure(error) == website_fetch.CERT
+
+
+def test_classify_trennt_den_tls_abbruch_vom_zertifikat():
+    """Der Fall richardwilding.net, gemessen am 2026-08-27: der Server bricht
+    den Handschlag ab, ein Zertifikat sieht der Browser dabei nie. Als 'cert'
+    gewertet haette die Mail ein kaputtes Zertifikat behauptet, das es gar
+    nicht gibt."""
+    import ssl
+
+    assert website_fetch.classify_failure(_wrapped(ssl.SSLEOFError("EOF"))) == website_fetch.TLS
+    assert website_fetch.classify_failure(_wrapped(ssl.SSLError("UNSUPPORTED_PROTOCOL"))) == website_fetch.TLS
+
+
+def test_classify_erkennt_die_uebrigen_arten():
+    import socket
+
+    assert website_fetch.classify_failure(_wrapped(socket.gaierror(11001, "getaddrinfo failed"))) == website_fetch.DNS
+    assert website_fetch.classify_failure(_wrapped(ConnectionRefusedError(111, "refused"))) == website_fetch.REFUSED
+    assert website_fetch.classify_failure(httpx.ConnectTimeout("zu langsam")) == website_fetch.TIMEOUT
+    status = httpx.HTTPStatusError(
+        "403", request=httpx.Request("GET", "https://a.de"), response=httpx.Response(403)
+    )
+    assert website_fetch.classify_failure(status) == website_fetch.HTTP
+
+
+def test_classify_kommt_auch_ohne_typen_durch_den_text():
+    """Absicherung dagegen, dass eine spaetere httpx-Fassung anders verpackt."""
+    assert website_fetch.classify_failure(httpx.ConnectError("getaddrinfo failed")) == website_fetch.DNS
+    assert website_fetch.classify_failure(httpx.HTTPError("irgendwas Neues")) == website_fetch.OTHER
+
+
+def test_nur_dauerhafte_arten_duerfen_zu_einem_befund_werden():
+    """timeout, http und other fehlen mit Absicht: alle drei haben eine
+    harmlose Lesart, in der der Server laeuft."""
+    assert website_fetch.DURABLE_FAILURE_KINDS == ("dns", "refused", "tls")
+
+
+@respx.mock
+def test_own_network_is_up_ist_false_wenn_die_gegenprobe_schweigt():
+    respx.get(website_fetch.CONTROL_URL).mock(side_effect=httpx.ConnectError("nope"))
+    assert website_fetch.own_network_is_up() is False
+
+
+@respx.mock
+def test_own_network_is_up_ist_true_wenn_die_gegenprobe_antwortet():
+    respx.get(website_fetch.CONTROL_URL).mock(return_value=httpx.Response(200, html="<html></html>"))
+    assert website_fetch.own_network_is_up() is True
 
 
 # ── Der Job ────────────────────────────────────────────────────────────────
@@ -210,10 +260,71 @@ def test_run_meldet_eine_tote_domain_als_unreachable_ohne_zu_scheitern(monkeypat
     monkeypatch.setattr(
         check_website, "sb", fake_sb({"id": "b-1", "website": "https://weg.de/"}, writes)
     )
+    monkeypatch.setattr(check_website, "enqueue", lambda *a, **k: None)
     respx.get("https://weg.de/").mock(side_effect=httpx.ConnectError("getaddrinfo failed"))
     check_website.run(job_for())  # darf nicht werfen
     assert writes[0]["website_audit_status"] == "unreachable"
+    # Noch KEIN Befund: eine einzelne gescheiterte Anfrage kann ein Aussetzer
+    # sein. Bestaetigt wird sie im verzoegerten zweiten Job.
     assert writes[0]["website_audit"]["findings"] == []
+    assert writes[0]["website_audit"]["unreachable_kind"] == "dns"
+    assert writes[0]["website_audit"]["unreachable_first_seen_at"]
+
+
+@respx.mock
+def test_run_reiht_die_bestaetigung_verzoegert_ein(monkeypatch):
+    """Der Unterschied zum Retry: einmal, spaeter, und ohne dass der Job
+    scheitert."""
+    jobs: list[tuple] = []
+    monkeypatch.setattr(
+        check_website, "sb", fake_sb({"id": "b-1", "website": "https://weg.de/"}, [])
+    )
+    monkeypatch.setattr(
+        check_website, "enqueue", lambda ws, t, p, delay_s=0: jobs.append((ws, t, p, delay_s))
+    )
+    respx.get("https://weg.de/").mock(side_effect=httpx.ConnectError("getaddrinfo failed"))
+    check_website.run(job_for())
+    assert jobs == [
+        ("ws-1", "confirm_website_unreachable", {"business_id": "b-1"}, check_website.CONFIRM_DELAY_S)
+    ]
+    assert check_website.CONFIRM_DELAY_S >= 1800
+
+
+@respx.mock
+def test_run_reiht_bei_einem_zeitablauf_keine_bestaetigung_ein(monkeypatch):
+    """Das ist der Kern der Retry-Sturm-Sorge: nur der Zeitablauf kostet die
+    vollen 20 Sekunden, und genau er bekommt keine zweite Beobachtung. Die
+    dauerhaften Arten scheitern gemessen in unter fuenf Sekunden."""
+    jobs: list[tuple] = []
+    writes: list[dict] = []
+    monkeypatch.setattr(
+        check_website, "sb", fake_sb({"id": "b-1", "website": "https://lahm.de/"}, writes)
+    )
+    monkeypatch.setattr(check_website, "enqueue", lambda *a, **k: jobs.append(a))
+    respx.get("https://lahm.de/").mock(side_effect=httpx.ConnectTimeout("zu langsam"))
+    check_website.run(job_for())
+    assert jobs == []
+    assert writes[0]["website_audit"]["unreachable_kind"] == "timeout"
+    assert writes[0]["website_audit"]["findings"] == []
+
+
+@respx.mock
+def test_run_scheitert_nicht_wenn_die_bestaetigung_nicht_eingereiht_werden_kann(monkeypatch):
+    """Fehlt der Jobtyp noch in der CHECK-Constraint (Migration 0106 nicht
+    angewandt), darf der Job daran nicht scheitern: die Queue wuerde ihn
+    wiederholen und denselben Abruf erneut ausfuehren."""
+    writes: list[dict] = []
+    monkeypatch.setattr(
+        check_website, "sb", fake_sb({"id": "b-1", "website": "https://weg.de/"}, writes)
+    )
+
+    def boom(*_a, **_k):
+        raise RuntimeError("jobs_type_check")
+
+    monkeypatch.setattr(check_website, "enqueue", boom)
+    respx.get("https://weg.de/").mock(side_effect=httpx.ConnectError("getaddrinfo failed"))
+    check_website.run(job_for())  # darf nicht werfen
+    assert writes[0]["website_audit_status"] == "unreachable"
 
 
 @respx.mock

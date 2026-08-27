@@ -16,6 +16,7 @@ from worker import queue
 from worker.db import sb
 from worker.pipelines import (
     check_website,
+    confirm_unreachable,
     find_decisionmaker,
     get_businesses,
     hunt_persons,
@@ -51,6 +52,19 @@ HANDLERS = {
     # Job der billigste der ganzen Queue ist: ein HTTP-GET mit Zeitlimit,
     # kein Fremd-Credit, kein Modellaufruf.
     "check_website": check_website.run,
+    # WARUM DIE BESTAETIGUNG EIN EIGENER JOB IST UND KEIN RETRY
+    #
+    # Sie sieht aus wie ein zweiter Versuch und ist das Gegenteil davon. Ein
+    # Retry laeuft ueber queue.fail_job, gilt als Fehlschlag, wiederholt sich
+    # bis max_attempts und belegt dabei sofort wieder eine Replik. Dieser Job
+    # laeuft EINMAL, eine halbe Stunde spaeter, und nur fuer die Fehlerarten,
+    # die gemessen in unter fuenf Sekunden scheitern.
+    #
+    # Der Unterschied ist nicht kosmetisch: aus zwei getrennten Beobachtungen
+    # darf eine Tatsachenbehauptung in einer Kaltmail werden, aus einer nicht.
+    # Die ausfuehrliche Begruendung steht im Docstring von
+    # pipelines/confirm_unreachable.py.
+    "confirm_website_unreachable": confirm_unreachable.run,
     "personalize": personalize.run,
     # WARUM DER BEFUNDSATZ EIN EIGENER JOB IST UND KEIN ZWEITER AUFRUF IN
     # personalize

@@ -30,6 +30,7 @@
  * auch die Begruendung, warum die Reihenfolge genau so ist.
  */
 export const AUDIT_CODES = [
+  "site_unreachable",
   "ssl_broken",
   "no_https",
   "no_viewport",
@@ -49,6 +50,17 @@ export type AuditCode = (typeof AUDIT_CODES)[number];
 /** pending = Job laeuft, ok = GEPRUEFT (nicht "alles gut"), siehe Migration 0102. */
 export type AuditStatus = "pending" | "ok" | "unreachable" | "skipped";
 
+/**
+ * Warum ein Abruf gescheitert ist, aus worker/website_fetch.classify_failure.
+ *
+ * Steht nur bei website_audit_status = 'unreachable' im gespeicherten Befund.
+ * Die Oberflaeche zeigt den Wert nicht an: dass die Seite nicht laedt, ist die
+ * Aussage, ob es am DNS-Eintrag oder am TLS-Handschlag liegt, beantwortet
+ * keine Frage, die hier jemand hat. Er steht in der Struktur, damit ein
+ * gespeicherter Befund von aussen nachpruefbar bleibt.
+ */
+export type UnreachableKind = "dns" | "refused" | "tls" | "timeout" | "http" | "other";
+
 export type AuditFinding = {
   code: string;
   /** Kurzes woertliches Zitat von der Seite (Jahreszahl, Generator, erste http-URL), nie ein Satz. */
@@ -57,8 +69,8 @@ export type AuditFinding = {
 
 /**
  * Die gespeicherte Struktur. Alle Felder optional, weil sie es in der
- * Datenbank auch sind: bei 'unreachable' schreibt der Worker nur checked_url
- * und eine leere findings-Liste, und der Spalten-Default ist '{}'.
+ * Datenbank auch sind: bei 'unreachable' schreibt der Worker weder final_url
+ * noch page_bytes, und der Spalten-Default ist '{}'.
  */
 export type WebsiteAudit = {
   checked_url?: string;
@@ -66,6 +78,20 @@ export type WebsiteAudit = {
   findings?: AuditFinding[];
   page_bytes?: number | null;
   generator?: string | null;
+  /** Nur bei 'unreachable': woran der Abruf gescheitert ist. */
+  unreachable_kind?: UnreachableKind | null;
+  /** Nur bei 'unreachable': wann der erste Fehlschlag beobachtet wurde. */
+  unreachable_first_seen_at?: string | null;
+  /**
+   * Nur bei 'unreachable': wann eine zweite Beobachtung dasselbe gesagt hat.
+   *
+   * Null heisst "noch nicht bestaetigt", und dann steht site_unreachable auch
+   * NICHT in findings. Eine einzelne gescheiterte Anfrage ist kein Befund: sie
+   * kann ein Netzaussetzer sein, und daraus in einer Kaltmail "eure Seite
+   * laedt gar nicht" zu machen waere eine erfundene Behauptung. Der Weg dahin
+   * steht in worker/pipelines/confirm_unreachable.py.
+   */
+  unreachable_confirmed_at?: string | null;
 };
 
 function rank(code: string): number {
