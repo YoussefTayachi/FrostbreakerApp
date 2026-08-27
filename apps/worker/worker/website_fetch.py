@@ -260,7 +260,7 @@ def _causes(exc: BaseException) -> list[BaseException]:
 def classify_failure(exc: BaseException) -> str:
     """Warum ist dieser Abruf gescheitert? Liefert eine der Arten von oben.
 
-    Die Reihenfolge der Blocke ist die Rangfolge: ein Zertifikatsfehler bleibt
+    Die Reihenfolge der Bloecke ist die Rangfolge: ein Zertifikatsfehler bleibt
     ein Zertifikatsfehler, auch wenn in derselben Kette noch ein Verbindungs-
     fehler steckt.
 
