@@ -57,14 +57,23 @@ from datetime import date, datetime, timezone
 # Die Codes selbst sind stabil: sie landen unveraendert in
 # businesses.website_audit und werden von apps/web/lib/website-audit.ts
 # gespiegelt. Umbenennen hiesse, bereits gespeicherte Befunde zu entwerten.
+#
+# Die vier Eintraege vom 2026-08-27 sind nach demselben Massstab einsortiert,
+# nicht hinten angehaengt: no_contact_route und no_tel_link kosten unmittelbar
+# Anfragen und stehen deshalb weit oben, no_og_image und no_h1 sind wahr, aber
+# erklaerungsbeduerftig, und stehen unten bei no_meta_description.
 FINDING_CODES: tuple[str, ...] = (
     "ssl_broken",
     "no_https",
     "no_viewport",
+    "no_contact_route",
+    "no_tel_link",
     "stale_copyright",
     "mixed_content",
     "site_builder",
+    "no_og_image",
     "legacy_markup",
+    "no_h1",
     "no_meta_description",
 )
 
@@ -100,6 +109,10 @@ FACT_DE: dict[str, str] = {
     "site_builder": "Die Website ist mit einem Homepage-Baukasten gebaut.",
     "legacy_markup": "Die Website nutzt HTML-Technik, die seit Jahren abgekuendigt ist.",
     "no_meta_description": "Der Website fehlt die Beschreibung fuer Suchmaschinen.",
+    "no_contact_route": "Von der Startseite aus gibt es keinen Weg zur Kontaktaufnahme.",
+    "no_tel_link": "Die Telefonnummer steht als blosser Text da und laesst sich nicht antippen.",
+    "no_og_image": "Beim Teilen des Links erscheint kein Vorschaubild.",
+    "no_h1": "Die Startseite hat keine Hauptueberschrift.",
 }
 
 CONSEQUENCE_DE: dict[str, str] = {
@@ -132,6 +145,22 @@ CONSEQUENCE_DE: dict[str, str] = {
     "no_meta_description": (
         "Google zeigt dann einen zufaellig gewaehlten Satz von der Seite, der "
         "oft wenig mit dem eigentlichen Angebot zu tun hat."
+    ),
+    "no_contact_route": (
+        "Wer anfragen will, muss erst suchen, und ein Teil davon sucht "
+        "stattdessen den naechsten Anbieter."
+    ),
+    "no_tel_link": (
+        "Auf dem Handy muss die Nummer abgeschrieben statt angetippt werden, "
+        "und genau dabei brechen Anrufe ab."
+    ),
+    "no_og_image": (
+        "Wer die Adresse weiterleitet, verschickt ein graues Rechteck statt "
+        "eines Bildes, und gerade Empfehlungen laufen ueber solche Links."
+    ),
+    "no_h1": (
+        "Suchmaschinen erfahren dadurch nirgends im Seiteninhalt, worum es "
+        "geht, und ordnen die Seite entsprechend schlechter ein."
     ),
 }
 
@@ -193,6 +222,32 @@ def _resource_url(tag: str, attrs: dict[str, str]) -> str | None:
 
 def _text_of(html: str) -> str:
     return " ".join(_TAG_RE.sub(" ", html).split())
+
+
+# Skript- und Stilbloecke MIT Inhalt. _TAG_RE entfernt nur die Tags selbst und
+# laesst dazwischen alles stehen, aus _text_of faellt also der komplette
+# CSS- und JavaScript-Quelltext als vermeintlicher "Seitentext" heraus.
+#
+# ANLASS, GEMESSEN AM 2026-08-26: bei einer Telefonsuche ueber den sichtbaren
+# Text meldete eine Squarespace-Seite achtzehn "Nummern", darunter
+# ".fe-6a79b631970ccb22bceb0b8e" und "#block-yui_3_17_2_1_1732549573457_12051".
+# Das waren Klassennamen aus einem <style>-Block. Wer daraus einen Befund
+# baut, schreibt dem Empfaenger etwas ueber seine Seite, das dort niemand
+# sieht -- also genau die erfundene Behauptung, gegen die dieses Modul
+# geschrieben ist.
+#
+# Bewusst NUR fuer die neuen Pruefungen unten benutzt und nicht in _text_of
+# selbst eingebaut: _text_of steckt in _footer_text und damit in
+# stale_copyright, und eine Jahreszahl in einem CSS-Block wuerde dort zwar
+# ebenfalls einen Fehlalarm ausloesen, aber diese Pruefung laeuft seit Wochen
+# und ihre gespeicherten Befunde sollen sich nicht still aendern. Getrennt
+# angehen, nicht nebenbei.
+_NOISE_RE = re.compile(r"<(script|style|template|noscript)\b[^>]*>.*?</\1\s*>", re.IGNORECASE | re.DOTALL)
+
+
+def _visible_text(html: str) -> str:
+    """Der Text, den ein Besucher tatsaechlich liest. Ohne CSS und JavaScript."""
+    return _text_of(_NOISE_RE.sub(" ", html))
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -383,6 +438,110 @@ def _check_stale_copyright(html: str, today: date) -> str | None:
 MAX_EVIDENCE_CHARS = 120
 
 
+# ═══════════════════════════════════════════════════════════════════════════
+# DIE VIER PRUEFUNGEN VOM 2026-08-27
+# ═══════════════════════════════════════════════════════════════════════════
+#
+# Anlass ist eine Zaehlung, keine Idee: von 24 Leads der Bauliste bekamen nur
+# NEUN einen Befund aus dem Katalog, obwohl beim Nachsehen von Hand fast jede
+# Seite etwas hergab. Was von Hand gefunden wurde und der Katalog nicht kannte,
+# war jedes Mal eines dieser vier Dinge. Alle vier sind aus dem HTML der
+# Startseite belegbar, brauchen keinen Browser und kosten nichts.
+#
+# Die Fehlerrichtung bleibt: lieber kein Befund als ein erfundener. Deshalb
+# sind alle vier strenger gefasst, als sie sein muessten, und die Begruendung
+# steht jeweils daneben.
+
+_FORM_RE = re.compile(r"<form\b", re.IGNORECASE)
+_TEL_HREF_RE = re.compile(r"""href\s*=\s*["']?\s*tel:""", re.IGNORECASE)
+_MAILTO_HREF_RE = re.compile(r"""href\s*=\s*["']?\s*mailto:""", re.IGNORECASE)
+_H1_RE = re.compile(r"<h1\b", re.IGNORECASE)
+
+
+def _check_contact_route(html: str) -> bool:
+    """True, wenn die Startseite GAR KEINEN Weg zur Kontaktaufnahme bietet.
+
+    Nicht "kein Formular": das waere ein Fehlalarm bei jeder Seite, die ihr
+    Formular auf einer Unterseite hat, und der Check liest nur die Startseite.
+    Gemessen am 2026-08-26: elysiumconstruction.co.uk hat auf der Startseite
+    null Formulare und auf /contact eines mit sechs Feldern. Ein Befund
+    "Ihnen fehlt ein Anfrageformular" waere dort schlicht falsch gewesen.
+
+    Deshalb die harte Fassung: kein Formular UND kein mailto UND kein tel.
+    Wer von der Startseite aus weder schreiben noch anrufen noch etwas
+    absenden kann, hat wirklich keinen Weg, und das laesst sich nicht
+    wegdiskutieren.
+    """
+    return not (_FORM_RE.search(html) or _MAILTO_HREF_RE.search(html) or _TEL_HREF_RE.search(html))
+
+
+# Eine Nummer gilt nur als Nummer, wenn sie BESCHRIFTET ist. Neun bis fuenfzehn
+# Ziffern allein wuerden Bestellnummern, Umsatzsteuer-IDs und
+# Registergerichtsnummern mitnehmen, und aus einer Handelsregisternummer einen
+# "nicht antippbaren Anruf" zu machen waere peinlich.
+#
+# Der Abstand von 40 Zeichen zwischen Beschriftung und Ziffern faengt die
+# ueblichen Formen ab ("Telefon: 020 ...", "Call us on 020 ...", "T +44 ...")
+# und ist kurz genug, dass die Beschriftung nicht zufaellig einen Absatz
+# weiter oben steht.
+_LABELLED_PHONE_RE = re.compile(
+    r"(?:tel|telefon|telephone|phone|call\s+us|rufen\s+sie|mobil|mobile)\b[^0-9+]{0,40}"
+    r"(\+?[\d][\d\s().\-/]{7,18}\d)",
+    re.IGNORECASE,
+)
+
+
+def _check_untappable_phone(html: str) -> str | None:
+    """Die erste beschriftete Nummer, die NICHT als tel:-Link hinterlegt ist.
+
+    Auf dem Handy ist das der Unterschied zwischen einem Fingertipp und dem
+    Abschreiben einer Nummer in die Telefon-App. Gemessen am 2026-08-26 an
+    reaconstruction.co.uk: die Kontaktseite bittet woertlich darum anzurufen
+    ("Whenever you call us you will talk to a friendly team"), nennt zwei
+    Nummern, und keine davon ist verlinkt.
+
+    Steht IRGENDWO auf der Seite ein tel:-Link, gibt es keinen Befund. Auch
+    dann nicht, wenn daneben eine zweite Nummer unverlinkt steht: der Betrieb
+    hat den Punkt dann grundsaetzlich verstanden, und der Aufhaenger waere
+    Erbsenzaehlerei.
+    """
+    if _TEL_HREF_RE.search(html):
+        return None
+    match = _LABELLED_PHONE_RE.search(_visible_text(html))
+    if not match:
+        return None
+    nummer = match.group(1).strip()
+    # Nach dem Zusammenstreichen nochmal zaehlen: die Zeichenklasse oben
+    # erlaubt Leerzeichen und Klammern, eine "Nummer" aus vier Ziffern und
+    # zwoelf Leerzeichen soll nicht durchgehen.
+    return nummer if 9 <= sum(c.isdigit() for c in nummer) <= 15 else None
+
+
+def _check_h1(html: str) -> bool:
+    """True, wenn die Seite keine einzige Hauptueberschrift hat.
+
+    Der schwaechste der vier, deshalb steht er im Katalog auch weit unten: die
+    Folge ist echt, aber sie braucht einen Satz Erklaerung. Gemessen am
+    2026-08-26 an reaconstruction.co.uk: null h1 bei sechs h2, der Titel
+    verspricht "Builders In London" und die Seite selbst sagt es nirgends in
+    einer Form, die eine Suchmaschine als Ueberschrift liest.
+    """
+    return not _H1_RE.search(html)
+
+
+def _check_og_image(metas: list[dict[str, str]]) -> bool:
+    """True, wenn beim Teilen des Links kein Vorschaubild erscheint.
+
+    Untergeschaetzt und gerade im Bau- und Handwerksbereich teuer: dort kommen
+    Auftraege ueber Weiterempfehlung, und eine weitergeleitete Adresse ohne
+    Bild ist in WhatsApp und LinkedIn ein graues Rechteck. Wer ein Gebaeude
+    baut, hat Bilder. Sie fehlen nur an der Stelle, an der sie jemand sieht,
+    der nicht danach gesucht hat.
+    """
+    value = _meta_content(metas, "og:image")
+    return not (value and value.strip())
+
+
 def _finding(code: str, evidence: str | None = None) -> dict:
     if evidence is not None:
         evidence = " ".join(str(evidence).split())[:MAX_EVIDENCE_CHARS] or None
@@ -455,6 +614,21 @@ def analyze(
 
     if _check_meta_description(metas):
         findings.append(_finding("no_meta_description"))
+
+    # Die vier vom 2026-08-27. Reihenfolge hier ist egal, sort_by_rank raeumt
+    # am Ende nach FINDING_CODES.
+    if _check_contact_route(html):
+        findings.append(_finding("no_contact_route"))
+
+    untappable = _check_untappable_phone(html)
+    if untappable:
+        findings.append(_finding("no_tel_link", untappable))
+
+    if _check_og_image(metas):
+        findings.append(_finding("no_og_image"))
+
+    if _check_h1(html):
+        findings.append(_finding("no_h1"))
 
     return {
         "checked_url": checked_url,

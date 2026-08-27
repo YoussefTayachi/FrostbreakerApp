@@ -14,16 +14,24 @@ TODAY = date(2026, 8, 23)
 
 # Eine Seite ohne jeden Befund. Basis fuer alle Negativfaelle: wer hier etwas
 # aendert, aendert die Ausgangslage saemtlicher Tests.
+#
+# Am 2026-08-27 um og:image und einen antippbaren Telefonlink erweitert. Die
+# Vorlage stammte aus der Zeit mit acht Codes; mit den vier neuen war sie
+# nicht mehr "ohne jeden Befund", sondern eine Seite ohne Vorschaubild und
+# ohne jeden Weg zur Kontaktaufnahme. Die neuen Pruefungen hatten also recht,
+# und der Fehler lag hier.
 CLEAN = """
 <!doctype html>
 <html lang="de"><head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="description" content="Malerbetrieb Muster aus Kassel, seit 1998.">
+<meta property="og:image" content="https://muster.de/vorschau.jpg">
 <link rel="stylesheet" href="https://muster.de/style.css">
 <script src="https://muster.de/app.js"></script>
 </head><body>
 <h1>Malerbetrieb Muster</h1>
+<p>Telefon: <a href="tel:+495611234567">0561 1234567</a></p>
 <footer>&copy; 2026 Malerbetrieb Muster GmbH</footer>
 </body></html>
 """
@@ -314,6 +322,126 @@ def test_beleg_ist_nie_ein_satz():
 # ── Rangfolge ──────────────────────────────────────────────────────────────
 
 
+# ── no_contact_route ───────────────────────────────────────────────────────
+
+
+def test_no_contact_route_wenn_die_startseite_keinen_weg_bietet():
+    html = "<html><head></head><body><h1>Bau Muster</h1><p>Wir bauen.</p></body></html>"
+    assert "no_contact_route" in codes(html)
+
+
+@pytest.mark.parametrize(
+    "weg",
+    [
+        '<form action="/senden"><input name="mail"></form>',
+        '<a href="mailto:info@muster.de">Schreiben</a>',
+        '<a href="tel:+495611234567">Anrufen</a>',
+    ],
+)
+def test_ein_einziger_kontaktweg_genuegt(weg):
+    """Bewusst die harte Fassung: EINER reicht.
+
+    Gemessen am 2026-08-26 an elysiumconstruction.co.uk: null Formulare auf
+    der Startseite, sechs Felder auf /contact. Der Check liest nur die
+    Startseite, ein Befund "Ihnen fehlt ein Formular" waere dort falsch
+    gewesen. Also faellt der Befund, sobald es irgendeinen Weg gibt.
+    """
+    html = f"<html><head></head><body><h1>Bau</h1>{weg}</body></html>"
+    assert "no_contact_route" not in codes(html)
+
+
+# ── no_tel_link ────────────────────────────────────────────────────────────
+
+
+def test_no_tel_link_wenn_die_nummer_nur_text_ist():
+    html = (
+        "<html><head></head><body><h1>Bau</h1>"
+        '<a href="mailto:info@muster.de">Mail</a>'
+        "<p>Telephone: 020 7859 4989</p></body></html>"
+    )
+    assert "no_tel_link" in codes(html)
+    assert evidence_for(html, "no_tel_link") == "020 7859 4989"
+
+
+def test_kein_no_tel_link_wenn_irgendwo_ein_tel_link_steht():
+    html = (
+        "<html><head></head><body><h1>Bau</h1>"
+        '<p>Telefon: <a href="tel:+4920785949">020 7859 4989</a></p>'
+        "<p>Mobil: 07868 750272</p></body></html>"
+    )
+    assert "no_tel_link" not in codes(html)
+
+
+def test_kein_no_tel_link_bei_einer_unbeschrifteten_zahlenkolonne():
+    """Ohne Beschriftung keine Nummer.
+
+    Sonst wuerden Handelsregisternummern, Umsatzsteuer-IDs und
+    Bestellnummern zu "nicht antippbaren Telefonnummern", und der Empfaenger
+    liest eine Behauptung ueber seine Seite, die dort niemand nachvollziehen
+    kann.
+    """
+    html = (
+        "<html><head></head><body><h1>Bau</h1>"
+        '<a href="mailto:info@muster.de">Mail</a>'
+        "<p>Handelsregister HRB 123456789</p></body></html>"
+    )
+    assert "no_tel_link" not in codes(html)
+
+
+def test_kein_no_tel_link_aus_einem_style_block():
+    """Der Fehlalarm vom 2026-08-26, hier festgenagelt.
+
+    Eine Squarespace-Seite meldete achtzehn "Nummern", die alle Klassennamen
+    aus einem <style>-Block waren (".fe-6a79b631970ccb22bceb0b8e"). _text_of
+    entfernt nur die Tags und laesst CSS und JavaScript als Text stehen,
+    deshalb sehen die neuen Pruefungen ueber _visible_text hinein.
+    """
+    html = (
+        "<html><head><style>"
+        "#block-yui_3_17_2_1_1732549573457_12051 { --tel: 020 7859 4989; }"
+        "</style></head><body><h1>Bau</h1>"
+        '<a href="mailto:info@muster.de">Mail</a></body></html>'
+    )
+    assert "no_tel_link" not in codes(html)
+
+
+# ── no_og_image ────────────────────────────────────────────────────────────
+
+
+def test_no_og_image_wenn_kein_vorschaubild_gesetzt_ist():
+    html = "<html><head></head><body><h1>Bau</h1></body></html>"
+    assert "no_og_image" in codes(html)
+
+
+def test_kein_no_og_image_wenn_eines_gesetzt_ist():
+    html = (
+        '<html><head><meta property="og:image" content="https://muster.de/b.jpg">'
+        "</head><body><h1>Bau</h1></body></html>"
+    )
+    assert "no_og_image" not in codes(html)
+
+
+def test_leeres_og_image_zaehlt_wie_keines():
+    html = (
+        '<html><head><meta property="og:image" content="  ">'
+        "</head><body><h1>Bau</h1></body></html>"
+    )
+    assert "no_og_image" in codes(html)
+
+
+# ── no_h1 ──────────────────────────────────────────────────────────────────
+
+
+def test_no_h1_wenn_die_seite_keine_hauptueberschrift_hat():
+    html = "<html><head></head><body><h2>Bau</h2><h2>Kontakt</h2></body></html>"
+    assert "no_h1" in codes(html)
+
+
+def test_kein_no_h1_bei_vorhandener_hauptueberschrift():
+    html = '<html><head></head><body><h1 class="gross">Bau</h1></body></html>'
+    assert "no_h1" not in codes(html)
+
+
 def test_befunde_kommen_in_katalogreihenfolge():
     """Eine Seite mit allem, was schiefgehen kann."""
     html = """
@@ -327,13 +455,18 @@ def test_befunde_kommen_in_katalogreihenfolge():
     """
     found = codes(html, http_redirects_to_https=False)
     assert found == [c for c in FINDING_CODES if c in found]
+    # no_tel_link fehlt als einziger, und das ist richtig: die Seite nennt
+    # ueberhaupt keine Nummer, also gibt es auch keine unverlinkte.
     assert found == [
         "no_https",
         "no_viewport",
+        "no_contact_route",
         "stale_copyright",
         "mixed_content",
         "site_builder",
+        "no_og_image",
         "legacy_markup",
+        "no_h1",
         "no_meta_description",
     ]
 

@@ -13,10 +13,18 @@ import respx
 from worker import website_fetch
 from worker.pipelines import check_website, get_businesses, personalize
 
+# Eine ansonsten einwandfreie Seite: hier wird geprueft, was check_website mit
+# einem Befund MACHT, nicht welche Befunde es gibt. Deshalb muss sie alle
+# Pruefungen ausser der gerade gemeinten bestehen, sonst misst der Test
+# nebenbei den Katalog mit. Am 2026-08-27 um og:image, h1 und einen
+# Telefonlink ergaenzt, als vier Pruefungen dazukamen.
 HTML = (
     '<html><head><meta name="viewport" content="width=device-width">'
-    '<meta name="description" content="Da steht was."></head>'
-    "<body><footer>&copy; 2026 Muster</footer></body></html>"
+    '<meta name="description" content="Da steht was.">'
+    '<meta property="og:image" content="https://muster.de/vorschau.jpg"></head>'
+    "<body><h1>Muster</h1>"
+    '<p>Telefon: <a href="tel:+495611234567">0561 1234567</a></p>'
+    "<footer>&copy; 2026 Muster</footer></body></html>"
 )
 
 

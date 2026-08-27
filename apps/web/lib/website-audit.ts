@@ -33,10 +33,14 @@ export const AUDIT_CODES = [
   "ssl_broken",
   "no_https",
   "no_viewport",
+  "no_contact_route",
+  "no_tel_link",
   "stale_copyright",
   "mixed_content",
   "site_builder",
+  "no_og_image",
   "legacy_markup",
+  "no_h1",
   "no_meta_description",
 ] as const;
 

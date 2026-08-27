@@ -789,6 +789,22 @@ const de = {
         label: "Keine Meta-Description hinterlegt",
         consequence: `Google zieht sich selbst einen Satz von der Seite oder schreibt den Suchtreffer automatisch, der Treffer wirkt zufällig und unkontrolliert.`,
       },
+      no_contact_route: {
+        label: "Kein Kontaktweg auf der Startseite",
+        consequence: `Weder Formular noch anklickbare Mailadresse noch Telefonlink. Wer anfragen will, muss erst suchen, und ein Teil sucht stattdessen den nächsten Anbieter.`,
+      },
+      no_tel_link: {
+        label: "Telefonnummer nicht antippbar",
+        consequence: `Die Nummer steht als bloßer Text da. Auf dem Handy muss sie abgeschrieben statt angetippt werden, und genau dabei brechen Anrufe ab.`,
+      },
+      no_og_image: {
+        label: "Kein Vorschaubild beim Teilen",
+        consequence: `Wer die Adresse in WhatsApp oder LinkedIn weiterleitet, verschickt ein graues Rechteck. Gerade Empfehlungen laufen über solche Links.`,
+      },
+      no_h1: {
+        label: "Keine Hauptüberschrift",
+        consequence: `Suchmaschinen erfahren nirgends im Seiteninhalt, worum es geht, und ordnen die Seite entsprechend schlechter ein.`,
+      },
       status: {
         pending: "Wird geprüft",
         ok: "Geprüft",
@@ -3440,6 +3456,22 @@ const en: Dictionary = {
       no_meta_description: {
         label: "No meta description set",
         consequence: "Google pulls a sentence from the page itself or writes the snippet automatically, so the search result looks arbitrary and uncontrolled.",
+      },
+      no_contact_route: {
+        label: "No way to get in touch from the homepage",
+        consequence: "No form, no clickable email address, no phone link. Anyone who wants to enquire has to go looking first, and some of them look for the next supplier instead.",
+      },
+      no_tel_link: {
+        label: "Phone number is not tappable",
+        consequence: "The number sits there as plain text. On a phone it has to be copied out by hand instead of tapped, and that is where calls get abandoned.",
+      },
+      no_og_image: {
+        label: "No preview image when shared",
+        consequence: "Forwarding the link on WhatsApp or LinkedIn sends a grey box. Referrals run through exactly those links.",
+      },
+      no_h1: {
+        label: "No main heading",
+        consequence: "Search engines find nothing in the page content telling them what it is about, and rank it accordingly.",
       },
       status: {
         pending: "Checking now",
