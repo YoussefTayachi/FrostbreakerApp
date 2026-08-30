@@ -372,3 +372,50 @@ export function initializeResult(
 export function withEra<T extends object>(era: Era, result: T): T | (T & { resultType: "complete" }) {
   return era === "modern" ? { ...result, resultType: "complete" as const } : result;
 }
+
+/**
+ * Die Cache-Angaben, die eine moderne tools/list-Antwort tragen MUSS.
+ *
+ * ═══════════════════════════════════════════════════════════════════════
+ * WARUM DAS HIER STEHT UND NICHT FEHLEN DARF
+ * ═══════════════════════════════════════════════════════════════════════
+ *
+ * Gemessen am 2026-08-30 mit `claude mcp list`:
+ *
+ *   frostbreaker: Connected · tools fetch failed - Invalid result for
+ *   tools/list: ttlMs expected number, received undefined; cacheScope
+ *   expected one of "public"|"private"
+ *
+ * Der Server war also VERBUNDEN und lieferte alle 22 Werkzeuge, und der
+ * Client hat die ganze Liste trotzdem verworfen, weil zwei Pflichtfelder
+ * fehlten. Nach aussen sah es aus, als haette Frostbreaker keine Werkzeuge:
+ * in einer Claude-Code-Sitzung war `mcp__frostbreaker__*` schlicht nicht da,
+ * ohne dass im Gespraech ein Fehler auftauchte.
+ *
+ * Betroffen ist nur der moderne Pfad. Legacy-Clients, und das sind die
+ * meisten, haben die Liste die ganze Zeit bekommen; deshalb ist es lange
+ * niemandem aufgefallen.
+ *
+ * cacheScope ist "private" und NICHT "public", und das ist keine Vorsicht:
+ * listToolsForScope filtert nach dem Scope des Tokens, ein Nur-Lese-Token
+ * sieht set_lead_icebreaker gar nicht erst. Ein oeffentlicher Cache duerfte
+ * diese Antwort zwischen Tokens teilen, und dann bekaeme ein Nur-Lese-Token
+ * die Schreibwerkzeuge angeboten.
+ *
+ * Fuenf Minuten, weil sich die Liste nur bei einem Deploy aendert. Laenger
+ * hiesse, dass ein neues Werkzeug nach einem Deploy minutenlang unsichtbar
+ * bleibt; kuerzer bringt nichts, weil sie sich sonst nie aendert.
+ */
+export const TOOLS_CACHE = { ttlMs: 300_000, cacheScope: "private" as const };
+
+/**
+ * Eine tools/list-Antwort, gueltig in beiden Zeitaltern.
+ *
+ * Die Cache-Angaben gehoeren nur in den modernen Pfad: das alte Zeitalter
+ * kennt sie nicht, und ein Feld, das dort niemand erwartet, ist bestenfalls
+ * wirkungslos.
+ */
+export function toolsListResult<T>(era: Era, tools: T[]) {
+  const basis = withEra(era, { tools });
+  return era === "modern" ? { ...basis, ...TOOLS_CACHE } : basis;
+}

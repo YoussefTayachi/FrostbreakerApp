@@ -1,21 +1,23 @@
 import { describe, expect, it } from "vitest";
 import {
+  LATEST_LEGACY_VERSION,
+  META_PROTOCOL_VERSION,
+  MODERN_VERSION,
+  RPC_ERRORS,
+  SUPPORTED_VERSIONS,
+  TOOLS_CACHE,
   decodeHeaderValue,
   detectEra,
   discoverResult,
   initializeResult,
   isNotification,
   isSupportedVersion,
-  LATEST_LEGACY_VERSION,
-  META_PROTOCOL_VERSION,
-  MODERN_VERSION,
   negotiateLegacyVersion,
   parseRpcBody,
-  RPC_ERRORS,
-  SUPPORTED_VERSIONS,
+  toolsListResult,
+  type JsonRpcRequest,
   validateModernHeaders,
   withEra,
-  type JsonRpcRequest,
 } from "./protocol";
 
 /** Ein Headers-Ersatz, der nur das kann, was validateModernHeaders braucht. */
@@ -243,5 +245,38 @@ describe("Antwortformen", () => {
   it("haengt resultType nur im modernen Zeitalter an", () => {
     expect(withEra("modern", { tools: [] })).toEqual({ tools: [], resultType: "complete" });
     expect(withEra("legacy", { tools: [] })).toEqual({ tools: [] });
+  });
+});
+
+describe("tools/list im modernen Zeitalter", () => {
+  /**
+   * Am 2026-08-30 fehlten hier zwei Felder, und `claude mcp list` meldete
+   * "Connected · tools fetch failed". Der Server lieferte alle 22 Werkzeuge,
+   * der Client verwarf sie, und in einer Sitzung war mcp__frostbreaker__*
+   * einfach nicht da. Ein Fehlschlag, der sich als Verbindung ausgibt.
+   */
+  it("traegt ttlMs und cacheScope", () => {
+    const r = toolsListResult("modern", [{ name: "list_workspaces" }]) as Record<string, unknown>;
+    expect(typeof r.ttlMs).toBe("number");
+    expect(r.cacheScope).toBe("private");
+    expect(r.resultType).toBe("complete");
+    expect(r.tools).toHaveLength(1);
+  });
+
+  /**
+   * "private" und nicht "public": listToolsForScope filtert nach dem Scope des
+   * Tokens. Ein geteilter Cache duerfte die Antwort eines Schreib-Tokens einem
+   * Nur-Lese-Token ausliefern.
+   */
+  it("erlaubt keinen geteilten Cache", () => {
+    expect(TOOLS_CACHE.cacheScope).toBe("private");
+  });
+
+  it("legt einem Legacy-Client nichts Unbekanntes hin", () => {
+    const r = toolsListResult("legacy", [{ name: "list_workspaces" }]) as Record<string, unknown>;
+    expect(r.ttlMs).toBeUndefined();
+    expect(r.cacheScope).toBeUndefined();
+    expect(r.resultType).toBeUndefined();
+    expect(r.tools).toHaveLength(1);
   });
 });

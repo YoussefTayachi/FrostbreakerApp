@@ -10,6 +10,7 @@ import { publicOrigin } from "@/lib/mcp/oauth";
 import { SERVER_INSTRUCTIONS } from "@/lib/mcp/tool-descriptions";
 import { callTool, listToolsForScope, type McpToolContext } from "@/lib/mcp/tools";
 import {
+  RPC_ERRORS,
   detectEra,
   discoverResult,
   initializeResult,
@@ -17,14 +18,14 @@ import {
   parseRpcBody,
   rpcError,
   rpcResult,
-  RPC_ERRORS,
-  validateModernHeaders,
-  withEra,
+  toolsListResult,
   type Era,
   type JsonRpcId,
   type JsonRpcRequest,
   type RpcErrorShape,
   type ServerInfo,
+  validateModernHeaders,
+  withEra,
 } from "@/lib/mcp/protocol";
 
 /**
@@ -286,7 +287,7 @@ async function dispatch(
        * prueft den Scope trotzdem nochmal; diese Zeile ist Bequemlichkeit fuer
        * das Modell, nicht die Absicherung.
        */
-      return json(rpcResult(rpc.id, withEra(era, { tools: listToolsForScope(ctx.scope) })));
+      return json(rpcResult(rpc.id, toolsListResult(era, listToolsForScope(ctx.scope))));
 
     case "tools/call": {
       const ergebnis = await callTool(supabase, ctx, rpc.params?.name, rpc.params?.arguments);
