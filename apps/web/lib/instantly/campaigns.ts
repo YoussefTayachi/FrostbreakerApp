@@ -129,12 +129,33 @@ export function mergeTagValues(lead: MergeTagSource): MergeTagValues {
  * Werte kommen aus mergeTagValues. Leere Werte werden zu undefined und fallen
  * damit aus dem JSON: ein leerer String wuerde bei Instantly als gesetzter
  * Wert liegen, und der Unterschied zwischen "nicht uebergeben" und "leer
- * uebergeben" ist an ihrer API nicht nachgemessen. Verhalten dadurch
- * unveraendert gegenueber der Fassung, die bis zum 2026-08-24 direkt in
- * create-campaign.ts stand.
+ * uebergeben" ist an ihrer API nicht nachgemessen.
+ *
+ * ═══════════════════════════════════════════════════════════════════════
+ * EIGENE VARIABLEN GEHOEREN IN custom_variables, NICHT NACH OBEN
+ * ═══════════════════════════════════════════════════════════════════════
+ *
+ * Bis zum 2026-08-27 stand websiteFinding als Schluessel auf oberster Ebene,
+ * gleichauf mit email und first_name. Es kam bei Instantly nie an, und in den
+ * Mails blieb {{websiteFinding}} leer.
+ *
+ * Der Grund steht in Instantlys eigenem Schema fuer /api/v2/leads/add
+ * (developer.instantly.ai, geprueft 2026-08-27): die Lead-Objekte haben
+ * "additionalProperties": false und genau zwoelf erlaubte Felder (email,
+ * first_name, last_name, phone, company_name, job_title, website,
+ * personalization, lt_interest_status, pl_value_lead, assigned_to,
+ * custom_variables). Alles andere faellt weg. personalization funktionierte,
+ * weil es eines dieser zwoelf ist; websiteFinding ist keines.
+ *
+ * Warum es so lange nicht auffiel: die Mail-Vorschau in der App benutzt
+ * mergeTagValues direkt und zeigt den Befund deshalb korrekt an. Sie liest
+ * nie, was Instantly tatsaechlich gespeichert hat. Der Test in
+ * preview.test.ts vergleicht Vorschau und Upload gegeneinander und war
+ * ebenfalls gruen, weil beide Seiten denselben falschen Ort benutzten.
  */
 export function buildInstantlyLead(lead: MergeTagSource) {
   const v = mergeTagValues(lead);
+  const befund = v[WEBSITE_FINDING_FIELD] || undefined;
   return {
     email: v.email,
     first_name: v.firstName || undefined,
@@ -144,7 +165,11 @@ export function buildInstantlyLead(lead: MergeTagSource) {
     // Eigenes Feld, nicht in den Icebreaker gemischt: die beiden Saetze haben
     // verschiedene Aufgaben und sollen an verschiedenen Stellen der Mail
     // stehen duerfen (Migration 0103).
-    [WEBSITE_FINDING_FIELD]: v[WEBSITE_FINDING_FIELD] || undefined,
+    //
+    // Der Schluessel INNERHALB von custom_variables ist der Name der
+    // Merge-Variable in Instantly. Er muss deshalb zeichengenau zu
+    // WEBSITE_FINDING_FIELD passen, so wie er im Sequenztext steht.
+    custom_variables: befund ? { [WEBSITE_FINDING_FIELD]: befund } : undefined,
   };
 }
 

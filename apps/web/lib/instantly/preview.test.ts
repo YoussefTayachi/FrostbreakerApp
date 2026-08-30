@@ -158,8 +158,50 @@ describe("renderVariables", () => {
     );
     expect(r.subject).toBe(upload.company_name);
     expect(r.body).toBe(
-      [upload.first_name, upload.last_name, upload.email, upload.personalization, upload.websiteFinding].join("|")
+      [
+        upload.first_name,
+        upload.last_name,
+        upload.email,
+        upload.personalization,
+        upload.custom_variables?.websiteFinding,
+      ].join("|")
     );
+  });
+
+  /**
+   * Der Fehler vom 2026-08-27, hier festgenagelt.
+   *
+   * websiteFinding stand als Schluessel auf oberster Ebene und kam bei
+   * Instantly nie an: deren Schema fuer /api/v2/leads/add hat
+   * "additionalProperties": false und kennt genau zwoelf Felder, von denen
+   * custom_variables das einzige ist, das eigene Variablen aufnimmt.
+   *
+   * Der Test oben war gruen, WEIL Vorschau und Upload denselben falschen Ort
+   * benutzten. Er vergleicht die beiden Seiten gegeneinander, nicht gegen
+   * Instantlys Schema. Deshalb dieser zweite Test, der ausdruecklich die
+   * Struktur prueft.
+   */
+  it("legt den Befund in custom_variables und NICHT nach oben", () => {
+    const upload = buildInstantlyLead(lead({ website_finding: "Eure Nummer ist nicht antippbar." }));
+    expect(upload.custom_variables).toEqual({ websiteFinding: "Eure Nummer ist nicht antippbar." });
+    expect(upload).not.toHaveProperty("websiteFinding");
+    // Die zwoelf erlaubten Felder, gegen ein versehentliches dreizehntes.
+    const ERLAUBT = new Set([
+      "email", "first_name", "last_name", "phone", "company_name", "job_title",
+      "website", "personalization", "lt_interest_status", "pl_value_lead",
+      "assigned_to", "custom_variables",
+    ]);
+    for (const key of Object.keys(upload)) {
+      expect(ERLAUBT.has(key), `unerlaubtes Feld: ${key}`).toBe(true);
+    }
+  });
+
+  it("laesst custom_variables ganz weg, wenn kein Befund da ist", () => {
+    // Kein leeres Objekt: der Unterschied zwischen "nicht uebergeben" und
+    // "leer uebergeben" ist an Instantlys API nicht nachgemessen, und ein
+    // leerer Wert koennte einen vorhandenen ueberschreiben.
+    const upload = buildInstantlyLead(lead({ website_finding: null }));
+    expect(upload.custom_variables).toBeUndefined();
   });
 });
 
