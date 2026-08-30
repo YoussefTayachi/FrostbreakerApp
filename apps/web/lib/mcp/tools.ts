@@ -477,6 +477,14 @@ const MAX_BODY_CHARS = 10000;
 /** Wartezeit vor einem Schritt. 90 Tage sind grosszuegig; alles darueber ist
  *  ein Vertipper (900 statt 9). */
 const MAX_WAIT_DAYS = 90;
+
+/**
+ * Wie viele Fassungen ein Schritt hoechstens hat, Variante A eingerechnet.
+ *
+ * Vier waeren bei 300 Leads 75 Empfaenger je Fassung, und aus 75 laesst sich
+ * nichts ablesen. Youssefs erfolgreiche Kampagnen vom 2026-08-27 tragen zwei.
+ */
+const MAX_STEP_VARIANTS = 3;
 const MAX_CAMPAIGN_NAME_CHARS = 200;
 /** Instantly deckelt selbst nicht sichtbar; 1000 Mails am Tag aus einem
  *  Workspace waeren ohnehin ein Zustellbarkeitsproblem und kein Tageslimit. */
@@ -3234,6 +3242,23 @@ export const TOOLS: Record<ToolName, McpTool> = {
               },
               subject: { type: "string", description: "The subject line." },
               body: { type: "string", description: "The email text, as plain text." },
+              variants: {
+                type: "array",
+                description:
+                  `A/B variants BESIDES the subject and body above, which are variant A. ` +
+                  `At most ${MAX_STEP_VARIANTS - 1} extra, so ${MAX_STEP_VARIANTS} in total. ` +
+                  `Vary one thing at a time, usually the ask or the subject, so a result can be read.`,
+                maxItems: MAX_STEP_VARIANTS - 1,
+                items: {
+                  type: "object",
+                  properties: {
+                    subject: { type: "string", description: "The subject line of this variant." },
+                    body: { type: "string", description: "The email text of this variant." },
+                  },
+                  required: ["subject", "body"],
+                  additionalProperties: false,
+                },
+              },
             },
             required: ["step_order", "wait_days", "subject", "body"],
             additionalProperties: false,
@@ -3263,7 +3288,13 @@ export const TOOLS: Record<ToolName, McpTool> = {
       );
       if (!liste.ok) return fail(liste.message);
 
-      const schritte: { step_order: number; wait_days: number; subject: string; body: string }[] = [];
+      const schritte: {
+        step_order: number;
+        wait_days: number;
+        subject: string;
+        body: string;
+        variants: { subject: string; body: string }[];
+      }[] = [];
       const belegt = new Set<number>();
       for (const [i, eintrag] of liste.value.entries()) {
         const order = readCount(eintrag, "step_order", -1, MAX_SEQUENCE_STEPS * 10);
@@ -3289,7 +3320,40 @@ export const TOOLS: Record<ToolName, McpTool> = {
         if (body.length > MAX_BODY_CHARS) {
           return fail(`The body of entry ${i + 1} is longer than ${MAX_BODY_CHARS} characters.`);
         }
-        schritte.push({ step_order: order.value, wait_days: wait.value, subject, body });
+        // Weitere Fassungen desselben Schritts. Dieselben Grenzen wie oben:
+        // eine Variante ohne Betreff ginge bei Instantly als leere Mail an
+        // einen Teil der Empfaenger raus, und das faellt niemandem auf, weil
+        // die anderen Fassungen normal aussehen.
+        const weitere: { subject: string; body: string }[] = [];
+        const rohVarianten = (eintrag as Record<string, unknown>)?.variants;
+        if (rohVarianten !== undefined) {
+          if (!Array.isArray(rohVarianten)) {
+            return fail(`Entry ${i + 1} of "steps": "variants" has to be a list.`);
+          }
+          if (rohVarianten.length > MAX_STEP_VARIANTS - 1) {
+            return fail(
+              `Entry ${i + 1} of "steps" has more than ${MAX_STEP_VARIANTS - 1} extra variants. ` +
+                `With more fassungen than that, no single one gets enough recipients to read a result from.`
+            );
+          }
+          for (const [j, v] of rohVarianten.entries()) {
+            const vSubject = readString(v, "subject");
+            const vBody = readString(v, "body");
+            if (!vSubject || !vBody) {
+              return fail(
+                `Variant ${j + 1} of entry ${i + 1} needs both a "subject" and a "body"; neither may be empty.`
+              );
+            }
+            if (vSubject.length > MAX_SUBJECT_CHARS) {
+              return fail(`The subject of variant ${j + 1} in entry ${i + 1} is longer than ${MAX_SUBJECT_CHARS} characters.`);
+            }
+            if (vBody.length > MAX_BODY_CHARS) {
+              return fail(`The body of variant ${j + 1} in entry ${i + 1} is longer than ${MAX_BODY_CHARS} characters.`);
+            }
+            weitere.push({ subject: vSubject, body: vBody });
+          }
+        }
+        schritte.push({ step_order: order.value, wait_days: wait.value, subject, body, variants: weitere });
       }
       // Die uebergebene Reihenfolge zaehlt nicht, step_order zaehlt.
       schritte.sort((a, b) => a.step_order - b.step_order);
@@ -3328,7 +3392,7 @@ export const TOOLS: Record<ToolName, McpTool> = {
           // beides in dieser Ordnung.
           subject: s.subject,
           body: s.body,
-          variants: [{ subject: s.subject, body: s.body }],
+          variants: [{ subject: s.subject, body: s.body }, ...s.variants],
         }))
       );
       if (einfuegFehler) return dbFail("set_campaign_sequence", einfuegFehler);

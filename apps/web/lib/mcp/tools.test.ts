@@ -314,6 +314,21 @@ describe("listTools", () => {
     }
   });
 
+  it("set_campaign_sequence nimmt A/B-Varianten je Schritt", () => {
+    // Youssefs erfolgreiche Kampagnen vom 2026-08-27 tragen zwei Fassungen in
+    // Mail 1. Ohne dieses Feld koennte eine Automation sie ueber den MCP nicht
+    // anlegen und muesste in die Tabelle schreiben.
+    const schema = listTools().find((t) => t.name === "set_campaign_sequence")!.inputSchema;
+    const schritt = (schema.properties.steps as { items: { properties: Record<string, unknown> } }).items;
+    const varianten = schritt.properties.variants as { maxItems: number; items: { required: string[] } };
+    expect(varianten).toBeDefined();
+    expect(varianten.maxItems).toBe(2);
+    expect(varianten.items.required).toEqual(["subject", "body"]);
+    // Variante A bleibt subject/body des Schritts selbst.
+    expect((schritt as { required: string[] }).required).toContain("subject");
+    expect((schritt as { required: string[] }).required).not.toContain("variants");
+  });
+
   it("publish_campaign nennt Probelauf und Sperrliste schon in der Beschreibung", () => {
     // Das einzige Werkzeug, das Daten an einen Dritten uebergibt. Was es
     // zurueckhaelt und dass es einen Probelauf gibt, muss das Modell lesen,
