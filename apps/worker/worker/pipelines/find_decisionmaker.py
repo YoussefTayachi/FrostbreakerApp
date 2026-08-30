@@ -14,7 +14,7 @@ from worker.db import sb
 from worker.email_classify import classify_email
 from worker.keys import get_api_key
 from worker.profile_urls import clean_profile_url
-from worker.search_state import BUSINESS_WITH_SEARCH, search_is_deleted
+from worker.search_state import BUSINESS_WITH_SEARCH, search_is_deleted, search_source
 from worker.suppression import is_suppressed, load_suppression
 
 MODEL = "gpt-4.1-mini"
@@ -46,6 +46,9 @@ SYSTEM_PROMPT = (
     "For each person also find their email address, their direct/mobile phone number "
     "(check the website imprint/contact page and public listings) and social "
     "profiles (LinkedIn, Instagram, Twitter/X, Facebook) if available. "
+    "If the only address you can find for that person is the shared company address "
+    "(info@, contact@, hello@), return that address rather than 'NA' - a small business "
+    "often has no other. This is not a licence to guess: return it only if you saw it. "
     "Use the string 'NA' for anything you cannot find. "
     "NEVER guess, construct or complete a profile URL, an email address or a phone number. "
     "Return a social profile URL only if you actually saw that exact address in a search "
@@ -114,12 +117,28 @@ def _profile(value: str | None, platform: str) -> str | None:
     return clean_profile_url(_clean(value), platform)
 
 
-def parse_persons(data: dict) -> list[dict]:
+def parse_persons(data: dict, allow_generic: bool = False) -> list[dict]:
     """Die KI ist schon per Prompt auf echte Personen eingeschraenkt (siehe
     SYSTEM_PROMPT), trotzdem als zweite Absicherung dieselbe Praefix-Heuristik
     wie bei Hunter: falls die gefundene E-Mail doch eine Rollen-Adresse ist
     (info@/office@ etc.), wird der Kontakt verworfen statt als personenbezogen
     gezaehlt zu werden.
+
+    AUSNAHME FUER GOOGLE MAPS (allow_generic=True), auf Ansage am 2026-08-31:
+    dort bleiben Rollen-Adressen drin. Grund ist die Zielgruppe, nicht die
+    Technik. Maps liefert kleine, oertliche Betriebe, und die haben oft genau
+    eine Adresse, naemlich info@. Die Regel, die bei Agenturen und Konzernen
+    richtig ist (ein Sammelpostfach liest niemand), wirft hier den einzigen
+    erreichbaren Kontakt weg: ueber 1.944 Maps-Firmen kam bei nur 31,7 Prozent
+    ueberhaupt ein Kontakt heraus. Der Rest scheiterte an dieser Zeile.
+    Rechtlich ist die Ausnahme die harmlosere Richtung: info@ ist eine
+    Firmenadresse, kein personenbezogener Kontakt.
+
+    Der Name bleibt auch bei der Ausnahme Pflicht (Pruefung oben). Ein Kontakt
+    ohne Vornamen wuerde in der Sequenz als "Hi ," ankommen, weil
+    campaigns.ts firstName auf "" zuruecksetzt. Lieber kein Lead als eine
+    sichtbar kaputte Mail; derselbe Fehler hat am 2026-08-27 schon 858 Leads
+    eine Mail mit einem Loch geschickt.
 
     Zusaetzlich wird innerhalb einer Antwort entdoppelt: das Modell liefert
     dieselbe Person durchaus mehrfach zurueck (real aufgetreten: zehn Zeilen
@@ -141,7 +160,7 @@ def parse_persons(data: dict) -> list[dict]:
             continue
         email = _clean(p.get("email"))
         email_type = classify_email(email)
-        if email_type == "generic":
+        if email_type == "generic" and not allow_generic:
             continue
         # E-Mail ist der belastbare Schluessel; fehlt sie, muss der Name
         # herhalten, sonst landet dieselbe namenlose Person mehrfach drin.
@@ -268,9 +287,14 @@ def run(job: dict) -> None:
             name = (c.get("full_name") or "").strip().lower()
             return bool(name) and name not in known_names
 
+        # Die Quelle wird ausdruecklich geprueft, obwohl find_decisionmaker
+        # heute NUR fuer Maps eingereiht wird (get_businesses.py: use_hunter
+        # == corporate, apollo/prospeo steigen vorher aus). Wer den Job je
+        # fuer einen anderen Weg aktiviert, soll die Ausnahme nicht stillschwei-
+        # gend miterben.
         contacts = [
             c | {"workspace_id": ws, "business_id": business_id}
-            for c in parse_persons(data)
+            for c in parse_persons(data, allow_generic=search_source(biz) == "maps")
             if not is_suppressed(emails, domains, email=c.get("email")) and is_new(c)
         ]
         if contacts:

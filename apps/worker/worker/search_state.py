@@ -13,9 +13,10 @@ als erledigt abgehakt statt zu scheitern: es ist kein Fehler, sondern Arbeit,
 die sich zwischenzeitlich erledigt hat.
 """
 
-# Businesses laden und dabei den Papierkorb-Status der zugehoerigen Suche
-# mitnehmen; spart eine zweite Abfrage pro Job.
-BUSINESS_WITH_SEARCH = "*, searches(deleted_at)"
+# Businesses laden und dabei Papierkorb-Status UND Quelle der zugehoerigen
+# Suche mitnehmen; spart eine zweite Abfrage pro Job. Die Quelle braucht
+# find_decisionmaker, um die Maps-Ausnahme fuer Rollen-Adressen zu erkennen.
+BUSINESS_WITH_SEARCH = "*, searches(deleted_at, source)"
 
 
 def _related_search(business: dict) -> dict | None:
@@ -34,6 +35,17 @@ def search_is_deleted(business: dict) -> bool:
     if related is None:
         return False
     return related.get("deleted_at") is not None
+
+
+def search_source(business: dict) -> str | None:
+    """Die Quelle der Suche hinter dieser Firma ('maps', 'apollo', ...).
+
+    None, wenn die Beziehung fehlt. Aufrufer muessen dann die STRENGERE
+    Variante waehlen: eine fehlende Angabe darf keine Ausnahme freischalten,
+    die nur fuer einen bestimmten Suchweg gedacht ist.
+    """
+    related = _related_search(business)
+    return related.get("source") if related else None
 
 
 class SearchCancelled(Exception):

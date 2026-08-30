@@ -797,3 +797,49 @@ def test_force_erzeugt_auch_bei_vorhandenem_aufhaenger_neu(monkeypatch):
     Der Job lief an, kehrte sofort um und galt als erledigt."""
     trace = _run_with_existing_icebreaker(monkeypatch, {"business_id": "b-1", "force": True})
     assert trace == ["kam_bis_search_is_deleted"]
+
+
+def _person(name: str, email: str) -> dict:
+    return {
+        "name": name,
+        "title": "owner",
+        "email": email,
+        "phone": "NA",
+        "linkedin": "NA",
+        "instagram": "NA",
+        "twitter": "NA",
+        "facebook": "NA",
+    }
+
+
+def test_parse_persons_verwirft_rollenadresse_ohne_ausnahme():
+    """Standardweg bleibt streng: info@ ist kein personenbezogener Kontakt."""
+    data = {"persons": [_person("Jane Smith", "info@janessalon.co.uk")]}
+    assert parse_persons(data) == []
+
+
+def test_parse_persons_behaelt_rollenadresse_bei_maps():
+    """Maps-Ausnahme (2026-08-31): kleine Betriebe haben oft nur info@.
+
+    Der Kontakt bleibt, und email_type sagt weiterhin die Wahrheit -- die
+    Ausnahme aendert die Auswahl, nicht die Einordnung.
+    """
+    data = {"persons": [_person("Jane Smith", "info@janessalon.co.uk")]}
+    rows = parse_persons(data, allow_generic=True)
+    assert len(rows) == 1
+    assert rows[0]["email"] == "info@janessalon.co.uk"
+    assert rows[0]["email_type"] == "generic"
+    assert rows[0]["first_name"] == "Jane"
+
+
+def test_parse_persons_maps_braucht_trotzdem_einen_namen():
+    """Ohne Vornamen wuerde die Mail als "Hi ," rausgehen (campaigns.ts setzt
+    firstName auf ""). Die Ausnahme lockert die Adresse, nicht den Namen."""
+    data = {"persons": [_person("NA", "info@janessalon.co.uk")]}
+    assert parse_persons(data, allow_generic=True) == []
+
+
+def test_parse_persons_maps_verwirft_firmennamen_weiterhin():
+    """Eine juristische Person bleibt auch mit der Ausnahme draussen."""
+    data = {"persons": [_person("Janes Salon Ltd", "info@janessalon.co.uk")]}
+    assert parse_persons(data, allow_generic=True) == []

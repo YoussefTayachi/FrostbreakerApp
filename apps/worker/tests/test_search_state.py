@@ -22,3 +22,20 @@ def test_missing_relation_is_treated_as_active():
     assert search_is_deleted({}) is False
     assert search_is_deleted({"searches": None}) is False
     assert search_is_deleted({"searches": []}) is False
+
+
+def test_search_source_wird_gelesen():
+    from worker.search_state import search_source
+
+    assert search_source({"searches": {"source": "maps"}}) == "maps"
+    assert search_source({"searches": [{"source": "apollo"}]}) == "apollo"
+
+
+def test_fehlende_quelle_schaltet_keine_ausnahme_frei():
+    """None statt 'maps': eine fehlende Beziehung darf die Rollen-Adressen-
+    Ausnahme nicht versehentlich aktivieren."""
+    from worker.search_state import search_source
+
+    assert search_source({}) is None
+    assert search_source({"searches": None}) is None
+    assert search_source({"searches": []}) is None
