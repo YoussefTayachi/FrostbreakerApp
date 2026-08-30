@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { requireInstantlyContext, instantlyRequest, InstantlyApiError } from "@/lib/instantly";
-import { loadOwnedCampaign } from "@/lib/instantly/campaigns";
+import { buildInstantlyLead, loadOwnedCampaign, usesWebsiteFinding } from "@/lib/instantly/campaigns";
 import { pickPrimaryContactPerBusiness, splitByEngagement, splitBySendability } from "@/lib/contacts";
 import { filterSuppressed } from "@/lib/suppression";
 
@@ -27,6 +27,26 @@ import { filterSuppressed } from "@/lib/suppression";
  *
  * Die Reihenfolge ist dieselbe wie in campaigns/route.ts, und die Regeln
  * selbst stehen in lib/contacts.ts, damit es keine zweite Wahrheit gibt.
+ *
+ * ═══════════════════════════════════════════════════════════════════════
+ * DASSELBE GILT FUER DIE FELDER, UND GENAU DAS FEHLTE HIER
+ * ═══════════════════════════════════════════════════════════════════════
+ *
+ * Bis zum 2026-08-28 baute diese Route das Instantly-Lead-Objekt SELBST
+ * zusammen, mit fuenf abgeschriebenen Feldern. websiteFinding war keines
+ * davon. Jeder Lead, der ueber diesen Pfad nachkam, landete also ohne Befund
+ * bei Instantly, und in Mail 1 blieb die Stelle leer.
+ *
+ * Die Zuordnung Spalte -> Instantly-Feld steht seit dem 2026-08-24 in
+ * buildInstantlyLead (lib/instantly/campaigns.ts), und create-campaign.ts
+ * benutzt sie auch. Diese Route war die uebersehene dritte Stelle. Jetzt
+ * ruft sie dieselbe Funktion auf, und ein neues Feld ist damit ueberall
+ * gleichzeitig da.
+ *
+ * Dazu die Rueckhaltung: benutzt die Sequenz {{websiteFinding}}, duerfen
+ * Leads ohne Befund nicht nachkommen, sonst verschickt die Kampagne eine Mail
+ * mit einem Loch. create-campaign.ts tut das seit Migration 0103
+ * (splitByWebsiteFinding), dieser Pfad tat es nicht.
  */
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -48,19 +68,25 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     return NextResponse.json({ error: "Diese Kampagne hat keine verknuepfte Suche." }, { status: 400 });
   }
 
-  const [{ data: contacts }, { data: alreadyAdded }, { data: suppression }] = await Promise.all([
-    supabase
-      .from("contacts")
-      .select(
-        "id, email, first_name, last_name, title, business_id, is_primary, outreach_status, email_verification_status, businesses!inner(name, website, personalization, search_id)"
-      )
-      .eq("workspace_id", ctx.workspace.id)
-      .in("businesses.search_id", searchIds)
-      .not("email", "is", null)
-      .limit(5000),
-    supabase.from("campaign_leads").select("contact_id").eq("campaign_id", local.id),
-    supabase.from("suppression_list").select("email, domain").eq("workspace_id", ctx.workspace.id),
-  ]);
+  const [{ data: contacts }, { data: alreadyAdded }, { data: suppression }, { data: steps }] =
+    await Promise.all([
+      supabase
+        .from("contacts")
+        // website_finding gehoert in diese Liste, seit der Befund eine eigene
+        // Variable ist (Migration 0103). Ohne die Spalte laed buildInstantlyLead
+        // einen leeren Wert und laesst custom_variables weg.
+        .select(
+          "id, email, first_name, last_name, title, business_id, is_primary, outreach_status, email_verification_status, businesses!inner(name, website, personalization, website_finding, search_id)"
+        )
+        .eq("workspace_id", ctx.workspace.id)
+        .in("businesses.search_id", searchIds)
+        .not("email", "is", null)
+        .limit(5000),
+      supabase.from("campaign_leads").select("contact_id").eq("campaign_id", local.id),
+      supabase.from("suppression_list").select("email, domain").eq("workspace_id", ctx.workspace.id),
+      // Fuer die Frage, ob die Sequenz den Befund ueberhaupt benutzt.
+      supabase.from("campaign_steps").select("subject, body, variants").eq("campaign_id", local.id),
+    ]);
 
   type ContactRow = {
     id: string;
@@ -72,7 +98,12 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     is_primary: boolean;
     outreach_status: string;
     email_verification_status: string | null;
-    businesses: { name: string | null; website: string | null; personalization: string | null } | null;
+    businesses: {
+      name: string | null;
+      website: string | null;
+      personalization: string | null;
+      website_finding: string | null;
+    } | null;
   };
 
   const all = (contacts ?? []) as unknown as ContactRow[];
@@ -99,7 +130,25 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   const { sendable, unsendable } = splitBySendability(
     filterSuppressed(contactable, suppression ?? [])
   );
-  const newRows = pickPrimaryContactPerBusiness(sendable);
+  const eineJeFirma = pickPrimaryContactPerBusiness(sendable);
+
+  // Benutzt die Sequenz den Befund, bleiben Leads ohne einen zurueck. Sonst
+  // ginge eine Mail mit einem Loch an der Stelle raus, an der der Mangel
+  // stehen sollte. Dieselbe Regel wie beim Anlegen (splitByWebsiteFinding in
+  // lib/instantly/create-campaign.ts), hier ausgeschrieben, weil diese Route
+  // ihre Zeilen anders laedt.
+  const alleVarianten = ((steps ?? []) as { subject: string; body: string; variants: unknown }[]).flatMap(
+    (s) =>
+      Array.isArray(s.variants) && s.variants.length > 0
+        ? (s.variants as { subject?: string; body?: string }[])
+        : [{ subject: s.subject, body: s.body }]
+  );
+  const brauchtBefund = usesWebsiteFinding(alleVarianten);
+  const ohneBefund = brauchtBefund
+    ? eineJeFirma.filter((c) => !(c.businesses?.website_finding ?? "").trim())
+    : [];
+  const ohneIds = new Set(ohneBefund.map((c) => c.id));
+  const newRows = eineJeFirma.filter((c) => !ohneIds.has(c.id));
 
   if (newRows.length === 0) {
     return NextResponse.json({
@@ -107,16 +156,15 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       added: 0,
       skipped_unverified: unsendable.length,
       skipped_engaged: engaged.length,
+      skipped_without_finding: ohneBefund.length,
     });
   }
 
-  const leads = newRows.map((c) => ({
-    email: c.email as string,
-    first_name: c.first_name || undefined,
-    last_name: c.last_name || undefined,
-    company_name: c.businesses?.name || undefined,
-    personalization: c.businesses?.personalization || undefined,
-  }));
+  // Die Zuordnung Spalte -> Instantly-Feld steht in buildInstantlyLead und
+  // NICHT hier: sie wird von der Kampagnen-Erstellung und der Mail-Vorschau
+  // ebenfalls gebraucht, und drei Abschriften laufen irgendwann auseinander.
+  // Genau das war bis zum 2026-08-28 der Fall.
+  const leads = newRows.map((c) => buildInstantlyLead(c));
 
   try {
     for (let i = 0; i < leads.length; i += 1000) {
@@ -141,6 +189,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     added: newRows.length,
     skipped_unverified: unsendable.length,
     skipped_engaged: engaged.length,
+    skipped_without_finding: ohneBefund.length,
   });
 }
 
