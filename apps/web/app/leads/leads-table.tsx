@@ -1021,7 +1021,19 @@ export default function LeadsTable({
             const withEmail = g.contacts.filter((c) => c.email).length;
             return (
               <div key={g.key}>
-                <div className="flex w-full items-center gap-3 px-4 py-3 transition-all duration-150 hover:z-10 hover:bg-wash hover:shadow-[0_1px_0_0_var(--c-edge2)]">
+                {/* flex-wrap und gap-y: am Live-Stand bei 390 Pixeln
+                    nachgemessen (2026-08-31) standen von den Firmennamen noch
+                    "Vang…", "Ignit…", "Mal…" da -- rund vier Zeichen. Schuld
+                    war nicht der Name, sondern die Zaehlung am Zeilenende:
+                    "1 contact · 1 with email" ist shrink-0 und nahm sich ihre
+                    150 Pixel zuerst, die Website daneben noch einmal 40. Uebrig
+                    blieb fuer die einzige Angabe, an der man eine Zeile
+                    wiedererkennt, weniger als fuer ihre beiden Beilagen.
+
+                    Jetzt faellt die Zaehlung auf dem Handy in eine zweite
+                    Zeile, eingerueckt bis unter den Namen. Ab sm steht wieder
+                    alles nebeneinander. */}
+                <div className="flex w-full flex-wrap items-center gap-x-3 gap-y-1 px-4 py-3 transition-all duration-150 hover:z-10 hover:bg-wash hover:shadow-[0_1px_0_0_var(--c-edge2)]">
                   <input
                     type="checkbox"
                     checked={selected.has(g.key)}
@@ -1043,8 +1055,14 @@ export default function LeadsTable({
                     <CompanyLogo name={g.name} website={g.website} size={22} />
                     <span className="flex min-w-0 items-center gap-2">
                       <span className="truncate font-medium text-ink underline-offset-4 hover:underline">{g.name}</span>
+                      {/* Erst ab sm. Zwei truncate-Elemente in einem Flex
+                          teilen sich den Platz, statt dass eines Vorrang
+                          bekommt -- auf dem Handy hiess das: halber Name,
+                          halbe Adresse, beides unlesbar. Die Adresse steht
+                          ohnehin im Drawer, den ein Tipp auf den Namen
+                          oeffnet. */}
                       {g.website && (
-                        <span className="truncate text-xs text-faint">
+                        <span className="hidden truncate text-xs text-faint sm:inline">
                           {g.website.replace(/^https?:\/\//, "")}
                         </span>
                       )}
@@ -1083,7 +1101,11 @@ export default function LeadsTable({
                       {listeVon(g.search_id)}
                     </Link>
                   )}
-                  <span className="shrink-0 text-xs text-faint">
+                  {/* pl-[52px] ruecken sie unter den Namen statt unter das
+                      Kaestchen: Kaestchen (16) plus Abstand (12) plus Pfeil (8)
+                      plus Abstand (12) sind die 48 Pixel, um die der Name
+                      selbst eingerueckt ist. */}
+                  <span className="w-full shrink-0 pl-[52px] text-xs text-faint sm:w-auto sm:pl-0">
                     {g.contacts.length} {g.contacts.length === 1 ? L.contactSingular : L.contactPlural}
                     {" · "}
                     <span className={withEmail > 0 ? "text-emerald-600 dark:text-emerald-400" : ""}>
