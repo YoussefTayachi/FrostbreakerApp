@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { usePathname } from "next/navigation";
 import Nav from "./nav";
 import LogoutButton from "./logout-button";
@@ -32,6 +33,29 @@ import { useT } from "./language-provider";
  * Dieselbe <Nav /> wie die Seitenleiste, bewusst keine gekuerzte Fassung:
  * zwei Navigationen laufen auseinander, sobald jemand einen Menuepunkt nur in
  * einer von beiden ergaenzt.
+ *
+ * ═══════════════════════════════════════════════════════════════════════
+ * WARUM DIE SCHUBLADE PER PORTAL AN DEN BODY GEHT
+ * ═══════════════════════════════════════════════════════════════════════
+ *
+ * Am 2026-08-31 im Live-Stand bei 390 Pixeln nachgemessen: die Schublade war
+ * nicht bildschirmhoch, sondern genau 56 Pixel -- die Hoehe der Kopfleiste.
+ * Sichtbar waren Logo und Schliessen-Kreuz, die ganze Navigation darunter war
+ * abgeschnitten, und der Schleier lag als grauer Streifen neben dem Logo statt
+ * ueber der Seite.
+ *
+ * Der Grund steht eine Zeile weiter oben in layout.tsx: der Kopf hat
+ * backdrop-blur. Ein gesetztes backdrop-filter macht das Element zum
+ * containing block fuer alle position:fixed-Nachkommen -- `fixed inset-0`
+ * meint dann nicht mehr das Fenster, sondern die Leiste. Dieselbe Falle wie
+ * bei transform, vor der der Kommentar zu .fade-up in globals.css warnt; sie
+ * gilt fuer backdrop-filter genauso.
+ *
+ * Der Knopf bleibt im Kopf (dort gehoert er hin), die Flaeche darueber haengt
+ * am body und ist damit von der Kopfleiste unabhaengig. Ein Entfernen des
+ * backdrop-blur waere die andere Loesung gewesen und die schlechtere: der
+ * Kopf klebt beim Scrollen und braucht die Milchglasflaeche, damit der Inhalt
+ * nicht scharf durch ihn hindurchlaeuft.
  */
 export default function MobileNav({ email }: { email: string }) {
   const { t } = useT();
@@ -39,6 +63,16 @@ export default function MobileNav({ email }: { email: string }) {
   const pathname = usePathname();
   const panelRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
+  /**
+   * Erst im Browser, nicht schon beim Rendern auf dem Server.
+   *
+   * createPortal braucht document.body, und den gibt es beim Server-Rendern
+   * nicht. Der Zustand kann beim ersten Rendern im Browser nicht true sein --
+   * sonst gaebe React einen Hydrations-Fehler aus, weil sich der erste Baum im
+   * Browser vom gelieferten unterscheidet.
+   */
+  const [bereit, setBereit] = useState(false);
+  useEffect(() => setBereit(true), []);
 
   // Seitenwechsel schliesst. Ohne das bleibt die Schublade ueber der Seite
   // stehen, die man gerade angesteuert hat.
@@ -88,7 +122,7 @@ export default function MobileNav({ email }: { email: string }) {
         <IconMenu className="h-[18px] w-[18px]" />
       </button>
 
-      {open && (
+      {open && bereit && createPortal(
         <div className="fixed inset-0 z-50 md:hidden">
           {/* Der Schleier schliesst bei Beruehrung. Er ist die Flaeche, die
               jeder zuerst antippt, wenn er wieder heraus will. */}
@@ -174,7 +208,8 @@ export default function MobileNav({ email }: { email: string }) {
               </div>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </>
   );
