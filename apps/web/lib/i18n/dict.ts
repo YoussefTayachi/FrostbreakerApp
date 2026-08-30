@@ -18,6 +18,9 @@ const de = {
     aiAgent: "AI Agent", offers: "Angebot", icebreaker: "Aufhänger", effectiveness: "Wirkung",
     apiKeys: "API-Schlüssel", automations: "Automatisierungen", branding: "Branding", team: "Team", instantly: "Instantly", blocklist: "Blockliste", costs: "API-Kosten", settings: "Einstellungen", guide: "Anleitung",
     mcp: "Claude-Zugang",
+    // Nur auf dem Handy sichtbar (siehe mobile-nav.tsx).
+    menu: "Menü",
+    closeMenu: "Menü schließen",
   },
   commandPalette: {
     placeholder: "Seiten oder Firmen suchen...",
@@ -2726,6 +2729,8 @@ const en: Dictionary = {
     aiAgent: "AI Agent", offers: "Offer", icebreaker: "Icebreakers", effectiveness: "Effect",
     apiKeys: "API keys", automations: "Automations", branding: "Branding", team: "Team", instantly: "Instantly", blocklist: "Blocklist", costs: "API costs", settings: "Settings", guide: "Guide",
     mcp: "Claude access",
+    menu: "Menu",
+    closeMenu: "Close menu",
   },
   commandPalette: {
     placeholder: "Search pages or companies...",

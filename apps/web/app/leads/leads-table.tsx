@@ -1104,7 +1104,14 @@ export default function LeadsTable({
                         {g.personalization}
                       </p>
                     )}
-                    <table className="w-full text-sm">
+                    {/* Bis zu sechs Spalten, darunter eine E-Mail-Adresse und
+                        eine Statusauswahl. Auf einem 343er Bildschirm bleiben
+                        je Spalte rund 55 Pixel: die Adresse steht dann auf vier
+                        Zeilen, die Auswahl ist ein Streifen, und weil die
+                        Tabelle in keinem scrollenden Container sitzt, drueckt
+                        sie stattdessen die ganze Seite waagerecht auf. Ab sm
+                        die Tabelle, darunter eine Karte je Person. */}
+                    <table className="hidden w-full text-sm sm:table">
                       <thead>
                         <tr className="text-left text-xs text-mute">
                           <th className="py-1.5 pr-4 font-medium">{L.tableHeaders.person}</th>
@@ -1176,6 +1183,73 @@ export default function LeadsTable({
                         ))}
                       </tbody>
                     </table>
+
+                    {/* Dieselben Kontakte als Karten. Die Reihenfolge folgt der
+                        Tabelle: wer ist es, was macht er, wie erreicht man ihn,
+                        woher kommt er, wo steht er. Die Spaltenwahl oben
+                        (cols) gilt hier genauso -- wer Telefon ausgeblendet
+                        hat, hat es auch auf dem Handy ausgeblendet. */}
+                    <div className="space-y-2 sm:hidden">
+                      {g.contacts.map((c) => (
+                        <div key={c.id} className="rounded-lg border border-edge/60 bg-panel p-3">
+                          <p className="text-sm font-medium text-ink">
+                            {c.linkedin ? (
+                              <a
+                                href={c.linkedin}
+                                target="_blank"
+                                className="underline-offset-4 hover:text-sky-600 hover:underline dark:hover:text-sky-300"
+                              >
+                                {c.full_name ?? "—"}
+                              </a>
+                            ) : (
+                              (c.full_name ?? "—")
+                            )}
+                          </p>
+                          {cols.has("title") && c.title && (
+                            <p className="mt-0.5 text-xs text-faint">{c.title}</p>
+                          )}
+                          {cols.has("email") && (
+                            <p className="mt-2 flex items-center gap-1.5 text-xs text-ink [overflow-wrap:anywhere]">
+                              {c.email ? (
+                                <>
+                                  <VerificationShield c={c} t={L} />
+                                  {c.email}
+                                  <EmailTypeBadge c={c} t={L} />
+                                </>
+                              ) : (
+                                <span className="text-mute">{L.tableHeaders.email}: —</span>
+                              )}
+                            </p>
+                          )}
+                          {cols.has("phone") && c.phone && (
+                            <p className="mt-1 text-xs text-soft">{c.phone}</p>
+                          )}
+                          {cols.has("sources") && c.sources.length > 0 && (
+                            <p className="mt-2 flex flex-wrap gap-1">
+                              {c.sources.map((src) => (
+                                <span
+                                  key={src}
+                                  className={
+                                    "rounded-full border px-2 py-0.5 text-[11px] " + contactSourceBadgeClass(src)
+                                  }
+                                >
+                                  {t.common.sourceLabels[src] ?? src}
+                                </span>
+                              ))}
+                            </p>
+                          )}
+                          {cols.has("status") && (
+                            <div className="mt-2">
+                              <StatusSelect
+                                value={c.outreach_status}
+                                onChange={(v) => updateStatus(c.id, v)}
+                                labels={L.statusLabels}
+                              />
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 )}
               </div>
@@ -1189,41 +1263,53 @@ export default function LeadsTable({
 
       {/* Bulk-Action-Leiste */}
       {selected.size > 0 && (
-        <div className="fixed bottom-6 left-1/2 z-30 -translate-x-1/2 md:left-[calc(50%+7.5rem)]">
-          <div className="fade-up flex items-center gap-3 rounded-lg border border-edge/60 bg-panel px-4 py-3 shadow-2xl">
-            <span className="text-sm text-ink">
+        /* Auf dem Handy an beiden Raendern verankert statt mittig zentriert.
+
+           Die Leiste enthaelt eine Zaehlung und vier Knoepfe in einer Reihe
+           ohne Umbruch: zusammen rund 700 Pixel. Zentriert ueber einem 375er
+           Bildschirm hiess das, dass sie links UND rechts hinauslief -- vom
+           Text war die Mitte zu sehen, der erste und der letzte Knopf gar
+           nicht. Ausgerechnet "Auswahl aufheben" stand ganz rechts, also der
+           Ausweg aus einem Zustand, den man nur noch durch Neuladen verliess.
+
+           bottom mit safe-area: sonst liegt die unterste Knopfreihe unter dem
+           Wischbalken des iPhones, und jeder Tipp darauf schickt einen auf den
+           Startbildschirm. */
+        <div className="fixed inset-x-3 bottom-[calc(1rem+env(safe-area-inset-bottom))] z-30 md:inset-x-auto md:bottom-6 md:left-[calc(50%+7.5rem)] md:-translate-x-1/2">
+          <div className="fade-up flex flex-wrap items-center gap-2 rounded-lg border border-edge/60 bg-panel px-3 py-3 shadow-2xl sm:gap-3 sm:px-4">
+            <span className="w-full text-sm text-ink sm:w-auto">
               <span className="font-semibold">{selectedGroups.length}</span> {L.bulkCompanies} ·{" "}
               {selectedContacts} {L.bulkContacts}
             </span>
             <button
               onClick={() => download(toInstantlyCsv(withoutInvalidEmails(selectedGroups, excludeInvalid)), "-auswahl-instantly.csv")}
-              className="rounded-lg bg-gradient-to-r from-sky-600 to-sky-600 px-4 py-2 text-sm font-medium text-white transition-all hover:brightness-110 active:scale-[0.98]"
+              className="min-w-0 flex-1 rounded-lg bg-gradient-to-r from-sky-600 to-sky-600 px-4 py-2.5 text-sm font-medium text-white transition-all hover:brightness-110 active:scale-[0.98] sm:flex-none sm:py-2"
             >
               {L.bulkExportInstantly}
             </button>
             <button
               onClick={() => download(toCsv(withoutInvalidEmails(selectedGroups, excludeInvalid), L.csvHeaders), "-auswahl.csv")}
-              className="rounded-lg border border-edge2 px-4 py-2 text-sm text-soft transition-colors hover:border-edge3 hover:text-ink"
+              className="min-w-0 flex-1 rounded-lg border border-edge2 px-4 py-2.5 text-sm text-soft transition-colors hover:border-edge3 hover:text-ink sm:flex-none sm:py-2"
             >
               {L.bulkExportExcel}
             </button>
             <button
               onClick={blockSelected}
               disabled={bulkAction !== ""}
-              className="rounded-lg border border-red-300 px-4 py-2 text-sm text-red-600 transition-colors hover:border-red-500 disabled:opacity-40 dark:border-red-900/60 dark:text-red-400"
+              className="min-w-0 flex-1 rounded-lg border border-red-300 px-4 py-2.5 text-sm text-red-600 transition-colors hover:border-red-500 disabled:opacity-40 sm:flex-none sm:py-2 dark:border-red-900/60 dark:text-red-400"
             >
               {bulkAction === "block" ? L.bulkBlocking : L.bulkBlock}
             </button>
             <button
               onClick={deleteSelected}
               disabled={bulkAction !== ""}
-              className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-red-500 disabled:opacity-40"
+              className="min-w-0 flex-1 rounded-lg bg-red-600 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-red-500 disabled:opacity-40 sm:flex-none sm:py-2"
             >
               {bulkAction === "delete" ? L.bulkDeleting : L.bulkDelete}
             </button>
             <button
               onClick={() => setSelected(new Set())}
-              className="text-xs text-faint hover:text-ink"
+              className="w-full py-1 text-xs text-faint hover:text-ink sm:w-auto sm:py-0"
             >
               {L.deselect}
             </button>

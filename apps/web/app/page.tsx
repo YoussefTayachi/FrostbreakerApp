@@ -330,7 +330,11 @@ export default async function Dashboard({
           nicht, siehe worker-status.tsx. */}
       <ProviderAlerts alerts={providerAlerts} t={t} lang={lang} />
       <WorkerStatus health={workerHealth} t={t} lang={lang} />
-      <div className="flex items-end justify-between">
+      {/* flex-wrap: rechts steht im laufenden Betrieb "7 Agenten arbeiten"
+          mit einem Fortschrittsbalken darunter, links Titel und Unterzeile.
+          Ohne Umbruch quetschen sich beide auf 343 Pixeln in eine Zeile, und
+          die Unterzeile bricht auf drei. */}
+      <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight text-ink">{t.dashboard.title}</h1>
           <p className="text-sm text-faint">{t.dashboard.subtitle}</p>
@@ -431,8 +435,21 @@ export default async function Dashboard({
         </div>
       )}
 
-      {/* KPI-Leiste */}
-      <div className="grid grid-cols-3 divide-edge overflow-hidden rounded-lg border border-edge/60 bg-panel shadow-sm md:grid-cols-6 md:divide-x">
+      {/* KPI-Leiste.
+
+          Zwei Spalten auf dem Handy statt drei. Bei drei bekommt eine Kachel
+          rund 100 Pixel; darin steht eine Beschriftung in Grossbuchstaben mit
+          Sperrung ("KONTAKTIERT", "AUFHÄNGER") und darunter eine Zahl in
+          text-2xl. Die Beschriftung brach dort auf zwei Zeilen um, wodurch die
+          Kacheln der ersten Reihe unterschiedlich hoch wurden und die Zahlen
+          nicht mehr auf einer Linie standen -- eine Leiste, deren Zweck genau
+          das Ablesen auf einer Linie ist.
+
+          divide-y auf dem Handy: ohne Trennlinien laufen sechs Kacheln in zwei
+          Reihen zu einem Block zusammen. Waagerecht getrennt wird nur unter
+          md, senkrecht nur ab md -- in der einzeiligen Leiste am Schreibtisch
+          gibt es keine Reihen zu trennen. */}
+      <div className="grid grid-cols-2 divide-x divide-y divide-edge overflow-hidden rounded-lg border border-edge/60 bg-panel shadow-sm sm:grid-cols-3 md:grid-cols-6 md:divide-y-0">
         {kpis.map((k) => {
           const inhalt = (
             <>
@@ -629,11 +646,16 @@ export default async function Dashboard({
 
       {/* Letzte Suchen */}
       <section className="overflow-hidden rounded-lg border border-edge/60 bg-panel shadow-sm">
-        <div className="flex items-center justify-between border-b border-edge/60 px-5 py-3">
+        <div className="flex items-center justify-between border-b border-edge/60 px-4 py-3 sm:px-5">
           <h2 className="text-sm font-medium text-ink">{t.dashboard.recentSearches}</h2>
           <Link href="/searches" className="text-xs text-faint hover:text-ink">{t.dashboard.showAll}</Link>
         </div>
-        <table className="w-full text-sm">
+        {/* Sechs Spalten ohne waagerechten Ausweg: die Tabelle stand in einem
+            overflow-hidden und wurde auf dem Handy schlicht abgeschnitten --
+            sichtbar waren Name und ein Teil der Quelle, Ort, Status und Datum
+            fielen weg. Deshalb ab sm die Tabelle, darunter dieselben Suchen
+            als Karten. */}
+        <table className="hidden w-full text-sm sm:table">
           <thead>
             <tr className="border-b border-edge/60 text-left text-xs text-mute">
               <th className="px-5 py-2 font-medium">{t.dashboard.table.list}</th>
@@ -683,6 +705,42 @@ export default async function Dashboard({
             )}
           </tbody>
         </table>
+
+        {/* Dieselben Suchen fuer alles unter sm. Name und Status in die erste
+            Zeile, der Rest als eine Zeile Beiwerk darunter: auf einem
+            Uebersichtsbildschirm zaehlt, welche Liste laeuft und welche
+            fertig ist. Ort, Quelle und Menge beantworten die Frage danach. */}
+        <div className="divide-y divide-edge/60 sm:hidden">
+          {searches.map((s) => (
+            <Link
+              key={s.id}
+              href={"/searches/" + s.id}
+              className="flex items-start justify-between gap-3 px-4 py-3 transition-colors hover:bg-wash"
+            >
+              <div className="min-w-0">
+                <p className="truncate text-sm font-medium text-ink">{s.name ?? s.query}</p>
+                <p className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-faint">
+                  <span
+                    className={"rounded-md border px-1.5 py-0.5 text-[11px] " + searchSourceBadgeClass(s.source)}
+                  >
+                    {searchSourceLabel(s.source)}
+                  </span>
+                  <span className="truncate">{s.location}</span>
+                  <span className="text-mute">
+                    {s.target_email_count ? `🎯 ${s.target_email_count}` : s.max_results}
+                  </span>
+                  <LocalTime iso={s.created_at} lang={lang} serverFormatted={formatDate(s.created_at, lang)} />
+                </p>
+              </div>
+              <span className="shrink-0 pt-0.5">
+                <StatusBadge status={s.status} labels={t.common.statusLabels} />
+              </span>
+            </Link>
+          ))}
+          {searches.length === 0 && (
+            <p className="px-4 py-8 text-center text-sm text-mute">{t.dashboard.noSearchesYet}</p>
+          )}
+        </div>
       </section>
     </div>
   );

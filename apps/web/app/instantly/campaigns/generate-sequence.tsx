@@ -170,7 +170,7 @@ export default function GenerateSequence({
   }
 
   return (
-    <div className="fb-hud fb-ticks relative overflow-hidden rounded-xl border border-edge/60 bg-panel p-5">
+    <div className="fb-hud fb-ticks relative overflow-hidden rounded-xl border border-edge/60 bg-panel p-4 sm:p-5">
       <div className="fb-grid-bg absolute inset-0" aria-hidden />
       {busy && <span className="fb-scan" aria-hidden />}
 
@@ -192,7 +192,12 @@ export default function GenerateSequence({
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2">
+          {/* w-full auf dem Handy: die Kopfzeile bricht dort um, und Auswahl
+              und Knopf stehen unter dem Kern in einer eigenen Zeile. Ein
+              Angebotsname wie "Website-Redesign fuer Handwerksbetriebe"
+              braucht die ganze Breite, sonst zeigt die Auswahl drei Woerter
+              und drei Punkte. */}
+          <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
             {offers.length > 1 && (
               <select
                 value={offerId}
@@ -201,7 +206,7 @@ export default function GenerateSequence({
                   onOfferChange(e.target.value || null);
                 }}
                 aria-label={G.offerLabel}
-                className={inputCls + " min-h-10 py-1.5"}
+                className={inputCls + " min-h-10 w-full py-1.5 sm:w-auto"}
               >
                 {offers.map((o) => (
                   <option key={o.id} value={o.id}>
@@ -213,7 +218,7 @@ export default function GenerateSequence({
             <button
               onClick={erzeugen}
               disabled={busy || !offerId}
-              className="min-h-10 rounded-lg px-5 text-sm font-medium text-white shadow-sm transition-all hover:brightness-110 active:scale-[0.98] disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500"
+              className="min-h-11 w-full rounded-lg px-5 text-sm font-medium text-white shadow-sm transition-all hover:brightness-110 active:scale-[0.98] disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 sm:min-h-10 sm:w-auto"
               style={{ background: "var(--fb-frost)" }}
             >
               {busy ? G.working : G.generate}
@@ -224,7 +229,11 @@ export default function GenerateSequence({
         {/* Die vier Stufen als Anzeige. Vor dem Lauf leer, waehrend des Laufs
             in Bewegung, danach gefuellt — damit sichtbar ist, was "Sequenz"
             ueberhaupt heisst, bevor man den Knopf zum ersten Mal drueckt. */}
-        <div className="mt-4 grid grid-cols-4 gap-1.5">
+        {/* Zwei mal zwei auf dem Handy statt vier nebeneinander. Bei 343
+            Pixeln bekommt ein Feld sonst rund 80, und "Aufhaenger" oder
+            "Nachfassen" verschwindet hinter truncate zu "Aufha…" -- vier
+            abgeschnittene Woerter sagen weniger als gar keine Beschriftung. */}
+        <div className="mt-4 grid grid-cols-2 gap-1.5 sm:grid-cols-4">
           {STUFEN.map((i) => {
             const an = fertig > i;
             return (

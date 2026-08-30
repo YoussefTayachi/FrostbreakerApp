@@ -220,19 +220,22 @@ export default function CampaignDetail({ id }: { id: string }) {
           <button
             onClick={activate}
             disabled={activating}
-            className="rounded-lg bg-sky-600 px-5 py-2.5 text-sm font-medium text-white shadow-lg shadow-sky-600/25 transition-all hover:bg-sky-500 disabled:opacity-50"
+            className="w-full rounded-lg bg-sky-600 px-5 py-3 text-sm font-medium text-white shadow-lg shadow-sky-600/25 transition-all hover:bg-sky-500 disabled:opacity-50 sm:w-auto sm:py-2.5"
           >
             {C.activate}
           </button>
         </div>
       )}
+      {/* w-full auf dem Handy: "Pausieren" und "Fortsetzen" sind die
+          folgenreichsten Knoepfe dieser Seite und standen als 110 Pixel
+          breite Kaestchen am linken Rand. */}
       {data.status === "active" && (
-        <button onClick={pause} disabled={activating} className={secondaryBtnCls}>
+        <button onClick={pause} disabled={activating} className={secondaryBtnCls + " w-full sm:w-auto"}>
           {C.pause}
         </button>
       )}
       {data.status === "paused" && (
-        <button onClick={activate} disabled={activating} className={secondaryBtnCls}>
+        <button onClick={activate} disabled={activating} className={secondaryBtnCls + " w-full sm:w-auto"}>
           {C.resume}
         </button>
       )}
@@ -240,6 +243,9 @@ export default function CampaignDetail({ id }: { id: string }) {
       {data.stats && (
         <div className={cardCls}>
           <h2 className="mb-4 font-medium text-ink">{D.statsHeading}</h2>
+          {/* grid-cols-2 bleibt auf dem Handy: vier text-2xl-Zahlen
+              nebeneinander bekaemen dort je 75 Pixel, und "Bounces" bricht
+              darunter in zwei Zeilen um. */}
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
             <div>
               <p className="text-2xl font-semibold text-ink">{data.stats.emails_sent_count}</p>
@@ -267,11 +273,14 @@ export default function CampaignDetail({ id }: { id: string }) {
             <h2 className="mb-1 font-medium text-ink">{D.leadsHeading}</h2>
             <p className="text-sm text-faint">{D.leadsAddedOf(data.leadsAdded, data.leadsAvailable)}</p>
           </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setLeadsOpen((v) => !v)}
-              className={secondaryBtnCls}
-            >
+          {/* Drei Knoepfe mit Beschriftungen wie "Lead-Liste anzeigen" und
+              "Weitere Leads hinzufuegen": nebeneinander brauchen sie rund 480
+              Pixel. Auf dem Handy standen sie deshalb in drei Zeilen, aber
+              jeder in seiner eigenen Wunschbreite, also treppenfoermig
+              versetzt. Gestapelt und in voller Breite sind es drei Zeilen mit
+              gerader Kante. */}
+          <div className="grid w-full grid-cols-1 gap-2 sm:flex sm:w-auto sm:items-center">
+            <button onClick={() => setLeadsOpen((v) => !v)} className={secondaryBtnCls}>
               {leadsOpen ? D.hideLeadList : D.showLeadList}
             </button>
             {/* Neben der Lead-Liste, nicht in einem eigenen Block: beides

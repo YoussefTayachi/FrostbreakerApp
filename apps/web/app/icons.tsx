@@ -196,3 +196,22 @@ export function IconLinkedIn({ className = "h-4 w-4" }: { className?: string }) 
     </svg>
   );
 }
+
+/** Hamburger und Kreuz fuer die mobile Schublade. Strichstaerke 1.8 wie die
+ *  uebrigen Umriss-Symbole, damit sie im Kopf neben dem Logo gleich schwer
+ *  wiegen. */
+export function IconMenu({ className = "h-4 w-4" }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true">
+      <path d="M4 7h16M4 12h16M4 17h16" />
+    </svg>
+  );
+}
+
+export function IconClose({ className = "h-4 w-4" }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true">
+      <path d="M6 6l12 12M18 6L6 18" />
+    </svg>
+  );
+}

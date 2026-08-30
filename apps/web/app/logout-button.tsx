@@ -36,7 +36,7 @@ import { useT } from "./language-provider";
  * meint in aller Regel genau das. 'local' waere die stillere Variante und
  * genau deshalb die falsche.
  */
-export default function LogoutButton({ compact = false }: { compact?: boolean }) {
+export default function LogoutButton() {
   const router = useRouter();
   const { t } = useT();
   const [busy, setBusy] = useState(false);
@@ -54,24 +54,6 @@ export default function LogoutButton({ compact = false }: { compact?: boolean })
     }
     router.push("/login");
     router.refresh();
-  }
-
-  // Im Kopf der mobilen Ansicht ist neben Logo und Workspace-Wahl kein Platz
-  // fuer ein Wort. Der Fehlerfall faellt dort weg: eine Meldung in einer
-  // 56 Pixel hohen Leiste bricht das Layout; sichtbar bleibt, dass die Seite
-  // eben nicht wechselt, und in der Seitenleiste steht der Grund.
-  if (compact) {
-    return (
-      <button
-        onClick={logout}
-        disabled={busy}
-        title={t.logout}
-        aria-label={t.logout}
-        className="shrink-0 rounded-lg border border-edge2 p-1.5 text-soft transition-colors hover:border-edge3 hover:text-ink disabled:opacity-50"
-      >
-        <IconLogout />
-      </button>
-    );
   }
 
   return (

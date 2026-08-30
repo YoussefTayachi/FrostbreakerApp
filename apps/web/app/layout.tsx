@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getLangServer } from "@/lib/i18n/lang";
 import { getCurrentWorkspace } from "@/lib/workspace/server";
 import Nav from "./nav";
+import MobileNav from "./mobile-nav";
 import LogoutButton from "./logout-button";
 import ThemeToggle from "./theme-toggle";
 import { LanguageProvider, LanguageToggle } from "./language-provider";
@@ -133,18 +134,40 @@ export default async function RootLayout({ children }: { children: React.ReactNo
                 </div>
               </aside>
               <div className="min-w-0 flex-1 md:pl-64">
-                <header className="sticky top-0 z-10 flex h-14 items-center gap-3 border-b border-edge/60 bg-surface/80 px-6 backdrop-blur md:hidden">
-                  <span className="shrink-0 text-3xl font-extrabold tracking-tighter text-[#0EA5E9]">frostbreaker</span>
-                  <div className="min-w-0 flex-1">
-                    <WorkspaceSwitcher />
-                  </div>
-                  {/* Auf dem Handy die EINZIGE Abmeldung: die Seitenleiste,
-                      in der sie sonst steht, ist unter md ausgeblendet. Bis
-                      zum 2026-08-09 kam man mobil ueberhaupt nicht aus dem
-                      Konto heraus. */}
-                  <LogoutButton compact />
+                {/* Der mobile Kopf.
+
+                    Der Workspace-Waehler ist aus ihm herausgewandert und steht
+                    jetzt in der Schublade. Grund: bei 375 Pixeln teilten sich
+                    Logo (rund 150), Waehler und zwei Knoepfe eine Zeile, und
+                    der Waehler bekam davon rund 90 Pixel -- genug fuer
+                    "Frostbr…" und sonst nichts. In der Schublade hat er die
+                    volle Breite, und der Kopf traegt nur noch das, was
+                    dauerhaft sichtbar sein muss.
+
+                    Abmelden ist mit ihm gewandert, aus demselben Grund: es ist
+                    der seltenste Handgriff der drei und stand im Kopf an der
+                    prominentesten Stelle.
+
+                    px-4 statt px-6: der Kopf muss mit dem Inhalt darunter
+                    fluchten, und der steht mobil auf px-4. */}
+                <header className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b border-edge/60 bg-surface/80 px-4 backdrop-blur md:hidden">
+                  <MobileNav email={user.email ?? ""} />
+                  <span className="min-w-0 flex-1 truncate text-3xl font-extrabold tracking-tighter text-[#0EA5E9]">
+                    frostbreaker
+                  </span>
                 </header>
-                <main className="mx-auto max-w-7xl px-8 py-7">{children}</main>
+                {/* px-4 auf dem Handy statt px-8: die 64 Pixel Rand von px-8
+                    sind auf einem 375er Bildschirm ein Sechstel der Breite,
+                    und genau die fehlt jeder Tabelle und jedem Textfeld
+                    darunter. py-5 statt py-7 aus demselben Grund fuer die
+                    Hoehe: mobil ist jeder Zentimeter, den man nicht scrollen
+                    muss, ein gewonnener.
+
+                    pb mit safe-area: sonst endet die letzte Zeile jeder Seite
+                    unter dem Wischbalken des iPhones. */}
+                <main className="mx-auto max-w-7xl px-4 py-5 sm:px-6 md:px-8 md:py-7 [padding-bottom:calc(1.25rem+env(safe-area-inset-bottom))] md:[padding-bottom:1.75rem]">
+                  {children}
+                </main>
               </div>
             </div>
             </ToastProvider>

@@ -132,7 +132,10 @@ export default function EmailQualityPanel({
         <button
           type="button"
           onClick={() => setExpanded((v) => !v)}
-          className="ml-auto text-[11px] font-medium text-sky-600 hover:text-sky-500 dark:text-sky-400"
+          // py-1 und ein eigener Radius: der Knopf ist ohne beides 13 Pixel
+          // hoch und sitzt in einer Reihe voller Abzeichen, die genauso
+          // aussehen wie er.
+          className="ml-auto rounded py-1 text-[11px] font-medium text-sky-600 hover:text-sky-500 dark:text-sky-400"
         >
           {expanded ? Q.hideDetails : Q.showDetails}
         </button>

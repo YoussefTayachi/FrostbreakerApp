@@ -192,25 +192,32 @@ export default async function CostsPage({
           {C.empty}
         </div>
       ) : (
-        <div className="overflow-hidden rounded-lg border border-edge/60 bg-panel">
+        /* overflow-x-auto statt overflow-hidden: vier Spalten mit je 40 Pixel
+            Innenrand brauchen 160 Pixel allein fuer Luft, und was darueber
+            hinausging, schnitt overflow-hidden auf dem Handy stumm ab -- die
+            Spalte mit den Kosten, also die einzige, wegen der man diese Seite
+            aufruft. Zusammen mit dem kleineren Innenrand darunter passt die
+            Tabelle jetzt in aller Regel ohne Scrollen; wo nicht, scrollt sie
+            in ihrem eigenen Kasten statt abgeschnitten zu werden. */
+        <div className="overflow-x-auto rounded-lg border border-edge/60 bg-panel">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-edge/60 text-left text-xs uppercase tracking-wide text-faint">
-                <th className="px-5 py-3 font-medium">{C.colProvider}</th>
-                <th className="px-5 py-3 font-medium">{C.colUnits}</th>
-                <th className="px-5 py-3 font-medium">{C.colCalls}</th>
-                <th className="px-5 py-3 text-right font-medium">{C.colCost}</th>
+                <th className="px-3 py-3 sm:px-5 font-medium">{C.colProvider}</th>
+                <th className="px-3 py-3 sm:px-5 font-medium">{C.colUnits}</th>
+                <th className="px-3 py-3 sm:px-5 font-medium">{C.colCalls}</th>
+                <th className="px-3 py-3 sm:px-5 text-right font-medium">{C.colCost}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-edge/60">
               {summary.providers.map((p) => (
                 <tr key={p.provider}>
-                  <td className="px-5 py-3 text-strong">
+                  <td className="px-3 py-3 sm:px-5 text-strong">
                     {PROVIDER_LABEL[p.provider] ?? p.provider}
                   </td>
-                  <td className="px-5 py-3 text-soft">{formatUnits(p.units)}</td>
-                  <td className="px-5 py-3 text-mute">{p.calls}</td>
-                  <td className="px-5 py-3 text-right text-strong">
+                  <td className="px-3 py-3 sm:px-5 text-soft">{formatUnits(p.units)}</td>
+                  <td className="px-3 py-3 sm:px-5 text-mute">{p.calls}</td>
+                  <td className="px-3 py-3 sm:px-5 text-right text-strong">
                     {p.cost_usd > 0 ? (
                       "$" + Number(p.cost_usd).toFixed(2)
                     ) : subs[p.provider] != null ? (

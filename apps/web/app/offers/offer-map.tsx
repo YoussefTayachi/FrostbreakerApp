@@ -263,14 +263,32 @@ export default function OfferMap({
     // darin. Ist sie zu schmal, enden sie ausserhalb der Zeichenflaeche und
     // werden abgeschnitten, am Standbild gesehen. Warum ausgerechnet 48
     // Pixel, steht bei AUSSEN.
-    <div ref={karte} className="relative px-12">
+    // ── AUF DEM HANDY IST DIESE KARTE KEINE KARTE ──────────────────────
+    //
+    // Sie besteht aus vier Ecken um einen Kern in der Mitte, verbunden durch
+    // SVG-Kanten, die aussen herum laufen. Das braucht zwei Spalten mit 304
+    // Pixeln Luecke dazwischen (dort steht der Kern) und 48 Pixel Fahrbahn an
+    // jeder Seite. Zusammen sind das 400 Pixel, bevor der erste Knoten
+    // ueberhaupt Platz bekommt -- auf einem 375er Bildschirm haetten die
+    // Knoten damit negative Breite.
+    //
+    // Unter lg wird daraus deshalb eine Liste: die vier Ecken untereinander,
+    // der Kern oben statt in der Mitte, die Kanten weg. Die Kanten sagen
+    // "hier haengt etwas zusammen" -- untereinander sagt das die Reihenfolge
+    // selbst, und eine gezeichnete Kurve, die um nichts mehr herumfuehrt,
+    // waere nur noch Zierde.
+    //
+    // flex flex-col nur unter lg: ab lg muss der Elternteil wieder ein
+    // gewoehnlicher Block sein, sonst greift das absolute Positionieren des
+    // Kerns nicht.
+    <div ref={karte} className="relative flex flex-col px-0 lg:block lg:px-12">
       {/* ── Die Kanten ─────────────────────────────────────────────────
           UEBER den Knoten, nicht darunter: die Beschriftungen sassen sonst in
           der Spaltenluecke und wurden verdeckt. Die Linien selbst laufen von
           Kante zu Kante und kreuzen keinen Knoten. */}
       <svg
         aria-hidden
-        className="pointer-events-none absolute left-0 top-0 z-30"
+        className="pointer-events-none absolute left-0 top-0 z-30 hidden lg:block"
         width={flaeche.w}
         height={flaeche.h}
       >
@@ -349,7 +367,7 @@ export default function OfferMap({
           THAW steht: 19rem sind seine 17rem plus je 1rem Luft. Sie ist deshalb
           ein FESTER Wert und waechst nicht mit der Karte mit — jeder
           zusaetzliche Pixel gehoert den Knoten. */}
-      <div className="grid grid-cols-2 gap-x-[19rem] gap-y-12">
+      <div className="grid grid-cols-1 gap-y-8 lg:grid-cols-2 lg:gap-x-[19rem] lg:gap-y-12">
         {ECKEN.map((ecke, ei) => (
           <div key={ecke.id} className="flex min-w-0 flex-col gap-2.5">
             <div className="fb-fade flex items-baseline gap-2" style={{ animationDelay: `${ei * 80}ms` }}>
@@ -563,7 +581,14 @@ export default function OfferMap({
       {/* ── THAW, in der Mitte ────────────────────────────────────────
           Er steht dort, wo alle vier Ecken hinzeigen, und nicht in einer
           Spalte am Rand: er liest das Ganze, nicht eine Seite davon. */}
-      <div className="pointer-events-none absolute left-1/2 top-1/2 z-40 w-[17rem] -translate-x-1/2 -translate-y-1/2">
+      {/* order-first: im DOM steht er hinter den Ecken, weil er ab lg ueber
+          ihnen liegt. Unter lg soll er vor ihnen gelesen werden -- er ist die
+          Zusammenfassung, und die gehoert nach oben, nicht ans Ende einer
+          Liste, die man erst durchgescrollt haben muss.
+
+          max-w-full: die 17rem des Kerns sind 272 Pixel und passen damit auf
+          jeden Bildschirm, aber nicht mit Sicherheit auf jeden zukuenftigen. */}
+      <div className="pointer-events-none order-first mx-auto mb-6 w-[17rem] max-w-full lg:absolute lg:left-1/2 lg:top-1/2 lg:z-40 lg:mx-0 lg:mb-0 lg:-translate-x-1/2 lg:-translate-y-1/2">
         <div className="pointer-events-auto">{hub}</div>
       </div>
     </div>

@@ -156,8 +156,15 @@ export default function CampaignForm({
               key={a.email}
               type="button"
               onClick={() => toggleMailbox(a.email)}
+              // max-w-full + truncate: eine Adresse wie
+              // "kontakt@sehr-lange-agentur-domain.de" ist breiter als ein
+              // 375er Bildschirm. Ohne die Begrenzung schiebt genau ein
+              // Postfach die ganze Seite waagerecht auf. py-2 statt py-1: das
+              // Ding wird angetippt, nicht angeklickt. title traegt die
+              // vollstaendige Adresse fuer den abgeschnittenen Fall.
+              title={a.email}
               className={
-                "rounded-full border px-3 py-1 text-xs transition-colors " +
+                "max-w-full truncate rounded-full border px-3 py-2 text-xs transition-colors sm:py-1 " +
                 (value.mailboxes.includes(a.email)
                   ? "border-sky-500 bg-sky-500/10 text-sky-600 dark:text-sky-300"
                   : "border-edge2 text-faint hover:border-sky-500/50")
@@ -205,15 +212,32 @@ export default function CampaignForm({
 
       <div>
         <p className="mb-1.5 text-xs font-medium text-faint">{F.scheduleLabel}</p>
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="flex gap-1">
+        {/* Drei Bloecke untereinander statt einer einzigen umbrechenden Reihe.
+
+            Die alte Reihe war `flex flex-wrap` ueber sieben Tagesknoepfe, zwei
+            Uhrzeiten, ein 192 Pixel breites Zeitzonenfeld und das Tageslimit.
+            Bei 343 Pixeln nutzbarer Breite brach das an unvorhersehbaren
+            Stellen um: das Wort "bis" landete am Zeilenende ohne die Uhrzeit,
+            zu der es gehoerte, und das Zeitzonenfeld stand allein in einer
+            Zeile mit einem halben Tagesknopf darueber. Umbrechen ist keine
+            Ordnung, es ist nur das Fehlen einer Ordnung.
+
+            Gestapelt gehoert jede Zeile zu einer Frage: an welchen Tagen, zu
+            welchen Zeiten, wie viele. Ab sm stehen Zeit und Zeitzone wieder
+            nebeneinander -- dort ist der Platz da. */}
+        <div className="space-y-3">
+          {/* grid-cols-7 statt flex: sieben gleich breite Knoepfe ueber die
+              volle Breite. h-10 auf dem Handy (die 28px von h-7 sind unter dem
+              Daumen ein Zielfehler, kein Ziel), ab sm zurueck auf die
+              kompakten Quadrate der Schreibtischansicht. */}
+          <div className="grid grid-cols-7 gap-1 sm:flex sm:gap-1">
             {DAY_LABELS.map((label, d) => (
               <button
                 key={d}
                 type="button"
                 onClick={() => toggleDay(d)}
                 className={
-                  "h-7 w-7 rounded-md border text-[11px] transition-colors " +
+                  "h-10 rounded-md border text-xs transition-colors sm:h-7 sm:w-7 sm:text-[11px] " +
                   (value.days.includes(d)
                     ? "border-sky-500 bg-sky-500/10 text-sky-600 dark:text-sky-300"
                     : "border-edge2 text-faint hover:border-sky-500/50")
@@ -223,20 +247,40 @@ export default function CampaignForm({
               </button>
             ))}
           </div>
-          <input type="time" value={value.from} onChange={(e) => onChange({ ...value, from: e.target.value })} className={inputCls} />
-          <span className="text-xs text-faint">{F.until}</span>
-          <input type="time" value={value.to} onChange={(e) => onChange({ ...value, to: e.target.value })} className={inputCls} />
-          <select
-            value={value.timezone}
-            onChange={(e) => onChange({ ...value, timezone: e.target.value })}
-            className={inputCls + " w-48"}
-          >
-            {INSTANTLY_TIMEZONE_OPTIONS.map((o) => (
-              <option key={o.value} value={o.value}>
-                {o.label}
-              </option>
-            ))}
-          </select>
+
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+            {/* min-w-0 flex-1 an den Zeitfeldern: ohne das behaelt ein
+                type=time seine eigene Wunschbreite, und die beiden zusammen
+                mit dem "bis" passen auf 343 Pixel nicht in eine Zeile. */}
+            <input
+              type="time"
+              value={value.from}
+              onChange={(e) => onChange({ ...value, from: e.target.value })}
+              className={inputCls + " min-w-0 flex-1 sm:flex-none"}
+            />
+            <span className="shrink-0 text-xs text-faint">{F.until}</span>
+            <input
+              type="time"
+              value={value.to}
+              onChange={(e) => onChange({ ...value, to: e.target.value })}
+              className={inputCls + " min-w-0 flex-1 sm:flex-none"}
+            />
+            {/* Volle Breite in einer eigenen Zeile auf dem Handy: die
+                Zeitzonennamen sind lang, und ein 192-Pixel-Feld schneidet sie
+                mitten im Wort ab. */}
+            <select
+              value={value.timezone}
+              onChange={(e) => onChange({ ...value, timezone: e.target.value })}
+              className={inputCls + " w-full sm:w-48"}
+            >
+              {INSTANTLY_TIMEZONE_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
           {/* Beschriftet, nicht nur per Platzhalter: das Feld ist mit "50"
               vorbelegt, dadurch war der Platzhalter nie sichtbar und daneben
               stand eine nackte Zahl ohne jede Erklaerung. Die Uhrzeit- und
@@ -295,7 +339,14 @@ export default function CampaignForm({
 
       {beforeSubmit}
 
-      <button onClick={onSubmit} disabled={submitting || submitDisabled} className={primaryBtnCls}>
+      {/* Volle Breite auf dem Handy. Er steht am Ende eines langen
+          Formulars, das man mit dem Daumen durchgescrollt hat -- der letzte
+          Handgriff soll kein 130 Pixel breites Ziel am linken Rand sein. */}
+      <button
+        onClick={onSubmit}
+        disabled={submitting || submitDisabled}
+        className={primaryBtnCls + " w-full sm:w-auto"}
+      >
         {submitting ? submittingLabel : submitLabel}
       </button>
     </div>

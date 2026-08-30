@@ -64,6 +64,33 @@ body {
 
 ::selection { background: rgba(14, 165, 233, 0.18); }
 
+/* ── EINGABEFELDER AUF DEM HANDY ──────────────────────────────────────────
+   Safari auf iOS zoomt die ganze Seite hinein, sobald ein Feld mit weniger
+   als 16px Schrift den Fokus bekommt. Das ist kein Sonderfall: inputCls in
+   lib/ui.ts setzt text-sm, also 14px, und damit tut es JEDES Feld der App --
+   Kampagnenname, Betreff, Mailtext, Suche, Anmeldung.
+
+   Wie sich das anfuehlt: man tippt ins Betrefffeld, die Seite springt auf
+   etwa 115 % und bleibt dort. Herauszoomen muss man von Hand, und beim
+   naechsten Feld beginnt es von vorn. Zurueck kommt die Seite nie von allein.
+
+   max(16px, 1em) und nicht schlicht 16px: 1em ist hier die Groesse, die das
+   Feld ohnehin geerbt haette. Felder, die absichtlich groesser sind, bleiben
+   groesser; nur die zu kleinen werden angehoben. Ab md gilt wieder, was in
+   der Klasse steht -- am Schreibtisch gibt es das Problem nicht, und dort ist
+   14px die gewollte Groesse.
+
+   Auf einer Medienabfrage und nicht auf einer Utility-Klasse, weil es sonst
+   an rund achtzig Stellen einzeln stehen muesste und die erste vergessene
+   davon den Fehler zurueckbringt. */
+@media (max-width: 767px) {
+  input:not([type="checkbox"]):not([type="radio"]),
+  select,
+  textarea {
+    font-size: max(16px, 1em);
+  }
+}
+
 *::-webkit-scrollbar { width: 8px; height: 8px; }
 *::-webkit-scrollbar-thumb { background: var(--c-edge2); border-radius: 8px; }
 *::-webkit-scrollbar-track { background: transparent; }

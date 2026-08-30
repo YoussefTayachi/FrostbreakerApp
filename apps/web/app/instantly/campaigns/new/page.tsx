@@ -492,17 +492,24 @@ export default function NewCampaignPage() {
           Ueberraschung — und niemand traut Feldern, die sich selbst
           ausfuellen. */}
       {restoreNotice && (
-        <div className="flex items-start justify-between gap-3 rounded-lg border border-edge2 bg-field px-3 py-2 text-xs text-faint">
-          <span>{F.draftRestored}</span>
-          <div className="flex shrink-0 items-center gap-3">
+        <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-2 rounded-lg border border-edge2 bg-field px-3 py-2.5 text-xs text-faint">
+          <span className="min-w-0 flex-1">{F.draftRestored}</span>
+          <div className="flex shrink-0 items-center gap-4">
             <button
               type="button"
               onClick={discardDraft}
-              className="font-medium text-sky-600 hover:text-sky-500 dark:text-sky-400"
+              className="py-1 font-medium text-sky-600 hover:text-sky-500 dark:text-sky-400"
             >
               {F.draftDiscard}
             </button>
-            <button type="button" onClick={() => setRestoreNotice(false)} aria-label={F.draftDismiss}>
+            {/* h-6 w-6 statt eines nackten Kreuzes: ein einzelnes Zeichen ist
+                ein Ziel von rund zehn Pixeln. */}
+            <button
+              type="button"
+              onClick={() => setRestoreNotice(false)}
+              aria-label={F.draftDismiss}
+              className="flex h-6 w-6 shrink-0 items-center justify-center rounded transition-colors hover:text-ink"
+            >
               ×
             </button>
           </div>
@@ -532,8 +539,13 @@ export default function NewCampaignPage() {
               <label
                 key={s.id}
                 data-ausgewaehlt={ausgewaehlt ? "true" : undefined}
+                // py-2.5 auf dem Handy: eine Zeile war 30 Pixel hoch, und
+                // bei sechzig fast gleich aussehenden Eintraegen trifft man
+                // mit dem Daumen die falsche Stadt. Das Kaestchen selbst
+                // waechst mit (h-4 w-4 sind rund 16 Pixel Ziel) -- getroffen
+                // wird ohnehin das label, das es umschliesst.
                 className={
-                  "flex items-center gap-2.5 rounded-md px-2 py-1.5 text-sm " +
+                  "flex items-center gap-2.5 rounded-md px-2 py-2.5 text-sm sm:py-1.5 " +
                   (linked
                     ? "cursor-not-allowed text-mute"
                     : ausgewaehlt
@@ -546,6 +558,7 @@ export default function NewCampaignPage() {
                   checked={ausgewaehlt}
                   disabled={linked}
                   onChange={() => toggleSearch(ids)}
+                  className="h-4 w-4 shrink-0"
                 />
                 <span className="truncate">
                   {(s.name || s.query) + " · " + s.location}

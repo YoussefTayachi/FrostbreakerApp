@@ -47,7 +47,15 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   return (
     <ToastContext.Provider value={{ push }}>
       {children}
-      <div className="pointer-events-none fixed bottom-5 right-5 z-50 flex w-80 flex-col gap-2">
+      {/* Auf dem Handy an beide Kanten geheftet statt 320 Pixel breit rechts
+          unten: w-80 plus right-5 sind 340 Pixel und passen damit auf ein
+          iPhone gerade so, auf ein 360 Pixel breites Android-Geraet nicht
+          mehr. Eine Meldung, die selbst ueber den Rand laeuft, ist die
+          schlechteste Stelle fuer einen Fehler.
+
+          bottom mit safe-area: sonst liegt die unterste Meldung unter dem
+          Wischbalken und laesst sich nicht wegtippen. */}
+      <div className="pointer-events-none fixed inset-x-4 bottom-[calc(1.25rem+env(safe-area-inset-bottom))] z-50 flex flex-col gap-2 sm:inset-x-auto sm:bottom-5 sm:right-5 sm:w-80">
         {toasts.map((toast) => (
           <div
             key={toast.id}

@@ -105,7 +105,14 @@ export default function DealBoard({
       {/* Gleiche Board-Mechanik wie im Kontakt-Board: feste Hoehe, jede Spalte
           scrollt intern, die waagerechte Leiste sitzt direkt unter den Spalten
           statt am Seitenende. */}
-      <div className="-mx-8 mt-4 h-[calc(100vh-15rem)] min-h-[22rem] overflow-x-auto px-8 pb-1">
+      {/* Der negative Rand hebt die Polsterung von `main` auf, damit das Board
+          von Fensterkante zu Fensterkante scrollt. Er muss deshalb genau der
+          Polsterung folgen, und die ist seit der Mobil-Ueberarbeitung je nach
+          Breite verschieden (px-4 / sm:px-6 / md:px-8 in layout.tsx). Bliebe
+          hier -mx-8 stehen, ragte das Board auf dem Handy 16 Pixel ueber beide
+          Kanten hinaus -- und weil es selbst waagerecht scrollt, wuerde
+          stattdessen die ganze Seite waagerecht wackeln. */}
+      <div className="-mx-4 mt-4 h-[calc(100vh-15rem)] min-h-[22rem] overflow-x-auto px-4 pb-1 sm:-mx-6 sm:px-6 md:-mx-8 md:px-8">
         <div className="flex h-full gap-0">
           {DEAL_STAGE_IDS.map((stage) => {
             const items = groups[stage] ?? [];
