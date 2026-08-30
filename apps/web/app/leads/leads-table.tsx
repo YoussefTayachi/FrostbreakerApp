@@ -472,7 +472,19 @@ function AuditPill({ g, t: L }: { g: Group; t: LeadsDict }) {
   return (
     <span
       title={L.audit.pillTitle(label)}
-      className="hidden max-w-28 shrink-0 truncate rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[10px] font-medium text-amber-700 md:block lg:max-w-44 xl:max-w-60 dark:text-amber-300"
+      // Ab lg statt ab md.
+      //
+      // Am Live-Stand bei 900 Pixeln nachgemessen (2026-08-31): von den
+      // Firmennamen stand je EIN Buchstabe da -- "V", "I.", "M". Diese
+      // Plakette (112 Pixel), der Listen-Chip daneben (160) und die Zaehlung
+      // am Zeilenende (150) sind alle drei shrink-0 und nehmen sich ihren
+      // Platz vor dem Namen; uebrig blieben rund 40 Pixel fuer das Einzige,
+      // woran man eine Zeile wiedererkennt.
+      //
+      // Die Rangfolge ist jetzt Name, dann Befund, dann Liste: die Plakette
+      // kommt ab 1024 dazu, der Chip ab 1280. Ein Befund, der den Namen
+      // verdraengt, zu dem er gehoert, hilft niemandem.
+      className="hidden max-w-28 shrink-0 truncate rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[10px] font-medium text-amber-700 lg:block lg:max-w-44 xl:max-w-60 dark:text-amber-300"
     >
       {label}
     </span>
@@ -1054,7 +1066,13 @@ export default function LeadsTable({
                   >
                     <CompanyLogo name={g.name} website={g.website} size={22} />
                     <span className="flex min-w-0 items-center gap-2">
-                      <span className="truncate font-medium text-ink underline-offset-4 hover:underline">{g.name}</span>
+                      {/* flex-1 mit Untergrenze: der Name nimmt sich, was da
+                          ist, faellt aber nie unter 7rem. Ohne die Untergrenze
+                          gewinnt jedes shrink-0 daneben gegen ihn, und genau
+                          das war der Fehler. */}
+                      <span className="min-w-[7rem] flex-1 truncate font-medium text-ink underline-offset-4 hover:underline">
+                        {g.name}
+                      </span>
                       {/* Erst ab sm. Zwei truncate-Elemente in einem Flex
                           teilen sich den Platz, statt dass eines Vorrang
                           bekommt -- auf dem Handy hiess das: halber Name,
@@ -1062,7 +1080,7 @@ export default function LeadsTable({
                           ohnehin im Drawer, den ein Tipp auf den Namen
                           oeffnet. */}
                       {g.website && (
-                        <span className="hidden truncate text-xs text-faint sm:inline">
+                        <span className="hidden truncate text-xs text-faint md:inline">
                           {g.website.replace(/^https?:\/\//, "")}
                         </span>
                       )}
@@ -1096,7 +1114,7 @@ export default function LeadsTable({
                       href={"/searches/" + g.search_id}
                       onClick={(e) => e.stopPropagation()}
                       title={L.fromListTitle}
-                      className="hidden max-w-40 shrink-0 truncate rounded-full border border-edge2 bg-chip px-2 py-0.5 text-[10px] text-mute transition-colors hover:border-edge3 hover:text-ink sm:block"
+                      className="hidden max-w-40 shrink-0 truncate rounded-full border border-edge2 bg-chip px-2 py-0.5 text-[10px] text-mute transition-colors hover:border-edge3 hover:text-ink xl:block"
                     >
                       {listeVon(g.search_id)}
                     </Link>
@@ -1105,7 +1123,7 @@ export default function LeadsTable({
                       Kaestchen: Kaestchen (16) plus Abstand (12) plus Pfeil (8)
                       plus Abstand (12) sind die 48 Pixel, um die der Name
                       selbst eingerueckt ist. */}
-                  <span className="w-full shrink-0 pl-[52px] text-xs text-faint sm:w-auto sm:pl-0">
+                  <span className="w-full shrink-0 pl-[52px] text-xs text-faint lg:w-auto lg:pl-0">
                     {g.contacts.length} {g.contacts.length === 1 ? L.contactSingular : L.contactPlural}
                     {" · "}
                     <span className={withEmail > 0 ? "text-emerald-600 dark:text-emerald-400" : ""}>
