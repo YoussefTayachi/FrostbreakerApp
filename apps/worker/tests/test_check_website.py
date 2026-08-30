@@ -213,6 +213,11 @@ def test_run_schreibt_den_befund_und_status_ok(monkeypatch):
     respx.get("http://muster.de/").mock(
         return_value=httpx.Response(301, headers={"location": "https://muster.de/"})
     )
+    # enqueue gehoert nicht zu dem, was dieser Test prueft. Ohne Attrappe
+    # scheitert der echte Aufruf, und check_website nimmt daraufhin die
+    # Browser-Markierung in einem zweiten Schreibvorgang zurueck: der Test
+    # pruefte dann den Fehlerpfad statt des Normalfalls.
+    monkeypatch.setattr(check_website, "enqueue", lambda *a, **k: None)
     check_website.run(job_for())
     assert len(writes) == 1
     assert writes[0]["website_audit_status"] == "ok"
@@ -284,10 +289,17 @@ def test_run_reiht_die_bestaetigung_verzoegert_ein(monkeypatch):
     )
     respx.get("https://weg.de/").mock(side_effect=httpx.ConnectError("getaddrinfo failed"))
     check_website.run(job_for())
-    assert jobs == [
+    # Gefiltert statt verglichen: seit der Browser-Stufe steht in dieser
+    # Liste auch browser_check, und die Aussage dieses Tests ist die
+    # Bestaetigung, nicht die Gesamtzahl der Jobs.
+    bestaetigungen = [j for j in jobs if j[1] == "confirm_website_unreachable"]
+    assert bestaetigungen == [
         ("ws-1", "confirm_website_unreachable", {"business_id": "b-1"}, check_website.CONFIRM_DELAY_S)
     ]
     assert check_website.CONFIRM_DELAY_S >= 1800
+    # Der Browser laeuft trotzdem, und gerade hier: gemessen am 2026-08-30
+    # waren 3 von 38 Seiten per rohem HTTP tot und im Browser erreichbar.
+    assert [j[1] for j in jobs if j[1] == "browser_check"] == ["browser_check"]
 
 
 @respx.mock
@@ -303,7 +315,7 @@ def test_run_reiht_bei_einem_zeitablauf_keine_bestaetigung_ein(monkeypatch):
     monkeypatch.setattr(check_website, "enqueue", lambda *a, **k: jobs.append(a))
     respx.get("https://lahm.de/").mock(side_effect=httpx.ConnectTimeout("zu langsam"))
     check_website.run(job_for())
-    assert jobs == []
+    assert [j for j in jobs if j[1] == "confirm_website_unreachable"] == []
     assert writes[0]["website_audit"]["unreachable_kind"] == "timeout"
     assert writes[0]["website_audit"]["findings"] == []
 

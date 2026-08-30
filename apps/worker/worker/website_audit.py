@@ -73,6 +73,13 @@ FINDING_CODES: tuple[str, ...] = (
     "ssl_broken",
     "no_https",
     "no_viewport",
+    # Aus der Browser-Stufe (website_browser.py). Sie stehen hier oben,
+    # weil ein Besucher sie SOFORT sieht: eine Seite, auf der man
+    # seitwaerts schieben muss, oder ein Abschnitt, an dessen Stelle ein
+    # Loch klafft. Der Rang folgt derselben Regel wie der Rest des
+    # Katalogs: was der Inhaber selbst nachsehen kann, zuerst.
+    "mobile_overflow",
+    "empty_section",
     "no_contact_route",
     "no_tel_link",
     "stale_copyright",
@@ -82,7 +89,42 @@ FINDING_CODES: tuple[str, ...] = (
     "legacy_markup",
     "no_h1",
     "no_meta_description",
+    # Gemessen, gespeichert, in der Oberflaeche sichtbar - aber NIE in
+    # einer Mail, siehe MAILABLE_CODES.
+    "render_blocked",
+    "slow_load",
+    "js_errors",
+    "text_too_small",
+    "tap_targets_small",
 )
+
+# Welche Codes ueberhaupt in eine Kaltmail duerfen.
+#
+# Der Empfaenger kennt seine Seite besser als wir. Was er in dreissig
+# Sekunden widerlegen kann, darf nicht in die Mail, und zwar unabhaengig
+# davon, wie sauber es gemessen wurde. Die fuenf ausgeschlossenen Codes
+# scheitern jeder an einem eigenen Einwand:
+#
+#   render_blocked     Client-Rendering ist eine Entscheidung, kein Fehler.
+#   slow_load          Er laedt aus dem Cache und sieht etwas anderes; den
+#                      Messaufbau duerfen wir nicht nennen (website-finding).
+#   js_errors          Kommen meist von fremden Skripten und stoeren nichts,
+#                      was ein Kunde merkt.
+#   text_too_small     Geschmack, solange es lesbar bleibt.
+#   tap_targets_small  Traf am 2026-08-30 gemessen 28 von 40 Leads. Was fast
+#                      jeder hat, ueberzeugt niemanden.
+#   empty_section      Ein grosser verborgener Textblock ist nicht zwingend
+#                      kaputt: responsive Seiten halten oft eine zweite,
+#                      absichtlich verborgene Fassung vor, und nicht jedes
+#                      Zustandssystem benutzt die Klassen, die hier
+#                      ausgeschlossen sind. Der Canary am 2026-08-30 lieferte
+#                      genau EINE Beobachtung, und die eigene Regel lautet:
+#                      unter 15 wird erweitert, nicht entschieden. Bis dahin
+#                      wird der Code gemessen und nicht behauptet.
+MAILABLE_CODES: frozenset[str] = frozenset(FINDING_CODES) - frozenset({
+    "render_blocked", "slow_load", "js_errors", "text_too_small",
+    "tap_targets_small", "empty_section",
+})
 
 # ═══════════════════════════════════════════════════════════════════════════
 # DIE TEXTE - EIN BLOCK, DAMIT SIE JEMAND UEBERARBEITEN KANN
@@ -112,6 +154,19 @@ FACT_DE: dict[str, str] = {
     "ssl_broken": "Das SSL-Zertifikat der Website ist abgelaufen oder ungueltig.",
     "no_https": "Die Website laeuft ohne durchgehende HTTPS-Verschluesselung.",
     "no_viewport": "Die Website ist nicht fuer Mobilgeraete eingerichtet.",
+    "mobile_overflow": (
+        "Auf dem Handy ist die Seite breiter als der Bildschirm, man muss sie "
+        "seitwaerts schieben."
+    ),
+    "empty_section": (
+        "Ein Abschnitt der Startseite bleibt leer: der Text steht in der Seite, "
+        "wird aber nicht angezeigt."
+    ),
+    "render_blocked": "Ohne aktives JavaScript zeigt die Seite keinen Inhalt.",
+    "slow_load": "Die Seite braucht bis zur Anzeige laenger als ueblich.",
+    "js_errors": "Im Browser laufen beim Aufruf Skriptfehler auf.",
+    "text_too_small": "Teile des Fliesstextes sind auf dem Handy sehr klein gesetzt.",
+    "tap_targets_small": "Mehrere Schaltflaechen sind kleiner als eine Fingerkuppe.",
     "stale_copyright": "Im Fussbereich der Website steht noch eine alte Jahreszahl.",
     "mixed_content": "Die Website laedt Teile von sich selbst noch unverschluesselt.",
     "site_builder": "Die Website ist mit einem Homepage-Baukasten gebaut.",
@@ -128,6 +183,25 @@ CONSEQUENCE_DE: dict[str, str] = {
         "Wer die Adresse aufruft, landet auf einer Fehlermeldung, und jede Anfrage, "
         "die dort haette entstehen sollen, geht an den naechsten Anbieter."
     ),
+    # KONDITIONAL UND OHNE GELD. Die beiden Browser-Folgen sagen, was ein
+    # Besucher TUN MUSS, nicht was es kostet. Eine Umsatz- oder
+    # Conversion-Aussage ist eine Kausalkette, die niemand belegen kann, und
+    # in einer Kaltmail ist sie beim ersten Zweifel das Ende der Mail.
+    "mobile_overflow": (
+        "Wer auf dem Handy liest, muss dafuer hin und her schieben, und Text am "
+        "rechten Rand steht ausserhalb des Bildschirms."
+    ),
+    "empty_section": (
+        "An dieser Stelle sieht ein Besucher eine Luecke statt des Inhalts, der "
+        "dort stehen soll."
+    ),
+    "render_blocked": (
+        "Wer JavaScript blockiert oder es nicht ausfuehren kann, sieht eine leere Seite."
+    ),
+    "slow_load": "Bis etwas zu sehen ist, vergeht spuerbar Zeit.",
+    "js_errors": "Einzelne Bereiche der Seite koennen dadurch nicht wie gedacht arbeiten.",
+    "text_too_small": "Auf einem Handy muss man zum Lesen vergroessern.",
+    "tap_targets_small": "Auf einem Handy trifft man daneben.",
     "ssl_broken": (
         "Jeder Browser blendet davor eine ganzseitige Warnung ein, die der Besucher "
         "erst wegklicken muss, bevor er die Seite ueberhaupt sieht."
@@ -723,16 +797,172 @@ def _rank(code: str | None) -> int:
         return len(FINDING_CODES)
 
 
-def top_finding(audit: dict | None) -> dict | None:
+# ═══════════════════════════════════════════════════════════════════════════
+# DIE BROWSER-STUFE
+# ═══════════════════════════════════════════════════════════════════════════
+#
+# website_browser.py misst, dieses Modul entscheidet. Dieselbe Trennung wie
+# zwischen website_fetch.py und dem Katalog oben, und aus demselben Grund:
+# die Auswertung ist eine reine Funktion und damit ohne Browser testbar.
+
+# Ab wann eine Zahl ein Befund ist. Alle fuenf sind GESETZT und nicht
+# gemessen, abgeleitet aus 40 echten Leads am 2026-08-30. Sie stehen hier
+# beisammen, damit sie nach dem Canary an einer Stelle nachgezogen werden.
+MOBILE_OVERFLOW_MIN_PX = 8      # darunter ist es Rundung, kein Ueberlauf
+JS_ERRORS_MIN = 3
+TEXT_TOO_SMALL_MIN = 5
+TAP_TARGETS_MIN = 15
+SLOW_LOAD_MIN_MS = 3000
+
+
+def browser_findings(measurement: dict | None) -> list[dict]:
+    """Aus einer Messung von website_browser.measure() Befunde machen.
+
+    Ausgewertet wird nur ein `completed`-Ergebnis. `inconclusive` heisst, dass
+    eine Consent- oder Bot-Wand davorstand; daraus einen Mangel zu machen
+    hiesse, einem Inhaber zu schreiben, seine Seite sei leer, weil ein
+    Cookie-Banner davor war.
+    """
+    if not measurement or measurement.get("status") != "completed":
+        return []
+
+    desktop = measurement.get("desktop") or {}
+    handy = measurement.get("handy") or {}
+    findings: list[dict] = []
+
+    # Waagrechter Ueberlauf zaehlt nur MIT benanntem Element. Ohne Beleg ist
+    # es eine Zahl ohne Ort, und der Skill website-finding verlangt zwei
+    # unabhaengige Belege je Befund: hier die Messung und der Screenshot.
+    ueberstehend = handy.get("ueberstehend") or []
+    if (handy.get("ueberbreite") or 0) >= MOBILE_OVERFLOW_MIN_PX and ueberstehend:
+        findings.append(_finding(
+            "mobile_overflow",
+            f"{handy['ueberbreite']}px ueber die Bildschirmbreite hinaus, bei {ueberstehend[0]}",
+        ))
+
+    loecher = desktop.get("loecher") or []
+    if loecher:
+        findings.append(_finding("empty_section", f"unsichtbarer Bereich: {loecher[0]}"))
+
+    if (desktop.get("hauptTextLaenge") or 0) < 200 and (desktop.get("textLaenge") or 0) < 400:
+        findings.append(_finding("render_blocked", "ohne Skript bleibt der Hauptbereich leer"))
+
+    zeiten = measurement.get("timing_ms") or []
+    if zeiten:
+        median = sorted(zeiten)[len(zeiten) // 2]
+        if median >= SLOW_LOAD_MIN_MS:
+            findings.append(_finding("slow_load", f"{median} ms bis zum Anzeigen"))
+
+    if (measurement.get("console_error_count") or 0) >= JS_ERRORS_MIN:
+        findings.append(_finding(
+            "js_errors", f"{measurement['console_error_count']} Fehler beim Aufruf"))
+
+    if (handy.get("textUnter12px") or 0) >= TEXT_TOO_SMALL_MIN:
+        findings.append(_finding(
+            "text_too_small", f"{handy['textUnter12px']} Textstellen unter 12px"))
+
+    if (handy.get("zielZuKlein") or 0) >= TAP_TARGETS_MIN:
+        findings.append(_finding(
+            "tap_targets_small", f"{handy['zielZuKlein']} Ziele unter 44px"))
+
+    return findings
+
+
+# Welcher HTML-Befund von welcher Beobachtung im Browser widerlegt wird.
+#
+# DAS IST DER EIGENTLICHE ERTRAG DER ZWEITEN STUFE, und er hat gefehlt, bis
+# Codex am 2026-08-30 darauf gestossen ist: einen zweiten Katalog daneben zu
+# stellen aendert nichts daran, dass ein falsches no_h1 aus rohem HTML
+# weiterhin gewinnt. Gemessen an 38 Leads meldete ekomenu.nl "kein h1, keine
+# description"; im gerenderten DOM stehen drei sichtbare h1 und eine
+# description, das Skript setzt sie ein.
+#
+# Der Wert ist eine Funktion auf dem Desktop-Teil der Messung: liefert sie
+# True, sieht der Browser das Element, und der HTML-Befund faellt weg.
+_WIDERLEGT_VON_BROWSER = {
+    "no_h1": lambda d: (d.get("h1Sichtbar") or 0) > 0,
+    "no_meta_description": lambda d: bool((d.get("beschreibung") or "").strip()),
+    "no_contact_route": lambda d: bool(
+        (d.get("formulare") or 0) or (d.get("mailLinks") or 0) or (d.get("telLinks") or 0)
+    ),
+    "no_tel_link": lambda d: (d.get("telLinks") or 0) > 0,
+    "no_og_image": lambda d: bool(d.get("ogImage")),
+}
+
+
+def invalidate_with_browser(findings: list[dict], measurement: dict | None) -> list[dict]:
+    """HTML-Befunde entfernen, die der Browser widerlegt.
+
+    Die uebrigen Codes bleiben unberuehrt: ssl_broken, no_https, no_viewport,
+    stale_copyright, mixed_content, site_builder und legacy_markup haengen am
+    Transport oder am gelieferten Dokument, und ein gerendertes DOM sagt
+    darueber nichts.
+
+    site_unreachable ist der Sonderfall in die andere Richtung: erreicht der
+    Browser die Seite, ist sie nicht unerreichbar. Gemessen betraf das 3 von
+    38 Leads, und "eure Seite laedt gar nicht" ueber eine Seite, die laedt,
+    ist der teuerste Satz im ganzen Katalog.
+    """
+    if not measurement or measurement.get("status") != "completed":
+        return list(findings)
+
+    desktop = measurement.get("desktop") or {}
+    erreicht = bool(measurement.get("http_status"))
+    behalten = []
+    for f in findings:
+        code = f.get("code")
+        if code == "site_unreachable" and erreicht:
+            continue
+        pruefung = _WIDERLEGT_VON_BROWSER.get(code)
+        if pruefung is not None:
+            try:
+                if pruefung(desktop):
+                    continue
+            except Exception:
+                # Eine unvollstaendige Messung darf nicht dazu fuehren, dass
+                # ein Befund verschwindet, den niemand geprueft hat.
+                pass
+        behalten.append(f)
+    return behalten
+
+
+def combine(html_audit: dict | None, measurement: dict | None) -> dict:
+    """Beide Stufen zu einer Befundliste, in Katalogreihenfolge.
+
+    Die HTML-Stufe bleibt die Grundlage, der Browser nimmt weg und legt dazu.
+    Doppelte Codes koennen nicht entstehen, die beiden Kataloge ueberschneiden
+    sich nicht.
+    """
+    html_findings = list((html_audit or {}).get("findings") or [])
+    bereinigt = invalidate_with_browser(html_findings, measurement)
+    zusammen = bereinigt + browser_findings(measurement)
+    return {
+        **(html_audit or {}),
+        "findings": sort_by_rank(zusammen),
+        "browser_status": (measurement or {}).get("status"),
+    }
+
+
+def top_finding(audit: dict | None, measurement: dict | None = None) -> dict | None:
     """Der EINE Befund, der in den Text geht.
 
     Nie eine Liste. Das Playbook (apps/web/lib/copy/playbook.ts) verlangt EINE
     Friction ueber alle vier Stufen hinweg; mehrere Befunde im Prompt-Kontext
     waeren eine Einladung ans Modell, sie aufzuzaehlen, und aus einem
     ueberpruefbaren Aufhaenger wuerde eine Maengelliste.
+
+    Mit `measurement` wird vorher die Browser-Stufe verrechnet: widerlegte
+    HTML-Befunde fallen weg, Browser-Befunde kommen dazu. Ohne bleibt das
+    Verhalten exakt wie bisher, was fuer alle Zeilen ohne Browser-Stufe gilt.
+
+    Gewaehlt wird nur aus MAILABLE_CODES. Fuenf Codes werden gemessen und
+    gespeichert, duerfen aber nie behauptet werden; ohne diesen Filter
+    gewaenne frueher oder spaeter tap_targets_small, den 28 von 40 Leads haben.
     """
+    if measurement is not None:
+        audit = combine(audit, measurement)
     findings = (audit or {}).get("findings") or []
-    known = [f for f in findings if f.get("code") in FINDING_CODES]
+    known = [f for f in findings if f.get("code") in MAILABLE_CODES]
     if not known:
         return None
     return sort_by_rank(known)[0]

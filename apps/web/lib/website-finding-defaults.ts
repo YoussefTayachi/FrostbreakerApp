@@ -13,29 +13,39 @@
 // Die Texte sind WOERTLICH uebernommen, nicht nachformuliert. Auch die
 // gemischten Anfuehrungszeichen („Du" statt „Du“) stehen so im Worker.
 
-export const DEFAULT_FINDING_PROMPT_DE = `Deine Aufgabe ist es, aus einem geprüften Mangel der Website eines Unternehmens einen einzelnen Satz für eine Cold-Email zu formulieren.
-Regeln für den Satz:
+export const DEFAULT_FINDING_PROMPT_DE = `Deine Aufgabe ist es, aus einem geprüften Mangel der Website eines Unternehmens zwei bis drei Sätze für eine Cold-Email zu formulieren.
+Aufbau:
+1. Was auf der Website der Fall ist.
+2. Warum das ein Problem ist.
+3. Was es für jemanden bedeutet, der die Seite besucht.
+Regeln:
 - Nenne ausschließlich den einen Mangel, der dir übergeben wurde, und die dazugehörige Folge. Erfinde keinen zweiten Mangel, keine Zahlen und keine Prozentwerte.
+- Behaupte NICHT, was es kostet. Keine Aussagen über entgangenen Umsatz, verlorene Kunden, Conversion oder Ranking: das kann niemand belegen, und der Empfänger merkt es. Bleib bei dem, was ein Besucher erlebt.
 - Der Mangel ist gemessen, nicht vermutet: Schreibe ihn als Tatsache, ohne Abschwächung wie „vielleicht" oder „unter Umständen".
 - Erwähne NICHT, woher du das weißt: kein „Ich habe gesehen", kein „Mir ist aufgefallen", kein Werkzeug, kein Test, keine Prüfung. Nenne einfach den Mangel.
 - Baue KEINEN Namen, keine Begrüßung und keine Verabschiedung ein.
 - Beschreibe oder verkaufe deine eigene Leistung NICHT. Der Satz benennt das Problem, nicht die Lösung.
-- Tonfall: sachlich, direkt und ohne Fachjargon, aber ohne Dramatik, Vorwurf oder Alarm.
+- Tonfall: ruhig, respektvoll und sachlich. Kein Vorwurf, keine Dramatik, kein Alarm. Du schreibst jemandem, der an dieser Website gearbeitet hat.
 - Schreibe in der „Du"-Form, nicht in der „Sie"-Form.
-- Der Satz wird an einer beliebigen Stelle in die Mail eingesetzt und muss dort für sich allein stehen: er beginnt mit einem Großbuchstaben und endet mit einem Punkt.
+- Der Text wird an einer beliebigen Stelle in die Mail eingesetzt und muss dort für sich allein stehen: er beginnt mit einem Großbuchstaben und endet mit einem Punkt. Ein Absatz, keine Aufzählung, keine Zwischenüberschrift.
 
 Schreibe standardmäßig auf Deutsch, außer diese Vorgaben verlangen hier ausdrücklich eine andere Sprache.`;
 
-export const DEFAULT_FINDING_PROMPT_EN = `Your task is to turn one verified flaw on a company's website into a single sentence for a cold email.
-Rules for the sentence:
+export const DEFAULT_FINDING_PROMPT_EN = `Your task is to turn one verified flaw on a company's website into two or three sentences for a cold email.
+Structure:
+1. What is the case on the website.
+2. Why that is a problem.
+3. What it means for someone visiting the site.
+Rules:
 - Name only the one flaw you were given and its stated consequence. Do not invent a second flaw, any numbers or any percentages.
+- Do NOT claim what it costs. No lost revenue, no lost customers, no conversion or ranking claims: nobody can back those up and the reader notices. Stay with what a visitor experiences.
 - The flaw was measured, not guessed: state it as a fact, without hedging like "maybe" or "possibly".
 - Do NOT mention how you know: no "I saw", no "I noticed", no tool, no test, no audit. Just state the flaw.
 - Do NOT include any name, greeting or sign-off.
 - Do NOT describe or pitch your own service. The sentence names the problem, not the solution.
-- Tone: plain, direct and free of jargon, but without drama, blame or alarm.
+- Tone: calm, respectful and plain. No blame, no drama, no alarm. You are writing to someone who worked on this website.
 - Always write in the informal "you" form.
-- The sentence is dropped into the email at an arbitrary position and has to stand on its own there: it starts with a capital letter and ends with a full stop.
+- The text is dropped into the email at an arbitrary position and has to stand on its own there: it starts with a capital letter and ends with a full stop. One paragraph, no bullet points, no heading.
 
 Write in English by default, unless these instructions explicitly require another language.`;
 
@@ -74,7 +84,7 @@ export function getDefaultFindingPrompt(lang: "de" | "en"): string {
  * gewandert, damit alles, was aus website_finding.py gespiegelt wird, an einer
  * Stelle liegt. review.ts reicht sie unveraendert weiter.
  */
-export const FINDING_MAX_WORDS = 20;
+export const FINDING_MAX_WORDS = 55;
 
 /**
  * Die Wortgrenze fuer einen VON HAND geschriebenen Befund (MCP).

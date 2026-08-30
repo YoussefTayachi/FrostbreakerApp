@@ -15,6 +15,7 @@ from datetime import datetime, timedelta, timezone
 from worker import queue
 from worker.db import sb
 from worker.pipelines import (
+    browser_check,
     check_website,
     confirm_unreachable,
     find_decisionmaker,
@@ -30,6 +31,10 @@ log = logging.getLogger("worker")
 
 HANDLERS = {
     "get_businesses": get_businesses.run,
+    # Die zweite Stufe des Website-Checks. Eigener Jobtyp aus demselben
+    # Grund wie check_website: sie dauert Sekunden statt Millisekunden
+    # und darf die Abarbeitung einer Liste nicht aufhalten.
+    "browser_check": browser_check.run,
     "find_decisionmaker": find_decisionmaker.run,
     "hunt_persons": hunt_persons.run,
     # WARUM DER WEBSITE-CHECK EIN EIGENER JOB IST

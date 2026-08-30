@@ -4,14 +4,36 @@
     {
       "name": "web",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["--prefix", "apps/web", "run", "dev"],
+      "runtimeArgs": [
+        "--prefix",
+        "apps/web",
+        "run",
+        "dev"
+      ],
       "port": 3000,
       "autoPort": true
     },
     {
       "name": "website",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["--prefix", "../Frostbreaker_Website", "run", "dev"],
+      "runtimeArgs": [
+        "--prefix",
+        "../Frostbreaker_Website",
+        "run",
+        "dev"
+      ],
+      "port": 3000,
+      "autoPort": true
+    },
+    {
+      "name": "cts-prototype",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "--prefix",
+        "../CTS_Prototyp/site",
+        "run",
+        "dev"
+      ],
       "port": 3000,
       "autoPort": true
     }

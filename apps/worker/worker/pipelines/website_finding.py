@@ -67,7 +67,16 @@ log = logging.getLogger("worker.website_finding")
 # zusammenziehen und nicht abschreiben. Wenn sich in der Pruefliste zeigt,
 # dass hier reihenweise Verstoesse auflaufen, gehoert sie erhoeht (und der
 # Grund daneben), so wie es bei DEFAULT_MAX_WORDS am 2026-08-13 passiert ist.
-FINDING_MAX_WORDS = 20
+# Am 2026-08-30 von 20 auf 55 erhoeht. Youssefs Vorgabe: EIN Mangel, dafuer
+# in zwei bis drei Saetzen erklaert, warum er ein Problem ist und was er
+# fuer Besucher bedeutet. Ein Satz mit 20 Woertern kann die Tatsache
+# nennen, die Begruendung passt nicht mehr hinein.
+#
+# Weiterhin EIN Mangel und nicht drei: {{websiteFinding}} steht in einer
+# Sequenz, die Begruessung, Personalisierung und Aufforderung schon
+# mitbringt. Drei Absaetze darin erzeugen die doppelte Aufforderung, die
+# am 2026-08-26 bei 19 von 20 Leads in der Produktion stand.
+FINDING_MAX_WORDS = 55
 
 # Der Standard-Prompt. Getextet vom copywriter am 2026-08-24, wie DEFAULT_PROMPT_DE
 # in apps/web/lib/personalization-defaults.ts.
@@ -85,11 +94,18 @@ FINDING_MAX_WORDS = 20
 # ueberschreibt, soll die inhaltlichen Grenzen mit uebernehmen koennen.
 DEFAULT_FINDING_PROMPT_DE = (
     "Deine Aufgabe ist es, aus einem geprüften Mangel der Website eines Unternehmens "
-    "einen einzelnen Satz für eine Cold-Email zu formulieren.\n"
-    "Regeln für den Satz:\n"
+    "zwei bis drei Sätze für eine Cold-Email zu formulieren.\n"
+    "Aufbau:\n"
+    "1. Was auf der Website der Fall ist.\n"
+    "2. Warum das ein Problem ist.\n"
+    "3. Was es für jemanden bedeutet, der die Seite besucht.\n"
+    "Regeln:\n"
     "- Nenne ausschließlich den einen Mangel, der dir übergeben wurde, und die "
     "dazugehörige Folge. Erfinde keinen zweiten Mangel, keine Zahlen und keine "
     "Prozentwerte.\n"
+    "- Behaupte NICHT, was es kostet. Keine Aussagen über entgangenen Umsatz, "
+    "verlorene Kunden, Conversion oder Ranking: das kann niemand belegen, und der "
+    "Empfänger merkt es. Bleib bei dem, was ein Besucher erlebt.\n"
     "- Der Mangel ist gemessen, nicht vermutet: Schreibe ihn als Tatsache, ohne "
     "Abschwächung wie „vielleicht\" oder „unter Umständen\".\n"
     "- Erwähne NICHT, woher du das weißt: kein „Ich habe gesehen\", kein „Mir ist "
@@ -97,23 +113,30 @@ DEFAULT_FINDING_PROMPT_DE = (
     "- Baue KEINEN Namen, keine Begrüßung und keine Verabschiedung ein.\n"
     "- Beschreibe oder verkaufe deine eigene Leistung NICHT. Der Satz benennt das "
     "Problem, nicht die Lösung.\n"
-    "- Tonfall: sachlich, direkt und ohne Fachjargon, aber ohne Dramatik, Vorwurf "
-    "oder Alarm.\n"
+    "- Tonfall: ruhig, respektvoll und sachlich. Kein Vorwurf, keine Dramatik, kein "
+    "Alarm. Du schreibst jemandem, der an dieser Website gearbeitet hat.\n"
     "- Schreibe in der „Du\"-Form, nicht in der „Sie\"-Form.\n"
-    "- Der Satz wird an einer beliebigen Stelle in die Mail eingesetzt und muss dort "
+    "- Der Text wird an einer beliebigen Stelle in die Mail eingesetzt und muss dort "
     "für sich allein stehen: er beginnt mit einem Großbuchstaben und endet mit einem "
-    "Punkt.\n\n"
+    "Punkt. Ein Absatz, keine Aufzählung, keine Zwischenüberschrift.\n\n"
     "Schreibe standardmäßig auf Deutsch, außer diese Vorgaben verlangen hier "
     "ausdrücklich eine andere Sprache."
 )
 
 # Inhaltsgleich zu DEFAULT_FINDING_PROMPT_DE, nur auf Englisch.
 DEFAULT_FINDING_PROMPT_EN = (
-    "Your task is to turn one verified flaw on a company's website into a single "
-    "sentence for a cold email.\n"
-    "Rules for the sentence:\n"
+    "Your task is to turn one verified flaw on a company's website into two or three "
+    "sentences for a cold email.\n"
+    "Structure:\n"
+    "1. What is the case on the website.\n"
+    "2. Why that is a problem.\n"
+    "3. What it means for someone visiting the site.\n"
+    "Rules:\n"
     "- Name only the one flaw you were given and its stated consequence. Do not "
     "invent a second flaw, any numbers or any percentages.\n"
+    "- Do NOT claim what it costs. No lost revenue, no lost customers, no conversion "
+    "or ranking claims: nobody can back those up and the reader notices. Stay with "
+    "what a visitor experiences.\n"
     "- The flaw was measured, not guessed: state it as a fact, without hedging like "
     "\"maybe\" or \"possibly\".\n"
     "- Do NOT mention how you know: no \"I saw\", no \"I noticed\", no tool, no test, "
@@ -121,11 +144,12 @@ DEFAULT_FINDING_PROMPT_EN = (
     "- Do NOT include any name, greeting or sign-off.\n"
     "- Do NOT describe or pitch your own service. The sentence names the problem, not "
     "the solution.\n"
-    "- Tone: plain, direct and free of jargon, but without drama, blame or alarm.\n"
+    "- Tone: calm, respectful and plain. No blame, no drama, no alarm. You are "
+    "writing to someone who worked on this website.\n"
     "- Always write in the informal \"you\" form.\n"
-    "- The sentence is dropped into the email at an arbitrary position and has to "
+    "- The text is dropped into the email at an arbitrary position and has to "
     "stand on its own there: it starts with a capital letter and ends with a full "
-    "stop.\n\n"
+    "stop. One paragraph, no bullet points, no heading.\n\n"
     "Write in English by default, unless these instructions explicitly require "
     "another language."
 )
@@ -179,20 +203,46 @@ def _created_at(biz: dict) -> datetime | None:
         return None
 
 
-def audit_pending(biz: dict) -> bool:
-    """Laeuft der Website-Check fuer diese Firma noch?
+# Zustaende der Browser-Stufe, nach denen nichts mehr kommt. Gewartet wird
+# auf einen davon und nicht auf eine Uhrzeit: eine Messung mit zwei Viewports
+# dauert je nach Seite Sekunden bis zu einer halben Minute, ein festes Fenster
+# waere entweder zu kurz oder verschenkte Zeit.
+BROWSER_TERMINAL = ("completed", "inconclusive", "skipped", "failed")
 
-    'pending' setzt ausschliesslich get_businesses._queue_website_audits, und
-    zwar genau fuer die Firmen, fuer die es auch einen Job einreiht. Steht der
-    Status auf null, obwohl eine Website hinterlegt ist (Zeilen aus der Zeit
-    vor Migration 0102, von Hand angelegte Firmen), wird deshalb NICHT
-    gewartet: es prueft ja niemand.
+
+def audit_pending(biz: dict) -> bool:
+    """Laeuft eine der beiden Check-Stufen fuer diese Firma noch?
+
+    'pending' setzt bei der HTML-Stufe ausschliesslich
+    get_businesses._queue_website_audits, und zwar genau fuer die Firmen, fuer
+    die es auch einen Job einreiht. Steht der Status auf null, obwohl eine
+    Website hinterlegt ist (Zeilen aus der Zeit vor Migration 0102, von Hand
+    angelegte Firmen), wird deshalb NICHT gewartet: es prueft ja niemand.
+
+    SEIT MIGRATION 0107 GILT DASSELBE FUER DIE ZWEITE STUFE, und das ist keine
+    Kosmetik. Wartete dieser Job nur auf die HTML-Stufe, schriebe er seinen
+    Satz, sobald die schnellere von beiden fertig ist. Der Idempotenz-Schutz
+    in run() (`if biz.get("website_finding") and not force`) sorgte dann
+    dafuer, dass er nie wieder nachbessert: die Browser-Messung kaeme an,
+    wuerde gespeichert, und ihr Befund stuende in keiner einzigen Mail.
+    Gefunden beim Gegenlesen des Plans durch ein zweites Modell, bevor eine
+    Zeile Code stand.
+
+    Gewartet wird nur, wenn `browser_audit_required` gesetzt ist. Sonst waeren
+    eine alte Zeile ohne Browser-Stufe und ein Lead ohne pruefbare Adresse von
+    einer laufenden Messung nicht zu unterscheiden.
     """
-    if biz.get("website_audit_status") != "pending":
+    html_laeuft = biz.get("website_audit_status") == "pending"
+    browser_laeuft = bool(biz.get("browser_audit_required")) and (
+        biz.get("website_audit_browser_status") not in BROWSER_TERMINAL
+    )
+    if not (html_laeuft or browser_laeuft):
         return False
     created = _created_at(biz)
     if created is None:
         return True
+    # Die Notbremse bleibt: geht ein Job verloren, bekaeme dieser Lead sonst
+    # nie einen Satz. Sie ist die Ausnahme, der Endzustand ist die Regel.
     return datetime.now(timezone.utc) - created < AUDIT_WAIT_LIMIT
 
 
@@ -208,7 +258,11 @@ def finding_context(biz: dict) -> str | None:
     Liefert None, wenn es nichts zu sagen gibt. Das ist der HAEUFIGE Fall und
     kein Fehler, siehe Modul-Docstring.
     """
-    finding = website_audit.top_finding(biz.get("website_audit"))
+    # Beide Stufen zusammen. Der Browser nimmt Befunde weg, die er widerlegt,
+    # und legt seine eigenen dazu; ohne ihn verhaelt sich das wie frueher.
+    finding = website_audit.top_finding(
+        biz.get("website_audit"), biz.get("website_audit_browser")
+    )
     if not finding:
         return None
     code = finding["code"]

@@ -83,15 +83,65 @@ CONFIRM_DELAY_S = 1800
 _HTML_CONTENT_TYPES = ("text/html", "application/xhtml")
 
 
-def _write(business_id: str, status: str, audit: dict | None = None) -> None:
-    """Ergebnis festhalten. Ein Job, ein Schreibvorgang."""
-    sb().table("businesses").update(
-        {
-            "website_audit": audit or {},
-            "website_audit_status": status,
-            "website_audit_at": datetime.now(timezone.utc).isoformat(),
-        }
-    ).eq("id", business_id).execute()
+def _reihe_browser_ein(job: dict, business_id: str, url: str | None) -> bool:
+    """Die zweite Stufe einreihen, die dieselbe Seite im Browser misst.
+
+    AUCH NACH EINEM FEHLSCHLAG DIESER STUFE. Das ist kein Versehen:
+    gemessen am 2026-08-30 an 38 echten Leads waren 3 Seiten per rohem
+    HTTP nicht abrufbar und im Browser problemlos erreichbar. Wuerde der
+    Browser nur nach einem gelungenen Abruf laufen, blieben genau die
+    Faelle aus, in denen er den teuersten Satz des Katalogs verhindert:
+    "eure Seite laedt gar nicht" ueber eine Seite, die laedt.
+
+    Ohne pruefbare Adresse wird nichts eingereiht und browser_audit_required
+    bleibt false, sonst wartet website_finding auf eine Stufe, die nie
+    kommt.
+
+    GESCHRIEBEN WIRD ZUERST, DANN EINGEREIHT. Umgekehrt entsteht ein Rennen,
+    und es ist kein theoretisches: der Worker kann den Browser-Job aufnehmen
+    und beenden, bevor dieser Job seinen eigenen Schreibvorgang absetzt.
+    Dann traegt _write hinterher wieder 'pending' ein, obwohl die Messung
+    laengst 'completed' war, und website_finding wartet bis zum
+    Vier-Minuten-Deckel auf eine Stufe, die schon fertig ist. Gefunden bei
+    der Diff-Inspektion durch ein zweites Modell am 2026-08-30.
+
+    Der Preis ist ein zweiter Schreibvorgang im Fehlerfall: laesst sich der
+    Job nicht einreihen, muss die Markierung wieder weg, sonst wartet
+    website_finding auf etwas, das nie kommt. Im Normalfall bleibt es bei
+    einem.
+    """
+    if not url:
+        return False
+    try:
+        enqueue(job["workspace_id"], "browser_check", {"business_id": business_id})
+        return True
+    except Exception:
+        log.warning("browser_check konnte nicht eingereiht werden", exc_info=True)
+        try:
+            sb().table("businesses").update(
+                {"browser_audit_required": False, "website_audit_browser_status": None}
+            ).eq("id", business_id).execute()
+        except Exception:
+            log.warning("Ruecknahme der Browser-Markierung ging nicht", exc_info=True)
+        return False
+
+
+def _write(business_id: str, status: str, audit: dict | None = None,
+           browser_folgt: bool = False) -> None:
+    """Ergebnis festhalten. Ein Job, ein Schreibvorgang.
+
+    `browser_folgt` markiert, dass die zweite Stufe eingereiht ist und
+    website_finding auf sie warten soll (Migration 0107).
+    """
+    daten = {
+        "website_audit": audit or {},
+        "website_audit_status": status,
+        "website_audit_at": datetime.now(timezone.utc).isoformat(),
+    }
+    if browser_folgt:
+        daten["browser_audit_required"] = True
+        daten["website_audit_browser_status"] = "pending"
+    sb().table("businesses").update(daten).eq("id", business_id).execute()
 
 
 def inspect_page(url: str) -> tuple[str, dict | None]:
@@ -173,7 +223,8 @@ def run(job: dict) -> None:
             # verschwinden: der Besucher kommt zwar genauso wenig auf die
             # Seite, aber er sieht dabei eine Warnung mit dem Namen der Firma
             # darin, und das ist ein anderer, nachpruefbarer Befund.
-            _write(business_id, "ok", website_audit.ssl_broken(url))
+            _write(business_id, "ok", website_audit.ssl_broken(url), bool(url))
+            _reihe_browser_ein(job, business_id, url)
             return
 
         log.info("Website %s nicht erreichbar (%s): %s", url, kind, exc)
@@ -182,7 +233,11 @@ def run(job: dict) -> None:
             business_id,
             "unreachable",
             website_audit.unreachable(url, kind=kind, first_seen_at=now),
+            bool(url),
         )
+        # Der Browser bekommt seine Chance trotzdem, und GERADE HIER: die
+        # 3 von 38 Leads, die nur er erreicht, liegen genau in diesem Zweig.
+        _reihe_browser_ein(job, business_id, url)
         # Noch KEIN Befund, nur die erste Beobachtung. Ob daraus einer wird,
         # entscheidet der verzoegerte Job (siehe Modul-Docstring). Fuer die
         # nicht dauerhaften Fehlerarten wird er gar nicht erst eingereiht:
@@ -207,4 +262,5 @@ def run(job: dict) -> None:
             log.warning("Bestaetigungsjob konnte nicht eingereiht werden", exc_info=True)
         return
 
-    _write(business_id, status, audit)
+    _write(business_id, status, audit, bool(url))
+    _reihe_browser_ein(job, business_id, url)
