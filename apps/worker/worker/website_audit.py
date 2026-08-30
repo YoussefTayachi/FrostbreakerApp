@@ -926,16 +926,101 @@ def invalidate_with_browser(findings: list[dict], measurement: dict | None) -> l
     return behalten
 
 
+def html_hat_ausgewertet(html_audit: dict | None) -> bool:
+    """Konnte die HTML-Stufe die Seite ueberhaupt ansehen?
+
+    Nein heisst: sie war nicht erreichbar (dann steht unreachable_kind darin),
+    sie lieferte kein HTML, oder es gibt gar kein Audit. In allen drei Faellen
+    ist eine leere Befundliste KEINE Aussage ueber die Seite, sondern das
+    Fehlen einer Aussage.
+    """
+    if not html_audit:
+        return False
+    # Wer Befunde geliefert hat, hat offensichtlich hingesehen. Diese Zeile
+    # steht vor der Formpruefung darunter, damit ein Audit aus einer alten
+    # Migration oder aus einem Test nicht faelschlich als "nichts gesehen"
+    # gilt und dann DOM-Codes bekommt, die niemand gemessen hat.
+    if html_audit.get("findings"):
+        return True
+    if html_audit.get("unreachable_kind"):
+        return False
+    return "checked_url" in html_audit
+
+
+# Dieselben fuenf Codes wie in _WIDERLEGT_VON_BROWSER, nur andersherum: was
+# der Browser widerlegen kann, kann er auch belegen.
+_BELEGT_VOM_BROWSER = {
+    "no_h1": lambda d: (d.get("h1Sichtbar") or 0) == 0,
+    "no_meta_description": lambda d: not (d.get("beschreibung") or "").strip(),
+    "no_og_image": lambda d: not d.get("ogImage"),
+    "no_contact_route": lambda d: not (
+        (d.get("formulare") or 0) or (d.get("mailLinks") or 0) or (d.get("telLinks") or 0)
+    ),
+    "no_tel_link": lambda d: (d.get("telLinks") or 0) == 0,
+}
+
+
+def dom_findings(measurement: dict | None) -> list[dict]:
+    """Die DOM-abhaengigen Codes aus dem gerenderten Dokument erheben.
+
+    Gebraucht wird das genau dann, wenn die HTML-Stufe die Seite nicht
+    bekommen hat. Gemessen am 2026-08-30 an einem echten Lead (Rose Line
+    Premier): httpx meldete unreachable, der Browser antwortete mit HTTP 200
+    und sah eine Seite ganz ohne h1. Ohne diese Funktion war das Ergebnis KEIN
+    Befund und damit auch kein Satz, obwohl beides vor Augen lag.
+
+    Genau diese Faelle waren als Gewinn der zweiten Stufe angekuendigt: 3 von
+    38 Seiten erreicht nur der Browser. Sie haetten nichts geliefert ausser
+    dem Wegfall eines falschen site_unreachable.
+
+    no_contact_route wird nur erhoben, wenn der Hauptbereich ueberhaupt Text
+    traegt: auf einer Seite, die nichts anzeigt, ist der fehlende Kontaktweg
+    nicht der Befund.
+    """
+    if not measurement or measurement.get("status") != "completed":
+        return []
+    d = measurement.get("desktop") or {}
+    if not d:
+        return []
+    gefunden = []
+    for code, pruefung in _BELEGT_VOM_BROWSER.items():
+        if code == "no_contact_route" and (d.get("hauptTextLaenge") or 0) < 200:
+            continue
+        try:
+            if pruefung(d):
+                # OHNE Beleg, und das ist Absicht. Der Beleg-Slot traegt ein
+                # woertliches Zitat von der Seite; website_finding.finding_context
+                # beschriftet ihn mit "Woertlich auf der Seite gefunden". Beim
+                # ersten echten Lauf am 2026-08-30 stand dort deshalb
+                # "Woertlich auf der Seite gefunden: im gerenderten Dokument
+                # nicht vorhanden", also ein Zitat des Nichtvorhandenen. Fuer
+                # ein fehlendes Element gibt es nichts zu zitieren; die Zeile
+                # faellt dann ganz weg.
+                gefunden.append(_finding(code))
+        except Exception:
+            continue
+    return gefunden
+
+
 def combine(html_audit: dict | None, measurement: dict | None) -> dict:
     """Beide Stufen zu einer Befundliste, in Katalogreihenfolge.
 
-    Die HTML-Stufe bleibt die Grundlage, der Browser nimmt weg und legt dazu.
-    Doppelte Codes koennen nicht entstehen, die beiden Kataloge ueberschneiden
-    sich nicht.
+    Drei Faelle, und der dritte ist erst durch einen echten Lead aufgefallen:
+
+      1. Beide Stufen haben etwas gesehen. Der Browser nimmt weg, was er
+         widerlegt, und legt seine eigenen Codes dazu.
+      2. Nur die HTML-Stufe. Alles bleibt wie vor der Browser-Stufe.
+      3. Nur der Browser. Dann traegt er auch die DOM-Codes, die sonst aus dem
+         HTML gekommen waeren; ohne das bliebe von einer Seite, die nur er
+         erreicht, gar nichts uebrig.
     """
     html_findings = list((html_audit or {}).get("findings") or [])
     bereinigt = invalidate_with_browser(html_findings, measurement)
     zusammen = bereinigt + browser_findings(measurement)
+    if not html_hat_ausgewertet(html_audit):
+        # Doppelte kann es nicht geben: die HTML-Stufe hat hier nichts
+        # geliefert, und ein Code steht in genau einer der beiden Listen.
+        zusammen += dom_findings(measurement)
     return {
         **(html_audit or {}),
         "findings": sort_by_rank(zusammen),

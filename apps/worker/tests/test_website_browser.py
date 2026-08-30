@@ -137,10 +137,15 @@ def test_fuenf_codes_duerfen_nie_in_eine_mail(code):
 def test_nicht_versendbare_befunde_gewinnen_nie():
     """tap_targets_small traf gemessen 28 von 40 Leads. Ohne den Filter waere
     er der haeufigste Satz in der Kampagne."""
-    m = _messung(handy={"zielZuKlein": 40, "textUnter12px": 20}, console_error_count=9)
+    m = _messung(handy={"zielZuKlein": 40, "textUnter12px": 20}, console_error_count=9,
+                 desktop={"h1Sichtbar": 2, "beschreibung": "da", "ogImage": True,
+                          "telLinks": 1, "formulare": 1})
     codes = [f["code"] for f in wa.browser_findings(m)]
     assert set(codes) == {"js_errors", "text_too_small", "tap_targets_small"}
-    assert wa.top_finding({"findings": []}, m) is None
+    # Ein HTML-Audit, das ausgewertet HAT und nichts fand: dann kommen auch
+    # keine DOM-Codes dazu, und uebrig bleiben nur die nicht versendbaren.
+    sauber = {"checked_url": "https://muster.de/", "findings": []}
+    assert wa.top_finding(sauber, m) is None
 
 
 def test_alle_codes_haben_einen_text():
@@ -317,3 +322,48 @@ def test_jeder_terminale_zustand_beendet_das_warten():
             "website_audit_browser_status": zustand,
         }
         assert wf.audit_pending(biz) is False, zustand
+
+
+# ── Wenn nur der Browser die Seite erreicht ────────────────────────────────
+
+
+def test_browser_belegt_die_dom_codes_wenn_html_nichts_sah():
+    """Der gemessene Fall Rose Line Premier: httpx meldete unreachable, der
+    Browser antwortete mit HTTP 200 und sah eine Seite ohne h1. Vorher kam
+    dabei GAR KEIN Befund heraus, obwohl er vor Augen lag."""
+    html = {"checked_url": "http://x.de/", "findings": [],
+            "unreachable_kind": "dns", "unreachable_first_seen_at": "2026-08-30T00:00:00Z"}
+    m = _messung(desktop={"h1Sichtbar": 0, "beschreibung": "da", "ogImage": True,
+                          "telLinks": 8, "formulare": 2, "hauptTextLaenge": 4000})
+    codes = [f["code"] for f in wa.combine(html, m)["findings"]]
+    assert "no_h1" in codes
+    # was der Browser sieht, wird nicht behauptet
+    assert "no_meta_description" not in codes
+    assert "no_og_image" not in codes
+    assert "no_contact_route" not in codes
+    assert "no_tel_link" not in codes
+
+
+def test_dom_codes_kommen_nicht_doppelt_wenn_html_schon_gemessen_hat():
+    """Sonst stuende no_h1 zweimal in der Liste."""
+    html = {"checked_url": "http://x.de/", "findings": [{"code": "no_h1", "evidence": None}]}
+    m = _messung(desktop={"h1Sichtbar": 0, "beschreibung": "", "ogImage": False})
+    codes = [f["code"] for f in wa.combine(html, m)["findings"]]
+    assert codes.count("no_h1") == 1
+    assert "no_meta_description" not in codes  # HTML hat nichts dazu gesagt
+
+
+def test_html_hat_ausgewertet_erkennt_die_drei_faelle():
+    assert wa.html_hat_ausgewertet({"checked_url": "x", "findings": []}) is True
+    assert wa.html_hat_ausgewertet({"checked_url": "x", "unreachable_kind": "dns"}) is False
+    assert wa.html_hat_ausgewertet({}) is False
+    assert wa.html_hat_ausgewertet(None) is False
+
+
+def test_leere_seite_bekommt_keinen_kontaktvorwurf():
+    """Auf einer Seite, die nichts anzeigt, ist der fehlende Kontaktweg nicht
+    der Befund."""
+    m = _messung(desktop={"h1Sichtbar": 0, "hauptTextLaenge": 20, "telLinks": 0,
+                          "mailLinks": 0, "formulare": 0})
+    codes = [f["code"] for f in wa.dom_findings(m)]
+    assert "no_contact_route" not in codes
