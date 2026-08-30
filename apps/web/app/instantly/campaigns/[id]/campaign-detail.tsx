@@ -295,6 +295,16 @@ export default function CampaignDetail({ id }: { id: string }) {
 
       <div className={cardCls}>
         <h2 className="mb-4 font-medium text-ink">{D.editHeading}</h2>
+        {/* Die Mail-Vorschau gab es bis zum 2026-08-28 NUR beim Anlegen einer
+            Kampagne. Wer eine bestehende oeffnete, sah die Textfelder mit
+            {{websiteFinding}} als Platzhalter und nirgends, was der Empfaenger
+            daraus liest. Genau da faellt aber auf, ob eine Variable leer
+            bleibt, und genau das ist am 2026-08-27 an 858 Leads
+            unbemerkt geblieben.
+
+            searchIds kommen aus derselben Quelle wie die Liste weiter oben:
+            searches, mit Rueckfall auf die einzelne search fuer Kampagnen von
+            vor Migration 0050. */}
         <CampaignForm
           value={formValue}
           onChange={setFormValue}
@@ -302,6 +312,13 @@ export default function CampaignDetail({ id }: { id: string }) {
           submitting={saving}
           submitLabel={C.form.save}
           submittingLabel={C.form.saving}
+          previewSearchIds={
+            data.searches?.length
+              ? data.searches.map((s) => s.id)
+              : data.search
+                ? [data.search.id]
+                : []
+          }
         />
         <div className="mt-6 flex justify-end border-t border-edge/60 pt-4">
           <button
