@@ -23,8 +23,9 @@ import { WEBSITE_FINDING_FIELD } from "@/lib/instantly/campaigns";
  * (splitByWebsiteFinding haelt sie zurueck). Genau das ist am 2026-08-27
  * passiert: um 10:16 veroeffentlicht, die Befunde kamen bis 17:00.
  *
- * Diese Route holt das nach, ohne die Leads anzufassen, die schon eine Mail
- * bekommen haben.
+ * Diese Route holt das nach, bei JEDEM Lead ohne gesetzte Variable. Warum
+ * ohne Ruecksicht darauf, ob er schon eine Mail bekommen hat, steht weiter
+ * unten an befundJeMail.
  *
  * ═══════════════════════════════════════════════════════════════════════
  * WARUM PATCH UND NICHT NEU HOCHLADEN
@@ -71,17 +72,33 @@ export async function POST(req: Request) {
   }
 
   /**
-   * Wer einen Befund hat und noch KEINE Mail bekommen hat.
+   * Jede Adresse, zu der wir einen Befund haben.
    *
-   * Die Statusbedingung ist der Kern: wer schon kontaktiert wurde, hat Mail 1
-   * mit der leeren Stelle bereits erhalten. Ihm den Befund nachzutragen
-   * aendert daran nichts mehr und wuerde nur die Folgemails beruehren, die
-   * die Variable gar nicht benutzen. Anfassen, was nichts mehr bewirkt, ist
-   * Risiko ohne Gegenwert.
+   * ═══════════════════════════════════════════════════════════════════════
+   * OHNE STATUSBEDINGUNG, UND DAS WAR EINE KORREKTUR
+   * ═══════════════════════════════════════════════════════════════════════
+   *
+   * Der erste Wurf dieser Route nahm nur Kontakte mit outreach_status 'new',
+   * mit der Begruendung: wer schon kontaktiert wurde, hat Mail 1 mit der
+   * leeren Stelle ohnehin bekommen. Zwei Dinge waren daran falsch.
+   *
+   * Erstens ist contacts.outreach_status nicht dasselbe wie Instantlys Sicht.
+   * Gemessen am 2026-08-28: Instantly meldete 590 kontaktierte Leads von 858,
+   * unsere Daten kannten 546. Der Lauf mit Statusbedingung trug deshalb nur
+   * 44 von 268 offenen Leads nach; 224 blieben ohne Variable zurueck, obwohl
+   * sie ihre erste Mail noch vor sich haben. Dieselbe Untertreibung steht als
+   * gemessene Beobachtung schon in campaigns/[id]/leads/route.ts.
+   *
+   * Zweitens gilt "aendert nichts mehr" nur, solange die Variable allein in
+   * Mail 1 steht. Sobald eine Folgemail sie benutzt, braucht auch ein laengst
+   * kontaktierter Lead seinen Befund.
+   *
+   * Beides zusammen heisst: die Zuordnung Adresse -> Befund wird vollstaendig
+   * aufgebaut, und was tatsaechlich noch offen ist, entscheidet Instantly.
    */
   const { data: kontakte, error: cFehler } = await supabase
     .from("contacts")
-    .select("email, outreach_status, businesses!inner(website_finding)")
+    .select("email, businesses!inner(website_finding)")
     .eq("workspace_id", ctx.workspace.id)
     .not("email", "is", null);
   if (cFehler) {
@@ -91,10 +108,8 @@ export async function POST(req: Request) {
   const befundJeMail = new Map<string, string>();
   for (const k of (kontakte ?? []) as unknown as {
     email: string;
-    outreach_status: string | null;
     businesses: { website_finding: string | null } | null;
   }[]) {
-    if ((k.outreach_status ?? "new") !== "new") continue;
     const befund = (k.businesses?.website_finding ?? "").trim();
     if (befund) befundJeMail.set(k.email.toLowerCase(), befund);
   }
@@ -189,6 +204,6 @@ export async function POST(req: Request) {
     kampagnen: bericht,
     hinweis: dryRun
       ? "Probelauf. Nichts geaendert. Mit {\"dry_run\": false} wirklich ausfuehren."
-      : "Nachgetragen. Leads, die bereits eine Mail bekommen haben, blieben unberuehrt.",
+      : "Nachgetragen. Angefasst wurde jeder Lead ohne gesetzte Variable, unabhaengig davon, ob er schon eine Mail bekommen hat.",
   });
 }
