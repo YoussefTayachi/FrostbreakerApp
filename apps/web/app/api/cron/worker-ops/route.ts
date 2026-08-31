@@ -111,7 +111,7 @@ type ScaleErgebnis = {
   fehler?: unknown;
 };
 
-async function skaliere(lage: QueueLage): Promise<ScaleErgebnis> {
+async function skaliere(lage: QueueLage, lebendigeWorker: number): Promise<ScaleErgebnis> {
   const token = process.env.RAILWAY_API_TOKEN;
   const serviceId = process.env.RAILWAY_WORKER_SERVICE_ID;
   const environmentId = process.env.RAILWAY_ENVIRONMENT_ID;
@@ -139,7 +139,33 @@ async function skaliere(lage: QueueLage): Promise<ScaleErgebnis> {
   if (gelesen.errors) return { ziel, fehler: gelesen.errors };
   const instanz = gelesen.data?.serviceInstance as { numReplicas?: number } | undefined;
   const aktuell = instanz?.numReplicas ?? 0;
-  if (aktuell === ziel) return { aktuell, ziel, geaendert: false };
+  if (aktuell === ziel) {
+    // EINSTELLUNG UND WIRKLICHKEIT KOENNEN AUSEINANDERLAUFEN. Gemessen beim
+    // Limit-Test am 2026-08-31: ein Git-Push mitten im Burst erzeugte ein
+    // neues Deployment, dessen Build VOR dem Hochschalten begonnen hatte.
+    // Es kam mit 2 Instanzen hoch, obwohl die Einstellung 6 sagte, und
+    // diese Funktion sah "6 = 6" und tat nichts. Die eigene Wahrheit steht
+    // in worker_heartbeat (Migration 0058): melden sich deutlich weniger
+    // Worker als das Ziel, wird ausgerollt, damit die Einstellung wirkt.
+    // Schwelle: WENIGER ALS DIE HAELFTE des Ziels. Absichtlich grob, denn
+    // direkt nach einem Redeploy sind die neuen Herzschlaege noch nicht da
+    // (Takt 30 s), und eine engere Schwelle wuerde im naechsten Minutentakt
+    // erneut ausrollen, eine Schleife aus Neustarts. Bei 6 gewollten und 2
+    // tatsaechlichen Workern (der gemessene Fall) feuert sie; bei 6
+    // gewollten und 4 gerade hochkommenden schweigt sie.
+    if (ziel > 1 && lebendigeWorker < Math.ceil(ziel / 2)) {
+      const ausgerollt = await railwayGraphql(
+        token,
+        `mutation($serviceId: String!, $environmentId: String!) {
+           serviceInstanceRedeploy(serviceId: $serviceId, environmentId: $environmentId)
+         }`,
+        { serviceId, environmentId }
+      );
+      if (ausgerollt.errors) return { aktuell, ziel, fehler: ausgerollt.errors };
+      return { aktuell, ziel, geaendert: true };
+    }
+    return { aktuell, ziel, geaendert: false };
+  }
 
   // Jede Aenderung loest ein Redeploy des Services aus, laufende Jobs auf
   // den alten Repliken fallen in die 15-Minuten-Rueckholung (Migration
@@ -265,6 +291,15 @@ export async function POST(req: Request) {
   }
   const supabase = createServiceClient();
   const lage = await queueLage(supabase);
-  const [skalierung, waechter] = await Promise.all([skaliere(lage), wache(supabase)]);
-  return NextResponse.json({ lage, skalierung, waechter });
+  // Wie viele Worker sich in den letzten zwei Minuten gemeldet haben; die
+  // Schwelle spiegelt worker_health() (Migration 0058).
+  const { count: lebendige } = await supabase
+    .from("worker_heartbeat")
+    .select("worker", { count: "exact", head: true })
+    .gte("last_seen_at", new Date(Date.now() - 2 * 60_000).toISOString());
+  const [skalierung, waechter] = await Promise.all([
+    skaliere(lage, lebendige ?? 0),
+    wache(supabase),
+  ]);
+  return NextResponse.json({ lage, lebendige_worker: lebendige ?? 0, skalierung, waechter });
 }
