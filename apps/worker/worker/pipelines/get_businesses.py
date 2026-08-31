@@ -765,6 +765,30 @@ def _finish(search_id: str, ws: str, auto_enrich: bool, source: str) -> None:
     sb().table("searches").update({"status": "completed"}).eq("id", search_id).execute()
     if not auto_enrich:
         return
+
+    # ZWEI ABLAUFSCHALTER IN searches.filters (seit 2026-08-31):
+    #
+    #   research_after_finding  Recherche und Icebreaker werden NICHT hier
+    #       eingereiht, sondern erst von write_website_finding, und nur fuer
+    #       Firmen, die tatsaechlich einen Befund bekommen haben
+    #       (website_finding._reihe_anreicherung_ein). Gemessen: die
+    #       Recherche ist mit 50 bis 60 s und ~0,003 USD je Firma die
+    #       teuerste Stufe, und ~40 Prozent der Firmen bekommen nie einen
+    #       Befund. Folge, die man kennen muss: Firmen OHNE Website bleiben
+    #       bei diesem Schalter dauerhaft ohne Kontakt und ohne Recherche,
+    #       ihr decisionmaker_status bleibt 'pending'. Fuer eine
+    #       Website-Kampagne ist das der Sinn der Sache.
+    #
+    #   skip_personalize  Kein Icebreaker. Die Website-Kampagnen benutzen
+    #       {{personalization}} nicht; bisher mussten ihre personalize-Jobs
+    #       nach jedem Lauf von Hand um Stunden verschoben werden
+    #       (Skill campaign-website, Schritt 4).
+    #
+    # Beide Schalter gelten nur fuer die Suche, an der sie stehen. Ohne sie
+    # laeuft alles wie bisher.
+    filters = _search_filters(search_id)
+    research_after_finding = bool(filters.get("research_after_finding"))
+    skip_personalize = bool(filters.get("skip_personalize"))
     if source in ("apollo", "prospeo"):
         # Beide Personen-Wege haben Firma UND Kontakt schon geliefert: weder
         # find_decisionmaker (OpenAI-Kosten) noch hunt_persons (Hunter-Credits)
@@ -794,8 +818,9 @@ def _finish(search_id: str, ws: str, auto_enrich: bool, source: str) -> None:
         # Pruefungen ganz vorn in der Queue stehen: an ihnen haengt der
         # write_website_finding-Job, den diese Funktion mit einreiht.
         _queue_website_audits(ws, rows)
-        for b in rows:
-            enqueue(ws, "personalize", {"business_id": b["id"]})
+        if not skip_personalize:
+            for b in rows:
+                enqueue(ws, "personalize", {"business_id": b["id"]})
         return
     # Genau EINE Adressquelle pro Suchweg. Vorher liefen bei Maps beide
     # (KI-Websuche UND Hunter), was denselben Kontakt zweimal bezahlte: einmal
@@ -831,6 +856,10 @@ def _finish(search_id: str, ws: str, auto_enrich: bool, source: str) -> None:
     # VOR dem personalize-Enqueue weiter unten, aus demselben Grund wie im
     # apollo/prospeo-Zweig.
     _queue_website_audits(ws, rows)
+    if research_after_finding:
+        # Recherche und Icebreaker reiht website_finding ein, je Firma mit
+        # Befund. Hier ist damit alles getan.
+        return
     for b in rows:
         if use_hunter:
             if b.get("website"):
@@ -840,4 +869,24 @@ def _finish(search_id: str, ws: str, auto_enrich: bool, source: str) -> None:
         # personalize funktioniert auch ohne Website (Basis: company_summary aus
         # find_decisionmaker); wartet ueber NotReadyYet + Queue-Retry, falls die
         # Recherche noch laeuft.
-        enqueue(ws, "personalize", {"business_id": b["id"]})
+        if not skip_personalize:
+            enqueue(ws, "personalize", {"business_id": b["id"]})
+
+
+def _search_filters(search_id: str) -> dict:
+    """filters der Suche, oder {} wenn nicht lesbar.
+
+    Eigene kleine Abfrage statt einer Signatur-Aenderung durch drei
+    Aufrufstellen: sie laeuft einmal je Suche, nicht je Firma. Ein Fehler
+    beim Lesen schaltet bewusst in den Normalablauf zurueck, nie umgekehrt:
+    lieber einmal zu viel recherchiert als eine Liste, die still auf eine
+    Kette wartet, die niemand angestossen hat.
+    """
+    try:
+        row = (
+            sb().table("searches").select("filters").eq("id", search_id).single().execute().data
+        ) or {}
+    except Exception:
+        return {}
+    filters = row.get("filters")
+    return filters if isinstance(filters, dict) else {}

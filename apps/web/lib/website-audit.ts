@@ -34,6 +34,10 @@ export const AUDIT_CODES = [
   "ssl_broken",
   "no_https",
   "no_viewport",
+  // Aus der Browser-Stufe (Migration 0107). Rang wie im Worker: was der
+  // Inhaber selbst sofort sieht, steht oben.
+  "mobile_overflow",
+  "empty_section",
   "no_contact_route",
   "no_tel_link",
   "stale_copyright",
@@ -43,6 +47,15 @@ export const AUDIT_CODES = [
   "legacy_markup",
   "no_h1",
   "no_meta_description",
+  // Die internen Mess-Codes der Browser-Stufe. Nie in einer Mail
+  // (website_audit.MAILABLE_CODES schliesst sie aus), aber in
+  // businesses.website_audit koennen sie stehen, und die Oberflaeche soll
+  // sie zeigen statt verschweigen.
+  "render_blocked",
+  "slow_load",
+  "js_errors",
+  "text_too_small",
+  "tap_targets_small",
 ] as const;
 
 export type AuditCode = (typeof AUDIT_CODES)[number];

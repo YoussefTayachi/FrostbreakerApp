@@ -38,8 +38,18 @@ def ping() -> None:
     sb().rpc("worker_ping", {"p_worker": WORKER_ID, "p_version": WORKER_VERSION}).execute()
 
 
-def claim_job() -> dict | None:
-    rows = sb().rpc("claim_job", {"p_worker": WORKER_ID}).execute().data or []
+def claim_job(types: list[str] | None = None) -> dict | None:
+    """Den naechsten Job holen, optional nur bestimmte Typen (Migration 0108).
+
+    `types` kommt aus WORKER_JOB_TYPES (siehe main.py) und macht aus einer
+    Replik eine Spur: eine reine Browser-Replik laesst Recherche-Jobs fuer
+    andere liegen, statt sie zu blockieren oder von ihnen blockiert zu
+    werden. Ohne Angabe verhaelt sich alles wie vorher.
+    """
+    args: dict = {"p_worker": WORKER_ID}
+    if types:
+        args["p_types"] = types
+    rows = sb().rpc("claim_job", args).execute().data or []
     return rows[0] if rows else None
 
 

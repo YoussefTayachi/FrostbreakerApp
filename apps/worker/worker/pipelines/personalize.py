@@ -553,7 +553,13 @@ def generate(
     examples: list[dict] | None = None,
     operation: str = "personalize",
 ) -> str:
-    client = OpenAI(api_key=api_key)
+    # Timeout und nur EIN clientseitiger Wiederholungsversuch. Gemessen am
+    # 2026-08-31: zwei Aufrufe hingen 6 bis 8 Minuten und blockierten damit
+    # BEIDE Repliken, bis die 15-Minuten-Rueckholung der Queue sie einsammelte
+    # (Migration 0047). Der Queue-Retry ist der richtige Ort fuer
+    # Wiederholungen, nicht der HTTP-Client: er verteilt sie auf andere
+    # Worker und macht sie im Dashboard sichtbar.
+    client = OpenAI(api_key=api_key, timeout=90.0, max_retries=1)
     resp = client.responses.create(
         model=MODEL,
         input=build_input(system_prompt, company_name, context, examples, correction),

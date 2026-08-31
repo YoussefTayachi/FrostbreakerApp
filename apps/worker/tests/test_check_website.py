@@ -11,7 +11,7 @@ import pytest
 import respx
 
 from worker import website_fetch
-from worker.pipelines import check_website, get_businesses, personalize
+from worker.pipelines import browser_check, check_website, get_businesses, personalize
 
 # Eine ansonsten einwandfreie Seite: hier wird geprueft, was check_website mit
 # einem Befund MACHT, nicht welche Befunde es gibt. Deshalb muss sie alle
@@ -585,3 +585,45 @@ def test_icebreaker_wartet_nicht_mehr_auf_den_check():
 def test_audit_hint_gibt_es_nicht_mehr():
     assert not hasattr(personalize, "audit_hint")
     assert not hasattr(personalize, "audit_pending")
+
+
+# ── Der Nachtrag nach der Browser-Messung (Migration 0109) ─────────────────
+
+
+def _nachtrag(monkeypatch, row):
+    jobs: list[tuple] = []
+    monkeypatch.setattr(browser_check, "sb", fake_sb(row, []))
+    monkeypatch.setattr(browser_check, "enqueue", lambda *a: jobs.append(a))
+    browser_check._reihe_nachtrag_ein({"workspace_id": "ws-1"}, "b-1")
+    return jobs
+
+
+def test_nachtrag_mit_force_wenn_der_satz_ohne_browser_entstand(monkeypatch):
+    """Der Fall vom 2026-08-31: 139 Saetze standen ohne Browser-Daten in der
+    Datenbank und mussten von Hand nachgezogen werden."""
+    jobs = _nachtrag(monkeypatch, {
+        "website_finding": "Alter Satz aus dem HTML.",
+        "website_finding_pending_rewrite": True,
+    })
+    assert jobs == [("ws-1", "write_website_finding",
+                     {"business_id": "b-1", "force": True})]
+
+
+def test_nachtrag_ohne_force_wenn_noch_kein_satz_da_ist(monkeypatch):
+    """Der write-Job kann seine Versuche gegen "laeuft noch" aufgebraucht
+    haben. Ohne force: existiert inzwischen doch ein Satz, endet der Job an
+    seinem Idempotenz-Schutz ohne Modellaufruf."""
+    jobs = _nachtrag(monkeypatch, {
+        "website_finding": None,
+        "website_finding_pending_rewrite": False,
+    })
+    assert jobs == [("ws-1", "write_website_finding",
+                     {"business_id": "b-1", "force": False})]
+
+
+def test_kein_nachtrag_wenn_der_satz_vollstaendig_ist(monkeypatch):
+    jobs = _nachtrag(monkeypatch, {
+        "website_finding": "Fertiger Satz mit Browser-Daten.",
+        "website_finding_pending_rewrite": False,
+    })
+    assert jobs == []

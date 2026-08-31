@@ -201,7 +201,11 @@ def research(
     workspace_id: str | None = None,
     search_id: str | None = None,
 ) -> dict:
-    client = OpenAI(api_key=api_key)
+    # Timeout ueber dem gemessenen Normalfall (50 bis 60 s je Websuche),
+    # aber weit unter den 6 bis 8 Minuten, die zwei haengende Aufrufe am
+    # 2026-08-31 beide Repliken gekostet haben. Wiederholt wird ueber den
+    # Queue-Retry, nicht im Client (max_retries=1 nur fuer Netz-Schluckaufe).
+    client = OpenAI(api_key=api_key, timeout=120.0, max_retries=1)
     resp = client.responses.create(
         model=MODEL,
         tools=[{"type": "web_search"}],

@@ -211,21 +211,20 @@ describe("WEBSITE_DESIGN_OFFER_TEMPLATE", () => {
 
       // ── Die beiden Platzhalter ────────────────────────────────────────
       //
-      // Beide Pruefungen kommen aus .claude/skills/cold-email-copy/SKILL.md
-      // und nicht aus dem Playbook: der Skill legt den AUFBAU von Mail 1
-      // fest (Anrede, {{personalization}}, dann als zweiter Beweispunkt die
-      // nachpruefbare Beobachtung) und verbietet Saetze, die auf einen
-      // Platzhalter angewiesen sind.
-      it("stellt den Website-Befund direkt hinter den Aufhaenger", () => {
+      // SEIT 2026-08-31 traegt Stufe 1 NUR {{websiteFinding}} und keinen
+      // {{personalization}} mehr: der Befund ist die Personalisierung (so
+      // laufen alle Website-Kampagnen seit dem 2026-08-27), und rechnerisch
+      // passen beide Variablen seit FINDING_MAX_WORDS = 55 nicht mehr
+      // zusammen in die 90 Woerter von Mail 1 (55 + 35 = 90, null Rest).
+      // Die alte Fassung dieses Tests verlangte beide in fester Reihenfolge.
+      it("stellt den Website-Befund direkt hinter die Anrede", () => {
         for (const v of vorlage.sequence[0].variants) {
           const zeilen = v.body
             .split("\n")
             .map((l) => l.trim())
             .filter(Boolean);
-          const iAufhaenger = zeilen.indexOf("{{personalization}}");
-          const iBefund = zeilen.indexOf("{{websiteFinding}}");
-          expect(iAufhaenger).toBeGreaterThanOrEqual(0);
-          expect(iBefund).toBe(iAufhaenger + 1);
+          expect(zeilen.indexOf("{{websiteFinding}}")).toBe(1);
+          expect(zeilen).not.toContain("{{personalization}}");
         }
       });
 

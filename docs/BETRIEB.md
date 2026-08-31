@@ -74,6 +74,94 @@ Der Worker pollt `public.jobs` alle 5 Sekunden über die RPC-Funktion
 
 ---
 
+## Worker-Durchsatz: Fäden, Spuren, Skalierung, Wächter
+
+Eingebaut am 2026-08-31, nachdem ein Lauf mit 240 Firmen 2,5 Stunden
+Wanduhr brauchte, davon ~25 Minuten echte Arbeit. Vier Bausteine, alle
+einzeln abschaltbar; ohne Konfiguration verhält sich alles wie vorher.
+
+### Fäden je Replik (`WORKER_CONCURRENCY`)
+
+Env-Variable auf Railway, Voreinstellung 1. Fast jeder Job ist Warten auf
+fremde Server (OpenAI-Websuche 50 bis 60 s, Browser-Messung 6 bis 30 s), ein
+Wert von 4 vervierfacht den Durchsatz einer Replik nahezu. Jeder Faden hält
+seinen eigenen Chromium: RAM je Replik wächst mit, rund 300 MB Grundlast
+plus ~500 MB je aktivem Browser-Faden.
+
+### Spuren je Replik (`WORKER_JOB_TYPES`, Migration 0108)
+
+Kommaliste von Jobtypen, leer = alle. Eine Replik mit
+`WORKER_JOB_TYPES=browser_check,check_website` misst nur noch und steht
+nicht mehr hinter der Recherche an (gemessen am 2026-08-31: 200
+Browser-Jobs warteten über eine Stunde hinter 240 Recherche-Jobs). **Wer
+Spuren einrichtet, muss alle Typen abdecken**: ein Typ, den keine Replik
+fährt, bleibt liegen, und die App zeigt nur eine hängende Suche.
+
+### Ablaufschalter je Suche (`searches.filters`)
+
+- `research_after_finding: true` — Entscheider-Recherche und Icebreaker
+  erst NACH einem Website-Befund, und nur für Firmen, die einen haben
+  (website_finding._reihe_anreicherung_ein). Spart ~40 Prozent der
+  teuersten Stufe. Folge: Firmen ohne Website oder ohne Befund bekommen
+  nie einen Kontakt, ihr decisionmaker_status bleibt `pending`. Für
+  Website-Kampagnen gewollt, für alles andere den Schalter weglassen.
+- `skip_personalize: true` — kein Icebreaker. Die Website-Sequenzen
+  benutzen `{{personalization}}` nicht; vorher mussten die Jobs nach jedem
+  Lauf von Hand verschoben werden.
+
+### Der Befund-Nachtrag (Migration 0109)
+
+`write_website_finding` wartet höchstens vier Minuten auf die
+Browser-Messung; schreibt es vorher, markiert es den Satz
+(`website_finding_pending_rewrite`), und `browser_check` reiht nach seiner
+Messung einen force-Nachtrag ein. Vorher blieb ein zu früh geschriebener
+Satz für immer stehen (139 von 240 am 2026-08-31, von Hand nachgezogen).
+
+### Skalierung und Wächter (`/api/cron/worker-ops`, Migration 0110)
+
+pg_cron ruft die Route jede Minute auf (Auth: `cron_secret` aus dem Vault,
+wie instantly-sync). Sie tut zwei Dinge:
+
+1. **Skalieren.** Railway-Replikzahl folgt der Queue-Tiefe
+   (`lib/worker-scale.ts`): ab 50 fälligen Jobs volle Besetzung
+   (`WORKER_SCALE_MAX`, Standard 6), bei wenigen Jobs 2, nach 5 Minuten
+   Stille die Ruhebesetzung (`WORKER_SCALE_IDLE`, Standard 1, nie 0).
+   Railway rechnet pro Minute tatsächlicher Nutzung ab; stoßweises
+   Hochfahren kostet dasselbe wie langsames Durchlaufen. Braucht drei
+   Env-Variablen auf **Vercel**: `RAILWAY_API_TOKEN` (Account Settings >
+   Tokens), `RAILWAY_WORKER_SERVICE_ID`
+   (`61208364-2b9c-4dd8-9aaa-8df543591aea`, siehe oben) und
+   `RAILWAY_ENVIRONMENT_ID` (steht in der URL des Railway-Dashboards).
+   Fehlen sie, überspringt die Route das Skalieren kommentarlos.
+   **Beim ersten Scharfschalten einmal von Hand prüfen**, ob die drei
+   GraphQL-Aufrufe (Replikzahl lesen, setzen, ausrollen) gegen die
+   aktuelle Railway-API laufen: die Route gibt Railway-Fehler in ihrer
+   JSON-Antwort wieder, `select net.http_post(...)` von Hand oder ein
+   `curl` mit dem CRON_SECRET zeigt sie. Jede Änderung der Replikzahl
+   löst ein Redeploy aus; laufende Jobs fallen in die
+   15-Minuten-Rückholung.
+2. **Wachen.** Zwei Prüfungen gegen stille Ausfälle, gemeldet als
+   `provider_alerts` (Provider `worker-browser` und `worker-queue`, Mail
+   über die bestehende Alarm-Strecke in instantly-sync): Browser-Fehlerquote
+   über 50 Prozent in 24 h (Anlass: Playwright fehlte tagelang im Image,
+   niemand merkte es) und Jobs, die länger als 20 Minuten auf `running`
+   stehen. Beide lösen sich von selbst auf, wenn der Zustand wieder
+   gesund ist.
+
+### Wenn das Pro-Abo kommt: die Checkliste
+
+1. Railway: Pro aktivieren, am Worker-Service `WORKER_CONCURRENCY=4`
+   setzen.
+2. Vercel: `RAILWAY_API_TOKEN`, `RAILWAY_WORKER_SERVICE_ID`,
+   `RAILWAY_ENVIRONMENT_ID` setzen, neu deployen.
+3. Einmal `/api/cron/worker-ops` von Hand aufrufen und die JSON-Antwort
+   lesen: steht unter `skalierung` ein `fehler`, die GraphQL-Aufrufe gegen
+   https://docs.railway.com/reference/public-api abgleichen.
+4. Beobachten: die Replikzahl im Railway-Dashboard muss bei leerer Queue
+   nach ~6 Minuten auf 1 fallen und beim nächsten Batch steigen.
+
+---
+
 ## Supabase: der Cron
 
 `pg_cron`-Job `instantly-sync` ruft jede Minute (Migration 0043) per `pg_net`

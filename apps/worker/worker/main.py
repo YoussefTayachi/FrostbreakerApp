@@ -9,6 +9,8 @@ ist das der falsche Mechanismus. Die verbleibenden Pipelines hier (Leadsuche)
 brauchen weiterhin einen laufenden Worker, das ist unveraendert.
 """
 import logging
+import os
+import threading
 import time
 from datetime import datetime, timedelta, timezone
 
@@ -161,69 +163,76 @@ PROVIDER_BY_JOB_TYPE = {
 }
 
 
-def main() -> None:
-    log.info("Worker gestartet (%s)", queue.WORKER_ID)
-    last_schedule_check = 0.0
-    last_heartbeat = 0.0
+# WIE VIELE JOBS EINE REPLIK GLEICHZEITIG BEARBEITET
+#
+# Fast jeder Job hier ist Warten auf fremde Server (OpenAI-Websuche 50 bis 60
+# Sekunden, Browser-Messung 6 bis 30 Sekunden, HTTP-Abrufe), kein Rechnen.
+# Ein Prozess, der einen Job nach dem anderen abarbeitet, steht also die
+# meiste Zeit. Gemessen am 2026-08-31: 240 Firmen brauchten auf 2 Repliken
+# rund 2,5 Stunden Wanduhr bei ~25 Minuten reiner Browser-Arbeit.
+#
+# Voreinstellung 1 = exakt das alte Verhalten. Hochdrehen per Env auf
+# Railway; 4 bis 6 ist der gemessene sinnvolle Bereich (backfill_browser
+# lief mit 4 parallelen Messungen bei ~11 s je Seite). Jeder Faden haelt
+# seinen eigenen Chromium (siehe browser_check.pool, thread-lokal), der
+# RAM-Bedarf waechst also mit.
+WORKER_CONCURRENCY = max(1, int(os.getenv("WORKER_CONCURRENCY", "1") or "1"))
+
+# WELCHE JOBTYPEN DIESE REPLIK FAEHRT (Migration 0108)
+#
+# Leer = alle, wie bisher. Eine Replik mit
+#   WORKER_JOB_TYPES=browser_check,check_website
+# wird zur reinen Mess-Spur und laesst die Recherche fuer andere liegen.
+# Wer Spuren einrichtet, muss ALLE Typen abdecken: ein Typ, den keine
+# Replik faehrt, bleibt liegen, und die App zeigt nur eine haengende Suche.
+WORKER_JOB_TYPES = [
+    t.strip() for t in (os.getenv("WORKER_JOB_TYPES") or "").split(",") if t.strip()
+] or None
+
+
+def job_loop(name: str) -> None:
+    """Ein Faden: Jobs holen und ausfuehren, bis der Prozess endet.
+
+    Der Rumpf ist der bisherige Hauptloop, unveraendert bis auf zwei Dinge:
+    der Herzschlag und der Abo-Scheduler wohnen jetzt in main() (einmal je
+    Prozess statt einmal je Faden), und claim_job bekommt die Spur dieser
+    Replik mit.
+    """
     consecutive_poll_errors = 0
     while True:
-        # Vor allem anderen, auch vor dem Job-Abholen: gerade wenn die
-        # Warteschlange klemmt, ist die Information "ich lebe noch" am
-        # wertvollsten. Stuende der Herzschlag weiter unten, wuerde ein
-        # haengender Job ihn mit verschlucken und wie ein toter Worker
-        # aussehen.
-        if time.monotonic() - last_heartbeat > HEARTBEAT_INTERVAL_S:
-            last_heartbeat = time.monotonic()
-            try:
-                queue.ping()
-            except Exception:
-                # Ein misslungenes Lebenszeichen ist ein Anzeigeproblem, kein
-                # Grund, die Arbeit einzustellen. Nur protokollieren.
-                log.warning("Lebenszeichen konnte nicht gesetzt werden", exc_info=True)
-
-        if time.monotonic() - last_schedule_check > 60:
-            last_schedule_check = time.monotonic()
-            try:
-                process_due_schedules()
-            except Exception:
-                log.exception("Abo-Scheduler fehlgeschlagen")
-
-        # Das Abholen selbst war bisher ungeschuetzt: ein einzelner
-        # Netz-Schluckauf (DNS-Aussetzer, Supabase kurz nicht erreichbar,
-        # Verbindungsabbruch) hat den ganzen Prozess beendet. Real passiert:
-        # "httpx.ConnectError: getaddrinfo failed", danach Worker tot. Genau daher
-        # ruehren die staendig wechselnden Worker-IDs und die Jobs, die auf
-        # 'running' haengen blieben: nicht der Hoster hat die Container
-        # ausgetauscht, der Worker ist schlicht abgestuerzt.
+        # Das Abholen selbst war frueher ungeschuetzt: ein einzelner
+        # Netz-Schluckauf (DNS-Aussetzer, Supabase kurz nicht erreichbar)
+        # hat den ganzen Prozess beendet. Real passiert:
+        # "httpx.ConnectError: getaddrinfo failed", danach Worker tot.
         try:
-            job = queue.claim_job()
+            job = queue.claim_job(WORKER_JOB_TYPES)
             consecutive_poll_errors = 0
         except Exception:
             consecutive_poll_errors += 1
             # Backoff bis 60s, damit ein laengerer Ausfall nicht im
             # 5-Sekunden-Takt das Log flutet. Aufgeben ist keine Option,
-            # der Worker soll sich von allein wieder fangen.
+            # der Faden soll sich von allein wieder fangen.
             delay = min(POLL_INTERVAL_S * 2 ** min(consecutive_poll_errors - 1, 4), 60)
             log.warning(
-                "Job-Abholung fehlgeschlagen (Versuch %s), neuer Versuch in %ss",
+                "%s: Job-Abholung fehlgeschlagen (Versuch %s), neuer Versuch in %ss",
+                name,
                 consecutive_poll_errors,
                 delay,
                 exc_info=True,
             )
             time.sleep(delay)
             continue
-
         if job is None:
             time.sleep(POLL_INTERVAL_S)
             continue
-        log.info("Job %s (%s) gestartet", job["id"], job["type"])
+        log.info("%s: Job %s (%s) gestartet", name, job["id"], job["type"])
         handler = HANDLERS.get(job["type"])
         try:
             if handler is None:
                 raise ValueError(f"Unbekannter Job-Typ: {job['type']}")
             handler(job)
             queue.complete_job(job["id"])
-            log.info("Job %s abgeschlossen", job["id"])
+            log.info("%s: Job %s abgeschlossen", name, job["id"])
             # Geglueckt heisst: der Anbieter antwortet wieder. Einen offenen
             # Guthaben-Alarm dafuer aufloesen, damit der Nutzer nichts
             # wegklicken muss (siehe queue.clear_provider_alert).
@@ -253,6 +262,59 @@ def main() -> None:
                 queue.fail_job(job, str(exc))
             except Exception:
                 log.exception("Fehlerstatus fuer Job %s konnte nicht gespeichert werden", job["id"])
+
+
+def main() -> None:
+    log.info(
+        "Worker gestartet (%s, %s Faeden, Spur: %s)",
+        queue.WORKER_ID,
+        WORKER_CONCURRENCY,
+        ",".join(WORKER_JOB_TYPES) if WORKER_JOB_TYPES else "alle",
+    )
+    # Die Arbeitsfaeden. Daemon, damit ein sterbender Hauptloop den Prozess
+    # beendet und Railway neu startet, statt fuehrerlose Faeden weiterlaufen
+    # zu lassen.
+    faeden: dict[str, threading.Thread] = {}
+
+    def starte(name: str) -> None:
+        t = threading.Thread(target=job_loop, args=(name,), name=name, daemon=True)
+        t.start()
+        faeden[name] = t
+
+    for i in range(WORKER_CONCURRENCY):
+        starte(f"faden-{i + 1}")
+
+    last_schedule_check = 0.0
+    last_heartbeat = 0.0
+    while True:
+        # Vor allem anderen: gerade wenn die Warteschlange klemmt, ist die
+        # Information "ich lebe noch" am wertvollsten.
+        if time.monotonic() - last_heartbeat > HEARTBEAT_INTERVAL_S:
+            last_heartbeat = time.monotonic()
+            try:
+                queue.ping()
+            except Exception:
+                # Ein misslungenes Lebenszeichen ist ein Anzeigeproblem, kein
+                # Grund, die Arbeit einzustellen. Nur protokollieren.
+                log.warning("Lebenszeichen konnte nicht gesetzt werden", exc_info=True)
+
+        if time.monotonic() - last_schedule_check > 60:
+            last_schedule_check = time.monotonic()
+            try:
+                process_due_schedules()
+            except Exception:
+                log.exception("Abo-Scheduler fehlgeschlagen")
+
+        # Waechter ueber die Faeden: job_loop faengt alles, ein toter Faden
+        # heisst also, dass etwas Unerwartetes durchgeschlagen ist (zum
+        # Beispiel ein MemoryError). Neu starten statt stillschweigend mit
+        # weniger Kapazitaet weiterzulaufen.
+        for name, t in list(faeden.items()):
+            if not t.is_alive():
+                log.error("%s ist gestorben, wird neu gestartet", name)
+                starte(name)
+
+        time.sleep(POLL_INTERVAL_S)
 
 
 if __name__ == "__main__":

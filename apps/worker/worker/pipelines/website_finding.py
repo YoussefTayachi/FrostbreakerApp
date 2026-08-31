@@ -46,7 +46,13 @@ from datetime import datetime, timedelta, timezone
 from worker import website_audit
 from worker.db import sb
 from worker.pipelines import personalize
-from worker.search_state import BUSINESS_WITH_SEARCH, search_is_deleted
+from worker.queue import enqueue
+from worker.search_state import (
+    BUSINESS_WITH_SEARCH,
+    search_filters,
+    search_is_deleted,
+    search_source,
+)
 
 log = logging.getLogger("worker.website_finding")
 
@@ -210,6 +216,21 @@ def _created_at(biz: dict) -> datetime | None:
 BROWSER_TERMINAL = ("completed", "inconclusive", "skipped", "failed")
 
 
+def stages_open(biz: dict) -> bool:
+    """Laeuft eine der beiden Check-Stufen noch? Ohne Ruecksicht auf den Deckel.
+
+    Von audit_pending getrennt, seit run() den Unterschied braucht: "noch
+    offen und innerhalb des Deckels" heisst warten, "noch offen und Deckel
+    abgelaufen" heisst schreiben UND markieren (Migration 0109), damit
+    browser_check den Satz nach seiner Messung nachziehen kann.
+    """
+    html_laeuft = biz.get("website_audit_status") == "pending"
+    browser_laeuft = bool(biz.get("browser_audit_required")) and (
+        biz.get("website_audit_browser_status") not in BROWSER_TERMINAL
+    )
+    return html_laeuft or browser_laeuft
+
+
 def audit_pending(biz: dict) -> bool:
     """Laeuft eine der beiden Check-Stufen fuer diese Firma noch?
 
@@ -232,11 +253,7 @@ def audit_pending(biz: dict) -> bool:
     eine alte Zeile ohne Browser-Stufe und ein Lead ohne pruefbare Adresse von
     einer laufenden Messung nicht zu unterscheiden.
     """
-    html_laeuft = biz.get("website_audit_status") == "pending"
-    browser_laeuft = bool(biz.get("browser_audit_required")) and (
-        biz.get("website_audit_browser_status") not in BROWSER_TERMINAL
-    )
-    if not (html_laeuft or browser_laeuft):
+    if not stages_open(biz):
         return False
     created = _created_at(biz)
     if created is None:
@@ -332,17 +349,38 @@ def run(job: dict) -> None:
     if search_is_deleted(biz):
         return  # Suche im Papierkorb, keine OpenAI-Kosten fuer unsichtbare Leads
 
-    if audit_pending(biz):
+    offen = stages_open(biz)
+    if offen and audit_pending(biz):
         # Gleiches Muster wie bei der noch laufenden company_summary in
         # personalize: der Job geht ueber fail_job mit Backoff zurueck in die
         # Queue. Der Deckel in audit_pending sorgt dafuer, dass daraus keine
         # Endlosschleife wird.
         raise personalize.NotReadyYet("Website-Check laeuft noch")
+    # Ab hier gilt: entweder sind beide Stufen fertig, oder der Deckel ist
+    # abgelaufen und es wird aus dem geschrieben, was da ist. Der zweite Fall
+    # wird unten als pending_rewrite markiert; browser_check reiht nach der
+    # Messung einen force-Nachtrag ein (Migration 0109). Am 2026-08-31 waren
+    # 139 von 240 Saetzen in diesem Zustand und mussten von Hand nachgezogen
+    # werden.
 
     context = finding_context(biz)
     if context is None:
         # Kein Befund. KEIN Modellaufruf, kein Schreibvorgang, kein Retry:
         # das Feld bleibt leer, und leer ist hier die richtige Antwort.
+        #
+        # AUSNAHME force mit vorhandenem Satz: der Nachtrag hat festgestellt,
+        # dass der kombinierte Befund inzwischen leer ist, der alte Satz
+        # stuetzte sich also auf etwas, das die Browser-Messung widerlegt
+        # hat. Stehen lassen hiesse: die Mail behauptet einen Mangel, den es
+        # nicht gibt. Genau dafuer wurde die zweite Stufe gebaut.
+        if force and (biz.get("website_finding") or "").strip():
+            sb().table("businesses").update(
+                {
+                    "website_finding": None,
+                    "website_finding_needs_review": False,
+                    "website_finding_pending_rewrite": False,
+                }
+            ).eq("id", business_id).execute()
         return
 
     cfg = load_config(ws)
@@ -370,5 +408,47 @@ def run(job: dict) -> None:
         needs_review = bool(personalize.validate(line, FINDING_MAX_WORDS, cfg["banned_words"]))
 
     sb().table("businesses").update(
-        {"website_finding": line, "website_finding_needs_review": needs_review}
+        {
+            "website_finding": line,
+            "website_finding_needs_review": needs_review,
+            # True genau dann, wenn der Deckel abgelaufen war und eine Stufe
+            # noch lief: das Signal an browser_check, den Satz nach der
+            # Messung mit force nachzuziehen. Beim Nachtrag selbst sind die
+            # Stufen fertig, offen ist False, die Markierung verschwindet.
+            "website_finding_pending_rewrite": offen,
+        }
     ).eq("id", business_id).execute()
+
+    if not force:
+        # Nur beim ERSTEN Satz, nie beim Nachtrag: find_decisionmaker hat
+        # keinen eigenen Doppel-Schutz, ein zweites Einreihen kostet einen
+        # zweiten Recherche-Lauf.
+        _reihe_anreicherung_ein(ws, biz)
+
+
+def _reihe_anreicherung_ein(ws: str, biz: dict) -> None:
+    """Recherche und Icebreaker erst NACH einem Befund einreihen.
+
+    Nur fuer Suchen mit filters.research_after_finding (gesetzt beim Anlegen,
+    siehe get_businesses._finish). Der Grund ist eine Messung vom 2026-08-31:
+    die Recherche kostet je Firma 50 bis 60 Sekunden und ~0,003 USD und ist
+    damit die teuerste Stufe der ganzen Pipeline, aber rund 40 Prozent der
+    Firmen bekommen nie einen Befund und damit nie eine Mail. Fuer eine
+    Website-Kampagne ist ihre Recherche verlorenes Geld.
+
+    Kommt dieser Job zweimal gleichzeitig hierher (Original und Nachtrag im
+    selben Augenblick), kann die Recherche doppelt eingereiht werden. Das
+    kostet dann einen zweiten Modellaufruf und nichts weiter: doppelte
+    Kontakte verhindert find_decisionmaker selbst.
+    """
+    filters = search_filters(biz)
+    if not filters.get("research_after_finding"):
+        return
+    if biz.get("decisionmaker_status") != "pending":
+        return
+    # Dieselbe Zuordnung wie in get_businesses._finish: corporate holt die
+    # Adresse bei Hunter, alles andere ueber die KI-Websuche.
+    jobtyp = "hunt_persons" if search_source(biz) == "corporate" else "find_decisionmaker"
+    enqueue(ws, jobtyp, {"business_id": biz["id"]})
+    if not filters.get("skip_personalize"):
+        enqueue(ws, "personalize", {"business_id": biz["id"]})

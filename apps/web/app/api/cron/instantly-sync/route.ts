@@ -544,6 +544,25 @@ function alertMail(kind: string, provider: string, message: string): { subject: 
     };
   }
 
+  if (kind === "worker_stufe") {
+    return {
+      subject: `Worker-Stoerung: ${provider}`,
+      body: [
+        message,
+        "",
+        "Was das heisst: die Lead-Pipeline arbeitet eingeschraenkt weiter,",
+        "aber ein Teil ihrer Ergebnisse entsteht gerade ohne die betroffene",
+        "Stufe. Genau diese Sorte Ausfall war frueher unsichtbar: die",
+        "Browser-Pruefstufe lief nach ihrem Einbau tagelang in keiner",
+        "einzigen Messung, und nichts hat gewarnt.",
+        "",
+        "Was zu tun ist: die Railway-Logs des Workers ansehen (railway.app),",
+        "dort steht der konkrete Fehler. Der Alarm loest sich von selbst,",
+        "sobald die Stufe wieder misst.",
+      ].join("\n"),
+    };
+  }
+
   return {
     subject: `Guthaben aufgebraucht: ${provider}`,
     body: [

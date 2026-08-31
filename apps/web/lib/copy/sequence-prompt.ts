@@ -790,7 +790,16 @@ export function sequenceProblems(
   const erste = steps[0];
   if (erste) {
     for (const v of erste.variants) {
-      if (!v.body.includes("{{personalization}}")) {
+      // Lead-spezifisch muss Stufe 1 sein; WOMIT, entscheidet das Angebot.
+      // {{websiteFinding}} erfuellt das genauso wie {{personalization}}:
+      // alle Website-Kampagnen seit dem 2026-08-27 tragen NUR den Befund
+      // ("der Befund ist die Personalisierung"), und beide Variablen
+      // zusammen passen seit FINDING_MAX_WORDS = 55 rechnerisch nicht mehr
+      // in die 90 Woerter von Mail 1 (55 + 35 = 90, null Rest fuer Text).
+      if (
+        !v.body.includes("{{personalization}}") &&
+        !v.body.includes("{{websiteFinding}}")
+      ) {
         problems.push({ kind: "missingPersonalization" });
         break;
       }

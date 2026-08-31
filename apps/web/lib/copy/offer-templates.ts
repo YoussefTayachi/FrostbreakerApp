@@ -54,9 +54,17 @@
  *
  * Diese vier Mails (mit je zwei Fassungen, wie buildSequencePrompt es auch
  * verlangt) sind von Hand geschrieben, nicht von einem Modell. Sie nutzen
- * denselben Merge-Tag-Mechanismus wie ein KI-Entwurf: {{personalization}} und
- * {{websiteFinding}} tragen das Lead-Spezifische in Stufe 1, {{firstName}} die
- * Anrede.
+ * denselben Merge-Tag-Mechanismus wie ein KI-Entwurf: {{websiteFinding}}
+ * traegt das Lead-Spezifische in Stufe 1, {{firstName}} die Anrede.
+ *
+ * KEIN {{personalization}} mehr in Stufe 1 (seit 2026-08-31): der Befund IST
+ * die Personalisierung (so laufen auch alle Kampagnen seit dem 2026-08-27),
+ * und rechnerisch ging es ohnehin nicht mehr -- der Torwart budgetiert
+ * {{websiteFinding}} seit der Anhebung von FINDING_MAX_WORDS auf 55 mit 55
+ * Woertern, {{personalization}} mit 35, zusammen 90, und
+ * FIRST_MAIL_MAX_WORDS ist 90. Beide Variablen in einer Mail liessen fuer
+ * den eigentlichen Text null Woerter uebrig; die Vorlage stand mit 118 im
+ * Roten, sechs Tests meldeten es, CI prueft das Frontend nicht.
  * Der Nutzer muss beim Uebernehmen der Vorlage NICHTS von Hand ausfuellen --
  * genau das war die Vorgabe ("keine Platzhalter, die der Nutzer fuellen
  * muss, wenn die App das schon weiss").
@@ -174,8 +182,6 @@ const SEQUENCE_DE: DraftStep[] = [
         body: [
           "Hi {{firstName}},",
           "",
-          "{{personalization}}",
-          "",
           "{{websiteFinding}}",
           "",
           "Ich zeige dir kostenlos, was auf deiner Seite kaputt ist: eine kurze Liste, Lesezeit unter einer Minute.",
@@ -187,8 +193,6 @@ const SEQUENCE_DE: DraftStep[] = [
         subject: SUBJECT_B_DE,
         body: [
           "Hi {{firstName}},",
-          "",
-          "{{personalization}}",
           "",
           "{{websiteFinding}}",
           "",
@@ -305,8 +309,6 @@ const SEQUENCE_EN: DraftStep[] = [
         body: [
           "Hi {{firstName}},",
           "",
-          "{{personalization}}",
-          "",
           "{{websiteFinding}}",
           "",
           "I'll show you what is broken on your site for free, a short list, under a minute.",
@@ -318,8 +320,6 @@ const SEQUENCE_EN: DraftStep[] = [
         subject: SUBJECT_B_EN,
         body: [
           "Hi {{firstName}},",
-          "",
-          "{{personalization}}",
           "",
           "{{websiteFinding}}",
           "",

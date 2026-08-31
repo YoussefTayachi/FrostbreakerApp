@@ -17,7 +17,12 @@ const PYTHON_SOURCE = new URL("../../worker/worker/website_audit.py", import.met
 
 function pythonFindingCodes(): string[] {
   const source = readFileSync(PYTHON_SOURCE, "utf8");
-  const block = source.match(/FINDING_CODES[^=]*=\s*\(([\s\S]*?)\)/);
+  // Bis zur schliessenden Klammer am ZEILENANFANG: seit dem 2026-08-30
+  // steht im Python-Block ein Kommentar mit "(website_browser.py)", und die
+  // alte non-greedy-Fassung stoppte an dessen Klammer. Der Test las dann
+  // vier Codes statt fuenfzehn, und weil CI das Frontend nicht prueft, ist
+  // genau die Drift durchgerutscht, gegen die dieser Test gebaut ist.
+  const block = source.match(/FINDING_CODES[^=]*=\s*\(([\s\S]*?)\n\)/);
   if (!block) throw new Error("FINDING_CODES nicht in website_audit.py gefunden");
   return [...block[1].matchAll(/"([^"]+)"/g)].map((m) => m[1]);
 }

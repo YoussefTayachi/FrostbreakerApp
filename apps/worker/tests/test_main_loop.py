@@ -16,11 +16,16 @@ class _StopLoop(Exception):
 
 
 def _run_loop_until(monkeypatch, claim_side_effects, max_sleeps=10):
-    """Laesst main() laufen, bis claim_job durch ist, und sammelt die Sleeps."""
+    """Laesst job_loop() laufen, bis claim_job durch ist, und sammelt die Sleeps.
+
+    Seit dem Faden-Umbau (WORKER_CONCURRENCY) wird job_loop direkt getestet
+    statt main(): main() startet nur noch die Faeden und den Herzschlag, die
+    Fehlerbehandlung, um die es hier geht, wohnt im Loop selbst.
+    """
     calls = {"claim": 0}
     sleeps: list[float] = []
 
-    def fake_claim():
+    def fake_claim(types=None):
         i = calls["claim"]
         calls["claim"] += 1
         if i >= len(claim_side_effects):
@@ -45,7 +50,7 @@ def _run_loop_until(monkeypatch, claim_side_effects, max_sleeps=10):
     monkeypatch.setattr(worker_main.queue, "ping", lambda: None)
 
     with pytest.raises(_StopLoop):
-        worker_main.main()
+        worker_main.job_loop("test")
     return calls, sleeps
 
 

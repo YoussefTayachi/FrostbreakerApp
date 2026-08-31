@@ -31,10 +31,12 @@ Fehler. Der Job schreibt seinen Status und gilt als erledigt. Sonst wiederholt
 die Queue ihn mit Backoff und wartet jedes Mal denselben Zeitablauf ab.
 """
 import logging
+import threading
 from datetime import datetime, timezone
 
 from worker import website_browser
 from worker.db import sb
+from worker.queue import enqueue
 
 log = logging.getLogger("worker.browser_check")
 
@@ -48,18 +50,25 @@ SCREENSHOT_DIR = "out/browser-check"
 # Bilder sind Gigabytes.
 SCREENSHOT_KEEP_DAYS = 14
 
-# Ein Pool je Worker-Prozess. Ein Chromium-Kaltstart kostet rund eine Sekunde
-# und damit mehr als die halbe Messung; ihn je Job zu zahlen halbiert den
-# Durchsatz. Der Pool ersetzt den Prozess von selbst nach N Jobs, damit kein
-# Speicher zusammenlaeuft.
-_pool: website_browser.BrowserPool | None = None
+# Ein Pool je FADEN, nicht mehr je Prozess. Ein Chromium-Kaltstart kostet
+# rund eine Sekunde und damit mehr als die halbe Messung; ihn je Job zu
+# zahlen halbiert den Durchsatz. Der Pool ersetzt den Prozess von selbst
+# nach N Jobs, damit kein Speicher zusammenlaeuft.
+#
+# THREAD-LOKAL SEIT WORKER_CONCURRENCY (main.py): Playwrights synchrone API
+# gehoert dem Faden, der sie gestartet hat, ein geteilter Browser ueber
+# Faeden hinweg stuerzt mit "greenlet switch to a different thread" ab.
+# backfill_browser.py macht es aus demselben Grund genauso (ein Pool je
+# Arbeiterfaden).
+_lokal = threading.local()
 
 
 def pool() -> website_browser.BrowserPool:
-    global _pool
-    if _pool is None:
-        _pool = website_browser.BrowserPool()
-    return _pool
+    p = getattr(_lokal, "pool", None)
+    if p is None:
+        p = website_browser.BrowserPool()
+        _lokal.pool = p
+    return p
 
 
 def aufraeumen(verzeichnis: str = SCREENSHOT_DIR, tage: int = SCREENSHOT_KEEP_DAYS) -> int:
@@ -122,6 +131,7 @@ def run(job: dict) -> None:
     url = (biz.get("website") or "").strip()
     if not url:
         _schreibe(business_id, {"status": "skipped", "reason": "keine Adresse hinterlegt"})
+        _reihe_nachtrag_ein(job, business_id)
         return
 
     if not _aufgeraeumt:
@@ -144,6 +154,54 @@ def run(job: dict) -> None:
     )
     _schreibe(business_id, messung.as_dict())
     log.info("browser_check %s: %s in %sms", business_id, messung.status, messung.duration_ms)
+    _reihe_nachtrag_ein(job, business_id)
+
+
+def _reihe_nachtrag_ein(job: dict, business_id: str) -> None:
+    """Nach der Messung den Befundsatz nachziehen, falls noetig (Migration 0109).
+
+    Zwei Faelle, beide aus dem Lauf vom 2026-08-31:
+
+      1. website_finding_pending_rewrite: der Satz wurde vor dieser Messung
+         aus dem rohen HTML geschrieben (Vier-Minuten-Deckel in
+         website_finding.AUDIT_WAIT_LIMIT). Dann force, damit der
+         Idempotenz-Schutz ihn nicht stehen laesst. 139 von 240 Leads waren
+         an dem Tag in diesem Zustand und mussten von Hand nachgezogen
+         werden.
+      2. Noch KEIN Satz da: der write_website_finding-Job kann seine drei
+         Versuche gegen "Website-Check laeuft noch" aufgebraucht haben,
+         waehrend diese Messung in der Schlange stand. Ohne Nachtrag bekaeme
+         der Lead nie einen Satz. Ohne force, und billig: existiert doch
+         schon einer, endet der Job an seinem Schutz, gibt es nichts zu
+         sagen, endet er ohne Modellaufruf.
+
+    Der Nachtrag wird bewusst NACH dem Schreiben der Messung eingereiht
+    (gleiche Begruendung wie in check_website._reihe_browser_ein): sonst
+    kann der Nachtrag-Job laufen, bevor die Messung in der Datenbank steht,
+    und wartet erneut auf sie.
+
+    Scheitert das Einreihen, faellt dieser Job in den Queue-Retry und misst
+    beim naechsten Versuch NICHT neu (TERMINAL-Schutz in run), reiht aber
+    den Nachtrag erneut ein. Deshalb kein eigenes Abfangen hier.
+    """
+    zeile = (
+        sb()
+        .table("businesses")
+        .select("website_finding, website_finding_pending_rewrite")
+        .eq("id", business_id)
+        .single()
+        .execute()
+        .data
+    ) or {}
+    nachschreiben = bool(zeile.get("website_finding_pending_rewrite"))
+    fehlt = not (zeile.get("website_finding") or "").strip()
+    if not (nachschreiben or fehlt):
+        return
+    enqueue(
+        job["workspace_id"],
+        "write_website_finding",
+        {"business_id": business_id, "force": nachschreiben},
+    )
 
 
 def _schreibe(business_id: str, messung: dict) -> None:

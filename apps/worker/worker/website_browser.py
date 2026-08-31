@@ -54,7 +54,11 @@ log = logging.getLogger("worker.website_browser")
 
 # Zeitgrenzen. Grosszuegiger als beim HTTP-Abruf, weil ein Browser rendert,
 # und trotzdem hart: eine fremde Seite darf den Worker nicht besetzen.
-NAV_TIMEOUT_MS = 30_000
+# 20 statt 30 Sekunden seit dem 2026-08-31: die Ausreisser dominieren die
+# Messdauer (Normalfall 6 bis 15 s, Timeout-Faelle frueher 30 s), und eine
+# Seite, die nach 20 Sekunden kein domcontentloaded hat, liefert auch nach
+# 30 keinen anderen Befund als "langsam bis unbenutzbar".
+NAV_TIMEOUT_MS = 20_000
 TOTAL_TIMEOUT_MS = 90_000
 SETTLE_MS = 2_500
 
@@ -444,6 +448,16 @@ def _sperre_fremde_ziele(kontext, gesperrt: list[str]) -> None:
 
     def handler(route, request):
         try:
+            # Bilder, Medien und Schriften traegt keine der Sonden: og:image
+            # wird am Meta-Tag geprueft, nicht am Bild, und die Layout-Sonden
+            # brauchen CSS, aber keine Pixel. Nicht zu laden spart auf
+            # bildlastigen Handwerker-Seiten den Grossteil der Ladezeit.
+            # Sichtbarer Preis: Screenshots zeigen Platzhalter statt Fotos.
+            # CSS bleibt ausdruecklich ERLAUBT, sonst luegen text_too_small
+            # und die Tap-Target-Messung.
+            if request.resource_type in ("image", "media", "font"):
+                route.abort()
+                return
             if is_public_url(request.url):
                 route.continue_()
                 return

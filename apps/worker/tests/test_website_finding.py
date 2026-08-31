@@ -231,7 +231,12 @@ def _lauf(monkeypatch, row, *, antworten=None, force=False):
 def test_schreibt_den_satz(monkeypatch):
     writes, aufrufe = _lauf(monkeypatch, business())
     assert writes == [
-        {"website_finding": "Deine Website läuft ohne HTTPS.", "website_finding_needs_review": False}
+        {
+            "website_finding": "Deine Website läuft ohne HTTPS.",
+            "website_finding_needs_review": False,
+            # Beide Stufen fertig, also kein Nachtrag noetig (Migration 0109).
+            "website_finding_pending_rewrite": False,
+        }
     ]
     assert len(aufrufe) == 1
     assert aufrufe[0]["operation"] == "website_finding"
@@ -284,3 +289,123 @@ def test_zweiter_versuch_daneben_wird_markiert(monkeypatch):
     lang = " ".join(["Wort"] * (website_finding.FINDING_MAX_WORDS + 5))
     writes, _ = _lauf(monkeypatch, business(), antworten=[lang, lang])
     assert writes[0]["website_finding_needs_review"] is True
+
+
+# ── Der Vier-Minuten-Deckel und der Nachtrag (Migration 0109) ──────────────
+
+
+def test_deckel_schreibt_und_markiert_fuer_den_nachtrag(monkeypatch):
+    """Deckel abgelaufen, Browser-Messung laeuft noch: der Satz wird aus dem
+    HTML geschrieben und traegt die Markierung, an der browser_check den
+    force-Nachtrag festmacht. Der gemessene Anlass: am 2026-08-31 standen 139
+    von 240 Saetzen ohne Browser-Daten in der Datenbank, und ohne Markierung
+    hat sie nie wieder jemand angefasst."""
+    row = business(
+        browser_audit_required=True,
+        website_audit_browser_status="pending",
+        created_at="2020-01-01T00:00:00+00:00",  # Deckel laengst abgelaufen
+    )
+    writes, aufrufe = _lauf(monkeypatch, row)
+    assert len(aufrufe) == 1
+    assert writes[-1]["website_finding_pending_rewrite"] is True
+
+
+def test_deckel_nicht_abgelaufen_heisst_warten(monkeypatch):
+    row = business(
+        browser_audit_required=True,
+        website_audit_browser_status="pending",
+    )
+    with pytest.raises(personalize.NotReadyYet):
+        _lauf(monkeypatch, row)
+
+
+def test_force_mit_leerem_befund_loescht_den_alten_satz(monkeypatch):
+    """Der Nachtrag stellt fest: der kombinierte Befund ist leer, der alte
+    Satz stuetzte sich also auf etwas, das der Browser widerlegt hat. Er darf
+    nicht stehen bleiben, sonst behauptet die Mail einen Mangel, den es nicht
+    gibt. Vorher kehrte der Job hier nur um."""
+    row = business(
+        website_finding="Alter Satz ueber ein widerlegtes h1.",
+        website_audit={"findings": []},
+    )
+    writes, aufrufe = _lauf(monkeypatch, row, force=True)
+    assert aufrufe == []
+    assert writes == [
+        {
+            "website_finding": None,
+            "website_finding_needs_review": False,
+            "website_finding_pending_rewrite": False,
+        }
+    ]
+
+
+# ── Die Kette: Recherche erst nach dem Befund ──────────────────────────────
+
+
+def _kettenlauf(monkeypatch, row, *, force=False):
+    jobs: list[tuple] = []
+    monkeypatch.setattr(website_finding, "enqueue", lambda *a: jobs.append(a))
+    writes, aufrufe = _lauf(monkeypatch, row, force=force)
+    return jobs, writes
+
+
+def test_kette_reiht_recherche_nach_dem_ersten_satz_ein(monkeypatch):
+    row = business(
+        decisionmaker_status="pending",
+        searches={"deleted_at": None, "source": "maps",
+                  "filters": {"research_after_finding": True}},
+    )
+    jobs, _ = _kettenlauf(monkeypatch, row)
+    assert ("ws-1", "find_decisionmaker", {"business_id": "b-1"}) in jobs
+    assert ("ws-1", "personalize", {"business_id": "b-1"}) in jobs
+
+
+def test_kette_laesst_personalize_auf_wunsch_weg(monkeypatch):
+    row = business(
+        decisionmaker_status="pending",
+        searches={"deleted_at": None, "source": "maps",
+                  "filters": {"research_after_finding": True, "skip_personalize": True}},
+    )
+    jobs, _ = _kettenlauf(monkeypatch, row)
+    assert [j[1] for j in jobs] == ["find_decisionmaker"]
+
+
+def test_kette_nimmt_hunter_fuer_corporate(monkeypatch):
+    row = business(
+        decisionmaker_status="pending",
+        searches={"deleted_at": None, "source": "corporate",
+                  "filters": {"research_after_finding": True, "skip_personalize": True}},
+    )
+    jobs, _ = _kettenlauf(monkeypatch, row)
+    assert [j[1] for j in jobs] == ["hunt_persons"]
+
+
+def test_kette_feuert_nicht_ohne_schalter(monkeypatch):
+    """Ohne research_after_finding aendert sich NICHTS am Ablauf: die
+    Recherche wurde laengst von get_businesses eingereiht."""
+    jobs, _ = _kettenlauf(monkeypatch, business(decisionmaker_status="pending"))
+    assert jobs == []
+
+
+def test_kette_feuert_nicht_beim_nachtrag(monkeypatch):
+    """force heisst zweiter Durchlauf. find_decisionmaker hat keinen eigenen
+    Doppel-Schutz, ein zweites Einreihen kostet einen zweiten
+    Recherche-Lauf."""
+    row = business(
+        website_finding="Es gibt schon einen Satz.",
+        decisionmaker_status="pending",
+        searches={"deleted_at": None, "source": "maps",
+                  "filters": {"research_after_finding": True}},
+    )
+    jobs, _ = _kettenlauf(monkeypatch, row, force=True)
+    assert jobs == []
+
+
+def test_kette_feuert_nicht_wenn_die_recherche_schon_lief(monkeypatch):
+    row = business(
+        decisionmaker_status="found",
+        searches={"deleted_at": None, "source": "maps",
+                  "filters": {"research_after_finding": True}},
+    )
+    jobs, _ = _kettenlauf(monkeypatch, row)
+    assert jobs == []

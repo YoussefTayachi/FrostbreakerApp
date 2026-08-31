@@ -776,6 +776,14 @@ const de = {
         label: "Auf dem Handy nicht nutzbar (kein Mobil-Format)",
         consequence: `Ohne dieses Format vergrößert das Handy die Desktop-Ansicht automatisch, Besucher müssen zum Lesen zoomen und tippen daneben.`,
       },
+      mobile_overflow: {
+        label: "Seite läuft auf dem Handy seitlich über",
+        consequence: `Besucher müssen seitwärts schieben, um alles zu sehen; die meisten tun das nicht und verpassen Inhalt.`,
+      },
+      empty_section: {
+        label: "Ein Abschnitt der Seite bleibt leer",
+        consequence: `Wo Inhalt stehen sollte, klafft ein Loch; die Seite wirkt kaputt oder unfertig.`,
+      },
       stale_copyright: {
         label: "Jahreszahl im Fußbereich veraltet",
         consequence: `Ein altes Jahr im Footer liest sich wie eine verlassene Seite, Besucher zweifeln, ob das Unternehmen noch aktiv ist.`,
@@ -795,6 +803,26 @@ const de = {
       no_meta_description: {
         label: "Keine Meta-Description hinterlegt",
         consequence: `Google zieht sich selbst einen Satz von der Seite oder schreibt den Suchtreffer automatisch, der Treffer wirkt zufällig und unkontrolliert.`,
+      },
+      render_blocked: {
+        label: "Ohne JavaScript bleibt die Seite leer",
+        consequence: `Suchmaschinen und Vorschaudienste sehen eine leere Seite; was drinsteht, entscheidet allein der Browser des Besuchers.`,
+      },
+      slow_load: {
+        label: "Seite lädt spürbar langsam",
+        consequence: `Je länger der Aufbau dauert, desto mehr Besucher springen ab, bevor sie irgendetwas gesehen haben.`,
+      },
+      js_errors: {
+        label: "Fehler beim Laden (JavaScript)",
+        consequence: `Teile der Seite funktionieren möglicherweise nicht; was genau ausfällt, hängt vom Browser ab.`,
+      },
+      text_too_small: {
+        label: "Text auf dem Handy zu klein",
+        consequence: `Unter 12 Pixeln muss gezoomt werden; viele Besucher lesen dann gar nicht erst.`,
+      },
+      tap_targets_small: {
+        label: "Schaltflächen auf dem Handy zu klein",
+        consequence: `Zu kleine Ziele treffen Finger daneben; Anrufe und Anfragen scheitern am Tippen.`,
       },
       no_contact_route: {
         label: "Kein Kontaktweg auf der Startseite",
@@ -3451,6 +3479,14 @@ const en: Dictionary = {
         label: "Unusable on phones (no mobile format)",
         consequence: "Without it, phones zoom in on the desktop layout automatically, visitors have to zoom to read and miss the buttons.",
       },
+      mobile_overflow: {
+        label: "Page overflows sideways on phones",
+        consequence: "Visitors have to scroll sideways to see everything; most never do and miss content.",
+      },
+      empty_section: {
+        label: "A section of the page renders empty",
+        consequence: "Where content should be, there is a hole; the page looks broken or unfinished.",
+      },
       stale_copyright: {
         label: "Copyright year in the footer is outdated",
         consequence: "An old year in the footer reads like an abandoned site, visitors start to wonder if the business is still active.",
@@ -3470,6 +3506,26 @@ const en: Dictionary = {
       no_meta_description: {
         label: "No meta description set",
         consequence: "Google pulls a sentence from the page itself or writes the snippet automatically, so the search result looks arbitrary and uncontrolled.",
+      },
+      render_blocked: {
+        label: "Page stays empty without JavaScript",
+        consequence: "Search engines and preview services see a blank page; what shows up depends entirely on the visitor's browser.",
+      },
+      slow_load: {
+        label: "Page loads noticeably slowly",
+        consequence: "The longer the build-up takes, the more visitors leave before seeing anything.",
+      },
+      js_errors: {
+        label: "Errors while loading (JavaScript)",
+        consequence: "Parts of the page may not work; what exactly breaks depends on the browser.",
+      },
+      text_too_small: {
+        label: "Text too small on phones",
+        consequence: "Below 12 pixels visitors have to zoom; many simply stop reading.",
+      },
+      tap_targets_small: {
+        label: "Buttons too small on phones",
+        consequence: "Fingers miss small targets; calls and enquiries fail at the tap.",
       },
       no_contact_route: {
         label: "No way to get in touch from the homepage",

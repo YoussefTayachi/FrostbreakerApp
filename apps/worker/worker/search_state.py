@@ -16,7 +16,7 @@ die sich zwischenzeitlich erledigt hat.
 # Businesses laden und dabei Papierkorb-Status UND Quelle der zugehoerigen
 # Suche mitnehmen; spart eine zweite Abfrage pro Job. Die Quelle braucht
 # find_decisionmaker, um die Maps-Ausnahme fuer Rollen-Adressen zu erkennen.
-BUSINESS_WITH_SEARCH = "*, searches(deleted_at, source)"
+BUSINESS_WITH_SEARCH = "*, searches(deleted_at, source, filters)"
 
 
 def _related_search(business: dict) -> dict | None:
@@ -46,6 +46,19 @@ def search_source(business: dict) -> str | None:
     """
     related = _related_search(business)
     return related.get("source") if related else None
+
+
+def search_filters(business: dict) -> dict:
+    """Die filters der Suche hinter dieser Firma, oder {}.
+
+    Traegt seit dem Umbau vom 2026-08-31 die Ablaufschalter
+    research_after_finding und skip_personalize (gesetzt beim Anlegen der
+    Suche, gelesen in website_finding und get_businesses). Ein leeres
+    Ergebnis heisst: alles laeuft wie immer.
+    """
+    related = _related_search(business)
+    filters = related.get("filters") if related else None
+    return filters if isinstance(filters, dict) else {}
 
 
 class SearchCancelled(Exception):

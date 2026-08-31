@@ -325,8 +325,11 @@ describe("listTools", () => {
     expect(varianten.maxItems).toBe(2);
     expect(varianten.items.required).toEqual(["subject", "body"]);
     // Variante A bleibt subject/body des Schritts selbst.
-    expect((schritt as { required: string[] }).required).toContain("subject");
-    expect((schritt as { required: string[] }).required).not.toContain("variants");
+    // Ueber unknown, weil der statische Typ des Schemas kein required-Feld
+    // kennt; der direkte Cast war ein tsc-Fehler (TS2352), den CI nie sah,
+    // weil das Frontend dort nicht geprueft wird.
+    expect((schritt as unknown as { required: string[] }).required).toContain("subject");
+    expect((schritt as unknown as { required: string[] }).required).not.toContain("variants");
   });
 
   it("publish_campaign nennt Probelauf und Sperrliste schon in der Beschreibung", () => {
