@@ -197,11 +197,46 @@ def _reihe_nachtrag_ein(job: dict, business_id: str) -> None:
     fehlt = not (zeile.get("website_finding") or "").strip()
     if not (nachschreiben or fehlt):
         return
+    # Ohne force nur einreihen, wenn nicht ohnehin noch ein Befund-Job auf
+    # diese Firma wartet. Gemessen beim Probelauf am 2026-08-31 (Tucson, 10
+    # Leads): Original- und Nachtrag-Job liefen fuer eine von fuenf Firmen
+    # gleichzeitig, beide schrieben einen Satz und beide reihten die
+    # Recherche ein, also 6 Recherche-Jobs fuer 5 Firmen. Mit mehreren
+    # Faeden je Replik (WORKER_CONCURRENCY) wuerde dieses Rennen haeufiger.
+    # Beim force-Nachtrag gilt die Pruefung nicht: der wartende Original-Job
+    # endet an seinem Idempotenz-Schutz, sobald der Satz existiert, und
+    # wuerde den markierten Satz nie neu schreiben.
+    if fehlt and not nachschreiben and _offener_befundjob(business_id):
+        return
     enqueue(
         job["workspace_id"],
         "write_website_finding",
         {"business_id": business_id, "force": nachschreiben},
     )
+
+
+def _offener_befundjob(business_id: str) -> bool:
+    """Wartet oder laeuft schon ein write_website_finding-Job fuer diese Firma?
+
+    Die Abfrage holt die offenen Befund-Jobs (selten mehr als eine Handvoll)
+    und prueft die Firma in Python: auf jobs.payload gibt es keinen Index,
+    und ein Filter auf dem JSONB-Feld waere ein Sequential Scan je Messung.
+    Bei einem Fehler wird im Zweifel eingereiht: ein doppelter Job endet am
+    Idempotenz-Schutz, ein fehlender laesst den Lead ohne Satz.
+    """
+    try:
+        rows = (
+            sb()
+            .table("jobs")
+            .select("payload")
+            .eq("type", "write_website_finding")
+            .in_("status", ["pending", "running"])
+            .execute()
+            .data
+        ) or []
+    except Exception:
+        return False
+    return any((r.get("payload") or {}).get("business_id") == business_id for r in rows)
 
 
 def _schreibe(business_id: str, messung: dict) -> None:

@@ -590,10 +590,11 @@ def test_audit_hint_gibt_es_nicht_mehr():
 # ── Der Nachtrag nach der Browser-Messung (Migration 0109) ─────────────────
 
 
-def _nachtrag(monkeypatch, row):
+def _nachtrag(monkeypatch, row, *, offener_job=False):
     jobs: list[tuple] = []
     monkeypatch.setattr(browser_check, "sb", fake_sb(row, []))
     monkeypatch.setattr(browser_check, "enqueue", lambda *a: jobs.append(a))
+    monkeypatch.setattr(browser_check, "_offener_befundjob", lambda _b: offener_job)
     browser_check._reihe_nachtrag_ein({"workspace_id": "ws-1"}, "b-1")
     return jobs
 
@@ -627,3 +628,25 @@ def test_kein_nachtrag_wenn_der_satz_vollstaendig_ist(monkeypatch):
         "website_finding_pending_rewrite": False,
     })
     assert jobs == []
+
+
+def test_kein_doppelter_nachtrag_solange_ein_befundjob_wartet(monkeypatch):
+    """Gemessen am 2026-08-31 (Tucson): Original- und Nachtrag-Job liefen
+    gleichzeitig, eine von fuenf Firmen bekam zwei Saetze und zwei
+    Recherche-Laeufe. Wartet noch ein Job, reiht der Nachtrag nichts ein."""
+    jobs = _nachtrag(monkeypatch, {
+        "website_finding": None,
+        "website_finding_pending_rewrite": False,
+    }, offener_job=True)
+    assert jobs == []
+
+
+def test_der_force_nachtrag_wartet_auf_niemanden(monkeypatch):
+    """Der wartende Original-Job wuerde den markierten Satz nie neu
+    schreiben (Idempotenz-Schutz), der force-Nachtrag muss also immer."""
+    jobs = _nachtrag(monkeypatch, {
+        "website_finding": "Alter Satz aus dem HTML.",
+        "website_finding_pending_rewrite": True,
+    }, offener_job=True)
+    assert jobs == [("ws-1", "write_website_finding",
+                     {"business_id": "b-1", "force": True})]
