@@ -126,6 +126,14 @@ def run(job: dict) -> None:
     # website_finding seinen Satz laengst geschrieben hat. Gefunden bei der
     # Diff-Inspektion am 2026-08-30.
     if biz.get("website_audit_browser_status") in TERMINAL and not force:
+        # Auch die zweite Zustellung muss den Nachtrag pruefen. Gefunden am
+        # 2026-08-31 (Remodel Authority): der erste Lauf schrieb die Messung
+        # und starb im Redeploy, die Rueckholung stellte den Job erneut zu,
+        # dieser Schutz kehrte um, und der markierte Satz blieb ohne
+        # force-Nachtrag stehen. Der Nachtrag selbst ist doppelt gesichert
+        # (Marker plus offener-Job-Pruefung), ein zweites Einreihen hier ist
+        # also billig, ein fehlendes dauerhaft.
+        _reihe_nachtrag_ein(job, business_id)
         return
 
     url = (biz.get("website") or "").strip()
