@@ -17,6 +17,14 @@ dependencies = [
   "pydantic-settings>=2.4",
   "trafilatura>=1.12",
   "tenacity>=9.0",
+  # Die zweite Stufe des Website-Checks (website_browser.py). Fehlte hier bis
+  # zum 2026-08-31, und das war nicht folgenlos: der Import steckt in
+  # BrowserPool._start und der Fehler wird von measure() gefangen, also endete
+  # jede Messung auf Railway als Ergebnis "failed" statt als Absturz. Gemessen
+  # ueber die letzten 30 Stunden vor dem Einbau: 128 von 143 Messungen mit dem
+  # Grund "No module named 'playwright'", die uebrigen 11 stammten von einem
+  # Entwicklerrechner, auf dem das Paket zufaellig lag.
+  "playwright>=1.47",
 ]
 
 [project.optional-dependencies]

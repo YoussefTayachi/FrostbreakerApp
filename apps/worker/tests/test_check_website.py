@@ -375,6 +375,86 @@ def test_run_ueberspringt_leads_ohne_website(monkeypatch):
     assert writes[0]["website_audit_status"] == "skipped"
 
 
+@pytest.mark.parametrize(
+    "url,erwartet",
+    [
+        # Die sechs Adressen, die am 2026-08-31 tatsaechlich in Maps-Leads
+        # standen. Sie sind der Anlass fuer die ganze Pruefung.
+        ("http://www.fb.me/handymandt", "fb.me"),
+        ("https://www.facebook.com/profile.php?id=61550221437664", "facebook.com"),
+        ("http://www.instagram.com/lauriedrieenhuizen", "instagram.com"),
+        ("https://www.linkedin.com/company/pixel-boost-marketing/", "linkedin.com"),
+        # Landesfassungen und Unterdomaenen duerfen nicht durchrutschen.
+        ("https://de-de.facebook.com/muster", "facebook.com"),
+        ("https://uk.linkedin.com/company/muster", "linkedin.com"),
+    ],
+)
+def test_social_host_erkennt_fremde_profile(url, erwartet):
+    assert website_fetch.social_host(url) == erwartet
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "https://muster.de/",
+        # Baukaesten sind KEINE fremden Profile: das ist die Website des Leads,
+        # und dass sie aus einem Baukasten kommt, ist selbst ein Befund.
+        "https://muster.wixsite.com/handwerk",
+        "https://muster.business.site/",
+        # Der Firmenname darf nicht reichen.
+        "https://facebook-marketing-agentur.de/",
+    ],
+)
+def test_social_host_laesst_echte_websites_in_ruhe(url):
+    assert website_fetch.social_host(url) is None
+
+
+def test_run_prueft_kein_facebook_profil(monkeypatch):
+    """Eine Facebook-Seite im Feld website wird nicht abgerufen.
+
+    Ohne respx wuerde jeder echte Abruf hier auffliegen, der Test belegt also
+    beides: kein Netzverkehr und der richtige Endstatus.
+    """
+    writes: list[dict] = []
+    row = {"id": "b-1", "website": "http://www.fb.me/handymandt"}
+    monkeypatch.setattr(check_website, "sb", fake_sb(row, writes))
+    check_website.run(job_for())
+    assert writes[0]["website_audit_status"] == "skipped"
+    assert writes[0]["website_audit"]["skipped_reason"] == "social_profile"
+    assert writes[0]["website_audit"]["social_host"] == "fb.me"
+
+
+def test_run_reiht_fuer_ein_fremdes_profil_keinen_browser_ein(monkeypatch):
+    """Sonst wartete write_website_finding auf eine Messung, die nie kommt."""
+    writes: list[dict] = []
+    jobs: list = []
+    row = {"id": "b-1", "website": "https://www.instagram.com/muster/"}
+    monkeypatch.setattr(check_website, "sb", fake_sb(row, writes))
+    monkeypatch.setattr(check_website, "enqueue", lambda *a, **k: jobs.append(a))
+    check_website.run(job_for())
+    assert jobs == []
+    assert writes[0].get("browser_audit_required") is None
+
+
+def test_ein_uebersprungenes_profil_ergibt_keinen_befundsatz():
+    """Der Endnachweis: aus dem, was oben geschrieben wird, entsteht kein Satz.
+
+    Genau das ist am 2026-08-31 schiefgegangen. "Westhoughton Handyman" stand
+    auf fb.me und bekam den fertigen Satz "Your homepage does not provide a
+    direct way to contact you" ueber eine Facebook-Seite.
+    """
+    from worker.pipelines import website_finding
+
+    biz = {
+        "website_audit": {
+            "checked_url": "http://www.fb.me/handymandt",
+            "skipped_reason": "social_profile",
+            "social_host": "fb.me",
+        }
+    }
+    assert website_finding.finding_context(biz) is None
+
+
 def test_run_prueft_nicht_zweimal(monkeypatch):
     writes: list[dict] = []
     row = {"id": "b-1", "website": "https://muster.de/", "website_audit_status": "ok"}

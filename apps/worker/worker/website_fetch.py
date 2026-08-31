@@ -87,6 +87,65 @@ def normalize_url(raw: str | None) -> str | None:
     return url
 
 
+# Adressen, hinter denen KEINE eigene Website steht, sondern ein fremdes
+# Profil. Der Website-Check darf sie nicht auswerten: die Befunde waeren zwar
+# technisch richtig, aber sie gehoerten Facebook und nicht dem Lead.
+#
+# GEMESSEN AM 2026-08-31, und deshalb steht diese Liste ueberhaupt hier: von
+# 1.832 Maps-Leads mit hinterlegter Website hatten 6 ein Profil im Feld
+# (fb.me, facebook.com, 2x instagram.com, 2x linkedin.com). Einer davon,
+# "Westhoughton Handyman" auf fb.me/handymandt, hat es bis zu einem fertigen
+# Befundsatz geschafft: "Your homepage does not provide a direct way to
+# contact you." Ueber eine Facebook-Seite. Die anderen fuenf blieben nur
+# deshalb ohne Satz, weil die Netzwerke den Abruf selbst abgewiesen haben,
+# also aus Glueck und nicht aus Logik.
+#
+# WARUM DAS EIN MAPS-PROBLEM IST: Google Places gibt zurueck, was die Firma in
+# ihrem Eintrag hinterlegt hat, und fuer viele kleine Betriebe ist das ihre
+# Facebook-Seite. Apollo und Hunter liefern eine Firmendomain, dort ist der
+# Fall nie aufgetreten (0 von 2.677 Apollo-Leads).
+#
+# Die Liste ist bewusst kurz und enthaelt nur Hosts, die eine Firma anstelle
+# einer Website eintraegt. Baukaesten mit eigener Subdomain (wixsite.com,
+# weebly.com, business.site) stehen NICHT drin: das IST die Website des
+# Leads, und dass sie aus einem Baukasten kommt, ist selbst ein Befund
+# (website_audit: site_builder).
+_SOCIAL_HOSTS = frozenset({
+    "facebook.com", "fb.me", "fb.com", "m.facebook.com",
+    "instagram.com",
+    "linkedin.com",
+    "x.com", "twitter.com",
+    "tiktok.com",
+    "youtube.com", "youtu.be",
+    "linktr.ee",
+    "yelp.com", "yelp.co.uk",
+    "nextdoor.com", "nextdoor.co.uk",
+})
+
+
+def social_host(url: str | None) -> str | None:
+    """Der Name des Netzwerks, wenn diese Adresse ein fremdes Profil ist.
+
+    Liefert None fuer alles andere, also fuer den Normalfall. Vergleicht auf
+    dem Host ohne "www." und erlaubt Unterdomaenen (de-de.facebook.com), damit
+    eine Landesfassung nicht durchrutscht.
+    """
+    host = (urlparse(url or "").hostname or "").lower()
+    if not host:
+        return None
+    host = host.removeprefix("www.")
+    if host in _SOCIAL_HOSTS:
+        return host
+    # Unterdomaenen: der Vergleich laeuft ueber die letzten beiden bzw. drei
+    # Bestandteile, weil "de-de.facebook.com" und "uk.linkedin.com" derselbe
+    # Fall sind wie der nackte Host.
+    teile = host.split(".")
+    for n in (2, 3):
+        if len(teile) > n and ".".join(teile[-n:]) in _SOCIAL_HOSTS:
+            return ".".join(teile[-n:])
+    return None
+
+
 def http_variant(url: str) -> str:
     """Dieselbe Adresse ueber http statt https."""
     parsed = urlparse(url)

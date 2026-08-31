@@ -214,6 +214,27 @@ def run(job: dict) -> None:
         _write(business_id, "skipped")
         return
 
+    # Kein Abruf, wenn hinter der "Website" ein fremdes Profil steckt. Der
+    # Befund waere sonst wahr und trotzdem falsch adressiert: er gehoerte
+    # Facebook und nicht dem Lead, und der Empfaenger kann ihn weder
+    # nachvollziehen noch abstellen. Siehe website_fetch._SOCIAL_HOSTS fuer
+    # die Messung, aus der die Liste stammt.
+    #
+    # 'skipped' und nicht 'ok' mit leerer Befundliste: die beiden bedeuten
+    # etwas Verschiedenes ("geprueft, nichts gefunden" gegen "gar nicht erst
+    # geprueft"), und nur so bleibt in der Datenbank sichtbar, warum dieser
+    # Lead ohne Satz dasteht. browser_folgt bleibt aus, sonst wartete
+    # write_website_finding auf eine Messung, die niemand einreiht.
+    netzwerk = website_fetch.social_host(url)
+    if netzwerk:
+        log.info("Website %s ist ein %s-Profil, kein Check", url, netzwerk)
+        _write(
+            business_id,
+            "skipped",
+            {"checked_url": url, "skipped_reason": "social_profile", "social_host": netzwerk},
+        )
+        return
+
     try:
         status, audit = inspect_page(url)
     except httpx.HTTPError as exc:
