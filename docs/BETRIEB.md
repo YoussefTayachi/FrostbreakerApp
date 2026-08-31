@@ -148,7 +148,19 @@ wie instantly-sync). Sie tut zwei Dinge:
    stehen. Beide lösen sich von selbst auf, wenn der Zustand wieder
    gesund ist.
 
-### Wenn das Pro-Abo kommt: die Checkliste
+### Eingerichtet am 2026-08-31, mit Pro-Abo
+
+Die Checkliste unten ist an diesem Tag komplett durchlaufen worden:
+`WORKER_CONCURRENCY=4` aktiv (Log: "Worker gestartet, 4 Faeden, Spur:
+alle"), die drei RAILWAY_*-Variablen liegen in Vercel Production,
+`RAILWAY_ENVIRONMENT_ID` ist `4029da24-2dd3-4cd7-9cce-b7f761853b96`. Der
+erste Scharfschuss der Route lieferte HTTP 200 mit gelesener Replikzahl,
+und fuenf Minuten spaeter hat der Cron selbstaendig von 2 auf 1 Replik
+heruntergeschaltet -- alle drei GraphQL-Aufrufe sind damit am echten Konto
+belegt. Der Token heisst `frostbreaker-scale` und laesst sich unter
+railway.com/account/tokens jederzeit widerrufen und ersetzen.
+
+### Die Checkliste (fuer eine Neueinrichtung)
 
 1. Railway: Pro aktivieren, am Worker-Service `WORKER_CONCURRENCY=4`
    setzen.
