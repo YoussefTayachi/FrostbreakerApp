@@ -56,6 +56,30 @@ def test_wand_am_element_erkannt():
     assert wb.wall_reason("", ["#challenge-form"]) is not None
 
 
+def test_wand_nur_im_titel_erkannt():
+    """Der gemessene Fall vom 2026-08-31: transcendentroofing.com.
+
+    Die Sperre lieferte HTTP 202 mit dem Titel "Robot Challenge Screen" und
+    187 Zeichen Text, in denen keines der Merkmale stand. Die Messung galt als
+    gelungen, und ihre Zahlen beschrieben die Sperrseite: kein og:image, keine
+    Telefonlinks, keine Formulare, keine Beschreibung. Seither geht der Titel
+    mit in den Abgleich.
+    """
+    koerper = "transcendentroofing.com verify you are human by completing the action below."
+    assert wb.wall_reason(koerper, []) is None
+    assert wb.wall_reason(koerper + " robot challenge screen", []) is not None
+
+
+def test_ein_langer_titel_macht_aus_einer_wand_keine_seite():
+    """Der Titel zaehlt beim Erkennen mit, aber NICHT als sichtbarer Text.
+
+    Sonst haette eine Sperrseite mit ausschweifendem Titel genug "Inhalt", um
+    an WALL_MAX_TEXT vorbeizukommen.
+    """
+    kurz = "just a moment"
+    assert wb.wall_reason(kurz + " " + "x" * 900, [], len(kurz)) is not None
+
+
 def test_normale_seite_ist_keine_wand():
     assert wb.wall_reason("Willkommen bei Malerei Mueller in Oetz", []) is None
 

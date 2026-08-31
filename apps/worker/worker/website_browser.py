@@ -88,6 +88,12 @@ _WALL_MARKERS = (
     "attention required! | cloudflare",
     "access denied",
     "are you a robot",
+    # GEMESSEN AM 2026-08-31 an transcendentroofing.com: die Sperre lieferte
+    # HTTP 202 mit dem Titel "Robot Challenge Screen" und 187 Zeichen
+    # sichtbarem Text. Die Messung galt als 'completed', und die Zahlen darin
+    # (kein og:image, keine Telefonlinks, keine Formulare, keine
+    # Beschreibung) beschrieben die Sperrseite und nicht die Website.
+    "robot challenge screen",
 )
 _WALL_SELECTORS = (
     "#challenge-form",
@@ -342,6 +348,7 @@ WAND_JS = """
   const text = (document.body.innerText || "").toLowerCase().slice(0, 3000);
   return {
     text: text,
+    titel: (document.title || "").toLowerCase().slice(0, 300),
     treffer: sel.filter(s => !!document.querySelector(s)),
   };
 }
@@ -505,8 +512,15 @@ def measure(url: str, *, pool=None, screenshot_dir=None, screenshot_name: str | 
         # VOR den Sonden, damit ein Cookie-Banner nicht als leere Seite in die
         # Auswertung geht.
         wand = seite.evaluate(WAND_JS, list(_WALL_SELECTORS))
-        grund = wall_reason(
-            wand.get("text", ""), wand.get("treffer", []), len(wand.get("text", "")))
+        # Der TITEL gehoert mit in den Abgleich, der sichtbare Text aber NICHT
+        # laenger dadurch: sonst haette eine Sperrseite mit langem Titel
+        # ploetzlich genug "Inhalt", um die WALL_MAX_TEXT-Regel zu bestehen.
+        # Am 2026-08-31 war der Titel die einzige Stelle, an der die Sperre von
+        # transcendentroofing.com ueberhaupt zu erkennen war; im Body stand
+        # keines der Merkmale.
+        koerper = wand.get("text", "")
+        text_und_titel = koerper + " " + (wand.get("titel") or "")
+        grund = wall_reason(text_und_titel, wand.get("treffer", []), len(koerper))
         if grund:
             m.status = "inconclusive"
             m.reason = grund

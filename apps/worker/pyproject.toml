@@ -49,3 +49,15 @@ line-length = 100
 # Anbieter-Alarms auch nicht (main). Wer diese Regeln einschaltet, bekommt 15
 # noqa-Kommentare und keinen einzigen gefundenen Fehler.
 select = ["E4", "E7", "E9", "F", "I", "SIM", "FURB"]
+
+[tool.pytest.ini_options]
+# tests/test_confirm_unreachable.py holt sich HTML und fake_sb aus
+# tests/test_check_website.py ("from tests.test_check_website import ..."), und
+# dafuer muss apps/worker selbst importierbar sein.
+#
+# Lokal faellt das nicht auf, weil "python -m pytest" das aktuelle Verzeichnis
+# von sich aus auf den Suchpfad legt. CI ruft "pytest" ohne -m auf, und dort
+# fehlte es: ModuleNotFoundError beim Einsammeln, kein einziger Test gelaufen.
+# Sichtbar wurde es erst am 2026-08-31, weil davor schon der Lint-Schritt
+# abbrach und der Test-Schritt gar nicht mehr dran kam.
+pythonpath = ["."]
