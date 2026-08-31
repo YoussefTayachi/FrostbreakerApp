@@ -69,8 +69,8 @@ def aufraeumen(verzeichnis: str = SCREENSHOT_DIR, tage: int = SCREENSHOT_KEEP_DA
     Aufraeumen, das einen Zeitplan braucht, wird beim naechsten Rechnerwechsel
     vergessen.
     """
-    from pathlib import Path
     import time
+    from pathlib import Path
 
     ordner = Path(verzeichnis)
     if not ordner.is_dir():

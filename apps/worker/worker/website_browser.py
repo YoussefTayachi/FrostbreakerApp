@@ -445,8 +445,8 @@ def _sperre_fremde_ziele(kontext, gesperrt: list[str]) -> None:
         except Exception:
             # Ein Fehler im Handler darf die Messung nicht aufhaengen. Im
             # Zweifel wird abgebrochen und nicht durchgelassen.
-            try:
-                route.abort()
+            try:  # noqa: SIM105 - contextlib.suppress im Route-Handler kostet
+                route.abort()  # bei jeder einzelnen Anfrage einen Kontextmanager
             except Exception:
                 pass
 
@@ -579,7 +579,7 @@ def measure(url: str, *, pool=None, screenshot_dir=None, screenshot_name: str | 
         m.reason = str(e).split("\n")[0][:200]
     finally:
         if kontext is not None:
-            try:
+            try:  # noqa: SIM105 - bewusst stumm, siehe finally-Block
                 kontext.close()
             except Exception:
                 pass

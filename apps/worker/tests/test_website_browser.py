@@ -14,7 +14,6 @@ import pytest
 from worker import website_audit as wa
 from worker import website_browser as wb
 
-
 # ── Zieladressen ───────────────────────────────────────────────────────────
 
 

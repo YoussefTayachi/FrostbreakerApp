@@ -47,7 +47,6 @@ import logging
 import pathlib
 import time
 from collections import Counter
-
 from datetime import datetime, timezone
 
 from worker import website_audit, website_browser
@@ -213,7 +212,7 @@ def lauf(limit: int | None = None, alle: bool = False, parallel: int = PARALLEL,
         f.start()
     for _ in range(len(adressen)):
         url, m = ergebnisse.get()
-        fertig += 1
+        fertig += 1  # noqa: SIM113 - enumerate ueber range(len(...)) laese schlechter
         zustaende[m["status"]] += 1
         dauern.append(m["duration_ms"])
         for f_ in website_audit.browser_findings(m):
