@@ -177,10 +177,20 @@ def test_alle_codes_haben_einen_text():
         assert wa.CONSEQUENCE_DE.get(code), code
 
 
-def test_keine_folge_behauptet_geld():
+def test_keine_folge_behauptet_geld_oder_psychologie():
     """Eine Umsatz- oder Conversion-Aussage ist eine Kausalkette, die niemand
-    belegen kann, und in einer Kaltmail beim ersten Zweifel das Ende."""
-    verboten = ("umsatz", "conversion", "prozent", "%", "euro", "verlier")
+    belegen kann, und in einer Kaltmail beim ersten Zweifel das Ende.
+
+    Seit dem 2026-09-01 gilt dasselbe fuer erfundene Besucher-Psychologie
+    ("springt ab", "haelt den Betrieb fuer eingeschlafen", "fragt beim
+    naechsten Anbieter an"): Youssefs Mentor hat solche Saetze als "invented
+    filler" gestrichen. Die Folge beschreibt nur, was ein Besucher sieht oder
+    tun muss."""
+    verboten = (
+        "umsatz", "conversion", "prozent", "%", "euro", "verlier",
+        "vertrau", "springen ab", "springt ab", "naechsten anbieter",
+        "eingeschlafen", "interess",
+    )
     for code, folge in wa.CONSEQUENCE_DE.items():
         unten = folge.lower()
         for wort in verboten:

@@ -203,6 +203,11 @@ const SEQUENCE_DE: DraftStep[] = [
       },
     ],
   },
+  // Stufen 2 und 3 am 2026-09-01 nach Mentor-Feedback neu geschrieben: die
+  // alten Fassungen erfanden Besucher-Verhalten ("jeder neue Besucher sieht
+  // ihn zuerst", "kostet dich stillschweigend Anfragen"). Neue Regel: die
+  // Folgemails wiederholen das Angebot und seine Bedingungen, sie erfinden
+  // keine Szene, die niemand beobachtet hat.
   {
     delayDays: DEFAULT_DELAYS[1],
     variants: [
@@ -211,7 +216,7 @@ const SEQUENCE_DE: DraftStep[] = [
         body: [
           "Hi {{firstName}}, kurz zurück zu meiner letzten Mail.",
           "",
-          "Der Fehler von eben bleibt sichtbar, solange sich nichts ändert, und jeder neue Besucher sieht ihn zuerst.",
+          "Das Angebot steht noch: eine kurze Liste der Fehler auf deiner Seite, kostenlos, Lesezeit unter einer Minute.",
           "",
           MICRO_YES_DE,
         ].join("\n"),
@@ -221,7 +226,7 @@ const SEQUENCE_DE: DraftStep[] = [
         body: [
           "Hi {{firstName}}, noch mal kurz zu meiner Mail von eben.",
           "",
-          "Je länger die Stelle offen bleibt, desto mehr Erstbesucher bekommen sie zu sehen, nicht du.",
+          "Die Liste gehört dir, wenn du sie willst: jeder gefundene Fehler, in einfachen Worten erklärt.",
           "",
           MICRO_YES_DE,
         ].join("\n"),
@@ -236,7 +241,7 @@ const SEQUENCE_DE: DraftStep[] = [
         body: [
           "Hi {{firstName}}, kurz zusammengefasst.",
           "",
-          "Der Fehler auf deiner Website kostet dich stillschweigend Anfragen, jeden Tag, ohne dass es irgendwo auffällt.",
+          "Du bekommst die Liste, liest sie in einer Minute und entscheidest selbst, was du damit machst. Mehr passiert nicht.",
           "",
           MICRO_YES_DE,
         ].join("\n"),
@@ -246,7 +251,7 @@ const SEQUENCE_DE: DraftStep[] = [
         body: [
           "Hi {{firstName}}, in einem Satz.",
           "",
-          "Solange die Stelle offen bleibt, verlierst du Besucher, bevor sie überhaupt dein Angebot sehen.",
+          "Ein Ja startet nichts. Es sagt mir nur, dass ich dir die Liste schicken soll.",
           "",
           MICRO_YES_DE,
         ].join("\n"),
@@ -330,6 +335,8 @@ const SEQUENCE_EN: DraftStep[] = [
       },
     ],
   },
+  // Stufen 2 und 3 am 2026-09-01 nach Mentor-Feedback neu geschrieben, gleiche
+  // Begruendung wie in der deutschen Fassung oben.
   {
     delayDays: DEFAULT_DELAYS[1],
     variants: [
@@ -338,7 +345,7 @@ const SEQUENCE_EN: DraftStep[] = [
         body: [
           "Hi {{firstName}}, quick follow up on my last note.",
           "",
-          "That spot from before is still showing, and every new visitor sees it first, not you.",
+          "The offer still stands: a short list of what is broken on your site, free, under a minute to read.",
           "",
           MICRO_YES_EN,
         ].join("\n"),
@@ -348,7 +355,7 @@ const SEQUENCE_EN: DraftStep[] = [
         body: [
           "Hi {{firstName}}, back to what I sent over last time.",
           "",
-          "The longer it stays open, the more first time visitors run into it before you ever do.",
+          "The list is yours if you want it: every issue I found on your site, explained in plain words.",
           "",
           MICRO_YES_EN,
         ].join("\n"),
@@ -363,7 +370,7 @@ const SEQUENCE_EN: DraftStep[] = [
         body: [
           "Hi {{firstName}}, short version.",
           "",
-          "That spot on your site quietly costs you inquiries, every day, without ever showing up anywhere.",
+          "You get the list, read it in a minute, and decide for yourself what to do with it. Nothing else happens.",
           "",
           MICRO_YES_EN,
         ].join("\n"),
@@ -373,7 +380,7 @@ const SEQUENCE_EN: DraftStep[] = [
         body: [
           "Hi {{firstName}}, one line version.",
           "",
-          "As long as it stays open, you lose visitors before they ever see what you offer.",
+          "A yes does not start anything. It just tells me to send the list.",
           "",
           MICRO_YES_EN,
         ].join("\n"),

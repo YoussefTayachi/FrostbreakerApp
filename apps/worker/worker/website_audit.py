@@ -143,8 +143,13 @@ MAILABLE_CODES: frozenset[str] = frozenset(FINDING_CODES) - frozenset({
 #   - Keine Gedankenstriche. Sie stehen auf der Verbotsliste der
 #     Personalisierung (DEFAULT_BANNED_WORDS), ein Strich hier wuerde also
 #     eine Korrekturrunde beim Modell ausloesen, die Geld kostet.
-#   - Die Folge muss betriebswirtschaftlich sein, nicht technisch. "Das
-#     Viewport-Meta-Tag fehlt" ist kein Grund, warum jemand antwortet.
+#   - Die Folge beschreibt, was ein Besucher SICHTBAR erlebt oder tun muss,
+#     nie was er angeblich denkt, fuehlt oder als Naechstes tut. "Wirkt
+#     weniger vertrauenswuerdig", "springt ab", "fragt beim Naechsten an" ist
+#     erfundene Psychologie; Youssefs Mentor hat genau solche Saetze am
+#     2026-09-01 aus den Mails gestrichen ("just describe what you actually
+#     found"). Technisch darf sie trotzdem nicht sein: "Das Viewport-Meta-Tag
+#     fehlt" ist kein Satz fuer eine Mail.
 #
 # Die Anzeigetexte der Oberflaeche stehen NICHT hier, sondern in
 # lib/i18n/dict.ts unter leads.audit.<code>.*: das Frontend zeigt sie in zwei
@@ -180,8 +185,7 @@ FACT_DE: dict[str, str] = {
 
 CONSEQUENCE_DE: dict[str, str] = {
     "site_unreachable": (
-        "Wer die Adresse aufruft, landet auf einer Fehlermeldung, und jede Anfrage, "
-        "die dort haette entstehen sollen, geht an den naechsten Anbieter."
+        "Wer die Adresse aufruft, landet auf einer Fehlermeldung statt auf der Website."
     ),
     # KONDITIONAL UND OHNE GELD. Die beiden Browser-Folgen sagen, was ein
     # Besucher TUN MUSS, nicht was es kostet. Eine Umsatz- oder
@@ -207,14 +211,14 @@ CONSEQUENCE_DE: dict[str, str] = {
         "erst wegklicken muss, bevor er die Seite ueberhaupt sieht."
     ),
     "no_https": (
-        "Chrome zeigt seit 2018 'Nicht sicher' in der Adresszeile, Besucher springen ab."
+        "Chrome zeigt seit 2018 'Nicht sicher' in der Adresszeile."
     ),
     "no_viewport": (
-        "Auf dem Handy erscheint die Seite winzig und muss zurechtgezogen werden, "
-        "und ueber die Haelfte der Besucher kommt heute vom Handy."
+        "Auf dem Handy erscheint die Seite winzig und muss mit den Fingern "
+        "zurechtgezogen werden."
     ),
     "stale_copyright": (
-        "Wer das liest, haelt den Betrieb fuer eingeschlafen und fragt gar nicht erst an."
+        "Jeder Besucher, der bis zum Fussbereich scrollt, liest dort dieses alte Datum."
     ),
     "mixed_content": (
         "Browser blockieren diese Teile, dadurch fehlen auf der fertigen Seite "
@@ -233,20 +237,18 @@ CONSEQUENCE_DE: dict[str, str] = {
         "oft wenig mit dem eigentlichen Angebot zu tun hat."
     ),
     "no_contact_route": (
-        "Wer anfragen will, muss erst suchen, und ein Teil davon sucht "
-        "stattdessen den naechsten Anbieter."
+        "Wer anfragen will, muss den Weg dazu erst suchen."
     ),
     "no_tel_link": (
-        "Auf dem Handy muss die Nummer abgeschrieben statt angetippt werden, "
-        "und genau dabei brechen Anrufe ab."
+        "Auf dem Handy muss die Nummer abgeschrieben statt angetippt werden."
     ),
     "no_og_image": (
         "Wer die Adresse weiterleitet, verschickt ein graues Rechteck statt "
-        "eines Bildes, und gerade Empfehlungen laufen ueber solche Links."
+        "eines Bildes."
     ),
     "no_h1": (
-        "Suchmaschinen erfahren dadurch nirgends im Seiteninhalt, worum es "
-        "geht, und ordnen die Seite entsprechend schlechter ein."
+        "Suchmaschinen finden im Seiteninhalt keine Ueberschrift dazu, worum "
+        "es auf der Seite geht."
     ),
 }
 

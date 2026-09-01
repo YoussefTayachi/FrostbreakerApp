@@ -77,6 +77,10 @@ log = logging.getLogger("worker.website_finding")
 # in zwei bis drei Saetzen erklaert, warum er ein Problem ist und was er
 # fuer Besucher bedeutet. Ein Satz mit 20 Woertern kann die Tatsache
 # nennen, die Begruendung passt nicht mehr hinein.
+# Am 2026-09-01 verlangt der Prompt nur noch ein bis zwei BESCHREIBENDE
+# Saetze (Mentor-Feedback, siehe oben); die 55 bleiben trotzdem stehen,
+# weil sie eine Obergrenze sind und ein Absenken jeden schon geschriebenen
+# Befund rueckwirkend in die Pruefliste schoebe.
 #
 # Weiterhin EIN Mangel und nicht drei: {{websiteFinding}} steht in einer
 # Sequenz, die Begruessung, Personalisierung und Aufforderung schon
@@ -86,6 +90,12 @@ FINDING_MAX_WORDS = 55
 
 # Der Standard-Prompt. Getextet vom copywriter am 2026-08-24, wie DEFAULT_PROMPT_DE
 # in apps/web/lib/personalization-defaults.ts.
+#
+# UEBERARBEITET AM 2026-09-01 nach Feedback von Youssefs Mentor: die alte
+# Fassung verlangte "Warum das ein Problem ist" und lud damit zu erfundener
+# Wirkung ein ("less trustworthy", "reduces confidence" standen woertlich in
+# echten Befunden). Neue Regel: nur beschreiben, was gemessen wurde; eine
+# Folge nur, wenn das Material sie als sichtbares Besucher-Erlebnis nennt.
 #
 # WOERTLICHES GEGENSTUECK: DEFAULT_FINDING_PROMPT_DE / _EN in
 # apps/web/lib/website-finding-defaults.ts. Der AI-Agent-Tab zeigt diesen Text
@@ -99,25 +109,27 @@ FINDING_MAX_WORDS = 55
 # Block darunter ist eine Formvorgabe, das hier ist der Auftrag. Wer den Prompt
 # ueberschreibt, soll die inhaltlichen Grenzen mit uebernehmen koennen.
 DEFAULT_FINDING_PROMPT_DE = (
-    "Deine Aufgabe ist es, aus einem geprüften Mangel der Website eines Unternehmens "
-    "zwei bis drei Sätze für eine Cold-Email zu formulieren.\n"
+    "Deine Aufgabe ist es, aus einem gemessenen Mangel der Website eines Unternehmens "
+    "ein bis zwei Sätze für eine Cold-Email zu formulieren.\n"
     "Aufbau:\n"
     "1. Was auf der Website der Fall ist.\n"
-    "2. Warum das ein Problem ist.\n"
-    "3. Was es für jemanden bedeutet, der die Seite besucht.\n"
+    "2. Nur wenn das Material eine sichtbare Folge nennt: was ein Besucher dadurch "
+    "sieht oder tun muss.\n"
     "Regeln:\n"
-    "- Nenne ausschließlich den einen Mangel, der dir übergeben wurde, und die "
-    "dazugehörige Folge. Erfinde keinen zweiten Mangel, keine Zahlen und keine "
-    "Prozentwerte.\n"
+    "- Beschreibe ausschließlich, was gefunden wurde. Erfinde KEINE Wirkung dazu: "
+    "keine Aussagen über Vertrauen, Glaubwürdigkeit, Interesse oder Eindruck, und "
+    "keine Vorhersage, was Besucher denken, fühlen oder als Nächstes tun.\n"
+    "- Nenne nur den einen Mangel, der dir übergeben wurde. Erfinde keinen zweiten "
+    "Mangel, keine Zahlen und keine Prozentwerte.\n"
     "- Behaupte NICHT, was es kostet. Keine Aussagen über entgangenen Umsatz, "
     "verlorene Kunden, Conversion oder Ranking: das kann niemand belegen, und der "
-    "Empfänger merkt es. Bleib bei dem, was ein Besucher erlebt.\n"
+    "Empfänger merkt es.\n"
     "- Der Mangel ist gemessen, nicht vermutet: Schreibe ihn als Tatsache, ohne "
     "Abschwächung wie „vielleicht\" oder „unter Umständen\".\n"
     "- Erwähne NICHT, woher du das weißt: kein „Ich habe gesehen\", kein „Mir ist "
     "aufgefallen\", kein Werkzeug, kein Test, keine Prüfung. Nenne einfach den Mangel.\n"
     "- Baue KEINEN Namen, keine Begrüßung und keine Verabschiedung ein.\n"
-    "- Beschreibe oder verkaufe deine eigene Leistung NICHT. Der Satz benennt das "
+    "- Beschreibe oder verkaufe deine eigene Leistung NICHT. Der Text benennt das "
     "Problem, nicht die Lösung.\n"
     "- Tonfall: ruhig, respektvoll und sachlich. Kein Vorwurf, keine Dramatik, kein "
     "Alarm. Du schreibst jemandem, der an dieser Website gearbeitet hat.\n"
@@ -131,24 +143,26 @@ DEFAULT_FINDING_PROMPT_DE = (
 
 # Inhaltsgleich zu DEFAULT_FINDING_PROMPT_DE, nur auf Englisch.
 DEFAULT_FINDING_PROMPT_EN = (
-    "Your task is to turn one verified flaw on a company's website into two or three "
+    "Your task is to turn one measured flaw on a company's website into one or two "
     "sentences for a cold email.\n"
     "Structure:\n"
     "1. What is the case on the website.\n"
-    "2. Why that is a problem.\n"
-    "3. What it means for someone visiting the site.\n"
+    "2. Only if the material names a visible effect: what a visitor sees or has to "
+    "do because of it.\n"
     "Rules:\n"
-    "- Name only the one flaw you were given and its stated consequence. Do not "
-    "invent a second flaw, any numbers or any percentages.\n"
+    "- Describe only what was found. Do NOT invent an effect on top: no claims about "
+    "trust, credibility, interest or impression, and no prediction of what visitors "
+    "will think, feel or do next.\n"
+    "- Name only the one flaw you were given. Do not invent a second flaw, any "
+    "numbers or any percentages.\n"
     "- Do NOT claim what it costs. No lost revenue, no lost customers, no conversion "
-    "or ranking claims: nobody can back those up and the reader notices. Stay with "
-    "what a visitor experiences.\n"
+    "or ranking claims: nobody can back those up and the reader notices.\n"
     "- The flaw was measured, not guessed: state it as a fact, without hedging like "
     "\"maybe\" or \"possibly\".\n"
     "- Do NOT mention how you know: no \"I saw\", no \"I noticed\", no tool, no test, "
     "no audit. Just state the flaw.\n"
     "- Do NOT include any name, greeting or sign-off.\n"
-    "- Do NOT describe or pitch your own service. The sentence names the problem, not "
+    "- Do NOT describe or pitch your own service. The text names the problem, not "
     "the solution.\n"
     "- Tone: calm, respectful and plain. No blame, no drama, no alarm. You are "
     "writing to someone who worked on this website.\n"
@@ -293,7 +307,11 @@ def finding_context(biz: dict) -> str | None:
     evidence = (finding.get("evidence") or "").strip()
     if evidence:
         lines.append(f"Wörtlich auf der Seite gefunden: {evidence}")
-    lines.append(f"Folge für das Unternehmen: {consequence}")
+    # Seit dem 2026-09-01 heisst die Zeile nicht mehr "Folge für das
+    # Unternehmen": das Etikett lud das Modell ein, eine Geschaeftswirkung
+    # dazuzuerfinden. CONSEQUENCE_DE ist seitdem auf sichtbares
+    # Besucher-Erlebnis beschnitten, und das Etikett sagt genau das.
+    lines.append(f"Was ein Besucher dadurch sieht oder tun muss: {consequence}")
     return "\n".join(lines)
 
 
