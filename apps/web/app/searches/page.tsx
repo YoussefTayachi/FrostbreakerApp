@@ -51,9 +51,11 @@ export default async function SearchesPage() {
       .order("created_at", { ascending: true }),
     // Nur die Teilsuchen: gebraucht, um den Fehlgrund eines Kind-Jobs an der
     // Gruppenzeile anzeigen zu koennen. Die Gruppe selbst hat keine Jobs.
+    // status kommt mit, weil ein fehlgeschlagener Job NICHT heisst, dass die
+    // Suche gescheitert ist -- siehe die Filterung weiter unten.
     supabase
       .from("searches")
-      .select("id, parent_search_id")
+      .select("id, parent_search_id, status")
       .eq("workspace_id", workspaceId)
       .not("parent_search_id", "is", null),
   ]);
@@ -67,10 +69,30 @@ export default async function SearchesPage() {
   // Ein fehlgeschlagener Job kennt nur die Teilsuche. Angezeigt wird aber die
   // Gruppe; ohne diese Umrechnung bliebe ihre Zeile kommentarlos rot.
   const elternVon = parentByChild(groupLinksRes.data ?? []);
+  // EIN FEHLGESCHLAGENER JOB IST KEINE GESCHEITERTE SUCHE. Gemessen am
+  // 2026-09-10: eine Maps-Gruppe aus drei Staedten stand mit 181 Firmen auf
+  // "fertig", waehrend zwei ihrer get_businesses-Jobs auf 'failed' lagen --
+  // sie hatten ihre Arbeit getan und waren erst danach an einem
+  // Worker-Neustart gestorben (Rueckholung nach 15 Minuten, Migration 0047).
+  // Die Zeile zeigte trotzdem den vollen roten Kasten mit "Worker hat den Job
+  // nicht abgeschlossen", weil hier jeder failed-Job seines Workspace
+  // angezeigt wurde, ohne den Zustand der Suche selbst anzusehen.
+  // Deshalb: nur Suchen, die auch wirklich auf 'failed' stehen.
+  const gescheiterteSuchen = new Set<string>([
+    ...(groupLinksRes.data ?? [])
+      .filter((r) => (r as { status?: string }).status === "failed")
+      .map((r) => r.id as string),
+    // Einzelsuchen ohne Gruppe: ihr Zustand steht in search_overview, dort
+    // unveraendert der eigene (die Ableitung greift nur bei Huellen).
+    ...((data ?? []) as SearchListRow[])
+      .filter((s) => s.status === "failed" && !s.is_search_group)
+      .map((s) => s.id),
+  ]);
   for (const job of failedJobsRes.data ?? []) {
     const jobSearchId = (job.payload as { search_id?: string } | null)?.search_id;
-    const searchId = jobSearchId ? (elternVon[jobSearchId] ?? jobSearchId) : undefined;
-    if (searchId && !errorBySearch[searchId]) errorBySearch[searchId] = job.last_error as string;
+    if (!jobSearchId || !gescheiterteSuchen.has(jobSearchId)) continue;
+    const searchId = elternVon[jobSearchId] ?? jobSearchId;
+    if (!errorBySearch[searchId]) errorBySearch[searchId] = job.last_error as string;
   }
   const statsBySearch = Object.fromEntries(
     (instantlyStatsRes.data ?? []).map((r) => [r.search_id as string, r])

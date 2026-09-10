@@ -499,7 +499,9 @@ def test_queue_website_audits_setzt_pending_vor_dem_einreihen(monkeypatch):
 
     monkeypatch.setattr(get_businesses, "sb", lambda: Recorder())
     monkeypatch.setattr(
-        get_businesses, "enqueue", lambda ws, t, p: calls.append(("enqueue", t, p["business_id"]))
+        get_businesses,
+        "enqueue_many",
+        lambda ws, t, ps: calls.append(("enqueue_many", t, [p["business_id"] for p in ps])),
     )
     get_businesses._queue_website_audits(
         "ws-1",
@@ -511,25 +513,23 @@ def test_queue_website_audits_setzt_pending_vor_dem_einreihen(monkeypatch):
         ],
     )
     kinds = [c[0] for c in calls]
-    assert kinds == ["update", "in_", "enqueue", "enqueue", "enqueue", "enqueue"]
+    assert kinds == ["update", "in_", "enqueue_many", "enqueue_many"]
     assert calls[0][1] == {"website_audit_status": "pending"}
     assert calls[1][1] == ["b-1", "b-4"]  # ohne Website kein Job
-    assert [c[2] for c in calls[2:]] == ["b-1", "b-4", "b-1", "b-4"]
+    assert [c[2] for c in calls[2:]] == [["b-1", "b-4"], ["b-1", "b-4"]]
     # ERST alle Pruefungen, DANN alle Befundsaetze: verschraenkt eingereiht
     # traefe jeder Befundsatz-Job seine eigene Pruefung noch laufend an.
-    assert [c[1] for c in calls[2:]] == [
-        "check_website",
-        "check_website",
-        "write_website_finding",
-        "write_website_finding",
-    ]
+    # Beide Stapel gehen als je EIN Aufruf hinaus (seit 2026-09-10, siehe
+    # queue.enqueue_many): 60 einzelne Inserts waren die Gelegenheit, bei
+    # der die Verbindung zu PostgREST mitten im Stoss abriss.
+    assert [c[1] for c in calls[2:]] == ["check_website", "write_website_finding"]
 
 
 def test_queue_website_audits_ruehrt_nichts_an_wenn_niemand_eine_website_hat(monkeypatch):
     monkeypatch.setattr(
         get_businesses, "sb", lambda: pytest.fail("kein Update ohne Kandidaten")
     )
-    monkeypatch.setattr(get_businesses, "enqueue", lambda *a: pytest.fail("kein Job"))
+    monkeypatch.setattr(get_businesses, "enqueue_many", lambda *a: pytest.fail("kein Job"))
     get_businesses._queue_website_audits("ws-1", [{"id": "b-1", "website": None}])
 
 

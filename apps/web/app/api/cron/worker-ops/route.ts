@@ -108,10 +108,52 @@ type ScaleErgebnis = {
   aktuell?: number;
   ziel?: number;
   geaendert?: boolean;
+  gesperrt?: boolean;
   fehler?: unknown;
 };
 
-async function skaliere(lage: QueueLage, lebendigeWorker: number): Promise<ScaleErgebnis> {
+/**
+ * Wie lange nach einem Rollout kein weiterer ausgeloest wird.
+ *
+ * GEMESSEN AM 2026-09-10: die Drift-Pruefung unten hat sich fuenfmal in elf
+ * Minuten selbst nachgezogen (15:06, 15:07, 15:10, 15:13, 15:16), weil
+ * waehrend eines Rollouts genau der Zustand herrscht, den sie fuer eine
+ * Fehlbesetzung haelt -- alte Repliken tot, neue noch ohne Lebenszeichen.
+ * Jeder dieser Rollouts hat die Jobs seiner Repliken fallen lassen; zwei
+ * get_businesses-Jobs sind so auf 'failed' gelandet, obwohl ihre Suchen
+ * fertig waren. Details in Migration 0111.
+ *
+ * Zehn Minuten, nicht zwei: ein Railway-Rollout auf sechs Repliken braucht
+ * ein bis drei Minuten, danach kommen die Lebenszeichen im 30-Sekunden-Takt
+ * herein, und der Bestand schwankt noch eine Weile, weil alte und neue
+ * Repliken sich ueberlappen. Die Frist kostet nichts: eine Fehlbesetzung,
+ * die wirklich besteht (der gemessene Fall vom 2026-08-31), besteht auch
+ * zehn Minuten spaeter noch und wird dann ausgerollt.
+ */
+const ROLLOUT_SPERRE_MINUTEN = 10;
+
+async function letzterRollout(supabase: SupabaseClient): Promise<Date | null> {
+  const { data } = await supabase
+    .from("worker_ops_state")
+    .select("last_rollout_at")
+    .eq("id", true)
+    .maybeSingle();
+  const wert = data?.last_rollout_at as string | null | undefined;
+  return wert ? new Date(wert) : null;
+}
+
+async function merkeRollout(supabase: SupabaseClient): Promise<void> {
+  const jetzt = new Date().toISOString();
+  await supabase
+    .from("worker_ops_state")
+    .upsert({ id: true, last_rollout_at: jetzt, updated_at: jetzt }, { onConflict: "id" });
+}
+
+async function skaliere(
+  supabase: SupabaseClient,
+  lage: QueueLage,
+  lebendigeWorker: number
+): Promise<ScaleErgebnis> {
   const token = process.env.RAILWAY_API_TOKEN;
   const serviceId = process.env.RAILWAY_WORKER_SERVICE_ID;
   const environmentId = process.env.RAILWAY_ENVIRONMENT_ID;
@@ -139,6 +181,12 @@ async function skaliere(lage: QueueLage, lebendigeWorker: number): Promise<Scale
   if (gelesen.errors) return { ziel, fehler: gelesen.errors };
   const instanz = gelesen.data?.serviceInstance as { numReplicas?: number } | undefined;
   const aktuell = instanz?.numReplicas ?? 0;
+  // Ein Rollout dauert laenger als der Minutentakt dieser Route. Solange er
+  // laeuft, ist jede Aussage ueber die Zahl lebendiger Worker eine
+  // Momentaufnahme mitten im Umbau; darauf darf nichts entschieden werden.
+  const letzter = await letzterRollout(supabase);
+  const gesperrt =
+    letzter !== null && Date.now() - letzter.getTime() < ROLLOUT_SPERRE_MINUTEN * 60_000;
   if (aktuell === ziel) {
     // EINSTELLUNG UND WIRKLICHKEIT KOENNEN AUSEINANDERLAUFEN. Gemessen beim
     // Limit-Test am 2026-08-31: ein Git-Push mitten im Burst erzeugte ein
@@ -153,6 +201,17 @@ async function skaliere(lage: QueueLage, lebendigeWorker: number): Promise<Scale
     // erneut ausrollen, eine Schleife aus Neustarts. Bei 6 gewollten und 2
     // tatsaechlichen Workern (der gemessene Fall) feuert sie; bei 6
     // gewollten und 4 gerade hochkommenden schweigt sie.
+    //
+    // DIE GROBE SCHWELLE HAT NICHT GEREICHT. Am 2026-09-10 stand nach jedem
+    // Rollout wieder 2 von 6 in der Tabelle, weil die alten Repliken beim
+    // Umbau sofort sterben und die neuen bis zu einer halben Minute
+    // brauchen. Fuenf Rollouts in elf Minuten waren die Folge, jeder mit
+    // fallengelassenen Jobs. Erst die Sperrfrist hat die Schleife
+    // geschlossen; die Schwelle allein kann es nicht, weil sie nichts
+    // darueber weiss, ob gerade umgebaut wird.
+    if (gesperrt) {
+      return { aktuell, ziel, geaendert: false, gesperrt: true };
+    }
     if (ziel > 1 && lebendigeWorker < Math.ceil(ziel / 2)) {
       const ausgerollt = await railwayGraphql(
         token,
@@ -162,6 +221,7 @@ async function skaliere(lage: QueueLage, lebendigeWorker: number): Promise<Scale
         { serviceId, environmentId }
       );
       if (ausgerollt.errors) return { aktuell, ziel, fehler: ausgerollt.errors };
+      await merkeRollout(supabase);
       return { aktuell, ziel, geaendert: true };
     }
     return { aktuell, ziel, geaendert: false };
@@ -187,6 +247,11 @@ async function skaliere(lage: QueueLage, lebendigeWorker: number): Promise<Scale
     { serviceId, environmentId }
   );
   if (ausgerollt.errors) return { aktuell, ziel, fehler: ausgerollt.errors };
+  // Auch das gewollte Hoch- und Herunterfahren startet den Dienst neu. Es
+  // setzt die Sperrfrist deshalb genauso, sonst haette die Drift-Pruefung
+  // eine Minute spaeter genau den Umbau vor sich, den diese Zeile
+  // ausgeloest hat -- der Anfang der gemessenen Schleife vom 2026-09-10.
+  await merkeRollout(supabase);
   return { aktuell, ziel, geaendert: true };
 }
 
@@ -298,7 +363,7 @@ export async function POST(req: Request) {
     .select("worker", { count: "exact", head: true })
     .gte("last_seen_at", new Date(Date.now() - 2 * 60_000).toISOString());
   const [skalierung, waechter] = await Promise.all([
-    skaliere(lage, lebendige ?? 0),
+    skaliere(supabase, lage, lebendige ?? 0),
     wache(supabase),
   ]);
   return NextResponse.json({ lage, lebendige_worker: lebendige ?? 0, skalierung, waechter });

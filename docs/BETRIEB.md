@@ -140,6 +140,16 @@ wie instantly-sync). Sie tut zwei Dinge:
    `curl` mit dem CRON_SECRET zeigt sie. Jede Änderung der Replikzahl
    löst ein Redeploy aus; laufende Jobs fallen in die
    15-Minuten-Rückholung.
+   **Sperrfrist von 10 Minuten nach jedem Rollout** (Migration 0111): die
+   Drift-Prüfung („weniger als die Hälfte der Zielrepliken meldet sich")
+   hat sich am 2026-09-10 fünfmal in elf Minuten selbst nachgezogen, weil
+   während eines Rollouts genau dieser Zustand herrscht. Die Antworten des
+   Crons stehen in `net._http_response` und zeigen es Minute für Minute:
+   15:06, 15:07, 15:10, 15:13, 15:16 jeweils `geaendert: true` bei
+   `ziel: 6` und `lebendige_worker: 2`, dazwischen um 15:08 acht lebendige
+   Worker. Railway hat dabei nichts falsch gemacht, die sechs kamen hoch.
+   Seither steht `worker_ops_state.last_rollout_at` dagegen; in der Antwort
+   der Route erscheint `gesperrt: true`, wenn die Frist greift.
 2. **Wachen.** Zwei Prüfungen gegen stille Ausfälle, gemeldet als
    `provider_alerts` (Provider `worker-browser` und `worker-queue`, Mail
    über die bestehende Alarm-Strecke in instantly-sync): Browser-Fehlerquote
@@ -473,6 +483,8 @@ bleibt die Sende-Infrastruktur, siehe Kommentar in `worker/main.py`.
 |---|---|
 | Suche bleibt auf „läuft", nichts passiert | Railway: Guthaben aufgebraucht? Service online? Logs zeigen `claim_job`-Polls im 5-Sekunden-Takt, wenn er lebt |
 | Jobs hängen auf `running` | Wurde der Worker neu deployt? Reclaim greift nach 15 Min automatisch |
+| „Worker hat den Job nicht abgeschlossen" an einer fertigen Suche | `select locked_by, min(locked_at), max(locked_at) from jobs where locked_at > now() - interval '2 hours' group by 1 order by 2`. Viele kurzlebige Hostnamen heißt Neustartschleife; dann `net._http_response` nach `geaendert: true` durchsehen |
+| `Server disconnected` in `jobs.last_error` | Verbindungsabriss zu PostgREST, kein Serverfehler. Zur Gegenprobe die Edge-Logs derselben Minute: stehen dort nur 2xx, war es die Verbindung |
 | Antworten kommen nicht in der App an | Vercel-Logs der Route `api/cron/instantly-sync`; danach Instantlys Rate-Limit (20/Min) |
 | Antwort-Benachrichtigung kommt nicht | Einstellungen → „Testmail senden". Der Knopf zeigt Resends Originalfehler |
 | Kampagnenliste leer | Nicht mehr stillschweigend möglich: die Route meldet DB-Fehler jetzt explizit (Session 3) |

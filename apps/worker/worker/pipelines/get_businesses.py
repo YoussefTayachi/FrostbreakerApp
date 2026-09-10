@@ -31,7 +31,7 @@ from worker.http_safety import raise_for_status_safe
 from worker.keys import get_api_key
 from worker.pipelines import apollo, prospeo
 from worker.pipelines.discover import discover_companies, parse_discover_company
-from worker.queue import enqueue
+from worker.queue import enqueue_many
 from worker.search_state import SearchCancelled, search_is_cancelled
 from worker.suppression import domain_of, is_suppressed, load_suppression
 
@@ -749,16 +749,18 @@ def _queue_website_audits(ws: str, rows: list[dict]) -> None:
 
     Ein einziges Update fuer die ganze Liste statt eines pro Firma: bei 300
     Firmen waeren das 300 zusaetzliche Netzaufrufe, bevor der erste Job
-    ueberhaupt losgelaufen ist.
+    ueberhaupt losgelaufen ist. Aus demselben Grund gehen auch die Jobs
+    selbst als zwei Sammel-Inserts hinaus und nicht einzeln
+    (queue.enqueue_many, gemessener Anlass am 2026-09-10 dort beschrieben).
+    Die Reihenfolge aus Punkt 2 bleibt dabei erhalten: erst alle
+    Pruefungen, dann alle Befundsaetze.
     """
     ids = [b["id"] for b in rows if (b.get("website") or "").strip()]
     if not ids:
         return
     sb().table("businesses").update({"website_audit_status": "pending"}).in_("id", ids).execute()
-    for business_id in ids:
-        enqueue(ws, "check_website", {"business_id": business_id})
-    for business_id in ids:
-        enqueue(ws, "write_website_finding", {"business_id": business_id})
+    enqueue_many(ws, "check_website", [{"business_id": i} for i in ids])
+    enqueue_many(ws, "write_website_finding", [{"business_id": i} for i in ids])
 
 
 def _finish(search_id: str, ws: str, auto_enrich: bool, source: str) -> None:
@@ -819,8 +821,7 @@ def _finish(search_id: str, ws: str, auto_enrich: bool, source: str) -> None:
         # write_website_finding-Job, den diese Funktion mit einreiht.
         _queue_website_audits(ws, rows)
         if not skip_personalize:
-            for b in rows:
-                enqueue(ws, "personalize", {"business_id": b["id"]})
+            enqueue_many(ws, "personalize", [{"business_id": b["id"]} for b in rows])
         return
     # Genau EINE Adressquelle pro Suchweg. Vorher liefen bei Maps beide
     # (KI-Websuche UND Hunter), was denselben Kontakt zweimal bezahlte: einmal
@@ -860,17 +861,18 @@ def _finish(search_id: str, ws: str, auto_enrich: bool, source: str) -> None:
         # Recherche und Icebreaker reiht website_finding ein, je Firma mit
         # Befund. Hier ist damit alles getan.
         return
-    for b in rows:
-        if use_hunter:
-            if b.get("website"):
-                enqueue(ws, "hunt_persons", {"business_id": b["id"]})
-        else:
-            enqueue(ws, "find_decisionmaker", {"business_id": b["id"]})
-        # personalize funktioniert auch ohne Website (Basis: company_summary aus
-        # find_decisionmaker); wartet ueber NotReadyYet + Queue-Retry, falls die
-        # Recherche noch laeuft.
-        if not skip_personalize:
-            enqueue(ws, "personalize", {"business_id": b["id"]})
+    if use_hunter:
+        enqueue_many(
+            ws, "hunt_persons", [{"business_id": b["id"]} for b in rows if b.get("website")]
+        )
+    else:
+        enqueue_many(ws, "find_decisionmaker", [{"business_id": b["id"]} for b in rows])
+    # personalize funktioniert auch ohne Website (Basis: company_summary aus
+    # find_decisionmaker); wartet ueber NotReadyYet + Queue-Retry, falls die
+    # Recherche noch laeuft. Deshalb auch im Hunter-Zweig fuer ALLE Firmen,
+    # nicht nur fuer die mit Website -- so stand es vorher schon.
+    if not skip_personalize:
+        enqueue_many(ws, "personalize", [{"business_id": b["id"]} for b in rows])
 
 
 def _search_filters(search_id: str) -> dict:

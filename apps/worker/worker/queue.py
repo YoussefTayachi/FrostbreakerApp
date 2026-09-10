@@ -159,3 +159,37 @@ def enqueue(
     if delay_s > 0:
         row["run_at"] = (datetime.now(timezone.utc) + timedelta(seconds=delay_s)).isoformat()
     sb().table("jobs").insert(row).execute()
+
+
+def enqueue_many(
+    workspace_id: str, job_type: str, payloads: list[dict], delay_s: int = 0
+) -> None:
+    """Viele Jobs desselben Typs in EINEM Aufruf einreihen.
+
+    GEMESSEN AM 2026-09-10: get_businesses reihte nach einer Maps-Suche mit
+    60 Firmen rund 240 Jobs ein, jeden mit einem eigenen HTTP-Aufruf, drei
+    Staedte gleichzeitig. Mitten in diesem Stoss brach die HTTP/2-Verbindung
+    zu PostgREST weg ("Server disconnected", httpcore/_sync/http2.py). Die
+    Edge-Logs zeigen fuer dieselbe Minute ausschliesslich 2xx: der Server
+    hat nichts abgelehnt, die eine geteilte Verbindung war zu Ende.
+    Getroffen hat es an dem Tag 14 Jobs quer durch sechs Typen, weil alle
+    Faeden desselben Prozesses auf derselben Verbindung sitzen (db.sb() ist
+    per lru_cache eine einzige Client-Instanz).
+
+    Ein Insert mit 60 Zeilen statt 60 Inserts macht daraus einen Aufruf.
+    Nebenwirkung, die wichtiger ist als die Geschwindigkeit: der Aufruf geht
+    ganz durch oder gar nicht. Vorher konnte ein Abbruch nach der 37. Firma
+    23 Jobs ohne Wiedervorlage zuruecklassen, und der Retry des ganzen
+    get_businesses-Jobs reihte die ersten 37 ein zweites Mal ein.
+
+    Leere Liste ist kein Fehler, sondern der Normalfall (eine Suche, in der
+    keine Firma eine Website hat).
+    """
+    if not payloads:
+        return
+    row: dict = {}
+    if delay_s > 0:
+        row["run_at"] = (datetime.now(timezone.utc) + timedelta(seconds=delay_s)).isoformat()
+    sb().table("jobs").insert(
+        [{"workspace_id": workspace_id, "type": job_type, "payload": p, **row} for p in payloads]
+    ).execute()
