@@ -99,6 +99,14 @@ fährt, bleibt liegen, und die App zeigt nur eine hängende Suche.
 
 ### Ablaufschalter je Suche (`searches.filters`)
 
+- `website_findings: true` — Website-Check und Befundsatz
+  (`{{websiteFinding}}`) laufen überhaupt. Seit dem 2026-09-12 Opt-in:
+  vorher lief die Analyse ungefragt für jede Suche, auch wenn die Kampagne
+  den Befund nie benutzt hat (aufgefallen bei einem Kunden, der über Maps
+  Restaurants für ein Reservierungs-App-Angebot suchte). Im Formular ist
+  das die Checkbox "Website-Schwächen analysieren";
+  `research_after_finding` impliziert den Schalter. Der Icebreaker
+  entsteht unabhängig davon.
 - `research_after_finding: true` — Entscheider-Recherche und Icebreaker
   erst NACH einem Website-Befund, und nur für Firmen, die einen haben
   (website_finding._reihe_anreicherung_ein). Spart ~40 Prozent der

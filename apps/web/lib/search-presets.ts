@@ -80,6 +80,13 @@ export type PresetConfig = {
   maxResults?: number;
   noWebsite: boolean;
   maxRating: number | "";
+  /**
+   * Website-Check und Befundsatz ({{websiteFinding}}) mitlaufen lassen.
+   * Seit 2026-09-12 Opt-in: vorher lief die Analyse ungefragt fuer jede
+   * Suche, auch wenn die Kampagne den Befund nie benutzt hat. Optional,
+   * weil aeltere Vorlagen den Schluessel nicht kennen; fehlend heisst aus.
+   */
+  websiteFindings?: boolean;
   industry: string;
   city: string;
   state?: string;
@@ -171,6 +178,7 @@ export function searchRowToPresetConfig(row: SearchRowForPreset): PresetConfig {
     targetEmails: ziel,
     noWebsite: f.pain_point_no_website === true,
     maxRating: typeof f.pain_point_max_rating === "number" ? f.pain_point_max_rating : "",
+    websiteFindings: f.website_findings === true,
     industry: "",
     city: "",
     state: "",
@@ -214,8 +222,12 @@ export function searchRowToPresetConfig(row: SearchRowForPreset): PresetConfig {
     // Unveraendert uebernehmen: das Objekt in searches.filters IST das
     // Prospeo-Filterobjekt des Formulars (siehe new-search-form.tsx), es gibt
     // hier also nichts zu uebersetzen, und jede Umformung waere eine
-    // Gelegenheit, ein Feld zu verlieren.
-    return { ...basis, prospeoFilters: (row.filters ?? {}) as ProspeoFilters };
+    // Gelegenheit, ein Feld zu verlieren. Einzige Ausnahme: website_findings
+    // ist KEIN Prospeo-Filter, sondern der Ablaufschalter von oben. Bliebe er
+    // im Objekt, truege die Vorlage ihn doppelt, und das Abwaehlen des
+    // Haekchens im Formular waere wirkungslos.
+    const { website_findings: _wf, ...prospeo } = (row.filters ?? {}) as Record<string, unknown>;
+    return { ...basis, prospeoFilters: prospeo as ProspeoFilters };
   }
 
   return basis;

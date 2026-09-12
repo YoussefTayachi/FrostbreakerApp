@@ -645,6 +645,13 @@ export default function NewSearchForm({
   const [techOpen, setTechOpen] = useState(false);
   const [painPointNoWebsite, setPainPointNoWebsite] = useState(false);
   const [painPointMaxRating, setPainPointMaxRating] = useState<number | "">("");
+  // Website-Check und Befundsatz ({{websiteFinding}}) sind seit dem 2026-09-12
+  // Opt-in. Vorher liefen sie ungefragt fuer jede Suche mit: ein Kunde suchte
+  // Restaurants fuer ein Reservierungs-App-Angebot und bekam fuer jede Firma
+  // eine Website-Analyse, die seine Kampagne nie benutzt hat, waehrend die
+  // Suche dadurch spuerbar laenger lief. Standard aus; der Icebreaker
+  // entsteht unabhaengig davon (seit Migration 0103).
+  const [websiteFindings, setWebsiteFindings] = useState(false);
   const [selectedPlaybook, setSelectedPlaybook] = useState("");
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [presets, setPresets] = useState<Preset[]>([]);
@@ -781,6 +788,10 @@ export default function NewSearchForm({
     const painPointFilters: Record<string, unknown> = {};
     if (painPointNoWebsite) painPointFilters.pain_point_no_website = true;
     if (painPointMaxRating !== "") painPointFilters.pain_point_max_rating = painPointMaxRating;
+    // Kein Pain-Point, aber derselbe Transportweg: der Schalter faehrt bei
+    // Maps in painPointFilters mit (Zeilen UND Gruppen-Huelle), bei den drei
+    // anderen Wegen wird er unten je Zweig angehaengt.
+    if (websiteFindings) painPointFilters.website_findings = true;
     const rawResults = estimateRawResults(targetEmails);
 
     let rows: Record<string, unknown>[];
@@ -907,8 +918,10 @@ export default function NewSearchForm({
           // die Zahl der Leads mit E-Mail (contact_email_status=verified).
           max_results: apolloTarget, target_email_count: apolloTarget,
           // Dasselbe Objekt, das der Trefferzaehler gezaehlt hat: die
-          // angezeigte Zahl gilt damit fuer genau diese Suche.
-          filters: apolloFilters,
+          // angezeigte Zahl gilt damit fuer genau diese Suche. Der
+          // website_findings-Schalter kommt erst hier dazu: er aendert nichts
+          // an Apollos Treffern, nur am Ablauf danach.
+          filters: { ...apolloFilters, ...(websiteFindings ? { website_findings: true } : {}) },
         },
       ];
     } else if (mode === "prospeo") {
@@ -939,8 +952,9 @@ export default function NewSearchForm({
           // Zahl die Zahl der Leads MIT verifizierter Adresse; die Pipeline
           // reichert nur mit only_verified_email an.
           max_results: apolloTarget, target_email_count: apolloTarget,
-          // Genau das Objekt, das der Trefferzaehler gezaehlt hat.
-          filters: prospeoFilters,
+          // Genau das Objekt, das der Trefferzaehler gezaehlt hat, plus der
+          // Ablaufschalter, der an Prospeos Treffern nichts aendert.
+          filters: { ...prospeoFilters, ...(websiteFindings ? { website_findings: true } : {}) },
         },
       ];
     } else {
@@ -964,6 +978,7 @@ export default function NewSearchForm({
             // Siehe Apollo-Zweig: leeres Array wuerde den Discover-Offset-
             // Abgleich gegen aeltere Suchen brechen.
             ...(hunterTech.length > 0 ? { technologies: hunterTech } : {}),
+            ...(websiteFindings ? { website_findings: true } : {}),
           },
         },
       ];
@@ -1028,6 +1043,10 @@ export default function NewSearchForm({
     setTargetEmails(preset.targetEmails ?? preset.maxResults ?? 10);
     setPainPointNoWebsite(preset.noWebsite);
     setPainPointMaxRating(preset.maxRating);
+    // ?? false: Vorlagen von vor dem 2026-09-12 kennen den Schluessel nicht,
+    // und ein stehengebliebenes Haekchen der zuvor angesehenen Vorlage waere
+    // genau die Analyse, die niemand bestellt hat.
+    setWebsiteFindings(preset.websiteFindings ?? false);
     setIndustry(preset.industry);
     setCity(preset.city);
     setUsState(preset.state ?? "");
@@ -1116,6 +1135,7 @@ export default function NewSearchForm({
       radius,
       targetEmails,
       noWebsite: painPointNoWebsite, maxRating: painPointMaxRating,
+      websiteFindings,
       industry, city, state: usState, country, headcount, keywords,
       personTitles, apolloCountries, apolloSeniorities, technologies, marketSegments,
       // Bis zum 2026-08-10 fehlte diese Zeile. Eine Prospeo-Vorlage speicherte
@@ -1263,6 +1283,23 @@ export default function NewSearchForm({
           </select>
         </label>
       </div>
+      {/* In allen vier Suchwegen sichtbar: der Worker reiht die Analyse fuer
+          jede Quelle ein, also muss sie auch ueberall abwaehlbar sein. Kein
+          Pain-Point-Filter (der veraendert, WER gefunden wird), sondern ein
+          Ablaufschalter (was DANACH mit den Funden passiert); deshalb steht
+          er hier oben und nicht im eingeklappten Filterblock. */}
+      <label className="flex cursor-pointer items-start gap-2 text-sm text-soft">
+        <input
+          type="checkbox"
+          checked={websiteFindings}
+          onChange={(e) => setWebsiteFindings(e.target.checked)}
+          className="mt-0.5 h-4 w-4 rounded accent-sky-500"
+        />
+        <span>
+          {t.newSearchForm.websiteFindingsToggle}
+          <span className="block text-xs text-mute">{t.newSearchForm.websiteFindingsToggleHint}</span>
+        </span>
+      </label>
       {/* Der Umschalter steht VOR den Feldern, weil er bestimmt, welche Felder
           darunter ueberhaupt stehen — unter dem Formular waere er die
           Erklaerung fuer etwas, das man schon ausgefuellt hat. */}

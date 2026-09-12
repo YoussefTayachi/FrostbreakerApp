@@ -98,6 +98,16 @@ describe("searchRowToPresetConfig -- Maps", () => {
     expect(c.noWebsite).toBe(false);
   });
 
+  it("uebernimmt den Befund-Schalter, und laesst ihn ohne Eintrag aus", () => {
+    // Seit dem 2026-09-12 ist die Website-Analyse Opt-in; eine wiederholte
+    // Suche muss den Schalter so mitbringen, wie er gesetzt war.
+    const mit = searchRowToPresetConfig({
+      ...zeile, filters: { ...zeile.filters, website_findings: true },
+    });
+    expect(mit.websiteFindings).toBe(true);
+    expect(searchRowToPresetConfig(zeile).websiteFindings).toBe(false);
+  });
+
   it("holt bei einer gebuendelten Suche die urspruenglichen Kommalisten zurueck", () => {
     // Die Gruppen-Zeile traegt in query/location Zusammenfassungen fuers Auge
     // (Migration 0096). Landeten die in der Vorlage, wuerde die naechste Suche
@@ -177,6 +187,18 @@ describe("searchRowToPresetConfig -- Prospeo", () => {
       filters,
     });
     expect(c.mode).toBe("prospeo");
+    expect(c.prospeoFilters).toEqual(filters);
+  });
+
+  it("loest den Befund-Schalter aus dem Prospeo-Objekt heraus", () => {
+    // Bliebe website_findings in prospeoFilters, truege die Vorlage den
+    // Schalter doppelt, und das Abwaehlen des Haekchens waere wirkungslos:
+    // das Formular schickt prospeoFilters unveraendert als filters mit.
+    const c = searchRowToPresetConfig({
+      source: "prospeo", query: "x", location: "y",
+      filters: { ...filters, website_findings: true },
+    });
+    expect(c.websiteFindings).toBe(true);
     expect(c.prospeoFilters).toEqual(filters);
   });
 });

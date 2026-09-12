@@ -9,10 +9,26 @@
  * Muss synchron bleiben mit dem CHECK-Constraint in Migration 0018 und mit
  * STATUS_RANK in apps/worker/worker/pipelines/poll_instantly.py.
  */
+/**
+ * 'lead' steht zwischen 'replied' und 'meeting_booked'.
+ *
+ * 'replied' beantwortet nur "hat sich gemeldet" und wirft damit drei sehr
+ * verschiedene Dinge zusammen: die Abwesenheitsnotiz, das "danke, kein
+ * Bedarf" und den, mit dem man gerade schreibt und den man abschliessen
+ * kann. Am 2026-09-12 standen 30 Kontakte auf 'replied', darunter jede
+ * Urlaubsantwort. Wer morgens in die Pipeline sieht, will die dritte Sorte
+ * sehen und nur die.
+ *
+ * Ein Termin ist dafuer die falsche Huerde: bei diesem Angebot laeuft der
+ * Abschluss ueber einen Entwurf per Mail, nicht ueber einen Kalendereintrag.
+ * Ohne diese Spalte gibt es zwischen "hat geantwortet" und "Termin steht"
+ * keinen Platz, und genau dort spielt sich das Geschaeft ab.
+ */
 export const OUTREACH_STAGES = [
   "new",
   "contacted",
   "replied",
+  "lead",
   "meeting_booked",
   "customer",
   "not_interested",
@@ -38,8 +54,9 @@ const STAGE_RANK: Record<OutreachStage, number> = {
   contacted: 1,
   not_interested: 1,
   replied: 2,
-  meeting_booked: 3,
-  customer: 4,
+  lead: 3,
+  meeting_booked: 4,
+  customer: 5,
 };
 
 export function stageRank(status: string): number {
@@ -53,6 +70,10 @@ export const STAGE_SELECT_CLS: Record<OutreachStage, string> = {
     "border-blue-300 bg-blue-50 text-blue-700 dark:border-blue-500/30 dark:bg-blue-500/10 dark:text-blue-300",
   replied:
     "border-sky-300 bg-sky-50 text-sky-700 dark:border-sky-500/30 dark:bg-sky-500/10 dark:text-sky-300",
+  // Bernstein zwischen dem Blau der Antwort und dem Violett des Termins: eine
+  // Stufe, an der etwas offen ist und auf einen zurueckwartet.
+  lead:
+    "border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300",
   meeting_booked:
     "border-violet-300 bg-violet-50 text-violet-700 dark:border-violet-500/30 dark:bg-violet-500/10 dark:text-violet-300",
   customer:
@@ -66,6 +87,7 @@ export const STAGE_DOT_CLS: Record<OutreachStage, string> = {
   new: "bg-mute",
   contacted: "bg-blue-500",
   replied: "bg-sky-500",
+  lead: "bg-amber-500",
   meeting_booked: "bg-violet-500",
   customer: "bg-emerald-500",
   not_interested: "bg-red-400",

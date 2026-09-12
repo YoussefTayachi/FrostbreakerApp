@@ -77,6 +77,21 @@ describe("searchFilterLines", () => {
     expect(zeilen[2].items).toEqual(["≤ 4"]);
   });
 
+  it("zeigt den Befund-Schalter in jedem Suchweg", () => {
+    // Seit dem 2026-09-12 laeuft die Website-Analyse nur auf Wunsch; ob sie
+    // lief, muss die Detailseite fuer jede Quelle beantworten koennen.
+    for (const source of ["maps", "apollo", "corporate", "prospeo"]) {
+      const zeilen = searchFilterLines({
+        source, query: "x", location: "y", filters: { website_findings: true },
+      });
+      expect(zeilen.map((z) => z.key)).toContain("websiteFindings");
+    }
+    const ohne = searchFilterLines({
+      source: "maps", query: "x", location: "y", filters: {},
+    });
+    expect(ohne.map((z) => z.key)).not.toContain("websiteFindings");
+  });
+
   it("formuliert Prospeos Spannen je nachdem, welche Grenze gesetzt ist", () => {
     const nurMin = searchFilterLines({
       source: "prospeo", query: "x", location: "y",

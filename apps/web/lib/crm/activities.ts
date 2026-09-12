@@ -120,7 +120,10 @@ export function defaultChannelFor(type: ActivityType): ActivityChannel | null {
  * "voicemail"/"no_answer" sagen nichts ueber das Interesse und aendern nichts.
  */
 export const OUTCOME_TO_STAGE: Partial<Record<ActivityOutcome, string>> = {
-  interested: "replied",
+  // 'lead' und nicht 'replied': wer am Telefon Interesse zeigt, hat nicht nur
+  // reagiert, sondern ist ein Gespraech, das man fuehren kann. Genau dafuer
+  // gibt es die Stufe.
+  interested: "lead",
   not_interested: "not_interested",
   meeting_booked: "meeting_booked",
 };

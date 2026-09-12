@@ -8,6 +8,7 @@ import { extractOutputText } from "@/lib/openai";
 import { recordOpenAiUsage } from "@/lib/usage";
 import { sendEmail } from "@/lib/email";
 import { detectOptOut } from "@/lib/crm/opt-out";
+import { classificationInput } from "@/lib/crm/interest";
 import { detectAutoReply } from "@/lib/crm/auto-reply";
 import { emailBodyText } from "@/lib/instantly/email-body";
 import { parseStepRef } from "@/lib/instantly/step-ref";
@@ -29,13 +30,18 @@ import {
 // getrennte Implementationen zu pflegen.
 export const maxDuration = 60;
 
+// Haelt STAGE_RANK in lib/crm/stages.ts gespiegelt. Bewusst eine eigene
+// Kopie: diese Route laeuft ohne den Client-Code, und ein Import allein waere
+// keine Garantie, dass beide Reihen gleich bleiben -- der Kommentar in
+// stages.ts ist es.
 const STATUS_RANK: Record<string, number> = {
   new: 0,
   contacted: 1,
   not_interested: 1,
   replied: 2,
-  meeting_booked: 3,
-  customer: 4,
+  lead: 3,
+  meeting_booked: 4,
+  customer: 5,
 };
 
 type InstantlyEmail = {
@@ -137,6 +143,7 @@ async function classifyReply(
   supabase: SupabaseClient,
   workspaceId: string,
   openaiKey: string,
+  subject: string | null,
   bodyText: string
 ): Promise<string | null> {
   try {
@@ -153,9 +160,19 @@ async function classifyReply(
               "'interested', 'not_interested', 'question' oder 'out_of_office'. " +
               "'out_of_office' gilt fuer automatische Abwesenheits- oder Urlaubsantworten -- " +
               "die Person hat dabei NICHT abgelehnt. " +
+              // Die haeufigste Absage ist hoeflich und lobt sogar. "Wir sind
+              // versorgt", "unsere Seite passt so", "danke, aktuell nicht":
+              // gemessen am 2026-09-11 las das Modell genau so eine Mail als
+              // 'interested'. Der Satz unten benennt den Fall.
+              "Eine freundliche Abfuhr ist 'not_interested': wer sinngemaess sagt, " +
+              "er sei versorgt, es passe so, es bestehe kein Bedarf oder man solle " +
+              "aufhoeren zu schreiben, lehnt ab -- auch wenn er sich bedankt oder " +
+              "alles Gute wuenscht. 'interested' nur, wenn die Person selbst etwas " +
+              "will: einen Entwurf, Unterlagen, einen Termin oder eine Fortsetzung. " +
+              "Der Betreff zaehlt dabei genauso wie der Text. " +
               "Antworte nur mit dem Kategorie-Wort, sonst nichts.",
           },
-          { role: "user", content: bodyText.slice(0, 2000) },
+          { role: "user", content: classificationInput(subject, bodyText) },
         ],
       }),
       signal: AbortSignal.timeout(15000),
@@ -297,11 +314,30 @@ async function processEmail(
    */
   const inbound = direction === "inbound";
   const auto = inbound ? detectAutoReply(email.subject, bodyText) : { autoReply: false };
+
+  /**
+   * Und die Abmeldebitte ebenfalls vor der KI, aus demselben Grund.
+   *
+   * Sie wurde bisher erst ganz am Ende geprueft, allein fuer die Sperrliste.
+   * Die Einstufung lief unabhaengig davon -- mit dem Ergebnis, dass eine Mail
+   * mit "STOP" im Betreff als 'interested' gefuehrt werden konnte und der
+   * Kontakt dabei auf eine hoehere Stufe stieg. Wer sich abmeldet, hat kein
+   * Interesse; das braucht kein Modell zu beurteilen, und es spart den
+   * Aufruf.
+   *
+   * Nach der Abwesenheitsnotiz geprueft: in einer Auto-Antwort steht
+   * gelegentlich ein Abmeldehinweis im Fuss, und "im Urlaub" ist keine
+   * Absage.
+   */
+  const optOut = inbound ? detectOptOut(bodyText, email.subject ?? null) : { optOut: false, phrase: null };
+
   const aiInterest = auto.autoReply
     ? "out_of_office"
-    : inbound && contact && openaiKey && bodyText
-      ? await classifyReply(supabase, workspaceId, openaiKey, bodyText)
-      : null;
+    : optOut.optOut
+      ? "not_interested"
+      : inbound && contact && openaiKey && bodyText
+        ? await classifyReply(supabase, workspaceId, openaiKey, email.subject ?? null, bodyText)
+        : null;
 
   const { error: upsertError } = await supabase.from("messages").upsert(
     {
@@ -341,50 +377,70 @@ async function processEmail(
     if (error) return `contact contacted ${contact.id}: ${error.message}`;
   }
 
-  if (
-    contact &&
-    direction === "inbound" &&
-    (STATUS_RANK[contact.outreach_status] ?? 0) < STATUS_RANK.replied
-  ) {
-    const { error } = await supabase
-      .from("contacts")
-      .update({ outreach_status: "replied" })
-      .eq("id", contact.id);
-    if (error) return `contact status update ${contact.id}: ${error.message}`;
+  /**
+   * Welche Stufe eine eingegangene Antwort ausloest.
+   *
+   * Vorher waren das zwei getrennte Bloecke: einer hob auf 'replied' an, ein
+   * zweiter setzte bei einer Absage 'not_interested'. Mit 'lead' als dritter
+   * moeglicher Zielstufe waeren daraus drei Bloecke geworden, die sich
+   * gegenseitig ueberschreiben. Also einmal die Zielstufe bestimmen und
+   * einmal schreiben.
+   *
+   *   'not_interested'  hat abgesagt
+   *   'interested'      will etwas von uns -> 'lead', die Spalte, in der man
+   *                     morgens nachsieht, mit wem man gerade schreibt
+   *   sonst             (Rueckfrage, Abwesenheitsnotiz) -> 'replied'
+   */
+  if (contact && direction === "inbound") {
+    const vorher = STATUS_RANK[contact.outreach_status] ?? 0;
+    const ziel =
+      aiInterest === "not_interested"
+        ? "not_interested"
+        : aiInterest === "interested"
+          ? "lead"
+          : "replied";
 
-    // Nur bei der ERSTEN Antwort eines Kontakts benachrichtigen: der
-    // Statuswechsel oben passiert genau einmal, jede Folgemail laeuft nicht
-    // mehr in diesen Zweig. Ohne diese Bedingung meldete ein Hin und Her im
-    // selben Thread jedes Mal erneut.
-    if (options.notify !== false) {
+    /**
+     * Die Absage gilt auch abwaerts, alles andere nur aufwaerts.
+     *
+     * Ein Kontakt kann erst freundlich antworten und im zweiten Zug absagen;
+     * 'not_interested' liegt im Rang aber absichtlich niedrig (siehe
+     * STATUS_RANK), damit eine spaetere echte Antwort ihn wieder anheben
+     * kann. Eine reine Rangpruefung wuerde die Absage deshalb verschlucken.
+     *
+     * Bewusst NICHT in die Sperrliste: "kein Interesse" heisst "diesmal
+     * nicht", nicht "nie wieder". Der Kontaktstatus reicht:
+     * api/instantly/campaigns schliesst 'not_interested' beim Anlegen jeder
+     * neuen Kampagne aus.
+     */
+    const schreiben =
+      ziel === "not_interested"
+        ? contact.outreach_status !== "not_interested"
+        : (STATUS_RANK[ziel] ?? 0) > vorher;
+
+    if (schreiben) {
+      const { error } = await supabase
+        .from("contacts")
+        .update({ outreach_status: ziel })
+        .eq("id", contact.id);
+      if (error) return `contact status update ${contact.id}: ${error.message}`;
+    }
+
+    // Nur bei der ERSTEN Antwort eines Kontakts benachrichtigen, unabhaengig
+    // davon, wie sie ausfaellt: eine Absage will man genauso erfahren. Die
+    // Bedingung haengt am Rang VOR dieser Mail, der genau einmal unterhalb
+    // von 'replied' liegt; ohne sie meldete ein Hin und Her im selben Thread
+    // jedes Mal erneut.
+    if (vorher < STATUS_RANK.replied && options.notify !== false) {
       await notifyReply(supabase, workspaceId, leadEmail, email.subject ?? "", bodyText);
     }
-  }
-
-  // Absage merken, unabhaengig davon, ob der Statuswechsel oben gerade
-  // stattgefunden hat. Ein Kontakt kann erst freundlich antworten (Status
-  // 'replied') und im zweiten Zug absagen; ohne diesen eigenen Zweig ginge
-  // die Absage verloren, weil der Block oben beim zweiten Mal nicht mehr
-  // greift.
-  //
-  // Bewusst NICHT in die Sperrliste: "kein Interesse" heisst "diesmal nicht",
-  // nicht "nie wieder". Der Kontaktstatus reicht: api/instantly/campaigns
-  // schliesst 'not_interested' beim Anlegen jeder neuen Kampagne aus. Genau
-  // dieser Ausschluss lief bisher ins Leere, weil den Status niemand je
-  // automatisch gesetzt hat.
-  if (contact && direction === "inbound" && aiInterest === "not_interested") {
-    const { error } = await supabase
-      .from("contacts")
-      .update({ outreach_status: "not_interested" })
-      .eq("id", contact.id);
-    if (error) return `contact not_interested ${contact.id}: ${error.message}`;
   }
 
   // Abmeldebitte: das ist die harte Variante und gilt dauerhaft ueber alle
   // Kampagnen hinweg. Greift auch ohne CRM-Kontakt: wer sich abmeldet, hat
   // Anspruch darauf, egal ob wir ihn zuordnen koennen.
   if (direction === "inbound" && leadEmail) {
-    const err = await suppressOnOptOut(supabase, workspaceId, leadEmail, bodyText);
+    const err = await suppressOnOptOut(supabase, workspaceId, leadEmail, optOut);
     if (err) return err;
   }
 
@@ -410,9 +466,9 @@ async function suppressOnOptOut(
   supabase: SupabaseClient,
   workspaceId: string,
   leadEmail: string,
-  bodyText: string
+  match: { optOut: boolean; phrase: string | null }
 ): Promise<string | null> {
-  const { optOut, phrase } = detectOptOut(bodyText);
+  const { optOut, phrase } = match;
   if (!optOut) return null;
 
   const { error } = await supabase

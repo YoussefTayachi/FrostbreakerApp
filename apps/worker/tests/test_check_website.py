@@ -533,6 +533,84 @@ def test_queue_website_audits_ruehrt_nichts_an_wenn_niemand_eine_website_hat(mon
     get_businesses._queue_website_audits("ws-1", [{"id": "b-1", "website": None}])
 
 
+# ── Der Befund ist Opt-in (seit 2026-09-12) ────────────────────────────────
+#
+# Anlass: ein Kunde suchte ueber Maps Restaurants fuer ein Reservierungs-App-
+# Angebot und bekam ungefragt fuer jede Firma Website-Check und Befundsatz.
+# Beides laeuft seitdem nur noch mit filters.website_findings (oder implizit
+# mit research_after_finding); der Icebreaker laeuft unveraendert weiter.
+
+
+class _FinishStub:
+    """sb()-Nachbau fuer _finish: schluckt das searches-Update und liefert
+    fuer businesses die uebergebenen Zeilen."""
+
+    def __init__(self, rows: list[dict]):
+        self._rows = rows
+        self._name = ""
+
+    def table(self, name: str):
+        self._name = name
+        return self
+
+    def update(self, *_a, **_k):
+        return self
+
+    def select(self, *_a, **_k):
+        return self
+
+    def eq(self, *_a, **_k):
+        return self
+
+    def execute(self):
+        data = self._rows if self._name == "businesses" else None
+        return type("R", (), {"data": data})()
+
+
+def _finish_lauf(monkeypatch, filters: dict, source: str = "maps") -> tuple[list, list]:
+    """_finish einmal laufen lassen; zurueck kommen Audit-Aufrufe und Jobs."""
+    audits: list = []
+    jobs: list = []
+    rows = [{"id": "b-1", "website": "https://a.de"}]
+    monkeypatch.setattr(get_businesses, "sb", lambda: _FinishStub(rows))
+    monkeypatch.setattr(get_businesses, "_search_filters", lambda _sid: filters)
+    monkeypatch.setattr(
+        get_businesses, "_queue_website_audits", lambda ws, r: audits.append(r)
+    )
+    monkeypatch.setattr(
+        get_businesses, "enqueue_many", lambda ws, t, ps: jobs.append(t)
+    )
+    get_businesses._finish("s-1", "ws-1", True, source)
+    return audits, jobs
+
+
+def test_finish_reiht_ohne_schalter_keine_audits_ein(monkeypatch):
+    """Die normale Maps-Suche: kein Befund, aber der Icebreaker laeuft."""
+    audits, jobs = _finish_lauf(monkeypatch, {})
+    assert audits == []
+    assert jobs == ["find_decisionmaker", "personalize"]
+
+
+def test_finish_reiht_audits_nur_mit_schalter_ein(monkeypatch):
+    audits, jobs = _finish_lauf(monkeypatch, {"website_findings": True})
+    assert len(audits) == 1
+    assert jobs == ["find_decisionmaker", "personalize"]
+
+
+def test_finish_research_after_finding_impliziert_den_befund(monkeypatch):
+    """Wer die Recherche an den Befund haengt, braucht den Befund zwingend;
+    sonst wartete die ganze Liste auf eine Kette, die nie anlaeuft."""
+    audits, jobs = _finish_lauf(monkeypatch, {"research_after_finding": True})
+    assert len(audits) == 1
+    assert jobs == []  # Recherche reiht website_finding ein, nicht _finish
+
+
+def test_finish_apollo_ohne_schalter_keine_audits(monkeypatch):
+    audits, jobs = _finish_lauf(monkeypatch, {}, source="apollo")
+    assert audits == []
+    assert jobs == ["personalize"]
+
+
 # ── Der Rueckbau: der Befund geht NICHT in den Icebreaker ──────────────────
 #
 # Bis zum 2026-08-24 haengte personalize.build_context den ranghoechsten

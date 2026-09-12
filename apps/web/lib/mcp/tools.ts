@@ -570,6 +570,7 @@ const CONTACT_STATUSES = [
   "new",
   "contacted",
   "replied",
+  "lead",
   "meeting_booked",
   "customer",
   "not_interested",

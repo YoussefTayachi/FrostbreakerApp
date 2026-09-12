@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { isSuppressed } from "@/lib/suppression";
+import { effectiveInterest } from "@/lib/crm/interest";
 import { formatRelative } from "@/lib/format-time";
 import { notifyUnreadChanged } from "@/lib/unread";
 import CompanyLogo from "../company-logo";
@@ -57,6 +58,8 @@ type Conversation = {
   messages: Msg[];
   lastAt: string | null;
   unread: number;
+  /** Die Einstufung, die hier gilt: Kontaktstatus vor Modellurteil, siehe
+   *  lib/crm/interest.ts. Nicht roh ai_interest der letzten Mail. */
   aiInterest: string | null;
   replyTarget: Msg | null;
   /** Steht auf der Blockliste: meist, weil jemand "stop" geantwortet hat. */
@@ -108,7 +111,7 @@ function toConversations(messages: Msg[]): Conversation[] {
     c.unread = inbound.filter((m) => !m.read_at).length;
     c.lastAt = c.messages.length ? when(c.messages[c.messages.length - 1]) : null;
     const lastInbound = inbound[inbound.length - 1];
-    c.aiInterest = lastInbound?.ai_interest ?? null;
+    c.aiInterest = effectiveInterest(lastInbound?.ai_interest, c.outreachStatus);
     // Instantly braucht zum Antworten die reply_to_uuid einer echten E-Mail.
     // Nachrichten ohne instantly_email_id (z.B. lokal gespiegelte Ausgaenge)
     // taugen dafuer nicht.

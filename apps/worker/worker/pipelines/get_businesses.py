@@ -768,9 +768,20 @@ def _finish(search_id: str, ws: str, auto_enrich: bool, source: str) -> None:
     if not auto_enrich:
         return
 
-    # ZWEI ABLAUFSCHALTER IN searches.filters (seit 2026-08-31):
+    # DREI ABLAUFSCHALTER IN searches.filters:
     #
-    #   research_after_finding  Recherche und Icebreaker werden NICHT hier
+    #   website_findings  (seit 2026-09-12) Website-Check und Befundsatz laufen
+    #       NUR, wenn dieser Schalter gesetzt ist. Anlass: ein Kunde suchte
+    #       ueber Maps Restaurants, um ihnen eine Reservierungs-App anzubieten,
+    #       und bekam ungefragt fuer jede Firma check_website- und
+    #       write_website_finding-Jobs: die Suche dauerte laenger und die
+    #       Queue war voll mit Befunden, die seine Kampagne nie benutzt.
+    #       research_after_finding impliziert diesen Schalter: wer die
+    #       Recherche an den Befund haengt, braucht den Befund zwingend, sonst
+    #       stuende die ganze Liste still. Der Icebreaker (personalize) haengt
+    #       NICHT am Befund (seit Migration 0103) und laeuft unveraendert.
+    #
+    #   research_after_finding  (seit 2026-08-31) Recherche und Icebreaker werden NICHT hier
     #       eingereiht, sondern erst von write_website_finding, und nur fuer
     #       Firmen, die tatsaechlich einen Befund bekommen haben
     #       (website_finding._reihe_anreicherung_ein). Gemessen: die
@@ -781,7 +792,7 @@ def _finish(search_id: str, ws: str, auto_enrich: bool, source: str) -> None:
     #       ihr decisionmaker_status bleibt 'pending'. Fuer eine
     #       Website-Kampagne ist das der Sinn der Sache.
     #
-    #   skip_personalize  Kein Icebreaker. Die Website-Kampagnen benutzen
+    #   skip_personalize  (seit 2026-08-31) Kein Icebreaker. Die Website-Kampagnen benutzen
     #       {{personalization}} nicht; bisher mussten ihre personalize-Jobs
     #       nach jedem Lauf von Hand um Stunden verschoben werden
     #       (Skill campaign-website, Schritt 4).
@@ -791,6 +802,7 @@ def _finish(search_id: str, ws: str, auto_enrich: bool, source: str) -> None:
     filters = _search_filters(search_id)
     research_after_finding = bool(filters.get("research_after_finding"))
     skip_personalize = bool(filters.get("skip_personalize"))
+    website_findings = bool(filters.get("website_findings")) or research_after_finding
     if source in ("apollo", "prospeo"):
         # Beide Personen-Wege haben Firma UND Kontakt schon geliefert: weder
         # find_decisionmaker (OpenAI-Kosten) noch hunt_persons (Hunter-Credits)
@@ -819,7 +831,8 @@ def _finish(search_id: str, ws: str, auto_enrich: bool, source: str) -> None:
         # braucht (seit Migration 0103 nicht mehr), sondern damit die
         # Pruefungen ganz vorn in der Queue stehen: an ihnen haengt der
         # write_website_finding-Job, den diese Funktion mit einreiht.
-        _queue_website_audits(ws, rows)
+        if website_findings:
+            _queue_website_audits(ws, rows)
         if not skip_personalize:
             enqueue_many(ws, "personalize", [{"business_id": b["id"]} for b in rows])
         return
@@ -856,7 +869,8 @@ def _finish(search_id: str, ws: str, auto_enrich: bool, source: str) -> None:
     )
     # VOR dem personalize-Enqueue weiter unten, aus demselben Grund wie im
     # apollo/prospeo-Zweig.
-    _queue_website_audits(ws, rows)
+    if website_findings:
+        _queue_website_audits(ws, rows)
     if research_after_finding:
         # Recherche und Icebreaker reiht website_finding ein, je Firma mit
         # Befund. Hier ist damit alles getan.

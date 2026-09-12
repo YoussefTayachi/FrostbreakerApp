@@ -423,6 +423,7 @@ const de = {
     // Prospeo-Filter im Formular gar nicht vorkommen; siehe used-filters.tsx.
     filterLabels: {
       radius: "Umkreis",
+      websiteFindings: "Website-Analyse",
       noWebsite: "Ohne Website",
       maxRating: "Bewertung höchstens",
       industry: "Branche",
@@ -573,6 +574,9 @@ const de = {
     coverageToggle: "Land automatisch abdecken",
     coverageToggleHint:
       "Statt jede Stadt einzeln zu tippen: Land und Zielzahl wählen, die Städte kommen aus einer gepflegten Liste.",
+    websiteFindingsToggle: "Website-Schwächen analysieren",
+    websiteFindingsToggleHint:
+      "Prüft jede gefundene Website und schreibt den Befund für {{websiteFinding}}. Verlängert die Suche; nur einschalten, wenn die Kampagne den Befund nutzt. Der Icebreaker entsteht unabhängig davon.",
     coverageCountry: "Land",
     coverageCountryNone: "Land wählen",
     coverageTarget: "Ziel: Leads insgesamt",
@@ -649,7 +653,7 @@ const de = {
     allSearches: "Alle Suchen",
     allStatuses: "Alle Status",
     statusLabels: {
-      new: "Neu", contacted: "Kontaktiert", replied: "Geantwortet",
+      new: "Neu", contacted: "Kontaktiert", replied: "Geantwortet", lead: "Lead",
       meeting_booked: "Meeting gebucht", customer: "Kunde", not_interested: "Kein Interesse",
     } as Record<string, string>,
     searchFilterPrefix: "Suche: ",
@@ -3137,6 +3141,7 @@ const en: Dictionary = {
     filterYes: "yes",
     filterLabels: {
       radius: "Radius",
+      websiteFindings: "Website analysis",
       noWebsite: "Without website",
       maxRating: "Rating at most",
       industry: "Industry",
@@ -3278,6 +3283,9 @@ const en: Dictionary = {
     coverageToggle: "Cover a country automatically",
     coverageToggleHint:
       "Instead of typing every city: pick a country and a target, the cities come from a curated list.",
+    websiteFindingsToggle: "Analyze website weaknesses",
+    websiteFindingsToggleHint:
+      "Checks every website found and writes the finding for {{websiteFinding}}. Makes the search take longer; only enable it if your campaign uses the finding. The icebreaker is generated either way.",
     coverageCountry: "Country",
     coverageCountryNone: "Pick a country",
     coverageTarget: "Target: leads in total",
@@ -3351,7 +3359,7 @@ const en: Dictionary = {
     allSearches: "All searches",
     allStatuses: "All statuses",
     statusLabels: {
-      new: "New", contacted: "Contacted", replied: "Replied",
+      new: "New", contacted: "Contacted", replied: "Replied", lead: "Lead",
       meeting_booked: "Meeting booked", customer: "Customer", not_interested: "Not interested",
     },
     searchFilterPrefix: "Search: ",

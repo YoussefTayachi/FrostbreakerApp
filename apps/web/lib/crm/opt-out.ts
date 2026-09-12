@@ -107,17 +107,43 @@ export type OptOutMatch = {
 };
 
 /**
+ * Antwort-Vorsilben abschneiden ("Re:", "AW:", "Fwd:", auch mehrfach).
+ *
+ * Noetig, weil die Abmeldung im Betreff sonst an genau einem Zeichen
+ * scheitert: das Muster fuer ein alleinstehendes "stop" verlangt, dass nichts
+ * sonst in der Zeile steht, und "Re: STOP" hat genau das.
+ */
+function stripReplyPrefix(subject: string): string {
+  return subject.replace(/^\s*((re|aw|fw|fwd|wg)\s*:\s*)+/i, "").trim();
+}
+
+/**
  * Prueft den selbst geschriebenen Teil einer Antwort auf eine Abmeldebitte.
+ *
+ * DER BETREFF ZAEHLT MIT, und zwar nicht als Beiwerk.
+ * Am 2026-09-11 schrieb ein Empfaenger "STOP" in den Betreff und in den Text
+ * "Wish you all the best. Website is good for us." Der Text enthaelt keine
+ * einzige Abmeldeformel: die Adresse landete nicht auf der Sperrliste,
+ * obwohl die Absage im Betreff stand und nicht deutlicher haette sein
+ * koennen. Wer das Wort in die Betreffzeile schreibt, meint es genauso
+ * ernst wie im Text.
+ *
+ * Der Betreff wird ungeschnitten geprueft (er hat keine Zitatgrenze), aber
+ * ohne "Re:"/"AW:"-Vorsilbe, sonst greift das Muster fuer ein
+ * alleinstehendes "stop" nie.
  *
  * Gibt die Fundstelle mit zurueck: eine automatisch gesperrte Adresse soll
  * nachvollziehbar sein, ohne dass man die Originalmail heraussuchen muss.
  */
-export function detectOptOut(body: string): OptOutMatch {
+export function detectOptOut(body: string, subject?: string | null): OptOutMatch {
   const own = stripQuotedReply(body ?? "");
-  if (!own) return { optOut: false, phrase: null };
-  for (const pattern of OPT_OUT_PATTERNS) {
-    const match = pattern.exec(own);
-    if (match) return { optOut: true, phrase: match[0].trim() };
+  const subj = stripReplyPrefix(subject ?? "");
+  for (const haystack of [own, subj]) {
+    if (!haystack) continue;
+    for (const pattern of OPT_OUT_PATTERNS) {
+      const match = pattern.exec(haystack);
+      if (match) return { optOut: true, phrase: match[0].trim() };
+    }
   }
   return { optOut: false, phrase: null };
 }

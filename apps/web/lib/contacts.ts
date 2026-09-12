@@ -66,6 +66,7 @@ export function splitBySendability<T extends { email_verification_status: string
  * Zustaende, in denen eine Kalt-Mail nicht mehr rausgehen darf, KANALUNABHAENGIG.
  *
  *   replied         hat geantwortet, egal ueber welchen Weg
+ *   lead            man schreibt gerade miteinander
  *   meeting_booked  Termin steht; eine Kaltakquise-Mail waere jetzt peinlich
  *   customer        kauft bereits
  *   not_interested  hat abgesagt
@@ -85,7 +86,7 @@ export function splitBySendability<T extends { email_verification_status: string
  * 'not_interested'. Wer geantwortet hatte, landete in jeder neuen Kampagne
  * derselben Suche erneut.
  */
-const ENGAGED_STATUS = new Set(["replied", "meeting_booked", "customer", "not_interested"]);
+const ENGAGED_STATUS = new Set(["replied", "lead", "meeting_booked", "customer", "not_interested"]);
 
 export function isColdContactable(status: string | null | undefined): boolean {
   return !ENGAGED_STATUS.has(status ?? "new");

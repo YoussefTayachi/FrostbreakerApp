@@ -29,7 +29,7 @@ import type { SearchRowForPreset } from "./search-presets";
  *  Ohne diese Liste faellt eine vergessene Uebersetzung erst im Browser auf,
  *  als "undefined:" vor dem Wert. */
 export const FILTER_KEYS = [
-  "radius", "noWebsite", "maxRating",
+  "radius", "websiteFindings", "noWebsite", "maxRating",
   "industry", "city", "country", "headcount", "keywords",
   "personTitles", "seniorities", "locations", "personLocations",
   "technologies", "marketSegments", "industries",
@@ -76,6 +76,11 @@ export function searchFilterLines(row: SearchRowForPreset): FilterLine[] {
   const add = (key: FilterKey, items: string[], provider?: "apollo" | "hunter") => {
     if (items.length > 0) zeilen.push({ key, items, ...(provider ? { provider } : {}) });
   };
+
+  // Der Befund-Schalter gilt fuer alle vier Suchwege und steht deshalb VOR
+  // den Verzweigungen: seit 2026-09-12 laeuft die Website-Analyse nur noch,
+  // wenn er gesetzt ist, und genau das soll die Detailseite auch zeigen.
+  if (f.website_findings === true) add("websiteFindings", ["ja"]);
 
   if (row.source === "apollo") {
     add("personTitles", str(f.person_titles) ? [str(f.person_titles)] : []);

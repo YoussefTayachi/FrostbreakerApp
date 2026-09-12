@@ -102,3 +102,30 @@ describe("detectOptOut", () => {
     expect(detectOptOut("").optOut).toBe(false);
   });
 });
+
+describe("detectOptOut mit Betreff", () => {
+  // Der gemessene Fall vom 2026-09-11: "STOP" stand allein im Betreff, der
+  // Text enthielt keine einzige Abmeldeformel.
+  it("erkennt ein alleinstehendes 'STOP' im Betreff", () => {
+    const body = "Hello Youssef,\n\nWish you all the best.\nWebsite is good for us.";
+    expect(detectOptOut(body, "STOP")).toEqual({ optOut: true, phrase: "STOP" });
+  });
+
+  it("laesst sich von der Antwort-Vorsilbe nicht aufhalten", () => {
+    expect(detectOptOut("", "Re: stop").optOut).toBe(true);
+    expect(detectOptOut("", "AW: Abmelden").optOut).toBe(true);
+    expect(detectOptOut("", "Fwd: Re: unsubscribe").optOut).toBe(true);
+  });
+
+  it("sperrt NICHT bei einem gewoehnlichen Betreff", () => {
+    expect(detectOptOut("Klingt gut!", "Re: feedback on your site").optOut).toBe(false);
+    expect(detectOptOut("Ja gerne", "Re: last one from me").optOut).toBe(false);
+    // Das Wort steckt in einem Satz, steht also nicht fuer sich.
+    expect(detectOptOut("", "Re: our next bus stop").optOut).toBe(false);
+  });
+
+  it("kommt ohne Betreff aus", () => {
+    expect(detectOptOut("stop").optOut).toBe(true);
+    expect(detectOptOut("Klingt gut!", null).optOut).toBe(false);
+  });
+});
