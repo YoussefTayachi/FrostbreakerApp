@@ -2,7 +2,7 @@ import crypto from "crypto";
 import { NextResponse } from "next/server";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createServiceClient } from "@/lib/supabase/service";
-import { instantlyRequest } from "@/lib/instantly";
+import { instantlyRequest, InstantlyApiError } from "@/lib/instantly";
 import { getApiKey } from "@/lib/api-keys";
 import { extractOutputText } from "@/lib/openai";
 import { recordOpenAiUsage } from "@/lib/usage";
@@ -810,6 +810,40 @@ async function syncCampaigns(
           },
           { onConflict: "search_id" }
         );
+      }
+
+      /**
+       * Bei Instantly geloeschte Kampagne erkennen und aus der Wirkungs-
+       * Auswertung ausblenden (Migration 0116).
+       *
+       * Der Fingerabdruck, am 2026-09-12 gemessen: /campaigns/analytics
+       * liefert fuer eine nichtexistente ID 200 mit leerem Array, kein 404.
+       * Weil "leer" theoretisch auch eine ganz frische Kampagne sein
+       * koennte, bestaetigt erst der direkte GET; nur sein 404 archiviert.
+       * Der Extra-Request faellt nur im Verdachtsfall an, und auch dann nur,
+       * solange die Kampagne noch nicht archiviert ist.
+       */
+      if (analytics && analytics.length === 0) {
+        const localId = campaignIds.get(campaignId);
+        if (localId) {
+          const { data: lokal } = await supabase
+            .from("campaigns")
+            .select("stats_archived_at")
+            .eq("id", localId)
+            .single();
+          if (lokal && !lokal.stats_archived_at) {
+            const gone = await instantlyRequest(apiKey, `/api/v2/campaigns/${campaignId}`).then(
+              () => false,
+              (e) => e instanceof InstantlyApiError && e.status === 404
+            );
+            if (gone) {
+              await supabase
+                .from("campaigns")
+                .update({ stats_archived_at: new Date().toISOString() })
+                .eq("id", localId);
+            }
+          }
+        }
       }
 
       const params: Record<string, string> = { campaign_id: campaignId, email_type: "received" };

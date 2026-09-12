@@ -2620,6 +2620,55 @@ const de = {
       `${n} Nachrichten ohne Zuordnung — sie fehlen in dieser Auswertung.`,
     copyWarning:
       "Eine Antwortquote allein ist die falsche Zielgröße: eine Fassung kann führen und trotzdem nur Absagen sammeln. Die Spalte, auf die es ankommt, ist Termine.",
+
+    // Verlauf (seit 2026-09-12)
+    timelineTitle: "Verlauf",
+    timelineHint:
+      "Aus den eigenen synchronisierten Mails gerechnet, nicht aus Instantlys Zusammenfassung. Jede Reihe hat ihre eigene Skala, sonst wären zwei Antworten neben zweihundert Sendungen unsichtbar.",
+    timelineSent: "Gesendet",
+    timelineReplies: "Antworten",
+    timelineInterested: "Interessiert",
+    timelineInWindow: (n: number, days: number) => `${n} in ${days} Tagen`,
+    timelineNone: "noch keine",
+    timelineTable: "Als Tabelle anzeigen",
+    timelineDay: "Tag",
+
+    // Erfolge
+    successTitle: "Das läuft",
+    successHint: "Die positiven Signale, und woher sie kommen.",
+    successInterested: (n: number) =>
+      n === 1 ? "1 interessierte Antwort" : `${n} interessierte Antworten`,
+    successMeetings: (n: number) => (n === 1 ? "1 Termin" : `${n} Termine`),
+
+    // Empfehlungen
+    recTitle: "Empfehlungen",
+    recHint:
+      "Aus deinen eigenen Zahlen gerechnet, nach festen Regeln. Neben jeder Empfehlung steht der Beleg, aus dem sie folgt.",
+    recDoubleDown: (niche: string) => `Nachlegen: mehr Leads aus „${niche}“`,
+    recDoubleDownWhy: (positives: number, contacts: number) =>
+      `${positives === 1 ? "1 positives Signal" : `${positives} positive Signale`} auf ${contacts} Kontakte, die beste Nische im Bestand. Dieselbe Suche mit neuen Städten oder mehr Tiefe wiederholen.`,
+    recCopyWinner: (winner: string, step: number, campaign: string) =>
+      `Auf Fassung ${winner} setzen: Schritt ${step} in „${campaign}“`,
+    recCopyWinnerWhy: (interested: number, loser: string, loserContacts: number) =>
+      `Fassung ${loser} sammelt auf ${loserContacts} Kontakte keine interessierte Antwort, die Gewinnerin ${interested === 1 ? "eine" : interested}.`,
+    recStop: (niche: string) => `Wechseln: „${niche}“ trägt nicht`,
+    recStopWhy: (contacts: number, replies: number) =>
+      `Auf ${contacts} Kontakte keine einzige interessierte Antwort (${replies} Antworten insgesamt). Das Budget bringt in einer anderen Nische oder mit einem anderen Angebot mehr.`,
+    recCollect: (niche: string | null) =>
+      niche ? `Weiter sammeln: „${niche}“ ist am dichtesten dran` : "Weiter sammeln",
+    recCollectWhy: (missing: number) =>
+      `Es ${missing === 1 ? "fehlt noch 1 angeschriebener Kontakt" : `fehlen noch ${missing} angeschriebene Kontakte`}, bis eine Quote etwas bedeutet. Bis dahin wäre jede Empfehlung geraten.`,
+    recNoSignal: (threshold: number) => `Laufen lassen, bei ${threshold} Kontakten neu entscheiden`,
+    recNoSignalWhy: (niche: string, contacts: number, threshold: number) =>
+      `„${niche}“ steht bei ${contacts} Kontakten ohne positives Signal. Das ist noch kein Befund: erst ab ${threshold} Kontakten ohne interessierte Antwort lohnt der Wechsel.`,
+
+    // Kampagnen ausblenden
+    hideCampaign: "Ausblenden",
+    restoreCampaign: "Wieder anzeigen",
+    archivedSection: (n: number) =>
+      n === 1 ? "1 ausgeblendete Kampagne" : `${n} ausgeblendete Kampagnen`,
+    archivedHint:
+      "Ausgeblendet heißt nur: nicht mehr in dieser Auswertung. Gelöscht wird nichts. Kampagnen, die bei Instantly gelöscht wurden, landen automatisch hier.",
   },
   prospeo: {
     modeLabel: "Prospeo",
@@ -5267,6 +5316,53 @@ const en: Dictionary = {
     unattributed: (n: number) => `${n} messages without attribution — they are missing from this breakdown.`,
     copyWarning:
       "Reply rate alone is the wrong target: a version can lead and still collect nothing but rejections. The column that counts is meetings.",
+
+    // Timeline (since 2026-09-12)
+    timelineTitle: "Timeline",
+    timelineHint:
+      "Computed from your own synced mails, not from Instantly's rollup. Each row has its own scale, otherwise two replies next to two hundred sends would be invisible.",
+    timelineSent: "Sent",
+    timelineReplies: "Replies",
+    timelineInterested: "Interested",
+    timelineInWindow: (n: number, days: number) => `${n} in ${days} days`,
+    timelineNone: "none yet",
+    timelineTable: "Show as table",
+    timelineDay: "Day",
+
+    // Wins
+    successTitle: "What is working",
+    successHint: "The positive signals, and where they come from.",
+    successInterested: (n: number) => (n === 1 ? "1 interested reply" : `${n} interested replies`),
+    successMeetings: (n: number) => (n === 1 ? "1 meeting" : `${n} meetings`),
+
+    // Recommendations
+    recTitle: "Recommendations",
+    recHint:
+      "Computed from your own numbers, by fixed rules. Next to every recommendation you see the evidence it follows from.",
+    recDoubleDown: (niche: string) => `Double down: more leads from "${niche}"`,
+    recDoubleDownWhy: (positives: number, contacts: number) =>
+      `${positives === 1 ? "1 positive signal" : `${positives} positive signals`} on ${contacts} contacts, the best niche you have. Repeat the same search with new cities or more depth.`,
+    recCopyWinner: (winner: string, step: number, campaign: string) =>
+      `Switch to version ${winner}: step ${step} in "${campaign}"`,
+    recCopyWinnerWhy: (interested: number, loser: string, loserContacts: number) =>
+      `Version ${loser} collects no interested reply on ${loserContacts} contacts, the winner collects ${interested}.`,
+    recStop: (niche: string) => `Move on: "${niche}" is not carrying its weight`,
+    recStopWhy: (contacts: number, replies: number) =>
+      `Not a single interested reply on ${contacts} contacts (${replies} replies in total). Your budget earns more in another niche or with another offer.`,
+    recCollect: (niche: string | null) =>
+      niche ? `Keep collecting: "${niche}" is closest` : "Keep collecting",
+    recCollectWhy: (missing: number) =>
+      `${missing === 1 ? "1 more contacted person is" : `${missing} more contacted people are`} needed before a rate means anything. Until then any recommendation would be guesswork.`,
+    recNoSignal: (threshold: number) => `Let it run, decide again at ${threshold} contacts`,
+    recNoSignalWhy: (niche: string, contacts: number, threshold: number) =>
+      `"${niche}" stands at ${contacts} contacts without a positive signal. That is not a verdict yet: only from ${threshold} contacts without an interested reply is switching worth it.`,
+
+    // Hiding campaigns
+    hideCampaign: "Hide",
+    restoreCampaign: "Show again",
+    archivedSection: (n: number) => (n === 1 ? "1 hidden campaign" : `${n} hidden campaigns`),
+    archivedHint:
+      "Hidden only means: no longer in this report. Nothing is deleted. Campaigns deleted in Instantly land here automatically.",
   },
   prospeo: {
     modeLabel: "Prospeo",
