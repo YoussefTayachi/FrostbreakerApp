@@ -48,6 +48,29 @@ import { setStatsArchived } from "./actions";
  * Kontakten je Gruppe gibt es keine Quote, sondern den Hinweis, dass die
  * Grundlage fehlt.
  */
+/**
+ * Eine Abfrage vollstaendig lesen, Seite fuer Seite.
+ *
+ * PostgREST deckelt JEDE Antwort bei 1.000 Zeilen, ein groesseres .limit()
+ * aendert daran nichts. Diese Seite lief bis zum 2026-09-12 ohne
+ * Pagination und rechnete deshalb auf den ersten 1.000 von 6.176 Mails:
+ * angezeigt waren 281 angeschriebene Kontakte und 0 Antworten, waehrend in
+ * der Tabelle 12 echte Antworten standen. Die Seite, die es gibt, um
+ * ehrlich zu sein, war durch den Deckel selbst die Luegnerin.
+ */
+async function fetchAll<T>(
+  query: (from: number, to: number) => PromiseLike<{ data: unknown[] | null }>
+): Promise<T[]> {
+  const PAGE = 1000;
+  const all: T[] = [];
+  for (let from = 0; ; from += PAGE) {
+    const { data } = await query(from, from + PAGE - 1);
+    const rows = (data ?? []) as T[];
+    all.push(...rows);
+    if (rows.length < PAGE) return all;
+  }
+}
+
 export default async function WirkungPage() {
   const lang = await getLangServer();
   const t = dict[lang];
@@ -65,62 +88,6 @@ export default async function WirkungPage() {
    * (Migration 0050), und die Frage lautet hier "welche Nische antwortet",
    * nicht "welche Kampagne".
    */
-  const [{ data: outbound }, { data: inbound }, { data: meetingRows }, { data: campaignRows }] =
-    await Promise.all([
-      supabase
-        .from("messages")
-        .select(
-          "contact_id, sent_at, campaign_id, step_order, variant_index, campaigns(name), contacts(businesses(search_id, searches(name, query)))"
-        )
-        .eq("workspace_id", ws.workspace.id)
-        .eq("direction", "outbound")
-        .not("contact_id", "is", null)
-        .limit(20000),
-      /**
-       * Abwesenheitsnotizen zaehlen NICHT als Antwort.
-       *
-       * Beim ersten Blick auf die fertige Seite stand hier 7: Instantly
-       * meldete 1. Der Unterschied waren die 5 automatischen Antworten und
-       * damit eine Quote von 2,4 statt 0,3 Prozent. Ein Autoresponder ist kein
-       * Mensch, der reagiert hat; ihn mitzuzaehlen macht ausgerechnet die
-       * Ansicht unehrlich, die es gibt, um ehrlich zu sein.
-       *
-       * Ueber ai_interest, das der Inbox-Sync ohnehin setzt (Migration 0064).
-       * Nachrichten ohne Einstufung bleiben drin: das sind die aelteren, und
-       * eine echte Antwort faelschlich zu verwerfen waere der schlimmere
-       * Fehler. Das Aussortieren fuer die Text-Auswertung passiert in byCopy,
-       * das die Abwesenheitsnotizen als eigene Spalte ausweist.
-       */
-      supabase
-        .from("messages")
-        .select("contact_id, campaign_id, step_order, variant_index, ai_interest, sent_at")
-        .eq("workspace_id", ws.workspace.id)
-        .eq("direction", "inbound")
-        .not("contact_id", "is", null)
-        .limit(20000),
-      /**
-       * Wer es bis zu einem Termin gebracht hat.
-       *
-       * `customer` zaehlt mit: wer gekauft hat, hatte den Termin erst recht.
-       * Ihn hier auszulassen wuerde ausgerechnet die erfolgreichsten Kontakte
-       * aus der Erfolgsspalte streichen.
-       */
-      supabase
-        .from("contacts")
-        .select("id")
-        .eq("workspace_id", ws.workspace.id)
-        .in("outreach_status", ["meeting_booked", "customer"])
-        .limit(20000),
-      /**
-       * Der Archiv-Zustand je Kampagne (Migration 0116): von Hand ausgeblendet
-       * oder automatisch, weil die Kampagne bei Instantly geloescht wurde.
-       */
-      supabase
-        .from("campaigns")
-        .select("id, stats_archived_at")
-        .eq("workspace_id", ws.workspace.id),
-    ]);
-
   type Row = {
     contact_id: string | null;
     sent_at: string | null;
@@ -139,8 +106,71 @@ export default async function WirkungPage() {
     sent_at: string | null;
   };
 
-  const outboundRows = (outbound ?? []) as unknown as Row[];
-  const inboundRows = (inbound ?? []) as unknown as InRow[];
+  // .order("id") an jeder paginierten Abfrage: ohne feste Reihenfolge darf
+  // PostgREST Zeilen zwischen zwei Seiten wiederholen oder auslassen.
+  const [outboundRows, inboundRows, meetingRows, { data: campaignRows }] = await Promise.all([
+    fetchAll<Row>((from, to) =>
+      supabase
+        .from("messages")
+        .select(
+          "contact_id, sent_at, campaign_id, step_order, variant_index, campaigns(name), contacts(businesses(search_id, searches(name, query)))"
+        )
+        .eq("workspace_id", ws.workspace.id)
+        .eq("direction", "outbound")
+        .not("contact_id", "is", null)
+        .order("id")
+        .range(from, to)
+    ),
+      /**
+       * Abwesenheitsnotizen zaehlen NICHT als Antwort.
+       *
+       * Beim ersten Blick auf die fertige Seite stand hier 7: Instantly
+       * meldete 1. Der Unterschied waren die 5 automatischen Antworten und
+       * damit eine Quote von 2,4 statt 0,3 Prozent. Ein Autoresponder ist kein
+       * Mensch, der reagiert hat; ihn mitzuzaehlen macht ausgerechnet die
+       * Ansicht unehrlich, die es gibt, um ehrlich zu sein.
+       *
+       * Ueber ai_interest, das der Inbox-Sync ohnehin setzt (Migration 0064).
+       * Nachrichten ohne Einstufung bleiben drin: das sind die aelteren, und
+       * eine echte Antwort faelschlich zu verwerfen waere der schlimmere
+       * Fehler. Das Aussortieren fuer die Text-Auswertung passiert in byCopy,
+       * das die Abwesenheitsnotizen als eigene Spalte ausweist.
+       */
+      fetchAll<InRow>((from, to) =>
+        supabase
+          .from("messages")
+          .select("contact_id, campaign_id, step_order, variant_index, ai_interest, sent_at")
+          .eq("workspace_id", ws.workspace.id)
+          .eq("direction", "inbound")
+          .not("contact_id", "is", null)
+          .order("id")
+          .range(from, to)
+      ),
+      /**
+       * Wer es bis zu einem Termin gebracht hat.
+       *
+       * `customer` zaehlt mit: wer gekauft hat, hatte den Termin erst recht.
+       * Ihn hier auszulassen wuerde ausgerechnet die erfolgreichsten Kontakte
+       * aus der Erfolgsspalte streichen.
+       */
+      fetchAll<{ id: string }>((from, to) =>
+        supabase
+          .from("contacts")
+          .select("id")
+          .eq("workspace_id", ws.workspace.id)
+          .in("outreach_status", ["meeting_booked", "customer"])
+          .order("id")
+          .range(from, to)
+      ),
+      /**
+       * Der Archiv-Zustand je Kampagne (Migration 0116): von Hand ausgeblendet
+       * oder automatisch, weil die Kampagne bei Instantly geloescht wurde.
+       */
+      supabase
+        .from("campaigns")
+        .select("id, stats_archived_at")
+        .eq("workspace_id", ws.workspace.id),
+    ]);
 
   const rows: OutboundRow[] = outboundRows.map((m) => {
     const search = m.contacts?.businesses?.searches;
@@ -160,7 +190,7 @@ export default async function WirkungPage() {
   const interestedContacts = new Set(
     inboundRows.filter((m) => m.ai_interest === "interested").map((m) => m.contact_id!).filter(Boolean)
   );
-  const meetings = new Set(((meetingRows ?? []) as { id: string }[]).map((c) => c.id));
+  const meetings = new Set(meetingRows.map((c) => c.id));
   // Positiv = interessiert ODER Termin, dieselbe Regel wie in copy-outcomes.
   const positiveContacts = new Set([...interestedContacts, ...meetings]);
 
