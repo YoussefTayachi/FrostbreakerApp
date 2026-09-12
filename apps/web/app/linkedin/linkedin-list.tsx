@@ -22,7 +22,10 @@ import type { LeadListSummary, LinkedInLead } from "./types";
  * antwortet und keine Kampagne.
  */
 const REPLY_STATUS = {
-  interested: "replied",
+  // 'lead' und nicht 'replied': wer auf LinkedIn positiv reagiert, ist ein
+  // Gespraech, kein blosses Lebenszeichen. Dieselbe Zuordnung wie
+  // OUTCOME_TO_STAGE in lib/crm/activities.ts.
+  interested: "lead",
   meeting_booked: "meeting_booked",
   not_interested: "not_interested",
 } as const;
@@ -73,6 +76,9 @@ function formatDay(iso: string): string {
 }
 
 const OUTCOME_BY_STATUS: Record<string, ReplyOutcome | undefined> = {
+  lead: "interested",
+  // 'replied' bleibt stehen: Eintraege von vor der Stufe 'lead' sollen
+  // weiter das anzeigen, was damals eingetragen wurde.
   replied: "interested",
   meeting_booked: "meeting_booked",
   not_interested: "not_interested",
