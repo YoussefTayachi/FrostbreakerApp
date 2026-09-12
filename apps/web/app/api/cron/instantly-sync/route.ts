@@ -61,6 +61,15 @@ type InstantlyEmail = {
    * 0076 und lib/instantly/step-ref.ts.
    */
   campaign_id?: string | null;
+  /**
+   * Die RFC-822-Message-ID, z.B. "<SN4PR...@namprd19.prod.outlook.com>".
+   *
+   * Instantly liefert sie seit jeher mit, deklariert war sie nie. Sie ist der
+   * einzige Schluessel, den diese Mail mit derselben Mail im IMAP-Ordner des
+   * Postfachs teilt, und damit die Grundlage dafuer, dass der Gesendet-Sync
+   * (Migration 0114, worker/pipelines/sync_sent.py) keine Dublette anlegt.
+   */
+  message_id?: string | null;
   /** "sequenz_schritt_variante", je 0-basiert. Z.B. "0_1_0". */
   step?: string | null;
   /** Verbindet eine Antwort mit der Mail, auf die sie antwortet. */
@@ -235,7 +244,7 @@ async function processEmail(
    */
   const { data: known } = await supabase
     .from("messages")
-    .select("id, body, step_order")
+    .select("id, body, step_order, message_id")
     .eq("workspace_id", workspaceId)
     .eq("instantly_email_id", email.id)
     .limit(1);
@@ -275,6 +284,24 @@ async function processEmail(
     if (bodyText && !(known[0].body ?? "").trim()) {
       const { error } = await supabase.from("messages").update({ body: bodyText }).eq("id", known[0].id);
       if (error) return `messages body ${email.id}: ${error.message}`;
+    }
+    /**
+     * Und die Message-ID, aus demselben Grund.
+     *
+     * Am 2026-09-12 hatten alle 6172 ausgehenden Zeilen keine: die Spalte gab
+     * es bis Migration 0114 nicht. Der Gesendet-Sync (worker/pipelines/
+     * sync_sent.py) erkennt eine Dublette daran, und solange sie fehlt, muss
+     * er auf Kontakt und Zeitfenster zurueckfallen. Jede Mail, die der
+     * Wasserstand-Ueberlappung wegen noch einmal vorbeikommt, repariert hier
+     * eine Zeile, und die Heuristik verliert an Bedeutung, ohne dass jemand
+     * einen Nachlauf ueber 6172 Zeilen fahren muss.
+     */
+    if (email.message_id && !known[0].message_id) {
+      const { error } = await supabase
+        .from("messages")
+        .update({ message_id: email.message_id })
+        .eq("id", known[0].id);
+      if (error) return `messages message_id ${email.id}: ${error.message}`;
     }
     return null;
   }
@@ -351,6 +378,7 @@ async function processEmail(
       body: bodyText,
       sent_at: email.timestamp_email ?? null,
       instantly_email_id: email.id,
+      message_id: email.message_id ?? null,
       ai_interest: aiInterest,
       ...attributionOf(email, options.campaignIds),
     },

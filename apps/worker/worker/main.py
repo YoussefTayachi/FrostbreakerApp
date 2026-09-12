@@ -24,6 +24,7 @@ from worker.pipelines import (
     get_businesses,
     hunt_persons,
     personalize,
+    sync_sent,
     website_finding,
 )
 from worker.search_state import SearchCancelled
@@ -107,6 +108,14 @@ HANDLERS = {
     # Icebreaker-Zusatzsignals von personalize.py nach website_finding.py
     # gewandert, weil nur noch dieser Job auf den Befund angewiesen ist.
     "write_website_finding": website_finding.run,
+    # Der Gesendet-Ordner eines Postfachs per IMAP. Einziger Job hier, der
+    # nicht zur Leadsuche gehoert, und der einzige, den pg_cron einreiht
+    # (Migration 0114) statt eines vorangegangenen Jobs.
+    #
+    # Im Worker und nicht als Vercel-Route, obwohl der uebrige Mail-Sync dort
+    # liegt: IMAP ist eine langlebige TCP-Verbindung, imaplib steht in der
+    # Standardbibliothek, und dieser Prozess laeuft ohnehin durch.
+    "sync_sent": sync_sent.run,
     # Phase 3 (interne Sende-Engine): send_batch, poll_inbox, bewusst nicht gebaut,
     # siehe Differenzierungs-Plan Punkt 0: Instantly bleibt Sende-Infrastruktur.
 }

@@ -3,6 +3,7 @@ import { getCurrentWorkspace } from "@/lib/workspace/server";
 import { getLangServer } from "@/lib/i18n/lang";
 import { dict } from "@/lib/i18n/dict";
 import MailboxesPanel from "./mailboxes-panel";
+import SentSyncPanel from "./sent-sync-panel";
 
 export default async function InstantlyMailboxesPage() {
   const lang = await getLangServer();
@@ -25,6 +26,9 @@ export default async function InstantlyMailboxesPage() {
         <p className="text-sm text-faint">{t.instantly.mailboxesPage.description}</p>
       </div>
       <MailboxesPanel hasInstantlyKey={!!key} />
+      {/* Darunter und nicht daneben: Versenden ist der Hauptfall, Mitlesen
+          die Ergaenzung. Wer hier landet, will meist eine Mailbox verbinden. */}
+      <SentSyncPanel />
     </div>
   );
 }

@@ -20,6 +20,7 @@ Instantly übernimmt das).
 | Next.js-Frontend + alle `/api`-Routen | Vercel, Region `fra1` | Push auf `main` |
 | Python-Worker (Lead-Pipelines) | Railway, Region US West | Push auf `main` |
 | `instantly-sync` (Analytics + Antworten) | Vercel-Route, aufgerufen von Supabase `pg_cron` | jede Minute |
+| `sync_sent` (Gesendet-Ordner per IMAP) | Python-Worker, eingereiht von Supabase `pg_cron` | alle 5 Minuten |
 | Datenbank, Auth, Cron | Supabase | läuft durchgehend |
 
 Es gibt **keinen** eigenen Mailversand. Kampagnen laufen über Instantly, der
@@ -208,6 +209,41 @@ pro Workspace gilt (BYOK, jeder Kunde eigener Key).
 
 Authentifiziert per `CRON_SECRET` (Bearer-Header, konstantzeitiger Vergleich).
 Das Secret liegt in `supabase_vault`, nicht in einer Migration.
+
+### Der zweite Cron: `sent-sync-enqueue`
+
+Alle fünf Minuten, Migration 0114. Ruft **keine** Route auf, sondern reiht per
+`insert` einen `sync_sent`-Job je verbundenem Postfach ein, sofern nicht schon
+einer für dasselbe Postfach wartet oder läuft. Kein HTTP, kein Secret.
+
+Gearbeitet wird im Python-Worker (`worker/pipelines/sync_sent.py`), weil IMAP
+eine langlebige TCP-Verbindung braucht und `imaplib` in der Standardbibliothek
+liegt.
+
+**Warum es das gibt:** Instantly synchronisiert ausschließlich EINGEHENDE
+Mails. Der Gesendet-Ordner eines verbundenen Postfachs wird nicht gelesen. Am
+2026-09-12 nachgemessen: von vier Antworten, die Youssef zwischen dem 30.08.
+und dem 12.09. über IONOS-Webmail an einen Lead geschrieben hatte, kannte
+Instantly keine einzige, und damit Frostbreaker auch nicht. In der Pipeline
+stand als letzter eigener Kontakt die Kampagnenmail vom 28.08.
+
+**Zugangsdaten** stehen in `public.imap_mailboxes`, Passwort Fernet-verschlüsselt
+mit demselben `APP_ENCRYPTION_KEY` wie `api_keys`. Eingetragen werden sie unter
+`/instantly/mailboxes`; die Route prüft die Anmeldung vor dem Speichern und
+erkennt den Ordnernamen dabei selbst (`lib/imap.ts`, roher TLS-Socket, bewusst
+ohne npm-Abhängigkeit).
+
+**Dubletten** verhindert `messages.message_id`, die RFC-822-Message-ID. Instantly
+liefert sie je Mail mit, im IMAP-Kopf steht dieselbe. Für Zeilen von vor
+Migration 0114 fällt der Job auf Kontakt plus Zeitfenster von fünf Minuten
+zurück und trägt die Message-ID dann nach.
+
+**Übernommen wird nur**, was an einen Kontakt dieses Workspace ging. Ein
+Gesendet-Ordner enthält auch Privates.
+
+**Störungssuche:** `imap_mailboxes.last_error` und `last_sync_at` stehen an der
+Zeile in der Oberfläche. Ein geändertes Passwort fällt dort auf, ohne dass
+jemand ein Protokoll lesen muss.
 
 Ebenfalls per `pg_net`: `handle_new_user()` meldet jede Anmeldung an
 `api/internal/notify-signup` (Migration 0048). Die dort fest eingetragene URL
