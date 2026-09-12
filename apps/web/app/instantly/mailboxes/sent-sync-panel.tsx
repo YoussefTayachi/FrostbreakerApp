@@ -2,7 +2,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { formatRelative } from "@/lib/format-time";
-import { guessImapHost } from "@/lib/imap";
+import { guessImapHost } from "@/lib/imap-host";
 import { cardCls, inputCls, primaryBtnCls, secondaryBtnCls } from "@/lib/ui";
 import { useT } from "../../language-provider";
 import { useToast } from "../../toast-provider";

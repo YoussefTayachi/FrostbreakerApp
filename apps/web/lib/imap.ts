@@ -152,23 +152,9 @@ export function imapProbe(opts: {
   });
 }
 
-/**
- * Der IMAP-Server zu einer Adresse, soweit er sich raten laesst.
- *
- * Nur als VORBELEGUNG im Formular gedacht, nicht als Automatik: geraten wird
- * hier aus der Domain, und wer ein eigenes Postfach betreibt, traegt den
- * Server ohnehin selbst ein. Die Liste enthaelt die Anbieter, die in diesem
- * Konto tatsaechlich vorkommen.
- */
-export function guessImapHost(email: string): string {
-  const domain = (email.split("@")[1] ?? "").toLowerCase();
-  if (domain.endsWith("gmail.com") || domain.endsWith("googlemail.com")) return "imap.gmail.com";
-  if (/(^|\.)(outlook|hotmail|live)\./.test("." + domain) || domain === "outlook.com")
-    return "outlook.office365.com";
-  if (domain.endsWith("ionos.de") || domain.endsWith("1und1.de")) return "imap.ionos.de";
-  if (domain.endsWith("ionos.com") || domain.endsWith("ionos.co.uk")) return "imap.ionos.co.uk";
-  // Eigene Domain bei IONOS ist der haeufigste Fall hier: die Postfaecher
-  // dieses Workspace laufen auf marketing.frostbreaker.app, gehostet bei
-  // IONOS. Raten heisst raten, das Feld bleibt aenderbar.
-  return "imap.ionos.de";
-}
+// guessImapHost steht in lib/imap-host.ts: die Client-Komponente
+// sent-sync-panel.tsx braucht sie, und ein Client-Import DIESER Datei
+// zieht Nodes "tls" in den Browser-Build. Genau das liess am 2026-09-12
+// zwei Vercel-Deployments hintereinander scheitern. Hier bleibt nur, was
+// Sockets braucht; nichts aus dieser Datei darf je eine Client-Komponente
+// importieren.
