@@ -67,12 +67,12 @@ export function ProviderAlerts({ alerts, t, lang }: { alerts: ProviderAlert[]; t
   return (
     <div className="space-y-2">
       {alerts.map((alert) => (
-        <div key={alert.provider} className="rounded-xl border border-red-500/40 bg-red-500/5 px-4 py-3">
+        <div key={alert.provider} className="rounded-xl border border-red-500/40 bg-red-500/5 px-4 py-3.5 shadow-sm sm:px-5">
           <p className="text-sm font-medium text-red-600 dark:text-red-400">
             {A.title(PROVIDER_LABELS[alert.provider] ?? alert.provider)}
           </p>
           <p className="mt-0.5 text-xs text-soft">{A.body}</p>
-          <p className="mt-1.5 text-[11px] text-faint">
+          <p className="mt-1.5 text-2xs text-faint">
             {A.since(formatDateTime(alert.first_seen_at, lang))}
           </p>
         </div>
@@ -108,10 +108,10 @@ export default function WorkerStatus({
 
   if (down) {
     return (
-      <div className="rounded-xl border border-red-500/40 bg-red-500/5 px-4 py-3">
+      <div className="rounded-xl border border-red-500/40 bg-red-500/5 px-4 py-3.5 shadow-sm sm:px-5">
         <p className="text-sm font-medium text-red-600 dark:text-red-400">{W.downTitle}</p>
         <p className="mt-0.5 text-xs text-soft">{W.downBody}</p>
-        <p className="mt-1.5 text-[11px] text-faint">
+        <p className="mt-1.5 text-2xs text-faint">
           {lastSeen && W.lastSeen(formatDateTime(lastSeen, lang))}
           {health.pending_overdue > 0 && ` · ${W.pendingWaiting(health.pending_overdue)}`}
         </p>
@@ -121,7 +121,7 @@ export default function WorkerStatus({
 
   if (backlog) {
     return (
-      <div className="rounded-xl border border-amber-500/40 bg-amber-500/5 px-4 py-3">
+      <div className="rounded-xl border border-amber-500/40 bg-amber-500/5 px-4 py-3.5 shadow-sm sm:px-5">
         <p className="text-sm font-medium text-amber-700 dark:text-amber-400">{W.backlogTitle}</p>
         <p className="mt-0.5 text-xs text-soft">{W.backlogBody(health.pending_overdue)}</p>
       </div>
@@ -129,7 +129,7 @@ export default function WorkerStatus({
   }
 
   return (
-    <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 px-4 py-2.5">
+    <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 px-4 py-3 shadow-sm sm:px-5">
       <p className="text-xs text-amber-700 dark:text-amber-400">
         {W.partial(health.workers.filter((w) => w.alive).length, health.workers.length)}
       </p>

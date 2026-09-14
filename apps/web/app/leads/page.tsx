@@ -10,7 +10,7 @@ export default async function LeadsPage() {
   const t = dict[lang];
   const supabase = await createClient();
   const ws = await getCurrentWorkspace(supabase);
-  if (!ws) return <p className="text-faint">Kein Workspace gefunden.</p>;
+  if (!ws) return <p className="text-sm text-faint">Kein Workspace gefunden.</p>;
   const workspaceId = ws.workspace.id;
 
   const [contactsRes, searchesRes, suppressionRes] = await Promise.all([
@@ -42,9 +42,11 @@ export default async function LeadsPage() {
 
   return (
     <div className="fade-up space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight text-ink">{t.leads.allLeadsTitle}</h1>
-        <p className="text-sm text-faint">{t.leads.allLeadsSubtitle}</p>
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight text-ink">{t.leads.allLeadsTitle}</h1>
+          <p className="mt-1 text-sm text-faint">{t.leads.allLeadsSubtitle}</p>
+        </div>
       </div>
       <LeadsTable contacts={contacts} searches={searchOptions} exportName="alle-leads" />
     </div>

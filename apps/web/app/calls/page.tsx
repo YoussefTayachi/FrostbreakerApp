@@ -24,7 +24,7 @@ export default async function CallsPage() {
   const t = dict[lang];
   const supabase = await createClient();
   const ws = await getCurrentWorkspace(supabase);
-  if (!ws) return <p className="text-faint">Kein Workspace gefunden.</p>;
+  if (!ws) return <p className="text-sm text-faint">Kein Workspace gefunden.</p>;
   const workspaceId = ws.workspace.id;
 
   // Alle offenen, terminierten Aktivitaeten: genau der Zuschnitt des
@@ -62,7 +62,7 @@ export default async function CallsPage() {
     <div className="fade-up space-y-6">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight text-ink">{t.calls.title}</h1>
-        <p className="text-sm text-faint">
+        <p className="mt-1 text-sm text-faint">
           {t.calls.subtitle}{" "}
           <HelpLink section="calls" label={t.guide.helpLink} />
         </p>

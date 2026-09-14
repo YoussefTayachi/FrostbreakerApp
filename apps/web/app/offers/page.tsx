@@ -44,7 +44,7 @@ export default async function OffersPage() {
 
   return (
     <div className="fade-up fb-hud fb-weit space-y-5">
-      <div className="relative overflow-hidden rounded-xl border border-edge/60 bg-panel px-6 py-5">
+      <div className="relative overflow-hidden rounded-xl border border-edge/70 bg-panel px-6 py-5">
         <div className="fb-grid-bg absolute inset-0" aria-hidden />
         <div className="relative">
           <p className="fb-label mb-1.5" style={{ color: "var(--fb-frost)" }}>

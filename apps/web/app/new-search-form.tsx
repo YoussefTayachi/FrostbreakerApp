@@ -27,6 +27,7 @@ import {
   planCountryCoverage,
 } from "@/lib/maps-regions";
 import { searchRowToPresetConfig, type PresetConfig, type SearchMode } from "@/lib/search-presets";
+import { inputCls as uiInputCls, primaryBtnCls, secondaryBtnCls } from "@/lib/ui";
 import { useT } from "./language-provider";
 import { useToast } from "./toast-provider";
 
@@ -477,16 +478,23 @@ async function adoptLocalPresets(supabase: SupabaseClient, workspaceId: string):
   return rows.length > 0;
 }
 
-const inputCls =
-  "mt-1.5 rounded-lg border border-edge2 bg-field px-3.5 py-2.5 text-sm text-ink " +
-  "placeholder-mute outline-none transition-colors focus:border-sky-500";
+/* Dasselbe Feld wie ueberall sonst in der App (lib/ui.ts), nur mit dem
+   Abstand zur Beschriftung darueber. Vorher stand hier eine eigene Fassung
+   ohne Fokusring: dieselbe Maske hatte damit andere Felder als jede andere
+   Seite. */
+const inputCls = "mt-1.5 " + uiInputCls;
 const labelCls = "flex flex-col text-sm font-medium text-soft";
 
+/* EIN Chip fuer alle sechs Auswahlgitter dieser Maske. Vorher gab es sie in
+   zwei Groessen (px-2/text-2xs und px-2.5/text-xs) direkt untereinander:
+   Marktsegmente waren groesser als Stichwoerter, Laender groesser als Titel.
+   min-h-8 statt py-*: ein Chip ist auch auf dem Handy ein Tippziel. */
 const chipCls = (active: boolean) =>
-  "rounded-lg border px-2 py-0.5 text-[11px] transition-colors " +
+  "inline-flex min-h-8 items-center rounded-full border px-3 text-xs font-medium " +
+  "transition-[background-color,border-color,color,transform] duration-150 active:scale-[0.98] " +
   (active
     ? "border-violet-500/60 bg-violet-500/10 text-violet-700 dark:text-violet-300"
-    : "border-edge2 text-faint hover:border-edge3 hover:text-ink");
+    : "border-edge2 text-faint hover:border-edge3 hover:bg-chip hover:text-ink");
 
 /* Bewusst auf Modulebene und NICHT innerhalb von NewSearchForm definiert: eine
    im Rumpf der Elternkomponente deklarierte Funktion ist bei jedem Render ein
@@ -526,10 +534,10 @@ function TechnologyPicker({
     <details
       open={open}
       onToggle={(e) => onOpenChange((e.currentTarget as HTMLDetailsElement).open)}
-      className="rounded-lg border border-edge/60 bg-surface/60"
+      className="rounded-xl border border-edge/70 bg-wash"
     >
-      <summary className="flex cursor-pointer list-none items-center gap-2 px-3.5 py-2.5 text-xs font-medium text-faint transition-colors hover:text-soft">
-        <svg viewBox="0 0 24 24" fill="none" aria-hidden className="h-4 w-4">
+      <summary className="flex min-h-11 cursor-pointer list-none items-center gap-2 px-3.5 text-sm font-medium text-faint transition-colors hover:text-soft">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden className="h-4 w-4 shrink-0">
           <path
             d="M9 18l-5-6 5-6m6 12l5-6-5-6"
             stroke="currentColor"
@@ -540,12 +548,12 @@ function TechnologyPicker({
         </svg>
         {t.newSearchForm.techHeading}
         {selected.length > 0 && (
-          <span className="rounded-full bg-sky-500/15 px-1.5 py-0.5 text-[10px] font-semibold text-sky-600 dark:text-sky-300">
+          <span className="rounded-full bg-sky-500/15 px-1.5 py-0.5 text-2xs font-semibold text-sky-600 dark:text-sky-300">
             {selected.length}
           </span>
         )}
       </summary>
-      <div className="space-y-3 border-t border-edge/60 px-3.5 py-3">
+      <div className="space-y-3 border-t border-edge/70 px-3.5 py-3">
         {groups.map((group) => {
           const items = available.filter((tech) => tech.group === group.key);
           // Eine Ueberschrift ohne Kacheln darunter waere eine leere
@@ -555,7 +563,7 @@ function TechnologyPicker({
           return (
           <div key={group.key}>
             <span className="text-xs font-medium text-faint">{group.label}</span>
-            <div className="mt-1.5 flex flex-wrap gap-1.5">
+            <div className="mt-2 flex flex-wrap gap-1.5">
               {items
                 .map((tech) => {
                   const active = selected.includes(tech.id);
@@ -575,7 +583,7 @@ function TechnologyPicker({
           </div>
           );
         })}
-        <p className="text-xs text-mute">
+        <p className="text-xs text-faint">
           {provider === "apollo" ? t.newSearchForm.techHintApollo : t.newSearchForm.techHintHunter}
         </p>
       </div>
@@ -1185,9 +1193,12 @@ export default function NewSearchForm({
     push(t.newSearchForm.presetDeleted, "success");
   }
 
+  /* Segment-Umschalter wie in den Systemoberflaechen: eingelassene Leiste,
+     das aktive Feld liegt als eigene Flaeche darauf. flex-1 unter sm, damit
+     die vier Wege die Breite teilen statt links zusammenzurutschen. */
   const tabCls = (active: boolean) =>
-    "rounded-lg px-3.5 py-1.5 text-sm font-medium transition-colors " +
-    (active ? "bg-sky-500/15 text-sky-600 dark:text-sky-300" : "text-faint hover:text-ink");
+    "flex-1 rounded-md px-3 py-2 text-sm font-medium transition-colors sm:flex-none sm:px-3.5 " +
+    (active ? "bg-panel text-ink shadow-sm dark:bg-white/[0.08]" : "text-soft hover:text-ink");
 
   return (
     <form onSubmit={onSubmit} className="space-y-4">
@@ -1197,15 +1208,15 @@ export default function NewSearchForm({
           Der Hinweis wechselt mit dem Suchweg, weil jeder Weg andere
           Anbieter braucht (siehe lib/search-requirements.ts). */}
       {missingKeys.length > 0 && (
-        <div className="rounded-lg border border-amber-500/40 bg-amber-500/5 px-3 py-2.5">
+        <div className="rounded-xl border border-amber-500/40 bg-amber-500/5 px-3.5 py-3">
           <p className="text-xs font-medium text-amber-700 dark:text-amber-400">
             {t.newSearchForm.missingKeysTitle(
               missingKeys.map((p) => PROVIDER_LABELS[p] ?? p).join(", ")
             )}
           </p>
-          <p className="mt-0.5 text-[11px] text-soft">
+          <p className="mt-1 text-xs text-soft">
             {t.newSearchForm.missingKeysBody}{" "}
-            <Link href="/settings" className="font-medium text-sky-600 hover:text-sky-500 dark:text-sky-400">
+            <Link href="/settings" className="font-medium text-sky-600 transition-colors hover:text-sky-500 dark:text-sky-400">
               {t.newSearchForm.missingKeysCta}
             </Link>
           </p>
@@ -1234,25 +1245,21 @@ export default function NewSearchForm({
             </optgroup>
           </select>
         </label>
-        <button
-          type="button"
-          onClick={savePreset}
-          className="rounded-lg border border-edge2 px-3.5 py-2.5 text-sm text-soft transition-colors hover:border-edge3 hover:text-ink"
-        >
+        <button type="button" onClick={savePreset} className={secondaryBtnCls}>
           {t.newSearchForm.presetSave}
         </button>
         {selectedPlaybook.startsWith("own:") && (
           <button
             type="button"
             onClick={deleteSelectedPreset}
-            className="rounded-lg border border-edge2 px-3.5 py-2.5 text-sm text-faint transition-colors hover:border-red-500/50 hover:text-red-600"
+            className={secondaryBtnCls + " text-faint hover:border-red-300 hover:text-red-600 dark:hover:border-red-500/40"}
           >
             {t.newSearchForm.presetDelete}
           </button>
         )}
       </div>
 
-      <div className="flex gap-1 rounded-lg border border-edge/60 bg-panel p-1 w-fit">
+      <div className="flex w-full gap-1 rounded-lg bg-chip p-1 sm:w-fit">
         <button type="button" className={tabCls(mode === "maps")} onClick={() => setMode("maps")}>
           {t.newSearchForm.tabMaps}
         </button>
@@ -1288,32 +1295,32 @@ export default function NewSearchForm({
           Pain-Point-Filter (der veraendert, WER gefunden wird), sondern ein
           Ablaufschalter (was DANACH mit den Funden passiert); deshalb steht
           er hier oben und nicht im eingeklappten Filterblock. */}
-      <label className="flex cursor-pointer items-start gap-2 text-sm text-soft">
+      <label className="flex cursor-pointer items-start gap-2.5 py-0.5 text-sm text-soft">
         <input
           type="checkbox"
           checked={websiteFindings}
           onChange={(e) => setWebsiteFindings(e.target.checked)}
-          className="mt-0.5 h-4 w-4 rounded accent-sky-500"
+          className="mt-0.5 h-4 w-4 shrink-0 rounded accent-sky-600"
         />
         <span>
           {t.newSearchForm.websiteFindingsToggle}
-          <span className="block text-xs text-mute">{t.newSearchForm.websiteFindingsToggleHint}</span>
+          <span className="block text-xs text-faint">{t.newSearchForm.websiteFindingsToggleHint}</span>
         </span>
       </label>
       {/* Der Umschalter steht VOR den Feldern, weil er bestimmt, welche Felder
           darunter ueberhaupt stehen — unter dem Formular waere er die
           Erklaerung fuer etwas, das man schon ausgefuellt hat. */}
       {mode === "maps" && (
-        <label className="flex cursor-pointer items-start gap-2 text-sm text-soft">
+        <label className="flex cursor-pointer items-start gap-2.5 py-0.5 text-sm text-soft">
           <input
             type="checkbox"
             checked={coverageOn}
             onChange={(e) => setCoverageOn(e.target.checked)}
-            className="mt-0.5 h-4 w-4 rounded accent-sky-500"
+            className="mt-0.5 h-4 w-4 shrink-0 rounded accent-sky-600"
           />
           <span>
             {t.newSearchForm.coverageToggle}
-            <span className="block text-xs text-mute">{t.newSearchForm.coverageToggleHint}</span>
+            <span className="block text-xs text-faint">{t.newSearchForm.coverageToggleHint}</span>
           </span>
         </label>
       )}
@@ -1386,10 +1393,10 @@ export default function NewSearchForm({
               {coverage && coverage.combinations > 0 ? (
                 <div
                   className={
-                    "rounded-lg border px-3 py-2 text-xs leading-relaxed " +
+                    "rounded-xl border px-3.5 py-2.5 text-xs leading-relaxed " +
                     (coverage.shortfall
                       ? "border-amber-300 bg-amber-50 text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200"
-                      : "border-edge/60 bg-panel text-soft")
+                      : "border-edge/70 bg-panel text-soft")
                   }
                   aria-live="polite"
                 >
@@ -1405,7 +1412,7 @@ export default function NewSearchForm({
                   {/* Die Staedte offen hinschreiben: der Nutzer hat sie nicht
                       selbst gewaehlt und soll vor dem Start sehen, wohin die
                       Suche laeuft. */}
-                  <p className="mt-1 text-mute">
+                  <p className="mt-1 text-faint">
                     {t.newSearchForm.coverageCities(coverage.cities.join(", "))}
                   </p>
                   {coverage.limit === "city_limit" && (
@@ -1427,10 +1434,10 @@ export default function NewSearchForm({
                       )}
                     </p>
                   )}
-                  <p className="mt-1 text-mute">{t.newSearchForm.coverageQueueHint}</p>
+                  <p className="mt-1 text-faint">{t.newSearchForm.coverageQueueHint}</p>
                 </div>
               ) : (
-                <p className="text-xs text-mute">
+                <p className="text-xs text-faint">
                   {coverage?.limit === "no_niche"
                     ? t.newSearchForm.coverageNeedsNiche
                     : coverage?.limit === "fanout_limit"
@@ -1440,7 +1447,7 @@ export default function NewSearchForm({
               )}
             </div>
           ) : (
-            <p className="text-xs text-mute sm:col-span-2 lg:col-span-4">
+            <p className="text-xs text-faint sm:col-span-2 lg:col-span-4">
               {fanoutCount > 1
                 ? t.newSearchForm.fanoutHint(fanoutCount, estimateRawResults(targetEmails))
                 : t.newSearchForm.targetEmailCountHint(estimateRawResults(targetEmails))}
@@ -1457,10 +1464,10 @@ export default function NewSearchForm({
         <details
           open={advancedOpen}
           onToggle={(e) => setAdvancedOpen((e.currentTarget as HTMLDetailsElement).open)}
-          className="rounded-lg border border-edge/60 bg-surface/60"
+          className="rounded-xl border border-edge/70 bg-wash"
         >
-          <summary className="flex cursor-pointer list-none items-center gap-2 px-3.5 py-2.5 text-xs font-medium text-faint transition-colors hover:text-soft">
-            <svg viewBox="0 0 24 24" fill="none" aria-hidden className="h-4 w-4">
+          <summary className="flex min-h-11 cursor-pointer list-none items-center gap-2 px-3.5 text-sm font-medium text-faint transition-colors hover:text-soft">
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden className="h-4 w-4 shrink-0">
               <circle cx="12" cy="12" r="3.2" stroke="currentColor" strokeWidth="1.6" />
               <path
                 d="M12 3v2.2M12 18.8V21M21 12h-2.2M5.2 12H3m13.4-6.4-1.6 1.6M9.2 14.8l-1.6 1.6m10.8 0-1.6-1.6M9.2 9.2 7.6 7.6"
@@ -1471,27 +1478,27 @@ export default function NewSearchForm({
             </svg>
             {t.newSearchForm.painPointHeading}
             {activeFilterCount > 0 && (
-              <span className="rounded-full bg-sky-500/15 px-1.5 py-0.5 text-[10px] font-semibold text-sky-600 dark:text-sky-300">
+              <span className="rounded-full bg-sky-500/15 px-1.5 py-0.5 text-2xs font-semibold text-sky-600 dark:text-sky-300">
                 {activeFilterCount}
               </span>
             )}
           </summary>
-          <div className="space-y-3 border-t border-edge/60 px-3.5 py-3">
-            <label className="flex cursor-pointer items-center gap-2 text-sm text-soft">
+          <div className="space-y-3 border-t border-edge/70 px-3.5 py-3">
+            <label className="flex min-h-9 cursor-pointer items-center gap-2.5 text-sm text-soft">
               <input
                 type="checkbox"
                 checked={painPointNoWebsite}
                 onChange={(e) => setPainPointNoWebsite(e.target.checked)}
-                className="h-4 w-4 rounded accent-sky-500"
+                className="h-4 w-4 shrink-0 rounded accent-sky-600"
               />
               {t.newSearchForm.painPointNoWebsite}
             </label>
-            <label className="flex items-center gap-2 text-sm text-soft">
+            <label className="flex min-h-9 items-center gap-2.5 text-sm text-soft">
               <input
                 type="checkbox"
                 checked={painPointMaxRating !== ""}
                 onChange={(e) => setPainPointMaxRating(e.target.checked ? 4 : "")}
-                className="h-4 w-4 rounded accent-sky-500"
+                className="h-4 w-4 shrink-0 rounded accent-sky-600"
               />
               {t.newSearchForm.painPointMaxRating}
               {painPointMaxRating !== "" && (
@@ -1609,7 +1616,7 @@ export default function NewSearchForm({
         />
       )}
       {mode === "corporate" && (
-        <p className="text-xs text-mute">
+        <p className="text-xs text-faint">
           {t.newSearchForm.corporateHint} {t.newSearchForm.targetEmailCountHint(estimateRawResults(targetEmails))}
         </p>
       )}
@@ -1691,7 +1698,7 @@ export default function NewSearchForm({
               Suche dort nachbaut, findet sie an derselben Stelle wieder. */}
           <div>
             <span className="text-sm font-medium text-soft">{t.newSearchForm.apolloSegments}</span>
-            <div className="mt-1.5 flex flex-wrap gap-1.5">
+            <div className="mt-2 flex flex-wrap gap-1.5">
               {APOLLO_MARKET_SEGMENTS.map((segment) => {
                 const active = marketSegments.includes(segment);
                 return (
@@ -1703,19 +1710,14 @@ export default function NewSearchForm({
                         prev.includes(segment) ? prev.filter((v) => v !== segment) : [...prev, segment]
                       )
                     }
-                    className={
-                      "rounded-lg border px-2.5 py-1 text-xs transition-colors " +
-                      (active
-                        ? "border-violet-500/60 bg-violet-500/10 text-violet-700 dark:text-violet-300"
-                        : "border-edge2 text-faint hover:border-edge3 hover:text-ink")
-                    }
+                    className={chipCls(active)}
                   >
                     {t.newSearchForm.apolloSegmentLabels[segment] ?? segment}
                   </button>
                 );
               })}
             </div>
-            <p className="mt-1 text-xs text-mute">{t.newSearchForm.apolloSegmentsHint}</p>
+            <p className="mt-1 text-xs text-faint">{t.newSearchForm.apolloSegmentsHint}</p>
           </div>
 
           <label className={labelCls + " w-full"}>
@@ -1730,7 +1732,7 @@ export default function NewSearchForm({
           <div className="-mt-1 space-y-2">
             {APOLLO_KEYWORD_GROUPS.map((gruppe) => (
               <div key={gruppe.id}>
-                <span className="text-[10px] uppercase tracking-wide text-mute">
+                <span className="text-2xs font-medium uppercase tracking-wider text-mute">
                   {t.newSearchForm.keywordGroups[gruppe.id]}
                 </span>
                 <div className="mt-1 flex flex-wrap gap-1.5">
@@ -1749,12 +1751,7 @@ export default function NewSearchForm({
                             return next.join(", ");
                           })
                         }
-                        className={
-                          "rounded-lg border px-2 py-0.5 text-[11px] transition-colors " +
-                          (active
-                            ? "border-violet-500/60 bg-violet-500/10 text-violet-700 dark:text-violet-300"
-                            : "border-edge2 text-faint hover:border-edge3 hover:text-ink")
-                        }
+                        className={chipCls(active)}
                       >
                         {active ? "✓ " : "+ "}
                         {kw}
@@ -1787,12 +1784,7 @@ export default function NewSearchForm({
                       return next.join(", ");
                     })
                   }
-                  className={
-                    "rounded-lg border px-2 py-0.5 text-[11px] transition-colors " +
-                    (active
-                      ? "border-violet-500/60 bg-violet-500/10 text-violet-700 dark:text-violet-300"
-                      : "border-edge2 text-faint hover:border-edge3 hover:text-ink")
-                  }
+                  className={chipCls(active)}
                 >
                   {active ? "✓ " : "+ "}
                   {title}
@@ -1803,7 +1795,7 @@ export default function NewSearchForm({
 
           <div>
             <span className="text-sm font-medium text-soft">{t.newSearchForm.apolloSeniorities}</span>
-            <div className="mt-1.5 flex flex-wrap gap-1.5">
+            <div className="mt-2 flex flex-wrap gap-1.5">
               {APOLLO_SENIORITIES.map((level) => {
                 const active = apolloSeniorities.includes(level);
                 return (
@@ -1815,24 +1807,19 @@ export default function NewSearchForm({
                         prev.includes(level) ? prev.filter((v) => v !== level) : [...prev, level]
                       )
                     }
-                    className={
-                      "rounded-lg border px-2.5 py-1 text-xs transition-colors " +
-                      (active
-                        ? "border-violet-500/60 bg-violet-500/10 text-violet-700 dark:text-violet-300"
-                        : "border-edge2 text-faint hover:border-edge3 hover:text-ink")
-                    }
+                    className={chipCls(active)}
                   >
                     {t.newSearchForm.apolloSeniorityLabels[level] ?? level}
                   </button>
                 );
               })}
             </div>
-            <p className="mt-1 text-xs text-mute">{t.newSearchForm.apolloSenioritiesHint}</p>
+            <p className="mt-1 text-xs text-faint">{t.newSearchForm.apolloSenioritiesHint}</p>
           </div>
 
           <div>
             <span className="text-sm font-medium text-soft">{t.newSearchForm.apolloCountries}</span>
-            <div className="mt-1.5 flex flex-wrap gap-1.5">
+            <div className="mt-2 flex flex-wrap gap-1.5">
               {COUNTRY_CODES.map((code) => {
                 const active = apolloCountries.includes(code);
                 return (
@@ -1844,12 +1831,7 @@ export default function NewSearchForm({
                         prev.includes(code) ? prev.filter((c) => c !== code) : [...prev, code]
                       )
                     }
-                    className={
-                      "rounded-lg border px-2.5 py-1 text-xs transition-colors " +
-                      (active
-                        ? "border-violet-500/60 bg-violet-500/10 text-violet-700 dark:text-violet-300"
-                        : "border-edge2 text-faint hover:border-edge3 hover:text-ink")
-                    }
+                    className={chipCls(active)}
                   >
                     {t.newSearchForm.countryLabels[code] ?? code}
                   </button>
@@ -1874,26 +1856,26 @@ export default function NewSearchForm({
           {apolloCount.state !== "idle" && (
             <div
               className={
-                "rounded-lg border px-3 py-2 text-xs leading-relaxed " +
+                "rounded-xl border px-3.5 py-2.5 text-xs leading-relaxed " +
                 (apolloCount.state === "ok" && apolloCount.total === 0
                   ? "border-amber-300 bg-amber-50 text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200"
-                  : "border-edge/60 bg-panel text-soft")
+                  : "border-edge/70 bg-panel text-soft")
               }
               aria-live="polite"
             >
               {apolloCount.state === "loading" && (
-                <span className="text-mute">{t.newSearchForm.apolloCountLoading}</span>
+                <span className="text-faint">{t.newSearchForm.apolloCountLoading}</span>
               )}
               {apolloCount.state === "ok" && (
                 <>
-                  <span className={apolloCount.total === 0 ? "font-medium" : "font-medium text-strong"}>
+                  <span className={apolloCount.total === 0 ? "font-medium" : "font-medium text-ink"}>
                     {t.newSearchForm.apolloCountResult(apolloCount.total, apolloTarget)}
                   </span>{" "}
-                  <span className="text-mute">{t.newSearchForm.apolloCountFree}</span>
+                  <span className="text-faint">{t.newSearchForm.apolloCountFree}</span>
                 </>
               )}
               {apolloCount.state === "error" && (
-                <span className="text-mute">
+                <span className="text-faint">
                   {apolloCount.reason === "no_key"
                     ? t.newSearchForm.apolloCountNoKey
                     : apolloCount.reason === "plan"
@@ -1904,18 +1886,18 @@ export default function NewSearchForm({
             </div>
           )}
 
-          <p className="text-xs text-mute">{t.newSearchForm.apolloHint(APOLLO_MAX_TARGET)}</p>
+          <p className="text-xs text-faint">{t.newSearchForm.apolloHint(APOLLO_MAX_TARGET)}</p>
         </>
       )}
     </form>
   );
 
+  /* Unter sm ueber die volle Breite: der Knopf schliesst das Formular ab und
+     stand vorher als 110 Pixel breiter Rest am linken Rand einer leeren
+     Zeile. */
   function SubmitButton({ loading }: { loading: boolean }) {
     return (
-      <button
-        disabled={loading}
-        className="rounded-lg bg-ink px-5 py-2.5 text-sm font-medium text-surface shadow-sm transition-all hover:opacity-85 active:scale-[0.98] disabled:opacity-50"
-      >
+      <button disabled={loading} className={primaryBtnCls + " w-full sm:w-auto"}>
         {loading ? t.newSearchForm.starting : t.newSearchForm.start}
       </button>
     );

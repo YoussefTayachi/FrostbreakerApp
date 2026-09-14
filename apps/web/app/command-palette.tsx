@@ -23,11 +23,11 @@ export function CommandPaletteTrigger() {
   return (
     <button
       onClick={() => window.dispatchEvent(new Event("open-command-palette"))}
-      className="mb-3 flex shrink-0 items-center gap-2.5 rounded-lg border border-edge/60 bg-panel px-3 py-2 text-left text-sm text-faint transition-colors hover:border-edge2 hover:text-ink"
+      className="mb-4 flex h-10 shrink-0 items-center gap-2.5 rounded-lg bg-panel px-3 text-left text-sm text-faint shadow-sm ring-1 ring-edge/70 transition-[box-shadow,color] hover:ring-edge2 hover:text-ink"
     >
       <IconSearch className="h-4 w-4 shrink-0" />
       <span className="flex-1">{t.commandPalette.triggerLabel}</span>
-      <kbd className="rounded border border-edge2 px-1.5 py-0.5 text-[10px]">⌘K</kbd>
+      <kbd className="rounded-md bg-chip px-1.5 py-0.5 font-sans text-2xs font-medium text-faint">⌘K</kbd>
     </button>
   );
 }
@@ -137,12 +137,12 @@ export default function CommandPalette() {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 pt-[12vh]" onClick={close}>
+    <div className="scrim-in fixed inset-0 z-50 flex items-start justify-center bg-black/40 px-4 pt-[12vh] backdrop-blur-[3px]" onClick={close}>
       <div
-        className="fade-up w-full max-w-lg overflow-hidden rounded-xl border border-edge/60 bg-panel shadow-2xl"
+        className="pop-in w-full max-w-lg overflow-hidden rounded-2xl border border-edge/70 bg-panel shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center gap-2.5 border-b border-edge/60 px-4 py-3">
+        <div className="flex items-center gap-3 border-b border-edge/70 px-4 py-3.5">
           <IconSearch className="h-4 w-4 shrink-0 text-mute" />
           <input
             ref={inputRef}
@@ -161,13 +161,13 @@ export default function CommandPalette() {
               }
             }}
             placeholder={t.commandPalette.placeholder}
-            className="w-full bg-transparent text-sm text-ink placeholder-mute outline-none"
+            className="w-full bg-transparent text-base text-ink placeholder-mute outline-none"
           />
-          <kbd className="shrink-0 rounded border border-edge2 px-1.5 py-0.5 text-[10px] text-faint">Esc</kbd>
+          <kbd className="hidden shrink-0 rounded-md border border-edge2 px-1.5 py-0.5 text-2xs text-faint sm:block">Esc</kbd>
         </div>
 
         <div className="max-h-80 overflow-y-auto p-2">
-          <p className="px-2 pb-1 pt-1 text-[11px] font-medium uppercase tracking-wide text-mute">
+          <p className="px-3 pb-1.5 pt-1 text-2xs font-medium uppercase tracking-wider text-mute">
             {t.commandPalette.pagesHeading}
           </p>
           {matchedItems.map(({ href, label, icon: Icon }, i) => (
@@ -190,7 +190,7 @@ export default function CommandPalette() {
 
           {query.trim().length >= 2 && (
             <>
-              <p className="mt-2 px-2 pb-1 pt-1 text-[11px] font-medium uppercase tracking-wide text-mute">
+              <p className="mt-2 px-3 pb-1.5 pt-1 text-2xs font-medium uppercase tracking-wider text-mute">
                 {t.commandPalette.companiesHeading}
               </p>
               {loading && <p className="px-3 py-2 text-sm text-faint">{t.commandPalette.searching}</p>}
@@ -219,10 +219,12 @@ export default function CommandPalette() {
           )}
         </div>
 
-        <div className="flex items-center justify-end gap-1.5 border-t border-edge/60 px-4 py-2 text-[11px] text-faint">
+        {/* Die Fusszeile ist reine Tastaturhilfe und auf dem Handy nutzlos:
+            dort gibt es kein ⌘K, und die 33 Pixel fehlen der Trefferliste. */}
+        <div className="hidden items-center justify-end gap-1.5 border-t border-edge/70 px-4 py-2.5 text-2xs text-faint sm:flex">
           <span>{t.commandPalette.hint}</span>
-          <kbd className="rounded border border-edge2 px-1.5 py-0.5">⌘</kbd>
-          <kbd className="rounded border border-edge2 px-1.5 py-0.5">K</kbd>
+          <kbd className="rounded-md border border-edge2 px-1.5 py-0.5">⌘</kbd>
+          <kbd className="rounded-md border border-edge2 px-1.5 py-0.5">K</kbd>
         </div>
       </div>
     </div>

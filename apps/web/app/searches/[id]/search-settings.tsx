@@ -65,18 +65,27 @@ export default function SearchSettings({
     router.refresh();
   }
 
+  /* Gleiche Hoehe wie in save-as-preset.tsx: die beiden Reihen stehen
+     untereinander und wirkten sonst wie zwei verschiedene Leisten. */
+  const feldCls =
+    "h-9 rounded-lg border border-edge2 bg-field px-2.5 text-xs text-soft outline-none " +
+    "transition-[border-color,box-shadow] duration-150 focus:border-sky-500 focus:ring-4 focus:ring-sky-500/15";
+
   return (
-    <div className="flex flex-wrap items-center gap-3">
+    <div className="flex flex-wrap items-center gap-2.5">
       {editing ? (
-        <span className="flex items-center gap-2">
+        <span className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:flex-nowrap">
           <input
             value={name}
             onChange={(e) => setName(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && saveName()}
             autoFocus
-            className="rounded-lg border border-edge2 bg-field px-3 py-1.5 text-lg font-semibold text-ink outline-none focus:border-sky-500"
+            className="w-full min-w-0 rounded-lg border border-edge2 bg-field px-3 py-1.5 text-xl font-semibold tracking-tight text-ink outline-none transition-[border-color,box-shadow] duration-150 focus:border-sky-500 focus:ring-4 focus:ring-sky-500/15 sm:w-80"
           />
-          <button onClick={saveName} className="text-xs text-sky-600 dark:text-sky-300 hover:text-sky-500 dark:hover:text-sky-200">
+          <button
+            onClick={saveName}
+            className="shrink-0 rounded-md px-1.5 py-1.5 text-xs font-medium text-sky-600 transition-colors hover:text-sky-500 dark:text-sky-300 dark:hover:text-sky-200"
+          >
             {t.searchSettings.save}
           </button>
         </span>
@@ -95,7 +104,7 @@ export default function SearchSettings({
       <select
         value={schedule}
         onChange={(e) => saveSchedule(e.target.value)}
-        className="rounded-lg border border-edge2 bg-field px-2.5 py-1.5 text-xs text-soft outline-none focus:border-sky-500"
+        className={feldCls}
         title={t.searchSettings.scheduleTooltip}
       >
         <option value="none">{t.searchSettings.scheduleNone}</option>
@@ -105,16 +114,19 @@ export default function SearchSettings({
       </select>
 
       {editingInstantly ? (
-        <span className="flex items-center gap-1.5">
+        <span className="flex w-full flex-wrap items-center gap-1.5 sm:w-auto sm:flex-nowrap">
           <input
             value={instantlyCampaignId}
             onChange={(e) => setInstantlyCampaignId(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && saveInstantlyCampaignId()}
             autoFocus
             placeholder={t.searchSettings.instantlyPlaceholder}
-            className="w-56 rounded-lg border border-edge2 bg-field px-2.5 py-1.5 text-xs text-ink outline-none focus:border-sky-500"
+            className={feldCls + " w-full min-w-0 text-ink sm:w-56"}
           />
-          <button onClick={saveInstantlyCampaignId} className="text-xs text-sky-600 dark:text-sky-300 hover:text-sky-500 dark:hover:text-sky-200">
+          <button
+            onClick={saveInstantlyCampaignId}
+            className="shrink-0 rounded-md px-1.5 py-1.5 text-xs font-medium text-sky-600 transition-colors hover:text-sky-500 dark:text-sky-300 dark:hover:text-sky-200"
+          >
             {t.searchSettings.save}
           </button>
         </span>
@@ -123,7 +135,7 @@ export default function SearchSettings({
           onClick={() => setEditingInstantly(true)}
           title={t.searchSettings.instantlyTooltip}
           className={
-            "rounded-lg border px-2.5 py-1.5 text-xs transition-colors " +
+            "inline-flex h-9 items-center rounded-lg border px-2.5 text-xs font-medium transition-[background-color,border-color,transform] duration-150 active:scale-[0.98] " +
             (initialInstantlyCampaignId
               ? "border-sky-500/30 bg-sky-500/10 text-sky-600 hover:border-sky-500/60 dark:text-sky-300"
               : "border-dashed border-edge3 text-faint hover:border-sky-500/60 hover:text-sky-600 dark:hover:text-sky-400")

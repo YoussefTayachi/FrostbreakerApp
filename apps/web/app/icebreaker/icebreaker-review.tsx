@@ -3,7 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useT } from "../language-provider";
 import { useToast } from "../toast-provider";
-import { inputCls, primaryBtnCls, secondaryBtnCls } from "@/lib/ui";
+import { inputCls, primaryBtnCls, primaryBtnSmCls, secondaryBtnCls, secondaryBtnSmCls } from "@/lib/ui";
 import type {
   IcebreakerState,
   ReviewKind,
@@ -375,7 +375,7 @@ export default function IcebreakerReview() {
   const isFinding = kind === "finding";
 
   return (
-    <div className="max-w-4xl space-y-5">
+    <div className="fade-up max-w-4xl space-y-5">
       <div>
         {/* Die Umschaltung steht auf der Hoehe der Ueberschrift, nicht ueber den
             Chips.
@@ -393,11 +393,15 @@ export default function IcebreakerReview() {
             role="tablist"
             aria-label={R.kindSwitchLabel}
             onKeyDown={onTabKey}
-            /* bg-chip/bg-panel getauscht statt gespiegelt: die gewaehlte
-               Flaeche muss in BEIDEN Themes die hellere von beiden sein. Im
-               Dunklen war sie mit bg-panel (#131315) auf bg-chip (#202023) die
-               dunklere und las sich als Loch statt als Auswahl. */
-            className="flex gap-1 rounded-lg border border-edge2 bg-chip p-1 dark:bg-panel"
+            /* Derselbe Segment-Umschalter wie ueberall sonst in der App:
+               Schiene in bg-chip, gewaehltes Segment in bg-panel.
+               Im Dunklen ist bg-panel (#151517) die DUNKLERE der beiden
+               Flaechen -- gemessen an der alten Palette las sich das als Loch
+               statt als Auswahl. Getragen wird die Auswahl dort deshalb von
+               Schrift (text-ink gegen text-soft), Schatten und einem feinen
+               Ring; getauschte Farben waeren ein zweites Muster fuer dieselbe
+               Sache. */
+            className="flex gap-1 rounded-lg bg-chip p-1"
           >
             {KINDS.map((k) => (
               <button
@@ -412,9 +416,11 @@ export default function IcebreakerReview() {
                 onClick={() => switchKind(k)}
                 disabled={busy}
                 className={
-                  "rounded-md px-3 py-1.5 text-xs font-medium transition-colors disabled:opacity-40 " +
+                  "rounded-md px-3.5 py-1.5 text-sm font-medium transition-colors duration-150 disabled:opacity-40 " +
                   "focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 " +
-                  (kind === k ? "bg-panel shadow-sm text-ink dark:bg-chip" : "text-soft hover:text-ink")
+                  (kind === k
+                    ? "bg-panel text-ink shadow-sm dark:bg-white/[0.08]"
+                    : "text-soft hover:text-ink")
                 }
               >
                 {R.kinds[k]}
@@ -425,9 +431,9 @@ export default function IcebreakerReview() {
         <p className="mt-1 text-sm text-faint">{isFinding ? R.findingSubtitle : R.subtitle}</p>
         {/* text-faint statt text-mute: das sind erklaerende Saetze und keine
             Platzhalter. text-mute liegt auf Weiss bei 2,4:1. */}
-        <p className="mt-2 text-xs text-faint">{R.explainer}</p>
+        <p className="mt-2 text-sm leading-relaxed text-faint">{R.explainer}</p>
         {current && (
-          <p className="mt-1 text-xs text-faint">
+          <p className="mt-1.5 text-xs leading-relaxed text-faint">
             {/* Beim Befund steht dort eine FESTE Zahl und keine Einstellung
                 (Migration 0103, Abschnitt 4). Derselbe Hinweistext waere hier
                 eine falsche Auskunft: er verspricht, dass sich die Zahl unter
@@ -450,7 +456,7 @@ export default function IcebreakerReview() {
           <button
             onClick={() => setFilter("all")}
             className={
-              "flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition-colors " +
+              "flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors duration-150 " +
               (filter === "all"
                 ? "border-sky-500/60 bg-sky-500/10 text-sky-700 dark:text-sky-300"
                 : "border-edge2 bg-chip text-soft hover:border-edge3 hover:text-ink")
@@ -465,7 +471,7 @@ export default function IcebreakerReview() {
               onClick={() => setFilter(filter === s ? "all" : s)}
               disabled={summary[s] === 0}
               className={
-                "flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition-colors disabled:opacity-40 " +
+                "flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors duration-150 disabled:opacity-40 " +
                 (filter === s ? STATE_CLS[s] : "border-edge2 bg-chip text-soft hover:border-edge3 hover:text-ink")
               }
             >
@@ -485,7 +491,7 @@ export default function IcebreakerReview() {
           erfolgreicher Klick aus wie ein wirkungsloser: der Worker braucht
           Sekunden, die Liste lud aber sofort neu und zeigte den alten Text. */}
       {pending.size > 0 && (
-        <div className="sticky top-2 z-10 rounded-lg border border-sky-500/40 bg-sky-500/5 px-4 py-2.5 text-sm text-sky-700 dark:text-sky-300">
+        <div className="sticky top-2 z-10 rounded-xl border border-sky-500/40 bg-sky-500/5 px-4 py-2.5 text-sm text-sky-700 shadow-sm backdrop-blur-sm dark:text-sky-300">
           {R.regenerating(pending.size)}
         </div>
       )}
@@ -494,8 +500,8 @@ export default function IcebreakerReview() {
           geaendert", etwa nach dem Umstellen der Sprache. Ohne ihn muesste
           man je Zeile ein Kaestchen anhaken. */}
       {summary && visibleCount > 0 && (
-        <div className="flex flex-wrap items-center gap-2 rounded-lg border border-edge2 bg-panel px-4 py-3">
-          <p className="flex-1 text-xs text-faint">{R.regenerateAllHint}</p>
+        <div className="flex flex-wrap items-center gap-3 rounded-xl border border-edge/70 bg-panel px-4 py-3.5 shadow-sm">
+          <p className="min-w-0 flex-1 text-sm leading-relaxed text-faint">{R.regenerateAllHint}</p>
           <button
             onClick={() => {
               if (!confirm(R.regenerateAllConfirm(visibleCount))) return;
@@ -505,7 +511,7 @@ export default function IcebreakerReview() {
               );
             }}
             disabled={busy || pending.size > 0}
-            className={primaryBtnCls + " !px-3 !py-1.5 !text-xs"}
+            className={primaryBtnSmCls}
           >
             {R.regenerateAll(visibleCount)}
           </button>
@@ -516,12 +522,12 @@ export default function IcebreakerReview() {
           Grund, warum diese Seite ueberhaupt in vertretbarer Zeit zu
           bearbeiten ist. */}
       {summary && summary.stale > 0 && (
-        <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 px-4 py-3">
-          <p className="text-sm text-ink">{R.staleExplain}</p>
+        <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 px-4 py-3.5">
+          <p className="text-sm leading-relaxed text-ink">{R.staleExplain}</p>
           <button
             onClick={() => act({ action: "acceptStale" }, (n) => push(R.accepted(n), "success"))}
             disabled={busy}
-            className="mt-2 rounded-lg border border-amber-500/50 px-3 py-1.5 text-xs font-medium text-amber-700 transition-colors hover:bg-amber-500/10 disabled:opacity-40 dark:text-amber-500"
+            className="mt-3 rounded-lg border border-amber-500/50 px-3 py-1.5 text-xs font-medium text-amber-700 transition-[background-color,transform] duration-150 hover:bg-amber-500/10 active:scale-[0.98] disabled:opacity-40 dark:text-amber-500"
           >
             {R.acceptStale(summary.stale)}
           </button>
@@ -529,8 +535,8 @@ export default function IcebreakerReview() {
       )}
 
       {selectedVisible.length > 0 && (
-        <div className="sticky top-2 z-10 flex items-center gap-2 rounded-lg border border-edge2 bg-panel px-4 py-2 shadow-sm">
-          <span className="text-xs text-soft">{selectedVisible.length}</span>
+        <div className="sticky top-2 z-10 flex flex-wrap items-center gap-2 rounded-xl border border-edge/70 bg-panel px-4 py-2.5 shadow-md">
+          <span className="text-sm font-medium tabular-nums text-ink">{selectedVisible.length}</span>
           <button
             onClick={() =>
               act({ action: "regenerate", ids: selectedVisible.map((v) => v.id) }, (n) =>
@@ -538,7 +544,7 @@ export default function IcebreakerReview() {
               )
             }
             disabled={busy}
-            className={primaryBtnCls + " !px-3 !py-1.5 !text-xs"}
+            className={primaryBtnSmCls}
           >
             {R.regenerateAll(selectedVisible.length)}
           </button>
@@ -549,7 +555,7 @@ export default function IcebreakerReview() {
               )
             }
             disabled={busy}
-            className="rounded-lg border border-edge2 px-3 py-1.5 text-xs font-medium text-soft transition-colors hover:text-ink disabled:opacity-40"
+            className="rounded-lg border border-edge2 px-3 py-1.5 text-xs font-medium text-soft transition-[color,background-color,transform] duration-150 hover:bg-chip hover:text-ink active:scale-[0.98] disabled:opacity-40"
           >
             {R.accept}
           </button>
@@ -557,7 +563,7 @@ export default function IcebreakerReview() {
       )}
 
       {current?.truncated && (
-        <p className="rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-xs text-amber-700 dark:text-amber-500">
+        <p className="rounded-xl border border-amber-500/30 bg-amber-500/5 px-3.5 py-2.5 text-xs leading-relaxed text-amber-700 dark:text-amber-500">
           {R.truncated}
         </p>
       )}
@@ -567,14 +573,14 @@ export default function IcebreakerReview() {
           etwas, das nicht geladen hat. Gestrichelt heisst hier wie dort "diese
           Flaeche ist richtig, sie ist nur noch leer". */}
       {summary?.total === 0 && (
-        <div className="rounded-lg border border-dashed border-edge2 px-4 py-8 text-center">
+        <div className="rounded-xl border border-dashed border-edge2 px-4 py-10 text-center">
           <p className="mx-auto max-w-[52ch] text-sm leading-relaxed text-faint">
             {isFinding ? R.findingEmpty : R.empty}
           </p>
         </div>
       )}
       {summary && summary.total > 0 && summary.failing === 0 && summary.stale === 0 && filter === "failing" && (
-        <div className="rounded-lg border border-dashed border-edge2 px-4 py-8 text-center">
+        <div className="rounded-xl border border-dashed border-edge2 px-4 py-10 text-center">
           <p className="mx-auto max-w-[52ch] text-sm leading-relaxed text-faint">
             {isFinding ? R.findingAllClean : R.allClean}
           </p>
@@ -595,9 +601,9 @@ export default function IcebreakerReview() {
             mit). Gestrichelter Rahmen wie bei den Leerzustaenden darueber --
             die Flaeche ist richtig, es steht nur nichts drin. */}
         {!current && loadFailed && (
-          <div className="rounded-lg border border-dashed border-edge2 px-4 py-8 text-center">
+          <div className="rounded-xl border border-dashed border-edge2 px-4 py-10 text-center">
             <p className="mx-auto max-w-[52ch] text-sm leading-relaxed text-faint">{R.loadError}</p>
-            <button onClick={() => load()} className={secondaryBtnCls + " mt-3 !px-3 !py-1.5 !text-xs"}>
+            <button onClick={() => load()} className={secondaryBtnSmCls + " mt-3"}>
               {R.retry}
             </button>
           </div>
@@ -605,18 +611,18 @@ export default function IcebreakerReview() {
         {!current &&
           !loadFailed &&
           [0, 1, 2].map((i) => (
-            <div key={i} aria-hidden className="rounded-lg border border-edge/60 bg-panel px-4 py-3">
-              <div className="skeleton h-3.5 w-40" />
-              <div className="skeleton mt-2.5 h-3 w-full" />
-              <div className="skeleton mt-1.5 h-3 w-2/3" />
+            <div key={i} aria-hidden className="rounded-xl border border-edge/70 bg-panel px-4 py-3.5">
+              <div className="skeleton h-4 w-40" />
+              <div className="skeleton mt-3 h-3.5 w-full" />
+              <div className="skeleton mt-2 h-3.5 w-2/3" />
             </div>
           ))}
         {visible.map((v) => (
           <div
             key={v.id}
             className={
-              "rounded-lg border bg-panel px-4 py-3 " +
-              (pending.has(v.id) ? "border-sky-500/50" : "border-edge/60")
+              "rounded-xl border bg-panel px-4 py-3.5 shadow-sm transition-colors duration-150 " +
+              (pending.has(v.id) ? "border-sky-500/50" : "border-edge/70")
             }
           >
             <div className="flex items-start gap-3">
@@ -625,7 +631,8 @@ export default function IcebreakerReview() {
                 checked={selected.has(v.id)}
                 onChange={() => toggle(v.id)}
                 disabled={pending.has(v.id)}
-                className="mt-1 shrink-0"
+                aria-label={v.name?.trim() || R.noName}
+                className="mt-1 h-4 w-4 shrink-0 accent-sky-600"
               />
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
@@ -645,19 +652,19 @@ export default function IcebreakerReview() {
                   {pending.has(v.id) ? (
                     // Der Zustand von vorhin ist waehrend der Neuerzeugung
                     // keine Auskunft mehr, nur noch eine Ablenkung.
-                    <span className="rounded-full border border-sky-500/50 bg-sky-500/10 px-2 py-0.5 text-[11px] font-medium text-sky-700 dark:text-sky-300">
+                    <span className="rounded-full border border-sky-500/50 bg-sky-500/10 px-2 py-0.5 text-2xs font-medium text-sky-700 dark:text-sky-300">
                       {R.regeneratingRow}
                     </span>
                   ) : (
                     <>
-                      <span className={"rounded-full border px-2 py-0.5 text-[11px] font-medium " + STATE_CLS[v.state]}>
+                      <span className={"rounded-full border px-2 py-0.5 text-2xs font-medium " + STATE_CLS[v.state]}>
                         {R.states[v.state]}
                       </span>
                       {/* Die Wortzahl nur, wo es einen Text gibt. "0 von 20
                           Woertern" an einer Zeile ohne Befund liest sich wie
                           ein verfehltes Ziel, und genau das ist es nicht. */}
                       {v.text && (
-                        <span className="text-[11px] tabular-nums text-faint">
+                        <span className="text-xs tabular-nums text-faint">
                           {R.words(v.words, current!.settings.maxWords)}
                         </span>
                       )}
@@ -673,23 +680,26 @@ export default function IcebreakerReview() {
                       rows={3}
                       className={inputCls + " w-full"}
                     />
-                    <div className="flex gap-2">
-                      <button onClick={() => saveDraft(v.id)} disabled={busy} className={primaryBtnCls + " !px-3 !py-1.5 !text-xs"}>
+                    <div className="flex items-center gap-2">
+                      <button onClick={() => saveDraft(v.id)} disabled={busy} className={primaryBtnSmCls}>
                         {R.save}
                       </button>
-                      <button onClick={() => setEditing(null)} className="text-xs text-faint hover:text-ink">
+                      <button
+                        onClick={() => setEditing(null)}
+                        className="rounded-lg px-2.5 py-1.5 text-xs font-medium text-faint transition-colors duration-150 hover:text-ink"
+                      >
                         {R.cancel}
                       </button>
                     </div>
                   </div>
                 ) : v.text ? (
-                  <p className="mt-1 whitespace-pre-wrap text-sm leading-relaxed text-soft">{v.text}</p>
+                  <p className="mt-1.5 whitespace-pre-wrap text-sm leading-relaxed text-soft">{v.text}</p>
                 ) : (
                   <p className="mt-1 text-sm leading-relaxed text-faint">{R.emptyRow}</p>
                 )}
 
                 {v.problems.length > 0 && (
-                  <ul className="mt-1.5 space-y-0.5">
+                  <ul className="mt-2 space-y-0.5">
                     {v.problems.map((p) => (
                       <li key={p} className="text-xs text-red-600 dark:text-red-400">
                         {p}
@@ -699,13 +709,13 @@ export default function IcebreakerReview() {
                 )}
 
                 {editing !== v.id && !pending.has(v.id) && (
-                  <div className="mt-2 flex flex-wrap gap-3 text-xs">
+                  <div className="-ml-2.5 mt-2 flex flex-wrap items-center gap-1 text-xs">
                     <button
                       onClick={() => {
                         setEditing(v.id);
                         setDraft(v.text);
                       }}
-                      className="font-medium text-sky-600 hover:text-sky-500 dark:text-sky-400"
+                      className="rounded-lg px-2.5 py-1.5 font-medium text-sky-600 transition-colors duration-150 hover:bg-sky-500/10 dark:text-sky-400"
                     >
                       {R.edit}
                     </button>
@@ -716,7 +726,7 @@ export default function IcebreakerReview() {
                         )
                       }
                       disabled={busy}
-                      className="text-faint transition-colors hover:text-ink disabled:opacity-40"
+                      className="rounded-lg px-2.5 py-1.5 font-medium text-faint transition-colors duration-150 hover:bg-chip hover:text-ink disabled:opacity-40"
                     >
                       {R.regenerate}
                     </button>
@@ -727,7 +737,7 @@ export default function IcebreakerReview() {
                       <button
                         onClick={() => act({ action: "accept", ids: [v.id] }, (n) => push(R.accepted(n), "success"))}
                         disabled={busy}
-                        className="text-faint transition-colors hover:text-ink disabled:opacity-40"
+                        className="rounded-lg px-2.5 py-1.5 font-medium text-faint transition-colors duration-150 hover:bg-chip hover:text-ink disabled:opacity-40"
                       >
                         {R.accept}
                       </button>

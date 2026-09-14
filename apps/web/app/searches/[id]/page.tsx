@@ -202,7 +202,10 @@ export default async function SearchDetailPage({
     <div className="fade-up space-y-6">
       {nochInArbeit && <AutoRefresh maxMs={10 * 60 * 1000} />}
       <div>
-        <Link href="/searches" className="text-xs text-faint hover:text-ink">
+        <Link
+          href="/searches"
+          className="-ml-1.5 inline-flex min-h-8 items-center rounded-md px-1.5 text-xs text-faint transition-colors hover:text-ink"
+        >
           {t.searchDetail.back}
         </Link>
         <div className="mt-1 flex flex-wrap items-center gap-2.5">
@@ -215,13 +218,13 @@ export default async function SearchDetailPage({
           />
           <span
             className={
-              "rounded-full border px-2 py-0.5 text-[11px] " + searchSourceBadgeClass(search.source)
+              "rounded-full border px-2.5 py-0.5 text-xs font-medium " + searchSourceBadgeClass(search.source)
             }
           >
             {searchSourceLabel(search.source)}
           </span>
         </div>
-        <p className="text-sm text-faint">
+        <p className="mt-1 text-sm text-faint">
           {search.query} · {search.location} ·{" "}
           <LocalTime
             iso={search.created_at}
@@ -237,7 +240,7 @@ export default async function SearchDetailPage({
             stehen — ohne den Satz sieht die Zusammenfassung wie ein Fehler
             aus. */}
         {istGruppe && (
-          <p className="mt-1 text-xs text-mute">
+          <p className="mt-1 text-xs text-faint">
             {t.searchDetail.groupHint(
               kinder.length,
               kinder.filter((k) => k.status === "completed").length
@@ -248,7 +251,7 @@ export default async function SearchDetailPage({
             hatte ich nochmal ausgewaehlt": einmal zum Nachlesen, einmal zum
             Wiederverwenden. */}
         <UsedFilters row={search} lang={lang} />
-        <div className="mt-2">
+        <div className="mt-3">
           <SaveAsPreset
             searchId={search.id}
             row={search}

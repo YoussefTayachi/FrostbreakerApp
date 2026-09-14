@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { cardCls, inputCls, primaryBtnCls } from "@/lib/ui";
+import { cardCls, inputCls, primaryBtnCls, secondaryBtnCls } from "@/lib/ui";
 import { useT } from "../../language-provider";
 import { useToast } from "../../toast-provider";
 import { useWorkspace } from "../../workspace-provider";
@@ -66,16 +66,16 @@ export default function BrandingPage() {
   }
 
   return (
-    <div className="fade-up max-w-2xl space-y-6">
+    <div className="fade-up max-w-3xl space-y-6">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight text-ink">{t.branding.heading}</h1>
-        <p className="text-sm text-faint">{t.branding.description}</p>
+        <p className="mt-1 text-sm text-faint">{t.branding.description}</p>
       </div>
 
       <div className={cardCls}>
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
-            <label className="mb-1.5 block text-xs font-medium text-faint">{t.branding.brandNameLabel}</label>
+            <label className="mb-1.5 block text-xs font-medium text-soft">{t.branding.brandNameLabel}</label>
             <input
               value={brandName}
               onChange={(e) => setBrandName(e.target.value)}
@@ -84,13 +84,14 @@ export default function BrandingPage() {
             />
           </div>
           <div>
-            <label className="mb-1.5 block text-xs font-medium text-faint">{t.branding.brandColorLabel}</label>
+            <label className="mb-1.5 block text-xs font-medium text-soft">{t.branding.brandColorLabel}</label>
             <div className="flex items-center gap-2">
               <input
                 type="color"
                 value={/^#([0-9a-f]{3}){1,2}$/i.test(brandColor) ? brandColor : "#0ea5e9"}
                 onChange={(e) => setBrandColor(e.target.value)}
-                className="h-10 w-12 shrink-0 cursor-pointer rounded-md border border-edge2 bg-field"
+                aria-label={t.branding.brandColorLabel}
+                className="h-[42px] w-12 shrink-0 cursor-pointer rounded-lg border border-edge2 bg-field p-1"
               />
               <input
                 value={brandColor}
@@ -101,7 +102,7 @@ export default function BrandingPage() {
             </div>
           </div>
           <div className="sm:col-span-2">
-            <label className="mb-1.5 block text-xs font-medium text-faint">{t.branding.brandLogoLabel}</label>
+            <label className="mb-1.5 block text-xs font-medium text-soft">{t.branding.brandLogoLabel}</label>
             <input
               value={brandLogoUrl}
               onChange={(e) => setBrandLogoUrl(e.target.value)}
@@ -110,24 +111,25 @@ export default function BrandingPage() {
             />
           </div>
         </div>
-        <button onClick={save} disabled={saving} className={primaryBtnCls + " mt-4"}>
-          {saving ? t.branding.saving : t.branding.save}
-        </button>
+        <div className="mt-5 flex justify-end">
+          <button onClick={save} disabled={saving} className={primaryBtnCls + " w-full sm:w-auto"}>
+            {saving ? t.branding.saving : t.branding.save}
+          </button>
+        </div>
 
-        <div className="mt-6 border-t border-edge/60 pt-5">
-          <h3 className="text-sm font-medium text-ink">{t.branding.reportLinkHeading}</h3>
-          <p className="mb-3 mt-1 text-xs text-faint">{t.branding.reportLinkDescription}</p>
-          <div className="flex gap-3">
+        <div className="mt-6 border-t border-edge/70 pt-5">
+          <h3 className="text-base font-semibold text-ink">{t.branding.reportLinkHeading}</h3>
+          <p className="mb-4 mt-1 text-sm leading-relaxed text-faint">{t.branding.reportLinkDescription}</p>
+          {/* Der Link ist lang: unter sm gehoert der Kopierknopf unter das
+              Feld, sonst bleibt vom Link ein Streifen von vier Zeichen. */}
+          <div className="flex flex-col gap-2.5 sm:flex-row">
             <input
               readOnly
               value={`${reportOrigin}/report/${workspaceId}`}
               onFocus={(e) => e.currentTarget.select()}
-              className={inputCls + " flex-1 text-faint"}
+              className={inputCls + " w-full text-faint sm:flex-1"}
             />
-            <button
-              onClick={copyReportLink}
-              className="rounded-lg border border-edge2 px-4 py-2.5 text-sm font-medium text-ink transition-colors hover:border-sky-500 hover:text-sky-600 dark:hover:text-sky-400"
-            >
+            <button onClick={copyReportLink} className={secondaryBtnCls}>
               {linkCopied ? t.branding.linkCopied : t.branding.copyLink}
             </button>
           </div>

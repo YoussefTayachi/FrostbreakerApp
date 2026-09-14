@@ -40,7 +40,7 @@ export default function EmailCheckPanel() {
           highlights={highlights}
         />
       </div>
-      <div className="rounded-lg border border-edge/60 bg-panel p-4 lg:sticky lg:top-6">
+      <div className="rounded-xl border border-edge/70 bg-panel p-4 shadow-sm sm:p-5 lg:sticky lg:top-6">
         <QualitySidebar subject={subject} body={body} onHighlightsChange={setHighlights} />
       </div>
     </div>

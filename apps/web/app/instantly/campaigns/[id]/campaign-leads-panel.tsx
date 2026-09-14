@@ -11,6 +11,7 @@ import {
   type LeadFilter,
 } from "@/lib/instantly/campaign-leads";
 import { formatRelative } from "@/lib/format-time";
+import { inputCls } from "@/lib/ui";
 import { useT } from "../../../language-provider";
 
 /**
@@ -82,15 +83,21 @@ export default function CampaignLeadsPanel({ campaignId }: { campaignId: string 
     );
   }, [leads, filter, query]);
 
+  // Ladezustand in der Form der Tabelle statt eines Satzes in der Mitte.
   if (loading && !leads) {
-    return <p className="py-6 text-center text-sm text-faint">{t.common.saving}</p>;
+    return (
+      <div className="space-y-2" aria-hidden>
+        <div className="skeleton h-9 w-64" />
+        <div className="skeleton h-48" />
+      </div>
+    );
   }
 
   if (error) {
     return (
-      <div className="rounded-lg border border-red-500/40 bg-red-500/5 px-4 py-3">
+      <div className="rounded-xl border border-red-500/40 bg-red-500/5 px-4 py-3">
         <p className="text-sm text-red-600 dark:text-red-400">{t.common.error + error}</p>
-        <button onClick={load} className="mt-1.5 text-xs font-medium text-sky-600 dark:text-sky-400">
+        <button onClick={load} className="mt-1.5 text-sm font-medium text-sky-600 transition-colors hover:text-sky-500 dark:text-sky-400">
           {L.retry}
         </button>
       </div>
@@ -98,12 +105,12 @@ export default function CampaignLeadsPanel({ campaignId }: { campaignId: string 
   }
 
   if (!leads || leads.length === 0) {
-    return <p className="py-6 text-center text-sm text-faint">{L.empty}</p>;
+    return <p className="py-10 text-center text-sm text-faint">{L.empty}</p>;
   }
 
   return (
     <div className="space-y-3">
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2.5">
         <div className="flex flex-wrap items-center gap-1.5">
           {LEAD_FILTERS.map((f) => (
             <button
@@ -111,7 +118,7 @@ export default function CampaignLeadsPanel({ campaignId }: { campaignId: string 
               onClick={() => setFilter(f)}
               disabled={counts![f] === 0 && f !== "all"}
               className={
-                "flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition-colors disabled:opacity-40 " +
+                "flex items-center gap-1.5 rounded-full border px-3 py-2 text-xs font-medium transition-colors duration-150 disabled:opacity-40 sm:py-1.5 " +
                 (filter === f
                   ? "border-sky-500/60 bg-sky-500/10 text-sky-600 dark:text-sky-300"
                   : "border-edge2 bg-chip text-soft hover:border-edge3 hover:text-ink")
@@ -126,12 +133,12 @@ export default function CampaignLeadsPanel({ campaignId }: { campaignId: string 
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder={L.searchPlaceholder}
-          className="ml-auto min-w-44 flex-1 rounded-lg border border-edge2 bg-field px-3 py-1.5 text-sm text-ink placeholder-mute outline-none transition-colors focus:border-sky-500 sm:flex-none"
+          className={inputCls + " w-full sm:ml-auto sm:w-64"}
         />
       </div>
 
       {truncated && (
-        <p className="rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-xs text-amber-700 dark:text-amber-500">
+        <p className="rounded-lg border border-amber-500/30 bg-amber-500/5 px-3.5 py-2.5 text-sm text-amber-700 dark:text-amber-500">
           {L.truncated}
         </p>
       )}
@@ -142,10 +149,10 @@ export default function CampaignLeadsPanel({ campaignId }: { campaignId: string 
           hinter dem letzten Eintrag — praktisch unerreichbar, ohne vorher
           durch die ganze Liste zu scrollen. sticky auf dem Kopf haelt die
           Spaltenueberschriften waehrend des Scrollens sichtbar. */}
-      <div className="max-h-[28rem] overflow-x-auto overflow-y-auto rounded-lg border border-edge/60">
+      <div className="max-h-[28rem] overflow-x-auto overflow-y-auto rounded-xl border border-edge/70">
         <table className="w-full min-w-[44rem] border-collapse text-left text-sm">
           <thead>
-            <tr className="sticky top-0 z-10 border-b border-edge2/60 bg-panel2 text-[11px] font-medium uppercase tracking-wide text-mute">
+            <tr className="sticky top-0 z-10 border-b border-edge/70 bg-panel2 text-2xs font-medium uppercase tracking-wider text-mute">
               <th className="px-4 py-2.5">{L.colContact}</th>
               <th className="px-3 py-2.5">{L.colCompany}</th>
               <th className="px-3 py-2.5">{L.colStatus}</th>
@@ -155,13 +162,13 @@ export default function CampaignLeadsPanel({ campaignId }: { campaignId: string 
           </thead>
           <tbody>
             {visible.map((lead) => (
-              <tr key={lead.id} className="border-b border-edge2/40 last:border-0 hover:bg-chip/40">
-                <td className="px-4 py-2.5">
-                  <p className="truncate text-ink">{lead.name ?? "—"}</p>
-                  <p className="truncate text-[11px] text-faint">{lead.email ?? "—"}</p>
+              <tr key={lead.id} className="border-b border-edge/70 transition-colors duration-150 last:border-0 hover:bg-wash">
+                <td className="px-4 py-3">
+                  <p className="truncate text-sm text-ink">{lead.name ?? "—"}</p>
+                  <p className="truncate text-xs text-faint">{lead.email ?? "—"}</p>
                 </td>
-                <td className="px-3 py-2.5 text-xs text-soft">{lead.company ?? "—"}</td>
-                <td className="px-3 py-2.5">
+                <td className="px-3 py-3 text-sm text-soft">{lead.company ?? "—"}</td>
+                <td className="px-3 py-3">
                   {/* Reihenfolge der Pruefungen ist die Reihenfolge der
                       Wichtigkeit: eine Antwort schlaegt alles, ein Problem
                       schlaegt "kontaktiert". */}
@@ -177,10 +184,10 @@ export default function CampaignLeadsPanel({ campaignId }: { campaignId: string 
                     <Badge tone="mute">{L.states.pending}</Badge>
                   )}
                 </td>
-                <td className="px-3 py-2.5 text-right text-xs tabular-nums text-soft">
+                <td className="px-3 py-3 text-right text-sm tabular-nums text-soft">
                   {lead.opens > 0 ? lead.opens : <span className="text-mute">—</span>}
                 </td>
-                <td className="px-3 py-2.5 text-xs text-faint">
+                <td className="px-3 py-3 text-xs text-faint">
                   {lead.contacted_at ? formatRelative(lead.contacted_at, lang) : "—"}
                 </td>
               </tr>
@@ -208,7 +215,7 @@ const TONES: Record<string, string> = {
 
 function Badge({ tone, children }: { tone: keyof typeof TONES; children: React.ReactNode }) {
   return (
-    <span className={"rounded-full border px-2 py-0.5 text-[11px] font-medium " + TONES[tone]}>
+    <span className={"whitespace-nowrap rounded-full border px-2.5 py-0.5 text-xs font-medium " + TONES[tone]}>
       {children}
     </span>
   );

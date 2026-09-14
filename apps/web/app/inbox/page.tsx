@@ -9,6 +9,7 @@ import { notifyUnreadChanged } from "@/lib/unread";
 import CompanyLogo from "../company-logo";
 import ContactTimeline from "../crm/contact-timeline";
 import StatusSelect from "../crm/status-select";
+import { inputCls, primaryBtnCls, secondaryBtnCls } from "@/lib/ui";
 import { useT } from "../language-provider";
 import { useToast } from "../toast-provider";
 import { useWorkspace } from "../workspace-provider";
@@ -379,25 +380,26 @@ export default function InboxPage() {
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight text-ink">{L.title}</h1>
-          <p className="max-w-2xl text-sm text-faint">{L.subtitle}</p>
+          <p className="mt-1 max-w-2xl text-sm text-faint">{L.subtitle}</p>
         </div>
         {unreadTotal > 0 && (
-          <button
-            onClick={markAllRead}
-            className="rounded-lg border border-edge2 px-4 py-2 text-sm font-medium text-soft transition-colors hover:border-edge3 hover:text-ink"
-          >
+          <button onClick={markAllRead} className={secondaryBtnCls + " w-full sm:w-auto"}>
             {L.markAllRead}
           </button>
         )}
       </div>
 
+      {/* Die Filterreihe bricht auf dem Handy um, statt waagerecht zu
+          scrollen: sechs kurze Woerter passen in zwei Zeilen, und die Zaehlung
+          rutscht dann unter die Reihe statt an ihr Ende. */}
       <div className="flex flex-wrap items-center gap-2">
         {filters.map((f) => (
           <button
             key={f.id}
             onClick={() => setFilter(f.id)}
+            aria-pressed={filter === f.id}
             className={
-              "rounded-full border px-3 py-1 text-xs font-medium transition-colors " +
+              "rounded-full border px-3 py-1.5 text-xs font-medium transition-colors duration-150 " +
               (filter === f.id
                 ? "border-sky-500/60 bg-sky-500/10 text-sky-600 dark:text-sky-300"
                 : "border-edge2 bg-chip text-soft hover:border-edge3 hover:text-ink")
@@ -410,24 +412,32 @@ export default function InboxPage() {
       </div>
 
       {loading ? (
-        <p className="rounded-lg border border-edge/60 bg-panel px-5 py-12 text-center text-sm text-faint">
-          {L.loading}
-        </p>
+        /* Ladezustand in der Form der Liste: vier Zeilen links, die Flaeche
+           rechts. Ein Satz in der Mitte laesst die Seite jedes Mal springen. */
+        <div className="grid gap-4 md:grid-cols-[20rem_1fr] lg:grid-cols-[24rem_1fr]" aria-hidden>
+          <div className="space-y-2">
+            <div className="skeleton h-16" />
+            <div className="skeleton h-16" />
+            <div className="skeleton h-16" />
+            <div className="skeleton h-16" />
+          </div>
+          <div className="skeleton hidden h-72 md:block" />
+        </div>
       ) : conversations.length === 0 ? (
-        <div className="rounded-lg border border-edge/60 bg-panel px-5 py-14 text-center">
-          <p className="text-sm text-ink">{L.empty}</p>
-          <p className="mx-auto mt-1 max-w-md text-xs text-faint">{L.emptyHint}</p>
+        <div className="rounded-xl border border-edge/70 bg-panel px-5 py-14 text-center shadow-sm">
+          <p className="text-base font-medium text-ink">{L.empty}</p>
+          <p className="mx-auto mt-1.5 max-w-md text-sm text-faint">{L.emptyHint}</p>
         </div>
       ) : (
         <div className="grid gap-4 md:grid-cols-[20rem_1fr] lg:grid-cols-[24rem_1fr]">
           {/* Konversationsliste */}
           <div
             className={
-              "overflow-hidden rounded-lg border border-edge/60 bg-panel " +
+              "overflow-hidden rounded-xl border border-edge/70 bg-panel shadow-sm " +
               (selected ? "hidden md:block" : "")
             }
           >
-            <div className="max-h-[calc(100vh-16rem)] divide-y divide-edge/60 overflow-y-auto">
+            <div className="max-h-[calc(100vh-16rem)] divide-y divide-edge/70 overflow-y-auto">
               {visible.map((c) => {
                 const active = c.key === selectedId;
                 const title = c.businesses?.name ?? c.name ?? c.email ?? L.unknownContact;
@@ -436,8 +446,8 @@ export default function InboxPage() {
                     key={c.key}
                     onClick={() => select(c)}
                     className={
-                      "flex w-full items-start gap-2.5 px-3.5 py-3 text-left transition-colors " +
-                      (active ? "bg-wash" : "hover:bg-wash/60")
+                      "flex w-full items-start gap-3 px-4 py-3.5 text-left transition-colors duration-150 " +
+                      (active ? "bg-chip" : "hover:bg-wash")
                     }
                   >
                     <span className="relative mt-0.5">
@@ -455,7 +465,7 @@ export default function InboxPage() {
                         >
                           {title}
                         </span>
-                        <span className="shrink-0 text-[10px] text-faint">{formatRelative(c.lastAt, lang)}</span>
+                        <span className="shrink-0 text-xs text-faint">{formatRelative(c.lastAt, lang)}</span>
                       </span>
                       {/* Name/E-Mail-Zeile nur, wenn sie etwas anderes als der Titel zeigt --
                           bei kontaktlosen Absendern ist der Titel schon die E-Mail-Adresse.
@@ -463,7 +473,7 @@ export default function InboxPage() {
                       {((c.name ?? c.email) && (c.name ?? c.email) !== title) ||
                       c.aiInterest ||
                       c.suppressed ? (
-                        <span className="mt-0.5 flex items-center gap-1.5">
+                        <span className="mt-1 flex flex-wrap items-center gap-1.5">
                           {(c.name ?? c.email) && (c.name ?? c.email) !== title && (
                             <span className="truncate text-xs text-soft">{c.name ?? c.email}</span>
                           )}
@@ -471,7 +481,7 @@ export default function InboxPage() {
                           {c.suppressed && <UnsubscribedBadge label={L.unsubscribedBadge} />}
                         </span>
                       ) : null}
-                      <span className="mt-1 block truncate text-xs text-faint">
+                      <span className="mt-1 block truncate text-sm text-faint">
                         {c.messages[c.messages.length - 1]?.body?.replace(/\s+/g, " ").trim() || L.noSubject}
                       </span>
                     </span>
@@ -485,15 +495,17 @@ export default function InboxPage() {
           </div>
 
           {/* Thread */}
-          <div className="flex min-h-[24rem] flex-col overflow-hidden rounded-lg border border-edge/60 bg-panel">
+          <div className="flex min-h-[24rem] flex-col overflow-hidden rounded-xl border border-edge/70 bg-panel shadow-sm">
             {!selected ? (
               <p className="m-auto px-6 py-16 text-center text-sm text-faint">{L.selectHint}</p>
             ) : (
               <>
-                <div className="flex items-start gap-3 border-b border-edge/60 px-5 py-3.5">
+                <div className="flex items-start gap-3 border-b border-edge/70 px-4 py-4 sm:px-5">
+                  {/* 36 Pixel im Quadrat: der Zurueck-Weg auf dem Handy, und
+                      der wird mit dem Daumen getroffen, nicht mit der Maus. */}
                   <button
                     onClick={() => setSelectedId(null)}
-                    className="mt-0.5 rounded-lg border border-edge/60 px-2 py-0.5 text-sm text-faint transition-colors hover:text-ink md:hidden"
+                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-edge2 text-base text-faint transition-colors duration-150 hover:bg-chip hover:text-ink md:hidden"
                     aria-label={L.filterAll}
                   >
                     ←
@@ -504,13 +516,13 @@ export default function InboxPage() {
                     size={30}
                   />
                   <div className="min-w-0 flex-1">
-                    <p className="flex items-center gap-2 truncate font-medium text-ink">
+                    <p className="flex items-center gap-2 truncate text-base font-semibold text-ink">
                       <span className="truncate">
                         {selected.businesses?.name ?? selected.name ?? selected.email ?? L.unknownContact}
                       </span>
                       {selected.suppressed && <UnsubscribedBadge label={L.unsubscribedBadge} />}
                     </p>
-                    <p className="truncate text-xs text-faint">
+                    <p className="mt-0.5 truncate text-sm text-faint">
                       {[selected.name, selected.title, selected.email].filter(Boolean).join(" · ")}
                     </p>
                   </div>
@@ -540,7 +552,7 @@ export default function InboxPage() {
                       />
                       <Link
                         href={`/leads?q=${encodeURIComponent(selected.businesses?.name ?? "")}`}
-                        className="text-[11px] text-sky-600 underline-offset-4 hover:underline dark:text-sky-400"
+                        className="text-xs text-sky-600 underline-offset-4 transition-colors hover:underline dark:text-sky-400"
                       >
                         {L.openInLeads}
                       </Link>
@@ -551,7 +563,7 @@ export default function InboxPage() {
                 {/* Voller Verlauf (Notizen, Aktivitaeten, Deals) nur bei echtem CRM-
                     Kontakt — ohne contact_id gibt es dafuer keine Basis, dann reicht
                     eine einfache Liste der synchronisierten E-Mails. */}
-                <div className="flex-1 overflow-y-auto px-5 py-4 md:max-h-[calc(100vh-27rem)]">
+                <div className="flex-1 overflow-y-auto px-4 py-4 sm:px-5 md:max-h-[calc(100vh-27rem)]">
                   {selected.contactId ? (
                     <ContactTimeline
                       key={selected.key}
@@ -570,35 +582,35 @@ export default function InboxPage() {
                     ueberall sonst schuetzt. Wer es trotzdem will, nimmt die
                     Adresse in den Einstellungen aus der Blockliste. */}
                 {selected.suppressed ? (
-                  <div className="border-t border-edge/60 px-5 py-3.5">
-                    <p className="rounded-lg border border-amber-500/30 bg-amber-500/5 px-3.5 py-2.5 text-xs leading-relaxed text-soft">
+                  <div className="border-t border-edge/70 px-4 py-4 sm:px-5">
+                    <p className="rounded-lg border border-amber-500/30 bg-amber-500/5 px-3.5 py-3 text-sm leading-relaxed text-soft">
                       <span className="font-medium text-ink">{L.unsubscribedBadge}</span>
                       {" — "}
                       {L.unsubscribedNote}
                     </p>
                   </div>
                 ) : selected.replyTarget ? (
-                  <div className="border-t border-edge/60 px-5 py-3.5">
+                  <div className="border-t border-edge/70 px-4 py-4 sm:px-5">
                     {/* Die Entwuerfe stehen UEBER dem Textfeld: sie sind ein
                         Startpunkt, kein Nachschlag. Darunter wuerde man sie
                         erst lesen, nachdem man selbst getippt hat. */}
                     {suggestions && suggestions.length > 0 && (
-                      <div className="mb-2.5 space-y-1.5">
+                      <div className="pop-in mb-3 space-y-2">
                         {suggestions.map((sug, i) => (
                           <button
                             key={i}
                             onClick={() => setDraft(sug.text)}
-                            className="block w-full rounded-lg border border-edge2 bg-panel2 px-3 py-2 text-left transition-colors hover:border-sky-500/50"
+                            className="block w-full rounded-xl border border-edge2 bg-panel2 px-3.5 py-3 text-left transition-colors duration-150 hover:border-sky-500/50"
                           >
-                            <span className="text-[11px] font-medium uppercase tracking-wide text-sky-600 dark:text-sky-400">
+                            <span className="text-2xs font-medium uppercase tracking-wider text-sky-600 dark:text-sky-400">
                               {sug.label}
                             </span>
-                            <span className="mt-0.5 block whitespace-pre-wrap text-xs leading-relaxed text-soft">
+                            <span className="mt-1 block whitespace-pre-wrap text-sm leading-relaxed text-soft">
                               {sug.text}
                             </span>
                           </button>
                         ))}
-                        <p className="text-[11px] text-mute">{L.suggestHint}</p>
+                        <p className="text-xs text-faint">{L.suggestHint}</p>
                       </div>
                     )}
                     <textarea
@@ -606,24 +618,28 @@ export default function InboxPage() {
                       onChange={(e) => setDraft(e.target.value)}
                       placeholder={L.replyPlaceholder}
                       rows={3}
-                      className="w-full rounded-lg border border-edge2 bg-field px-3 py-2 text-sm text-ink placeholder-mute outline-none transition-colors focus:border-sky-500"
+                      className={inputCls + " w-full resize-y"}
                     />
-                    <div className="mt-2 flex items-center justify-between gap-3">
-                      <span className="min-w-0 truncate text-[11px] text-faint">
-                        {L.replySubjectPrefix}
-                        {selected.replyTarget.subject || L.noSubject}
-                      </span>
+                    {/* Betreffzeile ueber die volle Breite, Knoepfe darunter:
+                        nebeneinander blieben auf 390 Pixel fuer den Betreff
+                        rund 60 Pixel, und der ist die einzige Angabe darueber,
+                        worauf hier gerade geantwortet wird. */}
+                    <p className="mt-2.5 truncate text-xs text-faint">
+                      {L.replySubjectPrefix}
+                      {selected.replyTarget.subject || L.noSubject}
+                    </p>
+                    <div className="mt-2.5 flex flex-wrap items-center justify-end gap-2.5">
                       <button
                         onClick={suggestReply}
                         disabled={suggesting}
-                        className="ml-auto shrink-0 rounded-lg border border-edge2 px-3 py-2 text-xs font-medium text-soft transition-colors hover:border-sky-500/50 hover:text-ink disabled:opacity-40"
+                        className={secondaryBtnCls + " flex-1 sm:flex-none"}
                       >
                         {suggesting ? L.suggesting : L.suggest}
                       </button>
                       <button
                         onClick={sendReply}
                         disabled={sending || !draft.trim()}
-                        className="rounded-lg bg-sky-600 px-4 py-2 text-sm font-medium text-white shadow-lg shadow-sky-600/25 transition-all hover:brightness-110 active:scale-[0.98] disabled:opacity-40 disabled:shadow-none"
+                        className={primaryBtnCls + " flex-1 sm:flex-none"}
                       >
                         {sending ? L.replySending : L.replySend}
                       </button>
@@ -653,17 +669,17 @@ function PlainMessageList({
   return (
     <div className="space-y-3">
       {messages.map((m) => (
-        <div key={m.id} className="rounded-lg border border-edge/60 bg-surface/60 px-3.5 py-3">
+        <div key={m.id} className="rounded-xl border border-edge/70 bg-panel2 px-4 py-3.5">
           <div className="flex items-center justify-between gap-3">
-            <span className="text-xs font-medium text-ink">
+            <span className="text-sm font-medium text-ink">
               {m.direction === "inbound" ? "→" : "←"} {m.subject || noSubjectLabel}
             </span>
-            <span className="shrink-0 text-[10px] text-faint">
+            <span className="shrink-0 text-xs text-faint">
               {formatRelative(m.sent_at ?? m.created_at, lang)}
             </span>
           </div>
-          {m.eaccount && <p className="mt-0.5 text-[10px] text-faint">{m.eaccount}</p>}
-          <p className="mt-1.5 whitespace-pre-wrap text-xs leading-relaxed text-soft">{m.body}</p>
+          {m.eaccount && <p className="mt-0.5 text-xs text-faint">{m.eaccount}</p>}
+          <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-soft">{m.body}</p>
         </div>
       ))}
     </div>
@@ -677,7 +693,7 @@ function PlainMessageList({
  *  gegangen"; schiefgegangen ist nichts. */
 function UnsubscribedBadge({ label }: { label: string }) {
   return (
-    <span className="shrink-0 rounded-full bg-amber-500/10 px-2 py-0.5 text-[10px] font-medium text-amber-700 dark:text-amber-300">
+    <span className="shrink-0 rounded-full bg-amber-500/10 px-2.5 py-0.5 text-xs font-medium text-amber-700 dark:text-amber-300">
       {label}
     </span>
   );
@@ -691,7 +707,7 @@ function InterestBadge({ value, labels }: { value: string; labels: Record<string
       ? "bg-red-500/10 text-red-600 dark:text-red-300"
       : "bg-amber-500/10 text-amber-700 dark:text-amber-300";
   return (
-    <span className={"shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium " + cls}>
+    <span className={"shrink-0 rounded-full px-2.5 py-0.5 text-xs font-medium " + cls}>
       {labels[value] ?? value}
     </span>
   );

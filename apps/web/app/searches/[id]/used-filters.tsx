@@ -44,14 +44,14 @@ export default function UsedFilters({ row, lang }: { row: SearchRowForPreset; la
   }
 
   return (
-    <details className="group mt-2 rounded-lg border border-edge/60 bg-panel px-3 py-2">
-      <summary className="cursor-pointer list-none text-xs font-medium text-soft transition-colors hover:text-ink">
+    <details className="group mt-3 rounded-xl border border-edge/70 bg-panel px-3.5 py-2.5 shadow-sm">
+      <summary className="cursor-pointer list-none py-0.5 text-xs font-medium text-soft transition-colors hover:text-ink">
         {t.searchDetail.usedFilters}
         <span className="ml-1 text-mute group-open:hidden">
           ({zeilen.length})
         </span>
       </summary>
-      <dl className="mt-2 grid gap-x-6 gap-y-1.5 sm:grid-cols-2">
+      <dl className="mt-3 grid gap-x-6 gap-y-2 border-t border-edge/70 pt-3 sm:grid-cols-2">
         {zeilen.map((z) => (
           <div key={z.key} className="flex gap-2 text-xs">
             <dt className="shrink-0 text-faint">{LABEL[z.key]}:</dt>

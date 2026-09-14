@@ -7,6 +7,7 @@ import { OUTREACH_STAGES, stageRank } from "@/lib/crm/stages";
 import { pickPrimaryContactPerBusiness } from "@/lib/contacts";
 import { contactSourceBadgeClass } from "@/lib/search-source";
 import { formatDate } from "@/lib/format-time";
+import { inputCls } from "@/lib/ui";
 import {
   AUDIT_CODES,
   isAuditCode,
@@ -150,21 +151,25 @@ function SearchMultiSelect({
   const label = selected.size === 0 ? allLabel : `${allLabel.replace(/^Alle |^All /, "")} (${selected.size})`;
 
   return (
-    <div ref={ref} className="relative">
+    <div ref={ref} className="relative min-w-0 flex-1 sm:flex-none">
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="rounded-lg border border-edge2 bg-field px-3.5 py-2.5 text-sm text-ink outline-none transition-colors hover:border-edge3 focus:border-sky-500"
+        aria-expanded={open}
+        className="w-full truncate rounded-lg border border-edge2 bg-field px-3.5 py-2.5 text-left text-sm text-ink outline-none transition-[border-color,box-shadow] duration-150 hover:border-edge3 focus:border-sky-500 focus:ring-4 focus:ring-sky-500/15 sm:w-auto"
       >
         {label}
       </button>
       {open && (
-        <div className="absolute left-0 top-full z-20 mt-1 max-h-72 w-72 overflow-y-auto rounded-lg border border-edge2 bg-panel p-1.5 shadow-lg">
+        // w-[min(18rem,calc(100vw-3rem))]: 288 Pixel fester Panelbreite ragen
+        // auf einem 390er Bildschirm rechts aus der Karte heraus, sobald der
+        // Knopf nicht ganz links steht.
+        <div className="pop-in absolute left-0 top-full z-20 mt-1.5 max-h-72 w-[min(18rem,calc(100vw-3rem))] overflow-y-auto rounded-xl border border-edge/70 bg-panel p-1.5 shadow-xl">
           {selected.size > 0 && (
             <button
               type="button"
               onClick={() => onChange(new Set())}
-              className="mb-1 w-full rounded-md px-2 py-1.5 text-left text-xs text-sky-600 hover:bg-chip dark:text-sky-400"
+              className="mb-1 flex min-h-9 w-full items-center rounded-lg px-2 text-left text-xs font-medium text-sky-600 transition-colors hover:bg-chip dark:text-sky-400"
             >
               {allLabel}
             </button>
@@ -172,13 +177,13 @@ function SearchMultiSelect({
           {searches.map((s) => (
             <label
               key={s.id}
-              className="flex cursor-pointer items-center gap-2.5 rounded-md px-2 py-1.5 text-sm text-ink hover:bg-chip"
+              className="flex min-h-10 cursor-pointer items-center gap-2.5 rounded-lg px-2 text-sm text-ink transition-colors hover:bg-wash sm:min-h-9"
             >
               <input
                 type="checkbox"
                 checked={selected.has(s.id)}
                 onChange={() => toggle(s.id)}
-                className="h-4 w-4 rounded accent-sky-500"
+                className="h-4 w-4 shrink-0 rounded accent-sky-500"
               />
               <span className="truncate">{s.query} · {s.location}</span>
             </label>
@@ -190,6 +195,19 @@ function SearchMultiSelect({
 }
 
 const ALL_COLUMN_IDS = ["title", "email", "phone", "sources", "status"] as const;
+
+/** Ein Filterschalter in der Werkzeugleiste: Haken plus Beschriftung als ein
+ *  anfassbarer Streifen. min-h-10 auf dem Handy, ab sm eine Spur flacher. */
+const filterToggleCls =
+  "flex min-h-10 cursor-pointer select-none items-center gap-2 rounded-lg px-2 text-sm " +
+  "text-soft transition-colors hover:bg-wash hover:text-ink sm:min-h-9";
+
+/** Nebenaktion in der Werkzeugleiste. Folgt secondaryBtnCls, nimmt aber unter
+ *  sm die halbe Reihe ein, damit zwei Knoepfe nebeneinander passen. */
+const toolBtnCls =
+  "min-w-0 flex-1 rounded-lg border border-edge2 bg-panel px-4 py-2.5 text-sm font-medium text-soft " +
+  "shadow-sm transition-[background-color,border-color,transform] duration-150 hover:bg-chip " +
+  "hover:text-ink active:scale-[0.98] disabled:opacity-40 disabled:active:scale-100 sm:flex-none";
 
 function normName(name: string | null): string | null {
   if (!name) return null;
@@ -344,7 +362,7 @@ function EmailTypeBadge({ c, t }: { c: Merged; t: LeadsDict }) {
     <span
       title={personal ? t.emailTypePersonalHint : t.emailTypeGenericHint}
       className={
-        "shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-wide " +
+        "shrink-0 rounded-full px-1.5 py-0.5 text-2xs font-medium uppercase tracking-wide " +
         (personal
           ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-300"
           : "bg-amber-500/10 text-amber-700 dark:text-amber-300")
@@ -484,7 +502,7 @@ function AuditPill({ g, t: L }: { g: Group; t: LeadsDict }) {
       // Die Rangfolge ist jetzt Name, dann Befund, dann Liste: die Plakette
       // kommt ab 1024 dazu, der Chip ab 1280. Ein Befund, der den Namen
       // verdraengt, zu dem er gehoert, hilft niemandem.
-      className="hidden max-w-28 shrink-0 truncate rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[10px] font-medium text-amber-700 lg:block lg:max-w-44 xl:max-w-60 dark:text-amber-300"
+      className="hidden max-w-28 shrink-0 truncate rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-2xs font-medium text-amber-700 lg:block lg:max-w-44 xl:max-w-60 dark:text-amber-300"
     >
       {label}
     </span>
@@ -519,8 +537,8 @@ function WebsiteAuditPanel({ g, t: L, lang }: { g: Group; t: LeadsDict; lang: La
 
   return (
     <>
-      <p className="mb-2 text-xs font-medium uppercase tracking-wider text-faint">{L.audit.heading}</p>
-      <div className="mb-5 rounded-lg border border-edge/60 bg-surface/60 p-3">
+      <p className="mb-2 text-2xs font-semibold uppercase tracking-wider text-faint">{L.audit.heading}</p>
+      <div className="mb-5 rounded-xl border border-edge/70 bg-wash/70 p-3">
         {codes.length === 0 ? (
           <>
             <p className="text-sm text-soft">{auditStatusLabel(status, L)}</p>
@@ -541,15 +559,15 @@ function WebsiteAuditPanel({ g, t: L, lang }: { g: Group; t: LeadsDict; lang: La
                     Beschriftung genau die Zeilen, die sie zum Lesen braucht. */}
                 <span
                   title={L.audit.inMailTitle}
-                  className="mt-1.5 inline-block rounded-full border border-edge2 bg-chip px-1.5 py-0.5 text-[10px] text-faint"
+                  className="mt-1.5 inline-block rounded-full border border-edge2 bg-chip px-1.5 py-0.5 text-2xs text-faint"
                 >
                   {L.audit.inMail}
                 </span>
               </div>
             </div>
             {codes.length > 1 && (
-              <div className="mt-3 border-t border-edge/60 pt-2.5">
-                <p className="text-[11px] text-faint">{L.audit.alsoFound}</p>
+              <div className="mt-3 border-t border-edge/70 pt-2.5">
+                <p className="text-2xs text-faint">{L.audit.alsoFound}</p>
                 <ul className="mt-1.5 space-y-1">
                   {codes.slice(1).map((code) => (
                     <li key={code} className="flex items-start gap-2.5 text-xs leading-snug text-soft">
@@ -564,7 +582,7 @@ function WebsiteAuditPanel({ g, t: L, lang }: { g: Group; t: LeadsDict; lang: La
         )}
         {/* Was geprueft wurde und wann. break-words statt truncate: sonst
             frisst eine lange Adresse das Datum dahinter auf. */}
-        {meta && <p className="mt-3 text-[11px] leading-4 break-words text-faint">{meta}</p>}
+        {meta && <p className="mt-3 text-2xs leading-4 break-words text-faint">{meta}</p>}
       </div>
     </>
   );
@@ -868,166 +886,184 @@ export default function LeadsTable({
 
   return (
     <>
-      <section className="overflow-hidden rounded-lg border border-edge/60 bg-panel">
-        <div className="flex flex-wrap items-center gap-3 border-b border-edge/60 px-4 py-3">
-          <div className="relative min-w-52 flex-1">
-            <IconSearch className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-mute" />
-            <input
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-              placeholder={L.searchPlaceholder}
-              className="w-full rounded-lg border border-edge2 bg-field py-2.5 pl-9 pr-3 text-sm text-ink placeholder-mute outline-none transition-colors focus:border-sky-500"
-            />
-          </div>
-          {searches && searches.length > 0 && (
-            <SearchMultiSelect
-              searches={searches}
-              selected={searchFilters}
-              onChange={setSearchFilters}
-              allLabel={L.allSearches}
-            />
-          )}
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="rounded-lg border border-edge2 bg-field px-3.5 py-2.5 text-sm text-ink outline-none transition-colors focus:border-sky-500"
-          >
-            <option value="">{L.allStatuses}</option>
-            {OUTREACH_STAGES.map((s) => (
-              <option key={s} value={s}>{L.statusLabels[s]}</option>
-            ))}
-          </select>
-          <select
-            value={emailTypeFilter}
-            onChange={(e) => setEmailTypeFilter(e.target.value)}
-            className="rounded-lg border border-edge2 bg-field px-3.5 py-2.5 text-sm text-ink outline-none transition-colors focus:border-sky-500"
-          >
-            <option value="">{L.allEmailTypes}</option>
-            <option value="personal">{L.emailTypePersonal}</option>
-            <option value="generic">{L.emailTypeGeneric}</option>
-          </select>
-          <label className="flex cursor-pointer items-center gap-2 text-sm text-soft" title={L.selectAllTitle}>
-            <input
-              type="checkbox"
-              checked={allFilteredSelected}
-              ref={(el) => {
-                if (el) el.indeterminate = !allFilteredSelected && someFilteredSelected;
-              }}
-              onChange={toggleSelectAll}
-              className="h-4 w-4 rounded accent-sky-500"
-            />
-            {L.selectAll}
-          </label>
-          <label className="flex cursor-pointer items-center gap-2 text-sm text-soft">
-            <input
-              type="checkbox"
-              checked={onlyEmail}
-              onChange={(e) => setOnlyEmail(e.target.checked)}
-              className="h-4 w-4 rounded accent-sky-500"
-            />
-            {L.onlyWithEmail}
-          </label>
-          <label className="flex cursor-pointer items-center gap-2 text-sm text-soft" title={L.onlyWithPhoneTitle}>
-            <input
-              type="checkbox"
-              checked={onlyPhone}
-              onChange={(e) => setOnlyPhone(e.target.checked)}
-              className="h-4 w-4 rounded accent-sky-500"
-            />
-            {L.onlyWithPhone}
-          </label>
-          <label
-            className="flex cursor-pointer items-center gap-2 text-sm text-soft"
-            title={L.onlyWithFindingTitle}
-          >
-            <input
-              type="checkbox"
-              checked={onlyFinding}
-              onChange={(e) => setOnlyFinding(e.target.checked)}
-              className="h-4 w-4 rounded accent-sky-500"
-            />
-            {L.onlyWithFinding}
-          </label>
-          <label
-            className="flex cursor-pointer items-center gap-2 text-sm text-soft"
-            title={L.excludeInvalidExportTitle}
-          >
-            <input
-              type="checkbox"
-              checked={excludeInvalid}
-              onChange={(e) => setExcludeInvalid(e.target.checked)}
-              className="h-4 w-4 rounded accent-sky-500"
-            />
-            {L.excludeInvalidExport}
-          </label>
-          <button
-            onClick={() => verifyEmails(filtered)}
-            disabled={unverifiedCount === 0}
-            title={L.verifyEmailsTitle}
-            className="rounded-lg border border-edge2 px-4 py-2 text-sm font-medium text-soft transition-colors hover:border-edge3 hover:text-ink disabled:opacity-40"
-          >
-            {L.verifyEmails}{unverifiedCount > 0 ? ` (${unverifiedCount})` : ""}
-          </button>
-          <div className="relative" ref={colsRef}>
-            <button
-              onClick={() => setColsOpen(!colsOpen)}
-              className="rounded-lg border border-edge2 px-4 py-2 text-sm font-medium text-soft transition-colors hover:border-edge3 hover:text-ink"
-            >
-              {L.columns}
-            </button>
-            {colsOpen && (
-              <div className="absolute right-0 top-full z-20 mt-1 w-44 rounded-lg border border-edge/60 bg-panel p-2 shadow-2xl">
-                {ALL_COLUMNS.map((c) => (
-                  <label key={c.id} className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm text-soft hover:bg-wash">
-                    <input
-                      type="checkbox"
-                      checked={cols.has(c.id)}
-                      onChange={() => toggleCol(c.id)}
-                      className="h-3.5 w-3.5 rounded accent-sky-500"
-                    />
-                    {c.label}
-                  </label>
-                ))}
-              </div>
+      <section className="overflow-hidden rounded-xl border border-edge/70 bg-panel shadow-sm">
+        {/* Werkzeugleiste in drei Zeilen statt einer einzigen umbrechenden.
+            Vorher standen Suche, zwei Auswahlfelder, fuenf Schalter und vier
+            Knoepfe in EINEM flex-wrap: auf 390 Pixeln ergab das acht bis zehn
+            unterschiedlich hohe Zeilen ohne erkennbare Ordnung, und die
+            Ausfuhr-Knoepfe standen ganz unten zwischen den Haken.
+
+            Jetzt: was gesucht wird (Zeile 1), was gefiltert wird (Zeile 2),
+            was man damit tut (Zeile 3, durch eine Haarlinie abgesetzt). */}
+        <div className="space-y-3 border-b border-edge/70 px-4 py-3 sm:px-5">
+          <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+            <div className="relative min-w-0 flex-1 sm:min-w-56">
+              <IconSearch className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-mute" />
+              <input
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+                placeholder={L.searchPlaceholder}
+                className="w-full rounded-lg border border-edge2 bg-field py-2.5 pl-9 pr-3 text-sm text-ink placeholder-mute outline-none transition-[border-color,box-shadow] duration-150 focus:border-sky-500 focus:ring-4 focus:ring-sky-500/15"
+              />
+            </div>
+            {searches && searches.length > 0 && (
+              <SearchMultiSelect
+                searches={searches}
+                selected={searchFilters}
+                onChange={setSearchFilters}
+                allLabel={L.allSearches}
+              />
             )}
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className={inputCls + " min-w-0 flex-1 sm:flex-none"}
+            >
+              <option value="">{L.allStatuses}</option>
+              {OUTREACH_STAGES.map((s) => (
+                <option key={s} value={s}>{L.statusLabels[s]}</option>
+              ))}
+            </select>
+            <select
+              value={emailTypeFilter}
+              onChange={(e) => setEmailTypeFilter(e.target.value)}
+              className={inputCls + " min-w-0 flex-1 sm:flex-none"}
+            >
+              <option value="">{L.allEmailTypes}</option>
+              <option value="personal">{L.emailTypePersonal}</option>
+              <option value="generic">{L.emailTypeGeneric}</option>
+            </select>
           </div>
-          <span className="text-xs text-faint">
-            {L.countSummary(filtered.length, shownContacts, totalContacts)}
-          </span>
-          {verifyStatus && <span className="text-xs text-faint">{verifyStatus}</span>}
-          <button
-            onClick={() => download(toInstantlyCsv(withoutInvalidEmails(filtered, excludeInvalid)), "-instantly.csv")}
-            disabled={shownContacts === 0}
-            title={L.exportInstantlyTitle}
-            className="rounded-lg bg-gradient-to-r from-sky-600 to-sky-600 px-4 py-2 text-sm font-medium text-white shadow-lg shadow-sky-600/25 transition-all hover:shadow-xl hover:shadow-sky-600/35 hover:brightness-110 active:scale-[0.98] disabled:opacity-40"
-          >
-            {L.exportInstantly}
-          </button>
-          <button
-            onClick={() => download(toCsv(withoutInvalidEmails(filtered, excludeInvalid), L.csvHeaders), ".csv")}
-            disabled={shownContacts === 0}
-            className="rounded-lg border border-edge2 px-4 py-2 text-sm font-medium text-soft transition-colors hover:border-edge3 hover:text-ink disabled:opacity-40"
-          >
-            {L.exportExcel}
-          </button>
+
+          {/* Die Schalter als eigene Zeile. min-h-10 unter sm: ein Haken von
+              16 Pixeln in einer 26 Pixel hohen Zeile ist auf dem Handy kein
+              Ziel, das man mit dem Daumen trifft. */}
+          <div className="-mx-2 flex flex-wrap items-center gap-x-1 gap-y-1">
+            <label className={filterToggleCls} title={L.selectAllTitle}>
+              <input
+                type="checkbox"
+                checked={allFilteredSelected}
+                ref={(el) => {
+                  if (el) el.indeterminate = !allFilteredSelected && someFilteredSelected;
+                }}
+                onChange={toggleSelectAll}
+                className="h-4 w-4 rounded accent-sky-500"
+              />
+              {L.selectAll}
+            </label>
+            <label className={filterToggleCls}>
+              <input
+                type="checkbox"
+                checked={onlyEmail}
+                onChange={(e) => setOnlyEmail(e.target.checked)}
+                className="h-4 w-4 rounded accent-sky-500"
+              />
+              {L.onlyWithEmail}
+            </label>
+            <label className={filterToggleCls} title={L.onlyWithPhoneTitle}>
+              <input
+                type="checkbox"
+                checked={onlyPhone}
+                onChange={(e) => setOnlyPhone(e.target.checked)}
+                className="h-4 w-4 rounded accent-sky-500"
+              />
+              {L.onlyWithPhone}
+            </label>
+            <label className={filterToggleCls} title={L.onlyWithFindingTitle}>
+              <input
+                type="checkbox"
+                checked={onlyFinding}
+                onChange={(e) => setOnlyFinding(e.target.checked)}
+                className="h-4 w-4 rounded accent-sky-500"
+              />
+              {L.onlyWithFinding}
+            </label>
+            <label className={filterToggleCls} title={L.excludeInvalidExportTitle}>
+              <input
+                type="checkbox"
+                checked={excludeInvalid}
+                onChange={(e) => setExcludeInvalid(e.target.checked)}
+                className="h-4 w-4 rounded accent-sky-500"
+              />
+              {L.excludeInvalidExport}
+            </label>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2 border-t border-edge/70 pt-3">
+            <span className="text-xs tabular-nums text-faint">
+              {L.countSummary(filtered.length, shownContacts, totalContacts)}
+            </span>
+            {verifyStatus && <span className="text-xs text-faint">{verifyStatus}</span>}
+            <div className="flex w-full flex-wrap items-center gap-2 sm:ml-auto sm:w-auto">
+              <button
+                onClick={() => verifyEmails(filtered)}
+                disabled={unverifiedCount === 0}
+                title={L.verifyEmailsTitle}
+                className={toolBtnCls}
+              >
+                {L.verifyEmails}{unverifiedCount > 0 ? ` (${unverifiedCount})` : ""}
+              </button>
+              <div className="relative min-w-0 flex-1 sm:flex-none" ref={colsRef}>
+                <button
+                  onClick={() => setColsOpen(!colsOpen)}
+                  className={toolBtnCls + " w-full sm:w-auto"}
+                >
+                  {L.columns}
+                </button>
+                {colsOpen && (
+                  <div className="pop-in absolute right-0 top-full z-20 mt-1.5 w-48 rounded-xl border border-edge/70 bg-panel p-1.5 shadow-xl">
+                    {ALL_COLUMNS.map((c) => (
+                      <label
+                        key={c.id}
+                        className="flex min-h-9 cursor-pointer items-center gap-2.5 rounded-lg px-2 text-sm text-soft transition-colors hover:bg-wash hover:text-ink"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={cols.has(c.id)}
+                          onChange={() => toggleCol(c.id)}
+                          className="h-4 w-4 rounded accent-sky-500"
+                        />
+                        {c.label}
+                      </label>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <button
+                onClick={() => download(toCsv(withoutInvalidEmails(filtered, excludeInvalid), L.csvHeaders), ".csv")}
+                disabled={shownContacts === 0}
+                className={toolBtnCls}
+              >
+                {L.exportExcel}
+              </button>
+              <button
+                onClick={() => download(toInstantlyCsv(withoutInvalidEmails(filtered, excludeInvalid)), "-instantly.csv")}
+                disabled={shownContacts === 0}
+                title={L.exportInstantlyTitle}
+                className="min-w-0 flex-1 rounded-lg bg-sky-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-[background-color,transform] duration-150 hover:bg-sky-500 active:scale-[0.98] disabled:opacity-40 disabled:active:scale-100 sm:flex-none"
+              >
+                {L.exportInstantly}
+              </button>
+            </div>
+          </div>
         </div>
 
         {activeChips.length > 0 && (
-          <div className="flex flex-wrap items-center gap-2 border-b border-edge/60 bg-wash/50 px-4 py-2">
+          <div className="flex flex-wrap items-center gap-2 border-b border-edge/70 bg-wash/60 px-4 py-2.5 sm:px-5">
             {activeChips.map((chip) => (
               <button
                 key={chip.label}
                 onClick={chip.clear}
-                className="group flex items-center gap-1.5 rounded-full border border-sky-500/30 bg-sky-500/10 px-2.5 py-0.5 text-xs text-sky-600 transition-colors hover:border-sky-500/60 dark:text-sky-300"
+                className="group flex items-center gap-1.5 rounded-full border border-sky-500/30 bg-sky-500/10 px-2.5 py-0.5 text-xs font-medium text-sky-600 transition-colors hover:border-sky-500/60 hover:bg-sky-500/15 dark:text-sky-300"
               >
                 {chip.label}
-                <span className="text-sky-400 group-hover:text-sky-600 dark:group-hover:text-sky-200">×</span>
+                <span aria-hidden className="text-sky-400 transition-colors group-hover:text-sky-600 dark:group-hover:text-sky-200">×</span>
               </button>
             ))}
           </div>
         )}
 
-        <div className="divide-y divide-edge/60">
+        <div className="divide-y divide-edge/70">
           {filtered.map((g) => {
             const isOpen = forceOpen || open.has(g.key);
             const withEmail = g.contacts.filter((c) => c.email).length;
@@ -1045,19 +1081,35 @@ export default function LeadsTable({
                     Jetzt faellt die Zaehlung auf dem Handy in eine zweite
                     Zeile, eingerueckt bis unter den Namen. Ab sm steht wieder
                     alles nebeneinander. */}
-                <div className="flex w-full flex-wrap items-center gap-x-3 gap-y-1 px-4 py-3 transition-all duration-150 hover:z-10 hover:bg-wash hover:shadow-[0_1px_0_0_var(--c-edge2)]">
+                <div className="flex w-full flex-wrap items-center gap-x-3 gap-y-1 px-4 py-2.5 transition-colors duration-150 hover:bg-wash sm:px-5">
                   <input
                     type="checkbox"
                     checked={selected.has(g.key)}
                     onChange={() => toggleSelect(g.key)}
                     className="h-4 w-4 shrink-0 rounded accent-sky-500"
                   />
+                  {/* Der Aufklapp-Pfeil als eigenes Ziel von 32 Pixeln statt
+                      eines 8 Pixel breiten Zeichens: er sitzt direkt neben dem
+                      Kaestchen und wurde auf dem Handy regelmaessig verfehlt.
+                      Negative Raender halten die Zeilenhoehe unveraendert. */}
                   <button
                     type="button"
                     onClick={() => toggle(g.key)}
-                    className={"shrink-0 cursor-pointer text-faint transition-transform " + (isOpen ? "rotate-90" : "")}
+                    aria-expanded={isOpen}
+                    className="-my-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-faint transition-[background-color,transform,color] duration-150 hover:bg-chip hover:text-ink"
                   >
-                    ▸
+                    <svg
+                      aria-hidden
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2.2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      className={"h-3.5 w-3.5 transition-transform duration-150 " + (isOpen ? "rotate-90" : "")}
+                    >
+                      <path d="m9 18 6-6-6-6" />
+                    </svg>
                   </button>
                   <button
                     type="button"
@@ -1091,7 +1143,7 @@ export default function LeadsTable({
                       {g.traffic_rank !== null && (
                         <span
                           title={L.trafficRankTitle(g.traffic_rank_source ?? "")}
-                          className="shrink-0 rounded-full border border-edge2 bg-chip px-1.5 py-0.5 text-[10px] tabular-nums text-mute"
+                          className="shrink-0 rounded-full border border-edge2 bg-chip px-1.5 py-0.5 text-2xs tabular-nums text-mute"
                         >
                           {L.trafficRankBadge(g.traffic_rank)}
                         </span>
@@ -1114,7 +1166,7 @@ export default function LeadsTable({
                       href={"/searches/" + g.search_id}
                       onClick={(e) => e.stopPropagation()}
                       title={L.fromListTitle}
-                      className="hidden max-w-40 shrink-0 truncate rounded-full border border-edge2 bg-chip px-2 py-0.5 text-[10px] text-mute transition-colors hover:border-edge3 hover:text-ink xl:block"
+                      className="hidden max-w-40 shrink-0 truncate rounded-full border border-edge2 bg-chip px-2 py-0.5 text-2xs text-mute transition-colors hover:border-edge3 hover:text-ink xl:block"
                     >
                       {listeVon(g.search_id)}
                     </Link>
@@ -1133,14 +1185,14 @@ export default function LeadsTable({
                 </div>
 
                 {isOpen && (
-                  <div className="border-t border-edge/60 bg-surface/60 px-4 pb-4 pt-3">
+                  <div className="border-t border-edge/70 bg-wash/60 px-4 pb-4 pt-3 sm:px-5">
                     {g.company_summary && (
-                      <p className="mb-2 max-w-3xl text-xs leading-relaxed text-faint">
+                      <p className="mb-2 max-w-3xl text-sm leading-relaxed text-faint">
                         {g.company_summary}
                       </p>
                     )}
                     {g.personalization && (
-                      <p className="mb-3 max-w-3xl border-l-2 border-sky-500/40 pl-3 text-xs italic leading-relaxed text-soft">
+                      <p className="mb-3 max-w-3xl border-l-2 border-sky-500/40 pl-3 text-sm italic leading-relaxed text-soft">
                         {g.personalization}
                       </p>
                     )}
@@ -1153,7 +1205,7 @@ export default function LeadsTable({
                         die Tabelle, darunter eine Karte je Person. */}
                     <table className="hidden w-full text-sm sm:table">
                       <thead>
-                        <tr className="text-left text-xs text-mute">
+                        <tr className="text-left text-xs font-medium text-faint">
                           <th className="py-1.5 pr-4 font-medium">{L.tableHeaders.person}</th>
                           {cols.has("title") && <th className="py-1.5 pr-4 font-medium">{L.tableHeaders.title}</th>}
                           {cols.has("email") && <th className="py-1.5 pr-4 font-medium">{L.tableHeaders.email}</th>}
@@ -1164,7 +1216,7 @@ export default function LeadsTable({
                       </thead>
                       <tbody>
                         {g.contacts.map((c) => (
-                          <tr key={c.id} className="border-t border-edge/60">
+                          <tr key={c.id} className="border-t border-edge/70 transition-colors hover:bg-panel/70">
                             <td className="py-2 pr-4 text-ink">
                               {c.linkedin ? (
                                 <a href={c.linkedin} target="_blank"
@@ -1201,7 +1253,7 @@ export default function LeadsTable({
                                     <span
                                       key={s}
                                       className={
-                                        "rounded-full border px-2 py-0.5 text-[11px] " + contactSourceBadgeClass(s)
+                                        "rounded-full border px-2 py-0.5 text-xs font-medium " + contactSourceBadgeClass(s)
                                       }
                                     >
                                       {t.common.sourceLabels[s] ?? s}
@@ -1231,7 +1283,7 @@ export default function LeadsTable({
                         hat, hat es auch auf dem Handy ausgeblendet. */}
                     <div className="space-y-2 sm:hidden">
                       {g.contacts.map((c) => (
-                        <div key={c.id} className="rounded-lg border border-edge/60 bg-panel p-3">
+                        <div key={c.id} className="rounded-xl border border-edge/70 bg-panel p-3 shadow-sm">
                           <p className="text-sm font-medium text-ink">
                             {c.linkedin ? (
                               <a
@@ -1249,7 +1301,7 @@ export default function LeadsTable({
                             <p className="mt-0.5 text-xs text-faint">{c.title}</p>
                           )}
                           {cols.has("email") && (
-                            <p className="mt-2 flex items-center gap-1.5 text-xs text-ink [overflow-wrap:anywhere]">
+                            <p className="mt-2 flex items-center gap-1.5 text-sm text-ink [overflow-wrap:anywhere]">
                               {c.email ? (
                                 <>
                                   <VerificationShield c={c} t={L} />
@@ -1262,7 +1314,7 @@ export default function LeadsTable({
                             </p>
                           )}
                           {cols.has("phone") && c.phone && (
-                            <p className="mt-1 text-xs text-soft">{c.phone}</p>
+                            <p className="mt-1 text-sm text-soft">{c.phone}</p>
                           )}
                           {cols.has("sources") && c.sources.length > 0 && (
                             <p className="mt-2 flex flex-wrap gap-1">
@@ -1270,7 +1322,7 @@ export default function LeadsTable({
                                 <span
                                   key={src}
                                   className={
-                                    "rounded-full border px-2 py-0.5 text-[11px] " + contactSourceBadgeClass(src)
+                                    "rounded-full border px-2 py-0.5 text-xs font-medium " + contactSourceBadgeClass(src)
                                   }
                                 >
                                   {t.common.sourceLabels[src] ?? src}
@@ -1296,7 +1348,7 @@ export default function LeadsTable({
             );
           })}
           {filtered.length === 0 && (
-            <p className="px-4 py-10 text-center text-faint">{L.noLeadsFound}</p>
+            <p className="px-4 py-10 text-center text-sm text-faint">{L.noLeadsFound}</p>
           )}
         </div>
       </section>
@@ -1316,40 +1368,40 @@ export default function LeadsTable({
            Wischbalken des iPhones, und jeder Tipp darauf schickt einen auf den
            Startbildschirm. */
         <div className="fixed inset-x-3 bottom-[calc(1rem+env(safe-area-inset-bottom))] z-30 md:inset-x-auto md:bottom-6 md:left-[calc(50%+7.5rem)] md:-translate-x-1/2">
-          <div className="fade-up flex flex-wrap items-center gap-2 rounded-lg border border-edge/60 bg-panel px-3 py-3 shadow-2xl sm:gap-3 sm:px-4">
+          <div className="fade-up flex flex-wrap items-center gap-2 rounded-2xl border border-edge/70 bg-panel px-3 py-3 shadow-2xl sm:gap-3 sm:px-4">
             <span className="w-full text-sm text-ink sm:w-auto">
-              <span className="font-semibold">{selectedGroups.length}</span> {L.bulkCompanies} ·{" "}
-              {selectedContacts} {L.bulkContacts}
+              <span className="font-semibold tabular-nums">{selectedGroups.length}</span> {L.bulkCompanies} ·{" "}
+              <span className="tabular-nums">{selectedContacts}</span> {L.bulkContacts}
             </span>
             <button
               onClick={() => download(toInstantlyCsv(withoutInvalidEmails(selectedGroups, excludeInvalid)), "-auswahl-instantly.csv")}
-              className="min-w-0 flex-1 rounded-lg bg-gradient-to-r from-sky-600 to-sky-600 px-4 py-2.5 text-sm font-medium text-white transition-all hover:brightness-110 active:scale-[0.98] sm:flex-none sm:py-2"
+              className="min-w-0 flex-1 rounded-lg bg-sky-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-[background-color,transform] duration-150 hover:bg-sky-500 active:scale-[0.98] sm:flex-none sm:py-2"
             >
               {L.bulkExportInstantly}
             </button>
             <button
               onClick={() => download(toCsv(withoutInvalidEmails(selectedGroups, excludeInvalid), L.csvHeaders), "-auswahl.csv")}
-              className="min-w-0 flex-1 rounded-lg border border-edge2 px-4 py-2.5 text-sm text-soft transition-colors hover:border-edge3 hover:text-ink sm:flex-none sm:py-2"
+              className="min-w-0 flex-1 rounded-lg border border-edge2 px-4 py-2.5 text-sm font-medium text-soft transition-[background-color,border-color,transform] duration-150 hover:bg-chip hover:text-ink active:scale-[0.98] sm:flex-none sm:py-2"
             >
               {L.bulkExportExcel}
             </button>
             <button
               onClick={blockSelected}
               disabled={bulkAction !== ""}
-              className="min-w-0 flex-1 rounded-lg border border-red-300 px-4 py-2.5 text-sm text-red-600 transition-colors hover:border-red-500 disabled:opacity-40 sm:flex-none sm:py-2 dark:border-red-900/60 dark:text-red-400"
+              className="min-w-0 flex-1 rounded-lg border border-red-300 px-4 py-2.5 text-sm font-medium text-red-600 transition-[background-color,transform] duration-150 hover:bg-red-50 active:scale-[0.98] disabled:opacity-40 disabled:active:scale-100 sm:flex-none sm:py-2 dark:border-red-500/30 dark:text-red-400 dark:hover:bg-red-500/10"
             >
               {bulkAction === "block" ? L.bulkBlocking : L.bulkBlock}
             </button>
             <button
               onClick={deleteSelected}
               disabled={bulkAction !== ""}
-              className="min-w-0 flex-1 rounded-lg bg-red-600 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-red-500 disabled:opacity-40 sm:flex-none sm:py-2"
+              className="min-w-0 flex-1 rounded-lg bg-red-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-[background-color,transform] duration-150 hover:bg-red-500 active:scale-[0.98] disabled:opacity-40 disabled:active:scale-100 sm:flex-none sm:py-2"
             >
               {bulkAction === "delete" ? L.bulkDeleting : L.bulkDelete}
             </button>
             <button
               onClick={() => setSelected(new Set())}
-              className="w-full py-1 text-xs text-faint hover:text-ink sm:w-auto sm:py-0"
+              className="w-full py-1.5 text-xs font-medium text-faint transition-colors hover:text-ink sm:w-auto sm:py-0"
             >
               {L.deselect}
             </button>
@@ -1361,27 +1413,30 @@ export default function LeadsTable({
       {drawer && (
         <div className="fixed inset-0 z-40">
           <div
-            className="absolute inset-0 bg-black/40 backdrop-blur-[2px]"
+            className="scrim-in absolute inset-0 bg-black/40 backdrop-blur-[3px]"
             onClick={() => setDrawer(null)}
           />
-          <aside className="absolute right-0 top-0 h-full w-full max-w-md overflow-y-auto border-l border-edge/60 bg-panel p-6 shadow-2xl [animation:fadeUp_.25s_ease]">
-            <div className="mb-5 flex items-start justify-between gap-3">
-              <div className="flex items-start gap-2.5">
+          {/* Kopf bleibt stehen, nur der Inhalt rollt: der Drawer ist lang
+              (Befund, Pipeline, Deals, Verlauf, Kontakte), und der Schliessen-
+              Knopf war nach dem ersten Scrollen nicht mehr erreichbar. */}
+          <aside className="absolute right-0 top-0 flex h-full w-full max-w-md flex-col border-l border-edge/70 bg-panel shadow-2xl [animation:fadeUp_.25s_ease]">
+            <div className="flex items-start justify-between gap-3 border-b border-edge/70 px-5 py-4">
+              <div className="flex min-w-0 items-start gap-2.5">
                 <CompanyLogo name={drawer.name} website={drawer.website} size={32} />
-                <div>
-                  <h2 className="text-lg font-semibold tracking-tight text-ink">{drawer.name}</h2>
+                <div className="min-w-0">
+                  <h2 className="truncate text-lg font-semibold tracking-tight text-ink">{drawer.name}</h2>
                   {drawer.website && (
                     <a href={drawer.website} target="_blank"
-                      className="text-xs text-sky-600 underline-offset-4 hover:underline dark:text-sky-300">
+                      className="block truncate text-xs text-sky-600 underline-offset-4 hover:underline dark:text-sky-300">
                       {drawer.website.replace(/^https?:\/\//, "")}
                     </a>
                   )}
                   {listeVon(drawer.search_id) && (
-                    <p className="mt-0.5 text-[11px] text-mute">
+                    <p className="mt-0.5 truncate text-2xs text-mute">
                       {L.fromList}{" "}
                       <Link
                         href={"/searches/" + drawer.search_id}
-                        className="text-soft underline decoration-dotted underline-offset-2 hover:text-ink"
+                        className="text-soft underline decoration-dotted underline-offset-2 transition-colors hover:text-ink"
                       >
                         {listeVon(drawer.search_id)}
                       </Link>
@@ -1391,14 +1446,15 @@ export default function LeadsTable({
               </div>
               <button
                 onClick={() => setDrawer(null)}
-                className="rounded-lg border border-edge/60 px-2.5 py-1 text-sm text-faint transition-colors hover:border-edge2 hover:text-ink"
+                className="-mr-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-base text-faint transition-[background-color,transform,color] duration-150 hover:bg-chip hover:text-ink active:scale-[0.96]"
               >
                 ✕
               </button>
             </div>
 
+            <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5 [padding-bottom:calc(1.25rem+env(safe-area-inset-bottom))]">
             {(drawer.address || drawer.phone_national) && (
-              <div className="mb-5 space-y-1 rounded-lg border border-edge/60 bg-surface/60 p-3 text-xs text-soft">
+              <div className="mb-5 space-y-1 rounded-xl border border-edge/70 bg-wash/70 p-3 text-sm text-soft">
                 {drawer.address && <p>{drawer.address}</p>}
                 {drawer.phone_national && <p>{drawer.phone_national}</p>}
               </div>
@@ -1406,19 +1462,23 @@ export default function LeadsTable({
 
             {drawer.company_summary && (
               <>
-                <p className="mb-2 text-xs font-medium uppercase tracking-wider text-faint">
+                <p className="mb-2 text-2xs font-semibold uppercase tracking-wider text-faint">
                   {L.companySummaryHeading}
                 </p>
-                <p className="mb-5 rounded-lg border border-edge/60 bg-surface/60 p-3 text-sm leading-relaxed text-soft">
+                <p className="mb-5 rounded-xl border border-edge/70 bg-wash/70 p-3 text-sm leading-relaxed text-soft">
                   {drawer.company_summary}
                 </p>
               </>
             )}
 
-            <p className="mb-2 text-xs font-medium uppercase tracking-wider text-faint">
+            <p className="mb-2 text-2xs font-semibold uppercase tracking-wider text-faint">
               {L.pipeline}
             </p>
-            <div className="mb-5">
+            {/* Der Verbindungsstrich des letzten Schrittes zeigt ins Leere.
+                Er wird hier ausgeblendet statt in PipelineStep, damit die
+                Komponente nichts darueber wissen muss, an welcher Stelle sie
+                steht: der letzte Schritt ist immer das letzte Kind. */}
+            <div className="mb-5 [&>div:last-child>div:first-child>span:last-child]:hidden">
               <PipelineStep label={L.pipelineFound} state="done" detail={drawer.website ? L.pipelineFoundWebsite : L.pipelineFoundNoWebsite} />
               <PipelineStep
                 label={L.pipelineDecisionmaker}
@@ -1483,10 +1543,10 @@ export default function LeadsTable({
 
             {drawer.personalization && (
               <>
-                <p className="mb-2 text-xs font-medium uppercase tracking-wider text-faint">
+                <p className="mb-2 text-2xs font-semibold uppercase tracking-wider text-faint">
                   {L.personalizationHeading}
                 </p>
-                <p className="mb-5 rounded-lg border-l-2 border-sky-500/50 bg-sky-500/5 p-3 text-sm italic leading-relaxed text-soft">
+                <p className="mb-5 rounded-xl border-l-2 border-sky-500/50 bg-sky-500/5 p-3 text-sm italic leading-relaxed text-soft">
                   {drawer.personalization}
                 </p>
               </>
@@ -1499,7 +1559,7 @@ export default function LeadsTable({
                 Textfeld, keine Fortsetzung des Aufhaengers darueber. */}
             {drawer.website_finding && (
               <>
-                <p className="mb-2 text-xs font-medium uppercase tracking-wider text-faint">
+                <p className="mb-2 text-2xs font-semibold uppercase tracking-wider text-faint">
                   {L.websiteFindingHeading}
                 </p>
                 {/* whitespace-pre-line, anders als beim Aufhaenger darueber:
@@ -1508,7 +1568,7 @@ export default function LeadsTable({
                     Leerzeile). Ohne diese Klasse faltet der Browser die
                     Umbrueche weg und drei Mangel stehen als eine Textwand da --
                     genau so, wie sie in der Mail NICHT ankommen. */}
-                <p className="mb-5 whitespace-pre-line rounded-lg border-l-2 border-violet-500/50 bg-violet-500/5 p-3 text-sm italic leading-relaxed text-soft">
+                <p className="mb-5 whitespace-pre-line rounded-xl border-l-2 border-violet-500/50 bg-violet-500/5 p-3 text-sm italic leading-relaxed text-soft">
                   {drawer.website_finding}
                 </p>
               </>
@@ -1525,7 +1585,7 @@ export default function LeadsTable({
               </>
             )}
 
-            <p className="mb-2 text-xs font-medium uppercase tracking-wider text-faint">
+            <p className="mb-2 text-2xs font-semibold uppercase tracking-wider text-faint">
               {L.contactsHeading(drawer.contacts.length)}
             </p>
             <div className="space-y-2">
@@ -1552,20 +1612,20 @@ export default function LeadsTable({
                       )[0]?.id
                     : undefined;
                 return resolvedContacts.map((c) => (
-                <div key={c.id} className="rounded-lg border border-edge/60 bg-surface/60 p-3">
+                <div key={c.id} className="rounded-xl border border-edge/70 bg-wash/70 p-3">
                   <div className="flex items-center justify-between gap-2">
                     <p className="text-sm font-medium text-ink">{c.full_name ?? "—"}</p>
                     <span className="flex items-center gap-1.5">
                       {resolvedContacts.length > 1 &&
                         (c.id === primaryId ? (
-                          <span className="rounded-full border border-emerald-500/40 bg-emerald-500/10 px-1.5 py-0.5 text-[10px] font-medium text-emerald-600 dark:text-emerald-300">
+                          <span className="rounded-full border border-emerald-500/40 bg-emerald-500/10 px-1.5 py-0.5 text-2xs font-medium text-emerald-600 dark:text-emerald-300">
                             {L.primaryContactBadge}
                           </span>
                         ) : (
                           <button
                             type="button"
                             onClick={() => drawer.business_id && setPrimaryContact(drawer.business_id, c.id)}
-                            className="rounded-full border border-edge2 px-1.5 py-0.5 text-[10px] text-faint transition-colors hover:border-sky-500/50 hover:text-sky-600 dark:hover:text-sky-400"
+                            className="rounded-full border border-edge2 px-1.5 py-0.5 text-2xs text-faint transition-colors hover:border-sky-500/50 hover:text-sky-600 dark:hover:text-sky-400"
                           >
                             {L.makePrimaryContact}
                           </button>
@@ -1573,7 +1633,7 @@ export default function LeadsTable({
                       {c.sources.map((s) => (
                         <span
                           key={s}
-                          className={"rounded-full border px-1.5 py-0.5 text-[10px] " + contactSourceBadgeClass(s)}
+                          className={"rounded-full border px-2 py-0.5 text-xs font-medium " + contactSourceBadgeClass(s)}
                         >
                           {t.common.sourceLabels[s] ?? s}
                         </span>
@@ -1586,7 +1646,7 @@ export default function LeadsTable({
                     </span>
                   </div>
                   {c.title && <p className="text-xs text-faint">{c.title}</p>}
-                  <div className="mt-1.5 space-y-0.5 text-xs text-soft">
+                  <div className="mt-1.5 space-y-1 text-sm text-soft">
                     {c.email && (
                       <p className="flex items-center gap-1.5">
                         <VerificationShield c={c} t={L} /> {c.email}
@@ -1604,6 +1664,7 @@ export default function LeadsTable({
                 </div>
                 ));
               })()}
+            </div>
             </div>
           </aside>
         </div>

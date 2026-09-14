@@ -1,6 +1,6 @@
 "use client";
 import Link from "next/link";
-import { inputCls } from "@/lib/ui";
+import { inputCls, primaryBtnCls, secondaryBtnCls } from "@/lib/ui";
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import {
@@ -253,11 +253,12 @@ export default function ImportCsv() {
   }
 
   const selectCls =
-    "rounded-lg border border-edge2 bg-field px-2 py-1 text-xs text-ink outline-none focus:border-sky-500";
+    "h-10 shrink-0 rounded-lg border border-edge2 bg-field px-2 text-xs text-ink outline-none " +
+    "transition-[border-color,box-shadow] duration-150 focus:border-sky-500 focus:ring-4 focus:ring-sky-500/15 sm:h-9";
 
   if (step === "done" && result) {
     return (
-      <div className="rounded-lg border border-emerald-500/40 bg-emerald-500/5 px-4 py-3">
+      <div className="rounded-xl border border-emerald-500/40 bg-emerald-500/5 px-4 py-3.5 shadow-sm">
         <p className="text-sm font-medium text-emerald-700 dark:text-emerald-400">
           {I.doneTitle(result.contacts, result.companies)}
         </p>
@@ -267,11 +268,14 @@ export default function ImportCsv() {
         <div className="mt-2 flex flex-wrap items-center gap-4">
           <Link
             href={`/searches/${result.searchId}`}
-            className="text-xs font-medium text-sky-600 hover:text-sky-500 dark:text-sky-400"
+            className="-my-1.5 inline-flex min-h-9 items-center rounded-md text-xs font-medium text-sky-600 transition-colors hover:text-sky-500 dark:text-sky-400"
           >
             {I.openList}
           </Link>
-          <button onClick={reset} className="text-xs text-faint transition-colors hover:text-ink">
+          <button
+            onClick={reset}
+            className="-my-1.5 inline-flex min-h-9 items-center rounded-md text-xs text-faint transition-colors hover:text-ink"
+          >
             {I.again}
           </button>
         </div>
@@ -281,9 +285,9 @@ export default function ImportCsv() {
 
   if (step === "pick") {
     return (
-      <label className="flex cursor-pointer flex-col items-center gap-1.5 rounded-lg border border-dashed border-edge3 px-4 py-8 text-center transition-colors hover:border-sky-500/60">
-        <span className="text-sm font-medium text-ink">{I.pickFile}</span>
-        <span className="text-xs text-faint">{I.pickHint}</span>
+      <label className="flex cursor-pointer flex-col items-center gap-1.5 rounded-xl border border-dashed border-edge3 bg-wash/60 px-4 py-10 text-center transition-colors hover:border-sky-500/60 hover:bg-sky-500/5">
+        <span className="text-base font-semibold text-ink">{I.pickFile}</span>
+        <span className="text-sm text-faint">{I.pickHint}</span>
         <input
           type="file"
           accept=".csv,text/csv"
@@ -306,7 +310,7 @@ export default function ImportCsv() {
           Kampagnenquelle auf. Ein "Import vom 4.8." findet niemand wieder. */}
       <div className="grid gap-3 sm:grid-cols-2">
         <div>
-          <label className="mb-1 block text-xs font-medium text-faint">{I.listNameLabel}</label>
+          <label className="mb-1.5 block text-sm font-medium text-soft">{I.listNameLabel}</label>
           <input
             value={listName}
             onChange={(e) => setListName(e.target.value)}
@@ -314,12 +318,12 @@ export default function ImportCsv() {
             className={inputCls + " w-full"}
           />
         </div>
-        <label className="flex items-start gap-2 text-sm text-ink sm:mt-5">
+        <label className="flex cursor-pointer items-start gap-2.5 text-sm text-ink sm:mt-6">
           <input
             type="checkbox"
             checked={withIcebreaker}
             onChange={(e) => setWithIcebreaker(e.target.checked)}
-            className="mt-0.5"
+            className="mt-0.5 h-4 w-4 shrink-0 rounded accent-sky-600"
           />
           <span>
             {I.withIcebreaker}
@@ -329,8 +333,11 @@ export default function ImportCsv() {
       </div>
 
       <div className="flex items-center justify-between gap-3">
-        <p className="text-xs text-faint">{I.foundRows(dataRows.length)}</p>
-        <button onClick={reset} className="text-xs text-faint transition-colors hover:text-ink">
+        <p className="text-xs tabular text-faint">{I.foundRows(dataRows.length)}</p>
+        <button
+          onClick={reset}
+          className="-my-1.5 -mr-1.5 inline-flex min-h-9 items-center rounded-md px-1.5 text-xs text-faint transition-colors hover:text-ink"
+        >
           {I.otherFile}
         </button>
       </div>
@@ -338,12 +345,12 @@ export default function ImportCsv() {
       {/* Zuordnung: je Spalte ein Ziel. Die Vorschau der ersten Zeile steht
           daneben, weil eine Spaltenueberschrift allein oft nicht verraet, was
           drinsteht ("Feld 3"). */}
-      <div className="max-h-72 space-y-1.5 overflow-y-auto rounded-lg border border-edge2 p-2">
+      <div className="max-h-72 space-y-1 overflow-y-auto rounded-xl border border-edge/70 bg-panel p-2 shadow-sm">
         {headers.map((header, i) => (
-          <div key={i} className="flex items-center gap-2">
+          <div key={i} className="flex items-center gap-2 rounded-lg px-2 py-1.5 transition-colors hover:bg-wash">
             <div className="min-w-0 flex-1">
-              <p className="truncate text-xs font-medium text-ink">{header || I.noHeader}</p>
-              <p className="truncate text-[11px] text-mute">{dataRows[0]?.[i] || "—"}</p>
+              <p className="truncate text-sm font-medium text-ink">{header || I.noHeader}</p>
+              <p className="truncate text-xs text-faint">{dataRows[0]?.[i] || "—"}</p>
             </div>
             <select
               value={mapping[i] ?? "ignore"}
@@ -366,7 +373,7 @@ export default function ImportCsv() {
       </div>
 
       {plan ? (
-        <div className="rounded-lg border border-edge2 bg-surface/60 px-3 py-2.5 text-xs">
+        <div className="rounded-xl border border-edge/70 bg-wash px-3.5 py-3 text-xs">
           <p className="font-medium text-ink">{I.planUsable(plan.usable.length)}</p>
           <ul className="mt-1 space-y-0.5 text-faint">
             {plan.duplicates > 0 && <li>{I.planDuplicates(plan.duplicates)}</li>}
@@ -376,18 +383,16 @@ export default function ImportCsv() {
         </div>
       ) : null}
 
+      {/* Unter sm nebeneinander auf halber Breite statt zwei schmale Knoepfe
+          links in einer sonst leeren Zeile. */}
       <div className="flex flex-wrap gap-2">
-        <button
-          onClick={preview}
-          disabled={busy}
-          className="rounded-lg border border-edge2 px-3.5 py-2 text-sm text-soft transition-colors hover:text-ink disabled:opacity-40"
-        >
+        <button onClick={preview} disabled={busy} className={secondaryBtnCls + " flex-1 sm:flex-none"}>
           {busy && !plan ? t.common.saving : I.check}
         </button>
         <button
           onClick={run}
           disabled={busy || !plan || plan.usable.length === 0 || !listName.trim()}
-          className="rounded-lg bg-sky-600 px-4 py-2 text-sm font-medium text-white transition-all hover:brightness-110 active:scale-[0.98] disabled:opacity-40"
+          className={primaryBtnCls + " flex-1 sm:flex-none"}
         >
           {busy && plan ? t.common.saving : I.run}
         </button>

@@ -117,15 +117,17 @@ export default function CustomFieldValues({
   if (loading || defs.length === 0) return null;
 
   const fieldCls =
-    "w-full rounded-lg border border-edge2 bg-field px-2.5 py-1.5 text-xs text-ink placeholder-mute outline-none transition-colors focus:border-sky-500";
+    "w-full rounded-lg border border-edge2 bg-field px-3 py-2 text-sm text-ink placeholder-mute " +
+    "outline-none transition-[border-color,box-shadow] duration-150 focus:border-sky-500 " +
+    "focus:ring-4 focus:ring-sky-500/15";
 
   return (
-    <div className={"rounded-lg border border-edge/60 bg-surface/60 p-3 " + className}>
-      <p className="mb-2 text-xs font-medium text-ink">{F.detailsHeading}</p>
-      <div className="space-y-2">
+    <div className={"rounded-xl border border-edge/70 bg-wash/70 p-3 " + className}>
+      <p className="mb-2 text-2xs font-semibold uppercase tracking-wider text-faint">{F.detailsHeading}</p>
+      <div className="space-y-2.5">
         {visibleValues(defs, values).map(({ def }) => (
           <label key={def.id} className="block">
-            <span className="mb-0.5 block text-[10px] font-medium text-faint">{def.label}</span>
+            <span className="mb-1 block text-2xs font-medium text-faint">{def.label}</span>
             {def.field_type === "select" ? (
               <select
                 value={drafts[def.key] ?? ""}

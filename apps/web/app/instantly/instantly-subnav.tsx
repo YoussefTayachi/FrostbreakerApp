@@ -25,35 +25,40 @@ export default function InstantlySubnav() {
   ];
 
   return (
-    /* Auf dem Handy eine Reiterleiste, die waagerecht scrollt, statt einer,
-       die umbricht.
+    /* Segment-Umschalter statt Unterstrich-Reiter: der aktive Bereich ist
+       eine gehobene Flaeche, keine 2-Pixel-Linie. Das ist auf dem Handy der
+       Unterschied zwischen "sieht man" und "muss man suchen".
 
+       Auf dem Handy scrollt die Leiste waagerecht, statt umzubrechen.
        Sechs Reiter brauchen zusammen rund 520 Pixel. Umgebrochen ergaben sie
-       auf einem 390er Bildschirm drei Zeilen, in denen die untere Kante --
-       also genau das, was den aktiven Reiter markiert -- nur noch unter der
-       letzten Zeile lag. Eine Reiterleiste, die drei Zeilen hoch ist, ist
-       keine Leiste mehr, sondern ein Menue mit Unterstrich.
+       auf einem 390er Bildschirm drei Zeilen, in denen die Markierung des
+       aktiven Reiters nur noch unter der letzten Zeile lag. Eine
+       Reiterleiste, die drei Zeilen hoch ist, ist keine Leiste mehr.
 
        Hier ist Scrollen die richtige Antwort und nicht der Notausgang: die
        Reiter haben eine natuerliche Reihenfolge, man liest sie von links
        nach rechts, und der aktive ist immer sichtbar, weil man ihn gerade
-       angetippt hat. Ab sm bricht wieder nichts und nichts scrollt. */
-    <div className="mb-6 flex flex-nowrap gap-1 overflow-x-auto border-b border-edge/60 pb-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:flex-wrap sm:overflow-x-visible">
-      {items.map(({ href, label }) => {
-        const active = href === "/instantly" ? pathname === "/instantly" : pathname.startsWith(href);
-        return (
-          <Link
-            key={href}
-            href={href}
-            className={
-              "relative -mb-px shrink-0 whitespace-nowrap border-b-2 px-3.5 py-2.5 text-sm transition-colors " +
-              (active ? "border-sky-500 font-medium text-ink" : "border-transparent text-faint hover:text-ink")
-            }
-          >
-            {label}
-          </Link>
-        );
-      })}
+       angetippt hat. Das -mx-4 px-4 laesst die Leiste unter sm bis an den
+       Bildschirmrand scrollen, statt in der Seitenpolsterung abzuschneiden. */
+    <div className="-mx-4 mb-6 overflow-x-auto px-4 [scrollbar-width:none] sm:mx-0 sm:overflow-x-visible sm:px-0 [&::-webkit-scrollbar]:hidden">
+      <nav className="inline-flex rounded-lg bg-chip p-1">
+        {items.map(({ href, label }) => {
+          const active = href === "/instantly" ? pathname === "/instantly" : pathname.startsWith(href);
+          return (
+            <Link
+              key={href}
+              href={href}
+              aria-current={active ? "page" : undefined}
+              className={
+                "shrink-0 whitespace-nowrap rounded-md px-3.5 py-1.5 text-sm font-medium transition-colors duration-150 " +
+                (active ? "bg-panel text-ink shadow-sm dark:bg-white/[0.08]" : "text-soft hover:text-ink")
+              }
+            >
+              {label}
+            </Link>
+          );
+        })}
+      </nav>
     </div>
   );
 }

@@ -40,30 +40,30 @@ export default function ForecastCards({
 
   return (
     <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-      <div className="rounded-lg border border-edge/60 bg-panel p-4">
-        <p className="text-[11px] font-medium uppercase tracking-wide text-mute">{D.forecastOpen}</p>
-        <p className="mt-0.5 text-xl font-semibold text-ink">
+      <div className="rounded-xl border border-edge/70 bg-panel p-4 shadow-sm">
+        <p className="text-2xs font-medium uppercase tracking-wider text-mute">{D.forecastOpen}</p>
+        <p className="mt-0.5 text-xl font-semibold tabular text-ink">
           {formatMoney(Number(stats.value_open) || 0, currency, lang)}
         </p>
-        <p className="text-[11px] text-faint">
+        <p className="text-2xs text-faint">
           {stats.deals_open} {D.forecastOpenDeals}
         </p>
       </div>
 
-      <div className="rounded-lg border border-edge/60 bg-panel p-4">
-        <p className="text-[11px] font-medium uppercase tracking-wide text-mute">{D.forecastWeighted}</p>
-        <p className="mt-0.5 text-xl font-semibold text-sky-600 dark:text-sky-400">
+      <div className="rounded-xl border border-edge/70 bg-panel p-4 shadow-sm">
+        <p className="text-2xs font-medium uppercase tracking-wider text-mute">{D.forecastWeighted}</p>
+        <p className="mt-0.5 text-xl font-semibold tabular text-sky-600 dark:text-sky-400">
           {formatMoney(Number(stats.value_weighted) || 0, currency, lang)}
         </p>
-        <p className="text-[11px] text-faint">{D.forecastWeightedHint}</p>
+        <p className="text-2xs text-faint">{D.forecastWeightedHint}</p>
       </div>
 
-      <div className="rounded-lg border border-edge/60 bg-panel p-4">
-        <p className="text-[11px] font-medium uppercase tracking-wide text-mute">{D.forecastWon}</p>
-        <p className="mt-0.5 text-xl font-semibold text-emerald-600 dark:text-emerald-400">
+      <div className="rounded-xl border border-edge/70 bg-panel p-4 shadow-sm">
+        <p className="text-2xs font-medium uppercase tracking-wider text-mute">{D.forecastWon}</p>
+        <p className="mt-0.5 text-xl font-semibold tabular text-emerald-600 dark:text-emerald-400">
           {formatMoney(Number(stats.value_won_30d) || 0, currency, lang)}
         </p>
-        <p className="text-[11px] text-faint">
+        <p className="text-2xs text-faint">
           {stats.deals_won_30d} {D.forecastWonDeals} · {stats.deals_lost_30d} {D.forecastLostDeals}
         </p>
       </div>
@@ -71,22 +71,22 @@ export default function ForecastCards({
       <Link
         href="/calls"
         className={
-          "rounded-lg border bg-panel p-4 transition-colors " +
+          "rounded-xl border bg-panel p-4 shadow-sm transition-[border-color,box-shadow] duration-150 hover:shadow-md " +
           (stats.activities_overdue > 0
             ? "border-red-500/40 hover:border-red-500/60"
-            : "border-edge/60 hover:border-edge2")
+            : "border-edge/70 hover:border-edge2")
         }
       >
-        <p className="text-[11px] font-medium uppercase tracking-wide text-mute">{D.tasksDue}</p>
+        <p className="text-2xs font-medium uppercase tracking-wider text-mute">{D.tasksDue}</p>
         <p
           className={
-            "mt-0.5 text-xl font-semibold " +
+            "mt-0.5 text-xl font-semibold tabular " +
             (stats.activities_overdue > 0 ? "text-red-600 dark:text-red-400" : "text-ink")
           }
         >
           {stats.activities_due}
         </p>
-        <p className="text-[11px] text-faint">
+        <p className="text-2xs text-faint">
           {stats.activities_overdue > 0 ? `${stats.activities_overdue} ${D.tasksOverdue}` : D.tasksAllOnTime}
         </p>
       </Link>

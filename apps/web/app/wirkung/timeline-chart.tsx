@@ -57,13 +57,13 @@ function Strip({
   return (
     <div>
       <div className="flex items-baseline justify-between gap-2">
-        <span className="text-xs font-medium text-soft">{label}</span>
-        <span className="text-xs tabular-nums text-mute">{summary}</span>
+        <span className="text-sm font-medium text-ink">{label}</span>
+        <span className="text-xs tabular-nums text-faint">{summary}</span>
       </div>
       {/* items-end + Grundlinie: alle Balken wachsen von derselben Kante.
           gap-px ist der Flaechen-Zwischenraum, der die Tage trennt, statt
           einer Umrandung je Balken. */}
-      <div className={"mt-1 flex items-end gap-px border-b border-edge2/70 " + height}>
+      <div className={"mt-2 flex items-end gap-px border-b border-edge/70 " + height}>
         {points.map((p) => {
           const v = value(p);
           return (
@@ -107,7 +107,7 @@ export default function TimelineChart({
 
   return (
     <div>
-      <div className="space-y-4">
+      <div className="space-y-5">
         <Strip
           points={points}
           value={(p) => p.sent}
@@ -138,7 +138,7 @@ export default function TimelineChart({
       </div>
 
       {/* Die gemeinsame Zeitachse, einmal fuer alle drei Streifen. */}
-      <div className="mt-1.5 flex justify-between text-xs text-mute">
+      <div className="mt-2 flex justify-between text-xs text-faint">
         <span>{formatDay(points[0].day, lang)}</span>
         {mid && <span>{formatDay(mid.day, lang)}</span>}
         <span>{formatDay(points[days - 1].day, lang)}</span>
@@ -146,13 +146,13 @@ export default function TimelineChart({
 
       {/* Der Tabellen-Zwilling: jede Zahl ist auch ohne Hover erreichbar. */}
       {active.length > 0 && (
-        <details className="mt-3">
-          <summary className="cursor-pointer text-xs text-faint transition-colors hover:text-soft">
+        <details className="mt-4">
+          <summary className="cursor-pointer py-1 text-sm font-medium text-faint transition-colors hover:text-ink">
             {L.asTable}
           </summary>
-          <table className="mt-2 w-full text-xs">
+          <table className="mt-2 w-full text-sm">
             <thead>
-              <tr className="text-left text-mute">
+              <tr className="text-left text-xs font-medium text-faint">
                 <th className="py-1 pr-2 font-medium">{L.day}</th>
                 <th className="py-1 pr-2 text-right font-medium">{L.sent}</th>
                 <th className="py-1 pr-2 text-right font-medium">{L.replies}</th>
@@ -161,11 +161,11 @@ export default function TimelineChart({
             </thead>
             <tbody className="tabular-nums text-soft">
               {active.map((p) => (
-                <tr key={p.day} className="border-t border-edge2/50">
-                  <td className="py-1 pr-2">{formatDay(p.day, lang)}</td>
-                  <td className="py-1 pr-2 text-right">{p.sent}</td>
-                  <td className="py-1 pr-2 text-right">{p.replies}</td>
-                  <td className="py-1 text-right">
+                <tr key={p.day} className="border-t border-edge/70">
+                  <td className="py-1.5 pr-2">{formatDay(p.day, lang)}</td>
+                  <td className="py-1.5 pr-2 text-right">{p.sent}</td>
+                  <td className="py-1.5 pr-2 text-right">{p.replies}</td>
+                  <td className="py-1.5 text-right">
                     {p.interested > 0 ? (
                       <span className="font-medium text-emerald-600 dark:text-emerald-400">
                         {p.interested}

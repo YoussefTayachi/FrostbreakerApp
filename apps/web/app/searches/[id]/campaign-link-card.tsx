@@ -45,15 +45,15 @@ export default async function CampaignLinkCard({
     return (
       <Link
         href={`/instantly/campaigns/new?draft=${localCampaign.id}`}
-        className="flex items-center justify-between rounded-lg border border-sky-500/40 bg-panel px-4 py-3 text-sm transition-colors hover:border-sky-500/70"
+        className="flex items-center justify-between gap-3 rounded-xl border border-sky-500/40 bg-panel px-4 py-3.5 text-sm shadow-sm transition-[border-color,box-shadow] duration-150 hover:border-sky-500/70 hover:shadow-md sm:px-5"
       >
-        <span className="flex items-center gap-2.5">
-          <span className="rounded-full border border-sky-500/40 px-2 py-0.5 text-[11px] text-sky-600 dark:text-sky-400">
+        <span className="flex min-w-0 flex-wrap items-center gap-2.5">
+          <span className="rounded-full border border-sky-500/40 px-2.5 py-0.5 text-xs font-medium text-sky-600 dark:text-sky-400">
             {C.mcpDraftBadge}
           </span>
           <span className="text-faint">{C.mcpDraftReview}</span>
         </span>
-        <span className="text-faint">→</span>
+        <span aria-hidden className="shrink-0 text-faint">→</span>
       </Link>
     );
   }
@@ -62,24 +62,24 @@ export default async function CampaignLinkCard({
     return (
       <Link
         href={`/instantly/campaigns/${localCampaign.id}`}
-        className="flex items-center justify-between rounded-lg border border-edge2 bg-panel px-4 py-3 text-sm transition-colors hover:border-sky-500/50"
+        className="flex items-center justify-between gap-3 rounded-xl border border-edge/70 bg-panel px-4 py-3.5 text-sm shadow-sm transition-[border-color,box-shadow] duration-150 hover:border-sky-500/50 hover:shadow-md sm:px-5"
       >
-        <span className="flex items-center gap-2.5">
-          <span className={"rounded-full border px-2 py-0.5 text-[11px] " + (STATUS_BADGE_CLS[localCampaign.status] ?? "")}>
+        <span className="flex min-w-0 flex-wrap items-center gap-2.5">
+          <span className={"rounded-full border px-2.5 py-0.5 text-xs font-medium " + (STATUS_BADGE_CLS[localCampaign.status] ?? "")}>
             {t.instantly.statusLabels[localCampaign.status as keyof typeof t.instantly.statusLabels] ?? localCampaign.status}
           </span>
           <span className="text-faint">{C.manage}</span>
         </span>
-        <span className="text-faint">→</span>
+        <span aria-hidden className="shrink-0 text-faint">→</span>
       </Link>
     );
   }
 
   if (manuallyLinkedCampaignId) {
     return (
-      <div className="rounded-lg border border-edge2 bg-panel px-4 py-3 text-sm text-faint">
+      <div className="rounded-xl border border-edge/70 bg-panel px-4 py-3.5 text-sm text-faint shadow-sm sm:px-5">
         {t.searchDetail.campaignBuilder.linkedHeading}{" "}
-        <code className="rounded bg-panel2 px-1.5 py-0.5 font-mono text-[11px] text-mute">{manuallyLinkedCampaignId}</code>
+        <code className="rounded bg-panel2 px-1.5 py-0.5 font-mono text-2xs text-mute">{manuallyLinkedCampaignId}</code>
         <span className="ml-2">{t.searchDetail.campaignBuilder.linkedHint}</span>
       </div>
     );
@@ -88,10 +88,10 @@ export default async function CampaignLinkCard({
   return (
     <Link
       href={`/instantly/campaigns/new?${searchIds.map((id) => `searchId=${id}`).join("&")}`}
-      className="flex items-center justify-between rounded-lg border border-dashed border-edge3 px-4 py-3 text-sm text-faint transition-colors hover:border-sky-500/60 hover:text-sky-600 dark:hover:text-sky-400"
+      className="flex items-center justify-between gap-3 rounded-xl border border-dashed border-edge3 px-4 py-3.5 text-sm text-faint transition-colors hover:border-sky-500/60 hover:text-sky-600 dark:hover:text-sky-400 sm:px-5"
     >
-      <span>{t.searchDetail.campaignBuilder.description(contactsWithEmailCount)}</span>
-      <span>→</span>
+      <span className="min-w-0">{t.searchDetail.campaignBuilder.description(contactsWithEmailCount)}</span>
+      <span aria-hidden className="shrink-0">→</span>
     </Link>
   );
 }

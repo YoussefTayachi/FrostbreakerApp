@@ -23,7 +23,7 @@ export default async function GuidePage() {
     <div className="fade-up max-w-3xl space-y-6">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight text-ink">{t.guide.title}</h1>
-        <p className="text-sm text-faint">{t.guide.subtitle}</p>
+        <p className="mt-1 text-sm text-faint">{t.guide.subtitle}</p>
       </div>
       <GuideView sections={GUIDE[lang]} labels={t.guide} />
     </div>

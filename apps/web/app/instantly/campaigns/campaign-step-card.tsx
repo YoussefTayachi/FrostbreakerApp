@@ -224,29 +224,29 @@ export default function CampaignStepCard({
     // onFocusCapture statt onClick: es meldet die Karte auch dann als aktiv,
     // wenn man mit der Tabulatortaste hineinwandert, und feuert nicht bei
     // jedem Klick daneben.
-    <div className="rounded-lg border border-edge2 p-3" onFocusCapture={() => onActive?.(vi)}>
+    <div className="rounded-xl border border-edge2 p-4" onFocusCapture={() => onActive?.(vi)}>
       {/* flex-wrap und gap-y: bei "Schritt 2", "Wartezeit" mit Zahlenfeld und
           "Löschen" in einer Zeile bleiben auf einem 343er Bildschirm rund 60
           Pixel fuer das Zahlenfeld. Umbrechen darf sie deshalb; was
           zusammengehoert (Beschriftung und Feld), haelt das eigene label
           zusammen. */}
-      <div className="mb-2 flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
-        <span className="text-xs font-medium text-soft">{F.stepLabel(index + 1)}</span>
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+        <span className="text-sm font-semibold text-ink">{F.stepLabel(index + 1)}</span>
         <div className="flex items-center gap-3">
           {index > 0 && (
-            <label className="flex items-center gap-1.5 text-[11px] text-faint">
+            <label className="flex items-center gap-2 text-xs text-faint">
               {F.delayLabel}
               <input
                 type="number"
                 min={0}
                 value={step.delayDays}
                 onChange={(e) => onChange({ delayDays: Number(e.target.value) || 0 })}
-                className={inputCls + " w-16 px-2 py-1"}
+                className={inputCls + " w-16 px-2 py-1.5"}
               />
             </label>
           )}
           {canRemove && (
-            <button type="button" onClick={onRemove} className="py-1 text-[11px] text-red-500 hover:text-red-400">
+            <button type="button" onClick={onRemove} className="py-1.5 text-xs font-medium text-red-600 transition-colors hover:text-red-500 dark:text-red-400">
               {t.common.delete}
             </button>
           )}
@@ -256,7 +256,7 @@ export default function CampaignStepCard({
       {/* Reiter nur zeigen, wenn es etwas zu waehlen gibt — bei einer
           einzigen Fassung waere ein Reiter "A" ohne Nachbarn eine Frage ohne
           Antwortmoeglichkeit. Der Knopf zum Hinzufuegen steht trotzdem da. */}
-      <div className="mb-2 flex flex-wrap items-center gap-1.5">
+      <div className="mb-3 flex flex-wrap items-center gap-1.5">
         {step.variants.length > 1 &&
           step.variants.map((v, i) => (
             <button
@@ -267,7 +267,7 @@ export default function CampaignStepCard({
                 onActive?.(i);
               }}
               className={
-                "rounded-md border px-3 py-2 text-[11px] font-medium transition-colors sm:px-2.5 sm:py-1 " +
+                "rounded-lg border px-3 py-2 text-xs font-medium transition-colors duration-150 sm:px-2.5 sm:py-1.5 " +
                 (i === vi
                   ? "border-sky-500 bg-sky-500/10 text-sky-600 dark:text-sky-300"
                   : "border-edge2 text-faint hover:border-sky-500/50") +
@@ -280,7 +280,7 @@ export default function CampaignStepCard({
         <button
           type="button"
           onClick={addVariant}
-          className="rounded-md border border-dashed border-edge2 px-3 py-2 text-[11px] text-faint transition-colors hover:border-sky-500/50 hover:text-sky-600 sm:px-2.5 sm:py-1 dark:hover:text-sky-400"
+          className="rounded-lg border border-dashed border-edge2 px-3 py-2 text-xs font-medium text-faint transition-colors duration-150 hover:border-sky-500/50 hover:text-sky-600 sm:px-2.5 sm:py-1.5 dark:hover:text-sky-400"
         >
           {F.addVariant}
         </button>
@@ -291,14 +291,14 @@ export default function CampaignStepCard({
               onClick={toggleDisabled}
               disabled={!canDisable}
               title={canDisable ? undefined : F.lastVariantHint}
-              className="py-1.5 text-[11px] text-faint transition-colors hover:text-ink disabled:opacity-40 sm:py-0"
+              className="py-1.5 text-xs font-medium text-faint transition-colors hover:text-ink disabled:opacity-40 sm:py-0"
             >
               {variant.disabled ? F.enableVariant(variantLabel(vi)) : F.disableVariant(variantLabel(vi))}
             </button>
             <button
               type="button"
               onClick={removeVariant}
-              className="py-1.5 text-[11px] text-red-500 hover:text-red-400 sm:py-0"
+              className="py-1.5 text-xs font-medium text-red-600 transition-colors hover:text-red-500 sm:py-0 dark:text-red-400"
             >
               {F.removeVariant(variantLabel(vi))}
             </button>
@@ -306,13 +306,13 @@ export default function CampaignStepCard({
         )}
       </div>
       {step.variants.length > 1 && (
-        <p className="mb-2 text-[11px] text-mute">
+        <p className="mb-3 text-xs text-faint">
           {variant.disabled ? F.variantDisabledHint(variantLabel(vi)) : F.variantHint}
         </p>
       )}
 
-      <div className="mb-2 flex flex-wrap items-center gap-1.5">
-        <span className="text-[11px] text-faint">{F.insertVariable}</span>
+      <div className="mb-3 flex flex-wrap items-center gap-1.5">
+        <span className="text-xs text-faint">{F.insertVariable}</span>
         {VARIABLES.map((v) => (
           <button
             key={v.token}
@@ -322,7 +322,7 @@ export default function CampaignStepCard({
             // Pixel hoch. Sie stehen dicht an dicht in zwei Reihen, und wer
             // "Vorname" treffen will, fuegt "Firma" ein. Am Schreibtisch
             // bleibt es bei der kompakten Reihe.
-            className="rounded-full border border-edge2 px-2.5 py-1.5 text-[11px] text-faint transition-colors hover:border-sky-500/50 hover:text-sky-600 sm:px-2 sm:py-0.5 dark:hover:text-sky-400"
+            className="rounded-full border border-edge2 px-2.5 py-1.5 text-xs font-medium text-faint transition-colors duration-150 hover:border-sky-500/50 hover:text-sky-600 sm:py-1 dark:hover:text-sky-400"
           >
             {v.label}
           </button>
@@ -333,7 +333,7 @@ export default function CampaignStepCard({
         <button
           type="button"
           onClick={() => insertVariable(optOutLink())}
-          className="rounded-full border border-edge2 px-2.5 py-1.5 text-[11px] text-faint transition-colors hover:border-sky-500/50 hover:text-sky-600 sm:px-2 sm:py-0.5 dark:hover:text-sky-400"
+          className="rounded-full border border-edge2 px-2.5 py-1.5 text-xs font-medium text-faint transition-colors duration-150 hover:border-sky-500/50 hover:text-sky-600 sm:py-1 dark:hover:text-sky-400"
         >
           {F.variableOptOut}
         </button>
@@ -376,12 +376,12 @@ export default function CampaignStepCard({
           dangerouslySetInnerHTML ist unkritisch: plainTextToInstantlyHtml
           maskiert &, < und > und setzt danach ausschliesslich eigene Tags. */}
       {inlinePreview && variant.body.trim().length > 0 && (
-        <details className="mt-2 rounded-lg border border-edge2/70">
-          <summary className="cursor-pointer px-3 py-1.5 text-[11px] text-faint hover:text-soft">
+        <details className="mt-3 rounded-lg border border-edge2">
+          <summary className="cursor-pointer px-3.5 py-2.5 text-xs font-medium text-faint transition-colors hover:text-ink">
             {F.previewToggle}
           </summary>
           <div
-            className="border-t border-edge2/70 px-3 py-2.5 text-sm leading-relaxed text-soft [&_div]:min-h-[1em]"
+            className="border-t border-edge2 px-3.5 py-3 text-sm leading-relaxed text-soft [&_div]:min-h-[1em]"
             dangerouslySetInnerHTML={{ __html: plainTextToInstantlyHtml(variant.body) }}
           />
         </details>
@@ -401,7 +401,7 @@ export default function CampaignStepCard({
         // den Knopf blieben rund 90, und "Anwenden" brach darin um. Jetzt steht
         // das Feld in voller Breite und die Knoepfe darunter; ab sm gilt wieder
         // die alte Reihe.
-        <div className="mt-2 flex flex-col gap-1.5 sm:flex-row sm:flex-wrap sm:items-center">
+        <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
           <input
             value={anweisung}
             onChange={(e) => setAnweisung(e.target.value)}
@@ -412,14 +412,14 @@ export default function CampaignStepCard({
               }
             }}
             placeholder={R.placeholder}
-            className={inputCls + " w-full px-2.5 py-2 text-[13px] sm:w-auto sm:min-w-48 sm:flex-1 sm:py-1"}
+            className={inputCls + " w-full py-2 sm:w-auto sm:min-w-48 sm:flex-1"}
           />
           <div className="flex items-center gap-3">
             <button
               type="button"
               onClick={nachschaerfen}
               disabled={schaerft || !anweisung.trim()}
-              className="rounded-md border border-edge2 px-3 py-2 text-[11px] text-soft transition-colors hover:border-sky-500/50 hover:text-sky-600 disabled:opacity-40 sm:px-2.5 sm:py-1 dark:hover:text-sky-400"
+              className="rounded-lg border border-edge2 px-3 py-2 text-xs font-medium text-soft transition-colors duration-150 hover:border-sky-500/50 hover:text-sky-600 disabled:opacity-40 sm:py-1.5 dark:hover:text-sky-400"
             >
               {schaerft ? R.working : R.apply}
             </button>
@@ -427,7 +427,7 @@ export default function CampaignStepCard({
               <button
                 type="button"
                 onClick={zurueck}
-                className="py-2 text-[11px] text-faint transition-colors hover:text-ink sm:py-0"
+                className="py-2 text-xs font-medium text-faint transition-colors hover:text-ink sm:py-0"
               >
                 {R.undo}
               </button>

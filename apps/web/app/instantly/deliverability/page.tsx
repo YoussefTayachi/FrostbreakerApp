@@ -21,10 +21,10 @@ export default async function InstantlyDeliverabilityPage() {
     .maybeSingle();
 
   return (
-    <div className="fade-up max-w-2xl space-y-6">
+    <div className="max-w-3xl space-y-6">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight text-ink">{t.deliverability.title}</h1>
-        <p className="text-sm text-faint">
+        <p className="mt-1 text-sm text-faint">
           {t.deliverability.subtitle}{" "}
           <HelpLink section="deliverability" label={t.guide.helpLink} />
         </p>

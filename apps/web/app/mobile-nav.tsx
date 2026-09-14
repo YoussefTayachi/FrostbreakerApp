@@ -117,7 +117,7 @@ export default function MobileNav({ email }: { email: string }) {
         aria-expanded={open}
         // h-10 w-10: das Mindestmass fuer ein Ziel, das mit dem Daumen
         // getroffen werden muss. Die 18px des Symbols allein waeren zu wenig.
-        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-edge2 text-soft transition-colors hover:border-edge3 hover:text-ink"
+        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-ink/[0.06] text-ink transition-[background-color,transform] active:scale-95 dark:bg-white/[0.08]"
       >
         <IconMenu className="h-[18px] w-[18px]" />
       </button>
@@ -130,7 +130,7 @@ export default function MobileNav({ email }: { email: string }) {
             type="button"
             aria-label={t.nav.closeMenu}
             onClick={() => setOpen(false)}
-            className="absolute inset-0 h-full w-full cursor-default bg-black/50 backdrop-blur-[2px]"
+            className="scrim-in absolute inset-0 h-full w-full cursor-default bg-black/40 backdrop-blur-[3px]"
           />
           {/* Von links, wie die Seitenleiste, die sie vertritt. w-[19rem] statt
               der 16rem der Leiste: auf dem Handy ist die Schublade die ganze
@@ -151,21 +151,21 @@ export default function MobileNav({ email }: { email: string }) {
             onClickCapture={(e) => {
               if ((e.target as HTMLElement).closest("a")) setOpen(false);
             }}
-            className="absolute inset-y-0 left-0 flex w-[19rem] max-w-[85vw] flex-col overflow-hidden border-r border-edge/60 bg-panel2 shadow-2xl outline-none"
+            className="drawer-in absolute inset-y-0 left-0 flex w-[19rem] max-w-[85vw] flex-col overflow-hidden rounded-r-3xl border-r border-edge/70 bg-panel2 shadow-2xl outline-none"
           >
-            <div className="flex shrink-0 items-center justify-between gap-2 px-4 pt-4">
-              <span className="text-3xl font-extrabold tracking-tighter text-[#0EA5E9]">frostbreaker</span>
+            <div className="flex shrink-0 items-center justify-between gap-2 px-5 pt-5">
+              <span className="text-[24px] font-bold leading-none tracking-[-0.04em] text-[#0EA5E9]">frostbreaker</span>
               <button
                 type="button"
                 onClick={() => setOpen(false)}
                 aria-label={t.nav.closeMenu}
-                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-edge2 text-soft transition-colors hover:border-edge3 hover:text-ink"
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-ink/[0.06] text-ink transition-[background-color,transform] active:scale-95 dark:bg-white/[0.08]"
               >
                 <IconClose className="h-[18px] w-[18px]" />
               </button>
             </div>
 
-            <div className="shrink-0 px-4 pt-3">
+            <div className="shrink-0 px-4 pt-4">
               <WorkspaceSwitcher className="mb-3" />
               {/* Eigener Knopf statt CommandPaletteTrigger: der zeigt ⌘K, und
                   auf einem Handy gibt es keine Befehlstaste. Die Palette
@@ -176,7 +176,7 @@ export default function MobileNav({ email }: { email: string }) {
                   setOpen(false);
                   window.dispatchEvent(new Event("open-command-palette"));
                 }}
-                className="mb-3 flex w-full items-center gap-2.5 rounded-lg border border-edge/60 bg-panel px-3 py-2.5 text-left text-sm text-faint transition-colors hover:border-edge2 hover:text-ink"
+                className="mb-3 flex h-10 w-full items-center gap-2.5 rounded-lg bg-panel px-3 text-left text-sm text-faint shadow-sm ring-1 ring-edge/70 transition-colors hover:text-ink"
               >
                 <IconSearch className="h-4 w-4 shrink-0" />
                 <span className="flex-1">{t.commandPalette.triggerLabel}</span>
@@ -187,13 +187,13 @@ export default function MobileNav({ email }: { email: string }) {
                 hier der Punkt, an dem es sonst scheitert: ohne das weigert
                 sich das Flex-Kind, kleiner als sein Inhalt zu werden, und der
                 Fuss mit dem Abmelden wandert aus dem Bild. */}
-            <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-2">
+            <div className="scroll-quiet min-h-0 flex-1 overflow-y-auto px-4 pb-2">
               <Nav />
             </div>
 
             {/* pb mit safe-area: auf iPhones liegt sonst die Abmelden-Zeile
                 unter dem Balken fuer die Wischgeste. */}
-            <div className="shrink-0 border-t border-edge/60 px-4 pt-3 [padding-bottom:calc(0.75rem+env(safe-area-inset-bottom))]">
+            <div className="shrink-0 border-t border-edge/70 px-4 pt-3 [padding-bottom:calc(0.75rem+env(safe-area-inset-bottom))]">
               <div className="flex items-center justify-between gap-2">
                 <p className="min-w-0 truncate text-xs text-faint" title={email}>
                   {email}

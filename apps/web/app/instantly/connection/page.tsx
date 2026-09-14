@@ -82,50 +82,55 @@ export default function InstantlyConnectionPage() {
   }
 
   return (
-    <div className="fade-up max-w-2xl space-y-6">
+    <div className="max-w-2xl space-y-6">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight text-ink">{t.instantly.connection.title}</h1>
-        <p className="text-sm text-faint">{t.instantly.connection.description}</p>
+        <p className="mt-1 text-sm text-faint">{t.instantly.connection.description}</p>
       </div>
 
       <div className={cardCls}>
-        <div className="mb-1 flex items-center justify-between">
-          <h3 className="flex items-center gap-1.5 font-medium text-ink">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h2 className="flex items-center gap-1.5 text-base font-semibold text-ink">
             <IconLock className="h-4 w-4 text-mute" filled />
             Instantly.ai
-          </h3>
+          </h2>
           {saved && (
             <span className="flex items-center gap-2">
-              {keyHint && <code className="rounded bg-panel2 px-1.5 py-0.5 font-mono text-[11px] text-mute">{keyHint}</code>}
-              <span className="flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-0.5 text-xs text-emerald-600 dark:text-emerald-300">
-                <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+              {keyHint && <code className="rounded-md bg-chip px-1.5 py-0.5 font-mono text-2xs text-mute">{keyHint}</code>}
+              <span className="flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-0.5 text-xs font-medium text-emerald-600 dark:text-emerald-300">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
                 {t.settings.saved}
               </span>
             </span>
           )}
         </div>
-        <p className="mb-3 text-xs text-faint">{t.settings.providerHints.instantly}</p>
-        <div className="flex gap-3">
+        <p className="mb-4 mt-1 text-sm text-faint">{t.settings.providerHints.instantly}</p>
+        {/* Unter sm untereinander: Feld plus zwei Knoepfe nebeneinander
+            ergeben auf 390 Pixel drei Spalten von je 110 Pixel, in denen
+            weder der Schluessel noch die Beschriftung lesbar bleibt. */}
+        <div className="flex flex-col gap-3 sm:flex-row">
           <input
             type="password"
             placeholder={saved ? t.settings.replaceKeyPlaceholder : t.settings.keyPlaceholder}
             value={value}
             onChange={(e) => setValue(e.target.value)}
-            className={inputCls + " flex-1"}
+            className={inputCls + " w-full sm:flex-1"}
           />
-          <button onClick={save} className={primaryBtnCls}>
-            {t.settings.save}
-          </button>
-          {saved && (
-            <button onClick={remove} disabled={removing} className={dangerBtnCls}>
-              {removing ? t.settings.removing : t.common.delete}
+          <div className="flex gap-3">
+            <button onClick={save} className={primaryBtnCls + " flex-1 sm:flex-none"}>
+              {t.settings.save}
             </button>
-          )}
+            {saved && (
+              <button onClick={remove} disabled={removing} className={dangerBtnCls + " flex-1 sm:flex-none"}>
+                {removing ? t.settings.removing : t.common.delete}
+              </button>
+            )}
+          </div>
         </div>
         {status && (
           <p
             className={
-              "mt-2 flex items-center gap-1.5 text-xs " +
+              "mt-3 flex items-center gap-1.5 text-xs " +
               (status.includes(t.settings.encryptedOk) ? "lock-pop font-medium text-emerald-600 dark:text-emerald-400" : "text-faint")
             }
           >

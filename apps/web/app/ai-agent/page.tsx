@@ -480,7 +480,7 @@ export default function AiAgentPage() {
     <div className="fade-up max-w-3xl space-y-6">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight text-ink">{t.aiAgent.title}</h1>
-        <p className="text-sm text-faint">
+        <p className="mt-1 text-sm text-faint">
           {t.aiAgent.subtitle}{" "}
           <HelpLink section="agent" label={t.guide.helpLink} />
         </p>
@@ -491,8 +491,8 @@ export default function AiAgentPage() {
           bei jedem Lead in den OpenAI-Aufruf (siehe generate() in
           worker/pipelines/personalize.py). */}
       <div className={cardCls}>
-        <h2 className="mb-1 font-medium text-ink">{t.aiAgent.examplesHeading}</h2>
-        <p className="mb-3 max-w-[68ch] text-sm leading-relaxed text-faint">
+        <h2 className="mb-1 text-base font-semibold text-ink">{t.aiAgent.examplesHeading}</h2>
+        <p className="mb-4 max-w-[68ch] text-sm leading-relaxed text-faint">
           {t.aiAgent.examplesSubtitle}
         </p>
 
@@ -503,12 +503,12 @@ export default function AiAgentPage() {
 
             Gezaehlt wird nur, was wirklich gezaehlt wurde: Beispiele und
             Zeichen. Keine Token, keine Kosten, beides waere geraten. */}
-        <div className="mb-4 flex flex-wrap items-center gap-x-2 gap-y-2 text-xs text-faint">
+        <div className="mb-4 flex flex-wrap items-center gap-x-2 gap-y-2 text-sm text-faint">
           <span>{t.aiAgent.examplesCount(examples.length, MAX_PERSONALIZATION_EXAMPLES)}</span>
           <span aria-hidden className="text-mute">·</span>
           <span>{t.aiAgent.examplesChars(exampleChars)}</span>
           {incompleteExamples > 0 && (
-            <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-2.5 py-0.5 text-amber-700 dark:text-amber-300">
+            <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-2.5 py-0.5 text-xs font-medium text-amber-700 dark:text-amber-300">
               {t.aiAgent.examplesIncomplete(incompleteExamples)}
             </span>
           )}
@@ -518,7 +518,7 @@ export default function AiAgentPage() {
           /* Der leere Zustand traegt seinen naechsten Schritt selbst: Satz
              und Knopf in einem gestrichelten Feld, statt eines Hinweises
              oben und eines Knopfes irgendwo darunter. */
-          <div className="rounded-lg border border-dashed border-edge2 px-4 py-6 text-center">
+          <div className="rounded-xl border border-dashed border-edge2 px-4 py-10 text-center">
             <p className="mx-auto max-w-[52ch] text-sm leading-relaxed text-faint">
               {t.aiAgent.examplesEmpty}
             </p>
@@ -539,7 +539,7 @@ export default function AiAgentPage() {
              letzten Aufklappers liegt sonst genau auf der Kante und wird
              abgeschnitten. Stattdessen 6 Pixel Luft nach innen (px-1.5),
              damit der Ring Platz hat. */
-          <ul className="divide-y divide-edge rounded-lg border border-edge2">
+          <ul className="divide-y divide-edge/70 rounded-xl border border-edge/70">
             {examples.map((ex, i) => {
               const offen = openExampleId === ex.id;
               const vorschau = ex.icebreaker.trim();
@@ -562,14 +562,24 @@ export default function AiAgentPage() {
                         // text-faint und nicht text-mute: die Spitze sagt,
                         // ob die Zeile offen ist, und ein Bedienhinweis
                         // braucht 3:1 gegen seinen Grund.
-                        className="shrink-0 text-faint transition-transform duration-200"
+                        className="h-4 w-4 shrink-0 text-faint transition-transform duration-200"
                         style={{ transform: offen ? "rotate(90deg)" : "none" }}
                       >
-                        ›
+                        <svg
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          className="h-4 w-4"
+                        >
+                          <path d="m9 18 6-6-6-6" />
+                        </svg>
                       </span>
                       {/* Die Nummer ist keine Zierde: die Reihenfolge der
                           Beispiele ist die Reihenfolge im Prompt. */}
-                      <span className="shrink-0 text-xs font-medium text-faint">
+                      <span className="shrink-0 text-xs font-medium tabular-nums text-faint">
                         {t.aiAgent.exampleNumber(i + 1)}
                       </span>
                       {/* Erkannt wird ein Beispiel an der Zeile, die man
@@ -623,12 +633,12 @@ export default function AiAgentPage() {
                       // Nur eine Linie und Abstand, keine zweite Flaeche: die
                       // gedrehte Spitze und der Inhalt selbst sagen schon,
                       // welche Zeile offen ist.
-                      className="fade-up space-y-3 border-t border-edge px-3 pb-4 pt-3.5"
+                      className="fade-up space-y-4 border-t border-edge/70 px-3 pb-4 pt-4"
                     >
                       <div>
                         <label
                           htmlFor={`example-context-${ex.id}`}
-                          className="mb-1 block text-xs font-medium text-faint"
+                          className="mb-1.5 block text-xs font-medium text-soft"
                         >
                           {t.aiAgent.exampleContextLabel}
                         </label>
@@ -652,14 +662,14 @@ export default function AiAgentPage() {
                             )
                           }
                           onBlur={(e) => saveExample(ex.id, { input_context: e.target.value })}
-                          className={inputCls + " w-full resize-y font-mono text-[13px] leading-relaxed"}
+                          className={inputCls + " w-full resize-y font-mono text-xs leading-relaxed"}
                         />
                       </div>
 
                       <div>
                         <label
                           htmlFor={`example-icebreaker-${ex.id}`}
-                          className="mb-1 block text-xs font-medium text-faint"
+                          className="mb-1.5 block text-xs font-medium text-soft"
                         >
                           {t.aiAgent.exampleIcebreakerLabel}
                         </label>
@@ -676,7 +686,7 @@ export default function AiAgentPage() {
                             )
                           }
                           onBlur={(e) => saveExample(ex.id, { icebreaker: e.target.value })}
-                          className={inputCls + " w-full resize-y text-[13px] leading-relaxed"}
+                          className={inputCls + " w-full resize-y text-xs leading-relaxed"}
                         />
                       </div>
                     </div>
@@ -715,17 +725,17 @@ export default function AiAgentPage() {
           umschaltet — eine Einstellung, die sichtbar etwas anderes veraendert,
           gehoert davor und nicht dahinter. */}
       <div className={cardCls}>
-        <h2 className="mb-1 font-medium text-ink">{t.aiAgent.languageHeading}</h2>
-        <p className="mb-3 text-sm text-faint">{t.aiAgent.languageSubtitle}</p>
+        <h2 className="mb-1 text-base font-semibold text-ink">{t.aiAgent.languageHeading}</h2>
+        <p className="mb-4 text-sm leading-relaxed text-faint">{t.aiAgent.languageSubtitle}</p>
         <div className="grid gap-2 sm:grid-cols-2">
           {(["de", "en"] as const).map((code) => (
             <label
               key={code}
               className={
-                "cursor-pointer rounded-lg border p-3 text-sm transition-colors " +
+                "cursor-pointer rounded-xl border p-3.5 text-sm transition-colors duration-150 " +
                 (outputLang === code
                   ? "border-sky-500/60 bg-sky-500/5"
-                  : "border-edge2 hover:border-edge3")
+                  : "border-edge/70 hover:border-edge2")
               }
             >
               <div className="flex items-center gap-2">
@@ -734,7 +744,7 @@ export default function AiAgentPage() {
                   name="outputLang"
                   checked={outputLang === code}
                   onChange={() => setOutputLang(code)}
-                  className="h-3.5 w-3.5 accent-sky-500"
+                  className="h-4 w-4 accent-sky-600"
                 />
                 <span className="font-medium text-ink">{t.aiAgent.languageOptions[code]}</span>
               </div>
@@ -750,17 +760,17 @@ export default function AiAgentPage() {
       </div>
 
       <div className={cardCls}>
-        <h2 className="mb-1 font-medium text-ink">{t.aiAgent.sourceHeading}</h2>
-        <p className="mb-3 text-sm text-faint">{t.aiAgent.sourceSubtitle}</p>
+        <h2 className="mb-1 text-base font-semibold text-ink">{t.aiAgent.sourceHeading}</h2>
+        <p className="mb-4 text-sm leading-relaxed text-faint">{t.aiAgent.sourceSubtitle}</p>
         <div className="grid gap-2 sm:grid-cols-3">
           {t.aiAgent.sourceOptions.map((opt) => (
             <label
               key={opt.value}
               className={
-                "cursor-pointer rounded-lg border p-3 text-sm transition-colors " +
+                "cursor-pointer rounded-xl border p-3.5 text-sm transition-colors duration-150 " +
                 (source === opt.value
                   ? "border-sky-500/60 bg-sky-500/5"
-                  : "border-edge2 hover:border-edge3")
+                  : "border-edge/70 hover:border-edge2")
               }
             >
               <div className="flex items-center gap-2">
@@ -769,7 +779,7 @@ export default function AiAgentPage() {
                   name="source"
                   checked={source === opt.value}
                   onChange={() => setSource(opt.value)}
-                  className="h-3.5 w-3.5 accent-sky-500"
+                  className="h-4 w-4 accent-sky-600"
                 />
                 <span className="font-medium text-ink">{opt.label}</span>
               </div>
@@ -780,15 +790,15 @@ export default function AiAgentPage() {
       </div>
 
       <div className={cardCls}>
-        <h2 className="mb-1 font-medium text-ink">{t.aiAgent.templateHeading}</h2>
-        <p className="mb-3 text-sm text-faint">{t.aiAgent.templateSubtitle}</p>
+        <h2 className="mb-1 text-base font-semibold text-ink">{t.aiAgent.templateHeading}</h2>
+        <p className="mb-4 text-sm leading-relaxed text-faint">{t.aiAgent.templateSubtitle}</p>
         <div className="grid gap-2 sm:grid-cols-3">
           <label
             className={
-              "cursor-pointer rounded-lg border p-3 text-sm transition-colors " +
+              "cursor-pointer rounded-xl border p-3.5 text-sm transition-colors duration-150 " +
               (selectedTemplateId === "default"
                 ? "border-sky-500/60 bg-sky-500/5"
-                : "border-edge2 hover:border-edge3")
+                : "border-edge/70 hover:border-edge2")
             }
           >
             <div className="flex items-center gap-2">
@@ -797,10 +807,10 @@ export default function AiAgentPage() {
                 name="template"
                 checked={selectedTemplateId === "default"}
                 onChange={selectDefault}
-                className="h-3.5 w-3.5 accent-sky-500"
+                className="h-4 w-4 accent-sky-600"
               />
               <span className="font-medium text-ink">{t.aiAgent.thawTemplateLabel}</span>
-              <span className="rounded-full bg-sky-500/10 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-sky-600 dark:text-sky-400">
+              <span className="rounded-full bg-sky-500/10 px-2 py-0.5 text-2xs font-medium uppercase tracking-wide text-sky-600 dark:text-sky-400">
                 {t.aiAgent.thawTemplateBadge}
               </span>
             </div>
@@ -811,10 +821,10 @@ export default function AiAgentPage() {
             <label
               key={tpl.id}
               className={
-                "group relative cursor-pointer rounded-lg border p-3 text-sm transition-colors " +
+                "group relative cursor-pointer rounded-xl border p-3.5 pr-10 text-sm transition-colors duration-150 " +
                 (selectedTemplateId === tpl.id
                   ? "border-sky-500/60 bg-sky-500/5"
-                  : "border-edge2 hover:border-edge3")
+                  : "border-edge/70 hover:border-edge2")
               }
             >
               <div className="flex items-center gap-2">
@@ -823,17 +833,20 @@ export default function AiAgentPage() {
                   name="template"
                   checked={selectedTemplateId === tpl.id}
                   onChange={() => selectCustomTemplate(tpl)}
-                  className="h-3.5 w-3.5 accent-sky-500"
+                  className="h-4 w-4 accent-sky-600"
                 />
                 <span className="truncate font-medium text-ink">{tpl.name}</span>
               </div>
               {!tpl.prompt && (
                 <p className="mt-1 text-xs text-faint">{t.aiAgent.emptyTemplateHint}</p>
               )}
+              {/* Sichtbar statt group-hover: auf einem Telefon gibt es kein
+                  Ueberfahren, dort war der Knopf schlicht nicht erreichbar.
+                  Jetzt steht er leise da und wird beim Ueberfahren deutlich. */}
               <button
                 type="button"
                 onClick={(e) => deleteTemplate(tpl.id, e)}
-                className="absolute right-2 top-2 hidden text-faint hover:text-red-500 group-hover:block"
+                className="absolute right-1.5 top-1.5 flex h-8 w-8 items-center justify-center rounded-lg text-mute transition-colors duration-150 hover:bg-red-500/10 hover:text-red-500 group-hover:text-faint"
                 aria-label={t.common.delete}
               >
                 ✕
@@ -843,19 +856,20 @@ export default function AiAgentPage() {
 
           {customTemplates.length < MAX_CUSTOM_TEMPLATES &&
             (addingTemplate ? (
-              <div className="rounded-lg border border-sky-500/60 bg-sky-500/5 p-3 text-sm">
+              <div className="rounded-xl border border-sky-500/60 bg-sky-500/5 p-3.5 text-sm">
                 <input
                   autoFocus
                   value={newTemplateName}
                   onChange={(e) => setNewTemplateName(e.target.value)}
                   placeholder={t.aiAgent.newTemplateNamePlaceholder}
-                  className="w-full rounded-md border border-edge2 bg-field px-2 py-1.5 text-sm text-ink outline-none focus:border-sky-500"
+                  aria-label={t.aiAgent.newTemplateNamePlaceholder}
+                  className={inputCls + " w-full"}
                 />
-                <div className="mt-2 flex gap-2">
+                <div className="mt-2.5 flex gap-2">
                   <button
                     onClick={createTemplate}
                     disabled={!newTemplateName.trim() || savingNewTemplate}
-                    className="rounded-md bg-sky-600 px-2.5 py-1 text-xs font-medium text-white disabled:opacity-50"
+                    className="rounded-lg bg-sky-600 px-3 py-1.5 text-xs font-medium text-white transition-[background-color,transform] duration-150 hover:bg-sky-500 active:scale-[0.98] disabled:opacity-50"
                   >
                     {t.common.save}
                   </button>
@@ -864,7 +878,7 @@ export default function AiAgentPage() {
                       setAddingTemplate(false);
                       setNewTemplateName("");
                     }}
-                    className="rounded-md border border-edge2 px-2.5 py-1 text-xs text-soft hover:text-ink"
+                    className="rounded-lg border border-edge2 px-3 py-1.5 text-xs font-medium text-soft transition-colors duration-150 hover:bg-chip hover:text-ink"
                   >
                     {t.aiAgent.cancel}
                   </button>
@@ -874,7 +888,7 @@ export default function AiAgentPage() {
               <button
                 type="button"
                 onClick={() => setAddingTemplate(true)}
-                className="flex items-center justify-center rounded-lg border border-dashed border-edge3 p-3 text-sm text-faint transition-colors hover:border-sky-500/60 hover:text-sky-600"
+                className="flex min-h-[52px] items-center justify-center rounded-xl border border-dashed border-edge2 p-3.5 text-sm font-medium text-faint transition-colors duration-150 hover:border-sky-500/60 hover:text-sky-600 dark:hover:text-sky-400"
               >
                 + {t.aiAgent.newTemplate}
               </button>
@@ -884,18 +898,21 @@ export default function AiAgentPage() {
 
       <div className={cardCls}>
         <div className="mb-1 flex items-center justify-between">
-          <h2 className="font-medium text-ink">{t.aiAgent.promptHeading}</h2>
-          <button onClick={selectDefault} className="text-xs text-faint hover:text-ink">
+          <h2 className="text-base font-semibold text-ink">{t.aiAgent.promptHeading}</h2>
+          <button
+            onClick={selectDefault}
+            className="-mr-2 rounded-lg px-2 py-1.5 text-xs font-medium text-faint transition-colors duration-150 hover:bg-chip hover:text-ink"
+          >
             {t.aiAgent.resetToDefault}
           </button>
         </div>
-        <p className="mb-3 text-sm text-faint">{t.aiAgent.promptDescription}</p>
+        <p className="mb-4 text-sm leading-relaxed text-faint">{t.aiAgent.promptDescription}</p>
         <textarea
           value={systemPrompt}
           onChange={(e) => setSystemPrompt(e.target.value)}
           rows={14}
           placeholder={selectedTemplateId !== "default" ? t.aiAgent.emptyTemplateHint : ""}
-          className={inputCls + " w-full resize-y font-mono text-[13px] leading-relaxed"}
+          className={inputCls + " w-full resize-y font-mono text-xs leading-relaxed"}
         />
 
         {/* Die Reichweite steht seit dem 2026-08-24 an beiden Feldern, und
@@ -906,14 +923,14 @@ export default function AiAgentPage() {
             Fehlerquelle. */}
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
           <div>
-            <label className="mb-1 block text-xs font-medium text-faint">{t.aiAgent.maxWords}</label>
+            <label className="mb-1.5 block text-xs font-medium text-soft">{t.aiAgent.maxWords}</label>
             <input
               type="number"
               min={5}
               max={100}
               value={maxWords}
               onChange={(e) => setMaxWords(Number(e.target.value) || DEFAULT_MAX_WORDS)}
-              className={inputCls + " w-28"}
+              className={inputCls + " w-28 tabular"}
             />
             {/* text-faint statt text-mute: die Reichweite einer Einstellung ist
                 Inhalt, kein Platzhalter. text-mute kommt auf Weiss auf 2,4:1 --
@@ -921,7 +938,7 @@ export default function AiAgentPage() {
             <p className="mt-1 text-xs leading-relaxed text-faint">{t.aiAgent.maxWordsScope}</p>
           </div>
           <div>
-            <label className="mb-1 block text-xs font-medium text-faint">{t.aiAgent.bannedWords}</label>
+            <label className="mb-1.5 block text-xs font-medium text-soft">{t.aiAgent.bannedWords}</label>
             <input
               value={bannedWordsText}
               onChange={(e) => setBannedWordsText(e.target.value)}
@@ -946,7 +963,7 @@ export default function AiAgentPage() {
             zwei Einstellungen, drei Hinweise). Der Befund ist der Zusatz und
             braucht die Luft davor, damit die Karte zwei Gruppen zeigt statt
             sieben gleich weit auseinander stehender Zeilen. */}
-        <div className="mt-6 rounded-lg border border-edge2">
+        <div className="mt-6 rounded-xl border border-edge/70">
           <button
             type="button"
             onClick={() => setFindingOpen((v) => !v)}
@@ -959,19 +976,29 @@ export default function AiAgentPage() {
             className={
               "flex w-full items-center gap-2.5 px-3 py-2.5 text-left transition-colors hover:bg-chip " +
               "focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 " +
-              (findingOpen ? "rounded-t-lg" : "rounded-lg")
+              (findingOpen ? "rounded-t-xl" : "rounded-xl")
             }
           >
             <span
               aria-hidden
-              className="shrink-0 text-faint transition-transform duration-200"
+              className="h-4 w-4 shrink-0 text-faint transition-transform duration-200"
               style={{ transform: findingOpen ? "rotate(90deg)" : "none" }}
             >
-              ›
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="h-4 w-4"
+              >
+                <path d="m9 18 6-6-6-6" />
+              </svg>
             </span>
             <span className="min-w-0 flex-1">
-              <span className="block text-sm font-medium text-ink">{t.aiAgent.findingHeading}</span>
-              <span className="mt-0.5 block text-xs leading-relaxed text-faint">
+              <span className="block text-sm font-semibold text-ink">{t.aiAgent.findingHeading}</span>
+              <span className="mt-0.5 block text-sm leading-relaxed text-faint">
                 {t.aiAgent.findingSummary}
               </span>
             </span>
@@ -979,16 +1006,17 @@ export default function AiAgentPage() {
                 nichts eingerichtet werden muss. Ein eigener Text braucht
                 keine, den sieht man beim Aufklappen. */}
             {findingIsDefault && (
-              /* 11px: die kleinste Schriftgroesse, die diese App sonst
-                 vergibt. 10px waere eine eigene Stufe fuer genau ein Element. */
-              <span className="shrink-0 rounded-full border border-edge2 bg-chip px-2 py-0.5 text-[11px] font-medium text-soft">
+              /* text-2xs (12px): die kleinste Stufe der Skala in
+                 globals.css, und Plaketten sind genau das, wofuer sie da
+                 ist. Eine eigene Groesse fuer ein Element gibt es nicht. */
+              <span className="shrink-0 rounded-full bg-chip px-2.5 py-0.5 text-2xs font-medium text-soft">
                 {t.aiAgent.findingDefaultBadge}
               </span>
             )}
           </button>
 
           {findingOpen && (
-            <div id="finding-prompt-body" className="fade-up border-t border-edge px-3 pb-4 pt-3.5">
+            <div id="finding-prompt-body" className="fade-up border-t border-edge/70 px-3 pb-4 pt-4">
               <div className="mb-2 flex items-start justify-between gap-3">
                 <p className="max-w-[68ch] text-xs leading-relaxed text-faint">
                   {t.aiAgent.findingDescription}
@@ -999,7 +1027,7 @@ export default function AiAgentPage() {
                     setFindingPrompt(getDefaultFindingPrompt(outputLang));
                     setFindingIsCustom(false);
                   }}
-                  className="shrink-0 text-xs text-faint hover:text-ink"
+                  className="-mr-2 shrink-0 rounded-lg px-2 py-1.5 text-xs font-medium text-faint transition-colors duration-150 hover:bg-chip hover:text-ink"
                 >
                   {t.aiAgent.resetToDefault}
                 </button>
@@ -1011,7 +1039,7 @@ export default function AiAgentPage() {
                   setFindingIsCustom(true);
                 }}
                 rows={10}
-                className={inputCls + " w-full resize-y font-mono text-[13px] leading-relaxed"}
+                className={inputCls + " w-full resize-y font-mono text-xs leading-relaxed"}
               />
               {/* Die feste Wortgrenze gehoert hierhin und nicht ins Formular
                   oben: sie ist eine Eigenschaft dieser Textsorte und bewusst
@@ -1025,19 +1053,22 @@ export default function AiAgentPage() {
 
         {/* mt-5: der Knopf speichert BEIDE Prompts und gehoert damit der
             ganzen Karte, nicht dem Kasten direkt darueber. */}
-        <div className="mt-5 flex items-center gap-3">
-          <button onClick={save} className={primaryBtnCls}>{t.aiAgent.save}</button>
+        <div className="mt-5 flex justify-end gap-3">
+          <button onClick={save} className={primaryBtnCls + " w-full sm:w-auto"}>
+            {t.aiAgent.save}
+          </button>
         </div>
       </div>
 
       <div className={cardCls}>
-        <h2 className="mb-1 font-medium text-ink">{t.aiAgent.liveTestHeading}</h2>
-        <p className="mb-3 text-sm text-faint">{t.aiAgent.liveTestDescription}</p>
+        <h2 className="mb-1 text-base font-semibold text-ink">{t.aiAgent.liveTestHeading}</h2>
+        <p className="mb-4 text-sm leading-relaxed text-faint">{t.aiAgent.liveTestDescription}</p>
         <div className="flex flex-wrap items-center gap-3">
           <select
             value={testBusinessId}
             onChange={(e) => setTestBusinessId(e.target.value)}
-            className={inputCls + " min-w-64"}
+            aria-label={t.aiAgent.chooseBusiness}
+            className={inputCls + " w-full sm:w-auto sm:min-w-64"}
           >
             <option value="">{t.aiAgent.chooseBusiness}</option>
             {businesses.map((b) => (
@@ -1062,30 +1093,32 @@ export default function AiAgentPage() {
              andere sky-Hinweis der App steht in border border-sky-500/40
              bg-sky-500/5 (campaigns/new, Pruefliste). Der einseitige Balken war
              die einzige Stelle mit einer eigenen Sprache. */
-          <div className="lock-pop mt-4 rounded-lg border border-sky-500/40 bg-sky-500/5 p-4">
-            <p className="text-sm italic leading-relaxed text-ink">{testResult.text}</p>
-            <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
-              <span className="text-faint">{testResult.wordCount} {t.aiAgent.words}</span>
+          <div className="lock-pop mt-4 rounded-xl border border-sky-500/40 bg-sky-500/5 p-4">
+            <p className="text-base italic leading-relaxed text-ink">{testResult.text}</p>
+            <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
+              <span className="text-faint tabular">
+                {testResult.wordCount} {t.aiAgent.words}
+              </span>
               {/* Der Testlauf sagt dazu, wie viele Beispiele mitgingen. Ohne
                   diese Zahl bleibt offen, ob das Ergebnis vom Prompt oder von
                   den Beispielen kommt, und ein halbes Paar (das beide Seiten
                   aussortieren) sieht aus wie ein ganzes. */}
               {(testResult.exampleCount ?? 0) > 0 && (
-                <span className="rounded-full border border-edge2 px-2 py-0.5 text-soft">
+                <span className="rounded-full border border-edge2 px-2.5 py-0.5 font-medium text-soft">
                   {t.aiAgent.testExamplesUsed(testResult.exampleCount ?? 0)}
                 </span>
               )}
               {testResult.corrected && (
-                <span className="rounded-full border border-sky-500/30 bg-sky-500/10 px-2 py-0.5 text-sky-600 dark:text-sky-300">
+                <span className="rounded-full border border-sky-500/30 bg-sky-500/10 px-2.5 py-0.5 font-medium text-sky-600 dark:text-sky-300">
                   {t.aiAgent.correctedNote}
                 </span>
               )}
               {testResult.problems.length === 0 ? (
-                <span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-emerald-600 dark:text-emerald-300">
+                <span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-0.5 font-medium text-emerald-600 dark:text-emerald-300">
                   {t.aiAgent.rulesFollowed}
                 </span>
               ) : (
-                <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-amber-700 dark:text-amber-300">
+                <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-2.5 py-0.5 font-medium text-amber-700 dark:text-amber-300">
                   {testResult.problems.join(" · ")}
                 </span>
               )}

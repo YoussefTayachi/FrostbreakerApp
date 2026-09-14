@@ -28,7 +28,10 @@ export default function StatusSelect({
       // oder einen Drawer oeffnet.
       onClick={(e) => e.stopPropagation()}
       className={
-        "rounded-md border px-2 py-1 text-[11px] font-medium outline-none transition-colors " +
+        // py-1.5 und text-xs statt py-1/text-2xs: als Dropdown ist das hier ein
+        // Bedienelement und kein Etikett, und mit 28 Pixeln Hoehe war es auf
+        // dem Handy kaum zu treffen.
+        "rounded-lg border px-2 py-1.5 text-xs font-medium outline-none transition-colors " +
         tone +
         (className ? " " + className : "")
       }

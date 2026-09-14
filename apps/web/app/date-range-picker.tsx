@@ -39,6 +39,13 @@ export default function DateRangePicker() {
     router.push(`/?from=${a}&to=${b}`);
   }
 
+  // Ein gemeinsamer Feldstil fuer beide Kalenderfelder: gleiche Hoehe wie
+  // ein Segment der Zeitraumleiste daneben, damit die Reihe eine Linie hat.
+  const feldCls =
+    "min-h-9 rounded-lg border border-edge2 bg-field px-2.5 py-1.5 text-xs text-soft " +
+    "outline-none transition-[border-color,box-shadow] duration-150 " +
+    "focus:border-sky-500 focus:ring-4 focus:ring-sky-500/15";
+
   return (
     <div className="flex flex-wrap items-center gap-1.5">
       <input
@@ -47,7 +54,7 @@ export default function DateRangePicker() {
         max={to || undefined}
         onChange={(e) => anwenden(e.target.value, to)}
         aria-label={D.rangeFrom}
-        className="rounded-lg border border-edge2 bg-transparent px-2 py-1 text-xs text-soft"
+        className={feldCls}
       />
       <span className="text-xs text-mute">–</span>
       <input
@@ -56,7 +63,7 @@ export default function DateRangePicker() {
         min={from || undefined}
         onChange={(e) => anwenden(from, e.target.value)}
         aria-label={D.rangeTo}
-        className="rounded-lg border border-edge2 bg-transparent px-2 py-1 text-xs text-soft"
+        className={feldCls}
       />
       {aktiv && (
         <button
@@ -65,7 +72,7 @@ export default function DateRangePicker() {
             setTo("");
             router.push("/");
           }}
-          className="rounded-lg border border-edge2 px-2 py-1 text-xs text-faint transition-colors hover:text-soft"
+          className="min-h-9 rounded-lg border border-edge2 px-2.5 py-1.5 text-xs text-faint transition-[background-color,color,transform] duration-150 hover:bg-chip hover:text-soft active:scale-[0.98]"
         >
           {D.rangeReset}
         </button>

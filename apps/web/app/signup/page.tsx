@@ -58,9 +58,9 @@ export default function SignupPage() {
     return (
       <div className="dot-grid flex min-h-screen items-center justify-center px-4">
         <div className="fade-up w-full max-w-sm text-center">
-          <span className="text-5xl font-extrabold tracking-tighter text-[#0EA5E9]">frostbreaker</span>
-          <div className="mt-7 rounded-lg border border-edge/60 bg-panel p-6 shadow-sm">
-            <h2 className="text-sm font-medium text-ink">{t.signup.confirmHeading}</h2>
+          <span className="text-4xl font-bold tracking-[-0.045em] text-[#0EA5E9]">frostbreaker</span>
+          <div className="mt-7 rounded-2xl border border-edge/70 bg-panel p-6 shadow-lg sm:p-7">
+            <h2 className="text-lg font-semibold text-ink">{t.signup.confirmHeading}</h2>
             <p className="mt-2 text-sm leading-relaxed text-faint">{t.signup.confirmBody(email)}</p>
           </div>
         </div>
@@ -72,27 +72,27 @@ export default function SignupPage() {
     <div className="dot-grid flex min-h-screen items-center justify-center px-4">
       <div className="fade-up w-full max-w-sm">
         <div className="mb-7">
-          <span className="text-5xl font-extrabold tracking-tighter text-[#0EA5E9]">frostbreaker</span>
-          <p className="mt-1 text-xs text-faint">{t.signup.tagline}</p>
+          <span className="text-4xl font-bold tracking-[-0.045em] text-[#0EA5E9]">frostbreaker</span>
+          <p className="mt-2 text-sm text-faint">{t.signup.tagline}</p>
         </div>
 
-        <div className="rounded-lg border border-edge/60 bg-panel p-6 shadow-sm">
-          <h2 className="mb-1 text-sm font-medium text-ink">{t.signup.heading}</h2>
-          <p className="mb-4 text-xs text-faint">{t.signup.trialNote}</p>
+        <div className="rounded-2xl border border-edge/70 bg-panel p-6 shadow-lg sm:p-7">
+          <h2 className="mb-1 text-lg font-semibold text-ink">{t.signup.heading}</h2>
+          <p className="mb-5 text-sm text-faint">{t.signup.trialNote}</p>
           <form onSubmit={onSubmit} className="space-y-3">
             <input
               type="email" required placeholder={t.signup.emailPlaceholder} value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full rounded-lg border border-edge2 bg-field px-3 py-2.5 text-sm text-ink placeholder-mute outline-none transition-all focus:border-ink focus:ring-2 focus:ring-ink/5"
+              className="w-full rounded-lg border border-edge2 bg-field px-3.5 py-3 text-sm text-ink placeholder-mute outline-none transition-[border-color,box-shadow] focus:border-sky-500 focus:ring-4 focus:ring-sky-500/15"
             />
             <input
               type="password" required minLength={8} placeholder={t.signup.passwordPlaceholder} value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full rounded-lg border border-edge2 bg-field px-3 py-2.5 text-sm text-ink placeholder-mute outline-none transition-all focus:border-ink focus:ring-2 focus:ring-ink/5"
+              className="w-full rounded-lg border border-edge2 bg-field px-3.5 py-3 text-sm text-ink placeholder-mute outline-none transition-[border-color,box-shadow] focus:border-sky-500 focus:ring-4 focus:ring-sky-500/15"
             />
             <button
               disabled={loading}
-              className="w-full rounded-lg bg-ink py-2.5 text-sm font-medium text-surface shadow-sm transition-all hover:opacity-85 active:scale-[0.99] disabled:opacity-50"
+              className="w-full rounded-lg bg-ink py-3 text-sm font-semibold text-surface shadow-sm transition-[opacity,transform] hover:opacity-85 active:scale-[0.98] disabled:opacity-50"
             >
               {loading ? t.signup.submitting : t.signup.submit}
             </button>

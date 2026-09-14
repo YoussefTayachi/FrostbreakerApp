@@ -4,7 +4,7 @@ import { useT } from "../../language-provider";
 import { useToast } from "../../toast-provider";
 import { IconMail } from "../../icons";
 import { parseCsvToObjects } from "@/lib/csv";
-import { inputCls } from "@/lib/ui";
+import { cardCls, inputCls, primaryBtnCls, secondaryBtnCls } from "@/lib/ui";
 import { WARMUP_TARGET_DAYS, readyDate, warmupInfo } from "@/lib/instantly/warmup";
 import Link from "next/link";
 
@@ -256,8 +256,8 @@ export default function InstantlyMailboxes({ hasInstantlyKey }: { hasInstantlyKe
 
   if (!hasInstantlyKey) {
     return (
-      <div className="rounded-lg border border-edge/60 bg-panel p-6">
-        <h2 className="flex items-center gap-1.5 font-medium text-ink">
+      <div className={cardCls}>
+        <h2 className="flex items-center gap-1.5 text-base font-semibold text-ink">
           <IconMail className="h-4 w-4 text-mute" />
           {M.heading}
         </h2>
@@ -272,14 +272,12 @@ export default function InstantlyMailboxes({ hasInstantlyKey }: { hasInstantlyKe
   }
 
   return (
-    <div className="rounded-lg border border-edge/60 bg-panel p-6">
-      <div className="mb-1 flex items-center justify-between">
-        <h2 className="flex items-center gap-1.5 font-medium text-ink">
-          <IconMail className="h-4 w-4 text-mute" />
-          {M.heading}
-        </h2>
-      </div>
-      <p className="mb-4 text-sm text-faint">{M.description}</p>
+    <div className={cardCls}>
+      <h2 className="flex items-center gap-1.5 text-base font-semibold text-ink">
+        <IconMail className="h-4 w-4 text-mute" />
+        {M.heading}
+      </h2>
+      <p className="mb-5 mt-1 text-sm text-faint">{M.description}</p>
 
       {/* Die eigentliche Frage lautet nicht "wie steht Postfach 37?", sondern
           "ab wann kann ich senden?". Bei 50 Postfaechern ist das sonst eine
@@ -296,33 +294,38 @@ export default function InstantlyMailboxes({ hasInstantlyKey }: { hasInstantlyKe
               <div
                 key={a.email}
                 className={
-                  "rounded-lg border px-3.5 py-2.5 " +
-                  (blocked ? "border-red-400/70 bg-red-500/5" : "border-edge2")
+                  "rounded-lg border px-3.5 py-3 transition-colors duration-150 " +
+                  (blocked ? "border-red-400/70 bg-red-500/5" : "border-edge2 hover:bg-wash")
                 }
               >
-                <div className="flex flex-wrap items-center gap-3">
-                  <span className="min-w-0 flex-1 truncate text-sm font-medium text-ink">{a.email}</span>
-                  <span className="rounded-full border border-edge2 px-2 py-0.5 text-[11px] text-faint">
+                {/* Auf dem Handy zwei Zeilen: die Adresse oben ueber die volle
+                    Breite, darunter Merkmale und Knoepfe. Nebeneinander blieben
+                    von der Adresse auf 390 Pixel acht Zeichen uebrig. */}
+                <p className="truncate text-sm font-medium text-ink">{a.email}</p>
+                <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-2">
+                  <span className="rounded-full border border-edge2 px-2.5 py-0.5 text-xs font-medium text-faint">
                     {PROVIDER_LABELS[a.provider_code] ?? a.provider_code}
                   </span>
-                  <span className={"text-xs " + st.cls}>{st.label}</span>
+                  <span className={"text-xs font-medium " + st.cls}>{st.label}</span>
                   <span className="text-xs text-faint">
                     {M.warmupScore}: {a.stat_warmup_score ?? "–"}
                   </span>
-                  <button
-                    onClick={() => toggleWarmup(a)}
-                    disabled={busyEmail === a.email}
-                    className="rounded-md border border-edge2 px-2.5 py-1 text-xs font-medium text-soft transition-colors hover:border-sky-500 hover:text-sky-600 disabled:opacity-50 dark:hover:text-sky-400"
-                  >
-                    {a.warmup_status === 1 ? M.pauseWarmup : M.startWarmup}
-                  </button>
-                  <button
-                    onClick={() => removeAccount(a.email)}
-                    disabled={busyEmail === a.email}
-                    className="rounded-md border border-red-300 px-2.5 py-1 text-xs font-medium text-red-600 transition-colors hover:bg-red-50 disabled:opacity-50 dark:border-red-500/30 dark:text-red-400 dark:hover:bg-red-500/10"
-                  >
-                    {t.common.delete}
-                  </button>
+                  <div className="ml-auto flex flex-wrap items-center gap-2">
+                    <button
+                      onClick={() => toggleWarmup(a)}
+                      disabled={busyEmail === a.email}
+                      className="inline-flex min-h-10 items-center rounded-lg border border-edge2 bg-panel px-3 text-xs font-medium text-soft transition-[background-color,border-color,transform] duration-150 hover:border-edge3 hover:text-ink active:scale-[0.98] disabled:opacity-50 sm:min-h-0 sm:py-1.5"
+                    >
+                      {a.warmup_status === 1 ? M.pauseWarmup : M.startWarmup}
+                    </button>
+                    <button
+                      onClick={() => removeAccount(a.email)}
+                      disabled={busyEmail === a.email}
+                      className="inline-flex min-h-10 items-center rounded-lg border border-red-300 px-3 text-xs font-medium text-red-600 transition-[background-color,transform] duration-150 hover:bg-red-50 active:scale-[0.98] disabled:opacity-50 dark:border-red-500/30 dark:text-red-400 dark:hover:bg-red-500/10 sm:min-h-0 sm:py-1.5"
+                    >
+                      {t.common.delete}
+                    </button>
+                  </div>
                 </div>
 
                 {/* Zweite Zeile: der Aufwaerm-Fortschritt. Bewusst unter der
@@ -335,51 +338,50 @@ export default function InstantlyMailboxes({ hasInstantlyKey }: { hasInstantlyKe
           })}
         </div>
       )}
-      {accounts && accounts.length === 0 && <p className="mb-4 text-sm text-faint">{M.noAccounts}</p>}
-      {loading && !accounts && <p className="mb-4 text-sm text-faint">{t.common.saving}</p>}
+      {accounts && accounts.length === 0 && <p className="py-10 text-center text-sm text-faint">{M.noAccounts}</p>}
+      {/* Ladezustand in der Form der echten Liste statt eines Spinners. */}
+      {loading && !accounts && (
+        <div className="mb-4 space-y-2" aria-hidden>
+          <div className="skeleton h-16" />
+          <div className="skeleton h-16" />
+        </div>
+      )}
 
-      <div className="flex flex-wrap gap-2.5">
-        <button
-          onClick={() => startOAuth("google")}
-          disabled={oauthBusy !== null}
-          className="rounded-lg border border-edge2 px-3.5 py-2 text-sm font-medium text-soft transition-colors hover:border-sky-500 hover:text-sky-600 disabled:opacity-50 dark:hover:text-sky-400"
-        >
+      <div className="flex flex-wrap items-center gap-2.5">
+        <button onClick={() => startOAuth("google")} disabled={oauthBusy !== null} className={secondaryBtnCls}>
           {oauthBusy === "google" ? M.connecting : M.connectGoogle}
         </button>
-        <button
-          onClick={() => startOAuth("microsoft")}
-          disabled={oauthBusy !== null}
-          className="rounded-lg border border-edge2 px-3.5 py-2 text-sm font-medium text-soft transition-colors hover:border-sky-500 hover:text-sky-600 disabled:opacity-50 dark:hover:text-sky-400"
-        >
+        <button onClick={() => startOAuth("microsoft")} disabled={oauthBusy !== null} className={secondaryBtnCls}>
           {oauthBusy === "microsoft" ? M.connecting : M.connectMicrosoft}
         </button>
         <button
           onClick={() => setShowForm(showForm === "smtp" ? null : "smtp")}
-          className="rounded-lg border border-edge2 px-3.5 py-2 text-sm font-medium text-soft transition-colors hover:border-sky-500 hover:text-sky-600 dark:hover:text-sky-400"
+          aria-expanded={showForm === "smtp"}
+          className={secondaryBtnCls}
         >
           {M.connectSmtp}
         </button>
-        <button
-          onClick={() => bulkFileInputRef.current?.click()}
-          disabled={bulkBusy}
-          className="rounded-lg border border-edge2 px-3.5 py-2 text-sm font-medium text-soft transition-colors hover:border-sky-500 hover:text-sky-600 disabled:opacity-50 dark:hover:text-sky-400"
-        >
+        <button onClick={() => bulkFileInputRef.current?.click()} disabled={bulkBusy} className={secondaryBtnCls}>
           {bulkBusy ? M.bulkUploading : M.bulkUpload}
         </button>
         <input ref={bulkFileInputRef} type="file" accept=".csv,text/csv" onChange={handleBulkFile} className="hidden" />
         <button
           onClick={downloadCsvTemplate}
-          className="rounded-lg px-3.5 py-2 text-sm font-medium text-faint underline-offset-2 transition-colors hover:text-sky-600 hover:underline dark:hover:text-sky-400"
+          className="rounded-lg px-3 py-2.5 text-sm font-medium text-faint underline-offset-2 transition-colors duration-150 hover:text-ink hover:underline"
         >
           {M.bulkTemplate}
         </button>
       </div>
 
       {bulkResults && (
-        <div className="mt-4 rounded-lg border border-edge2 p-4">
-          <div className="mb-2 flex items-center justify-between">
-            <span className="text-sm font-medium text-ink">{M.bulkResultsHeading}</span>
-            <button onClick={() => setBulkResults(null)} className="text-xs text-faint hover:text-sky-600 dark:hover:text-sky-400">
+        <div className="pop-in mt-4 rounded-xl border border-edge/70 bg-panel2 p-4">
+          <div className="mb-2 flex items-center justify-between gap-3">
+            <span className="text-sm font-semibold text-ink">{M.bulkResultsHeading}</span>
+            <button
+              onClick={() => setBulkResults(null)}
+              title={M.bulkResultsHeading}
+              className="-mr-1 inline-flex h-8 w-8 items-center justify-center rounded-lg text-base text-faint transition-colors duration-150 hover:bg-chip hover:text-ink"
+            >
               ×
             </button>
           </div>
@@ -398,7 +400,7 @@ export default function InstantlyMailboxes({ hasInstantlyKey }: { hasInstantlyKe
       )}
 
       {showForm === "smtp" && (
-        <div className="mt-4 grid gap-3 rounded-lg border border-edge2 p-4 sm:grid-cols-2">
+        <div className="pop-in mt-4 grid grid-cols-1 gap-3 rounded-xl border border-edge/70 bg-panel2 p-4 sm:grid-cols-2">
           <input placeholder={M.emailPlaceholder} value={form.email} onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))} className={inputCls} />
           <input placeholder={M.dailyLimitPlaceholder} type="number" value={form.daily_limit} onChange={(e) => setForm((f) => ({ ...f, daily_limit: e.target.value }))} className={inputCls} />
           <input placeholder="IMAP Host" value={form.imap_host} onChange={(e) => setForm((f) => ({ ...f, imap_host: e.target.value }))} className={inputCls} />
@@ -412,7 +414,7 @@ export default function InstantlyMailboxes({ hasInstantlyKey }: { hasInstantlyKe
           <button
             onClick={createSmtpAccount}
             disabled={loading}
-            className="sm:col-span-2 rounded-lg bg-sky-600 px-5 py-2.5 text-sm font-medium text-white shadow-lg shadow-sky-600/25 transition-all hover:bg-sky-500 disabled:opacity-50"
+            className={primaryBtnCls + " sm:col-span-2"}
           >
             {M.connectSmtp}
           </button>
@@ -494,22 +496,22 @@ function WarmupRow({
             {M.warmupCheckDns}
           </Link>
         </div>
-        <p className="mt-2 text-[11px] leading-relaxed text-mute">{M.warmupBlockedNoApi}</p>
+        <p className="mt-2.5 text-xs leading-relaxed text-mute">{M.warmupBlockedNoApi}</p>
       </div>
     );
   }
 
   if (info.state === "paused") {
-    return <p className="mt-1.5 text-[11px] text-mute">{M.warmupPaused}</p>;
+    return <p className="mt-2 text-xs text-mute">{M.warmupPaused}</p>;
   }
   if (info.state === "unknown") {
-    return <p className="mt-1.5 text-[11px] text-mute">{M.warmupUnknown}</p>;
+    return <p className="mt-2 text-xs text-mute">{M.warmupUnknown}</p>;
   }
 
   const ready = info.state === "ready";
   return (
     <div className="mt-2">
-      <div className="mb-1 flex items-center justify-between text-[11px]">
+      <div className="mb-1.5 flex items-center justify-between text-xs">
         <span className={ready ? "font-medium text-emerald-600 dark:text-emerald-400" : "text-faint"}>
           {ready ? M.warmupReady : M.warmupDay(info.days ?? 0, WARMUP_TARGET_DAYS)}
         </span>
@@ -557,11 +559,11 @@ function WarmupSummary({
   return (
     <div className="mb-4 space-y-2">
       {blocked > 0 && (
-        <p className="rounded-lg border border-red-400/50 bg-red-500/5 px-3.5 py-2 text-sm font-medium text-red-700 dark:text-red-400">
+        <p className="rounded-lg border border-red-400/50 bg-red-500/5 px-3.5 py-2.5 text-sm font-medium text-red-700 dark:text-red-400">
           {M.warmupSummaryBlocked(blocked)}
         </p>
       )}
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 rounded-lg border border-edge2 bg-chip/40 px-3.5 py-2 text-xs">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 rounded-lg border border-edge/70 bg-wash px-3.5 py-2.5 text-sm">
         <span className="font-medium text-ink">{M.warmupSummaryReady(ready, accounts.length)}</span>
         {warming > 0 && <span className="text-faint">{M.warmupSummaryWarming(warming)}</span>}
         {allReadyOn && (

@@ -99,8 +99,9 @@ function endOfThisWeek(): number {
 }
 
 const chipBtn =
-  "rounded-lg border border-edge2 px-2.5 py-1.5 text-xs text-soft transition-colors " +
-  "hover:border-edge3 hover:text-ink disabled:opacity-40";
+  "inline-flex min-h-9 items-center rounded-lg border border-edge2 bg-panel px-3 text-xs font-medium " +
+  "text-soft transition-[background-color,border-color,transform] duration-150 hover:bg-chip " +
+  "hover:text-ink active:scale-[0.98] disabled:opacity-40 disabled:active:scale-100";
 
 /**
  * Eine Zeile der Anrufliste.
@@ -152,8 +153,8 @@ function CallRow({
     <>
       <tr
         className={
-          "border-b border-edge2/40 transition-colors hover:bg-chip/40 " +
-          (expanded ? "bg-chip/30" : "")
+          "border-b border-edge/70 transition-colors duration-150 hover:bg-wash " +
+          (expanded ? "bg-wash" : "")
         }
       >
         {/* Abhaken direkt in der Zeile, ohne Aufklappen. Bei Pipedrive sitzt
@@ -164,7 +165,7 @@ function CallRow({
             onClick={onComplete}
             disabled={busy}
             title={C.markDone}
-            className="flex h-4 w-4 items-center justify-center rounded-full border border-edge3 text-[10px] text-transparent transition-colors hover:border-emerald-500 hover:text-emerald-500 disabled:opacity-40"
+            className="flex h-5 w-5 items-center justify-center rounded-full border border-edge3 text-2xs text-transparent transition-[background-color,border-color,color,transform] duration-150 hover:border-emerald-500 hover:bg-emerald-500/10 hover:text-emerald-600 active:scale-[0.92] disabled:opacity-40 dark:hover:text-emerald-400"
           >
             &#10003;
           </button>
@@ -187,7 +188,7 @@ function CallRow({
             <CompanyLogo name={company?.name ?? "?"} website={company?.website ?? null} size={22} />
             <div className="min-w-0">
               <p className="truncate text-sm text-ink">{name ?? "—"}</p>
-              {title && <p className="truncate text-[11px] text-faint">{title}</p>}
+              {title && <p className="truncate text-xs text-faint">{title}</p>}
             </div>
           </div>
         </td>
@@ -203,7 +204,7 @@ function CallRow({
             <a
               href={"tel:" + phone.replace(/\s/g, "")}
               title={C.phoneTitle}
-              className="font-mono text-xs text-sky-600 transition-colors hover:underline dark:text-sky-400"
+              className="font-mono text-sm tabular-nums text-sky-600 transition-colors hover:underline dark:text-sky-400"
             >
               {phone}
             </a>
@@ -216,7 +217,7 @@ function CallRow({
           {email ? (
             <a
               href={"mailto:" + email}
-              className="block max-w-52 truncate text-xs text-sky-600 transition-colors hover:underline dark:text-sky-400"
+              className="block max-w-52 truncate text-sm text-sky-600 transition-colors hover:underline dark:text-sky-400"
             >
               {email}
             </a>
@@ -226,45 +227,45 @@ function CallRow({
         </td>
 
         <td className="px-3 py-2">
-          <span className={"text-xs " + (overdue ? "font-medium text-red-500" : "text-faint")}>
+          <span className={"text-xs " + (overdue ? "font-semibold text-red-600 dark:text-red-400" : "text-faint")}>
             {formatDay(task.due_at, lang)}
           </span>
         </td>
 
         <td className="py-2 pl-1 pr-4 text-right">
-          <button onClick={onToggle} className="text-xs text-faint transition-colors hover:text-ink">
+          <button onClick={onToggle} className="min-h-9 px-1 text-xs font-medium text-faint transition-colors hover:text-ink">
             {expanded ? C.collapse : C.prepare}
           </button>
         </td>
       </tr>
 
       {expanded && (
-        <tr className="border-b border-edge2/40 bg-surface/60">
+        <tr className="border-b border-edge/70 bg-wash">
           <td colSpan={8} className="px-4 py-3">
             <div className="space-y-3">
               {task.note && (
                 <div>
-                  <p className="mb-1 text-[10px] font-medium uppercase tracking-wider text-faint">
+                  <p className="mb-1 text-2xs font-medium uppercase tracking-wider text-faint">
                     {C.plannedNote}
                   </p>
-                  <p className="whitespace-pre-wrap rounded-lg border border-edge/60 bg-panel p-2.5 text-xs leading-relaxed text-soft">
+                  <p className="whitespace-pre-wrap rounded-xl border border-edge/70 bg-panel p-3 text-sm leading-relaxed text-soft">
                     {task.note}
                   </p>
                 </div>
               )}
               {company?.company_summary && (
                 <div>
-                  <p className="mb-1 text-[10px] font-medium uppercase tracking-wider text-faint">
+                  <p className="mb-1 text-2xs font-medium uppercase tracking-wider text-faint">
                     {C.companySummary}
                   </p>
-                  <p className="rounded-lg border border-edge/60 bg-panel p-2.5 text-xs leading-relaxed text-soft">
+                  <p className="rounded-xl border border-edge/70 bg-panel p-3 text-sm leading-relaxed text-soft">
                     {company.company_summary}
                   </p>
                 </div>
               )}
 
               <div>
-                <p className="mb-1 text-[10px] font-medium uppercase tracking-wider text-faint">
+                <p className="mb-1 text-2xs font-medium uppercase tracking-wider text-faint">
                   {C.callNote}
                 </p>
                 <textarea
@@ -272,19 +273,19 @@ function CallRow({
                   value={note}
                   onChange={(e) => onNoteChange(e.target.value)}
                   placeholder={C.callNotePlaceholder}
-                  className="w-full rounded-lg border border-edge2 bg-field px-2.5 py-1.5 text-xs text-ink placeholder-mute outline-none transition-colors focus:border-sky-500"
+                  className="w-full rounded-lg border border-edge2 bg-field px-3 py-2 text-sm text-ink placeholder-mute outline-none transition-[border-color,box-shadow] duration-150 focus:border-sky-500 focus:ring-4 focus:ring-sky-500/15"
                 />
               </div>
 
               <div className="flex flex-wrap items-end justify-between gap-3">
                 <div className="flex flex-wrap items-end gap-2">
                   {supportsOutcome(task.type) && (
-                    <label className="text-[10px] font-medium text-faint">
+                    <label className="text-2xs font-medium text-faint">
                       {C.outcomeLabel}
                       <select
                         value={outcome}
                         onChange={(e) => onOutcomeChange(e.target.value as ActivityOutcome | "")}
-                        className="mt-0.5 block rounded-lg border border-edge2 bg-field px-2.5 py-1.5 text-xs text-ink outline-none focus:border-sky-500"
+                        className="mt-1 block rounded-lg border border-edge2 bg-field px-3 py-2 text-sm text-ink outline-none transition-[border-color,box-shadow] duration-150 focus:border-sky-500 focus:ring-4 focus:ring-sky-500/15"
                       >
                         <option value="">{C.outcomeNone}</option>
                         {/* Typabhaengig statt pauschal alle: seit Migration 0057
@@ -301,14 +302,14 @@ function CallRow({
                   <button
                     onClick={onComplete}
                     disabled={busy}
-                    className="rounded-lg bg-sky-600 px-3.5 py-1.5 text-xs font-medium text-white transition-all hover:brightness-110 active:scale-[0.98] disabled:opacity-40"
+                    className="min-h-9 rounded-lg bg-sky-600 px-4 text-sm font-semibold text-white shadow-sm transition-[background-color,transform] duration-150 hover:bg-sky-500 active:scale-[0.98] disabled:opacity-40 disabled:active:scale-100"
                   >
                     {busy ? C.saving : C.markDone}
                   </button>
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="text-[10px] text-mute">{C.rescheduleLabel}</span>
+                  <span className="text-2xs text-mute">{C.rescheduleLabel}</span>
                   <button onClick={() => onReschedule(1)} disabled={busy} className={chipBtn}>
                     {C.tomorrow}
                   </button>
@@ -328,7 +329,7 @@ function CallRow({
                     onClick={onDelete}
                     disabled={busy}
                     title={C.deleteTitle}
-                    className="rounded-lg border border-red-300 px-2.5 py-1.5 text-xs text-red-600 transition-colors hover:bg-red-50 disabled:opacity-40 dark:border-red-500/30 dark:text-red-400 dark:hover:bg-red-500/10"
+                    className="inline-flex min-h-9 items-center rounded-lg border border-red-300 px-3 text-xs font-medium text-red-600 transition-[background-color,transform] duration-150 hover:bg-red-50 active:scale-[0.98] disabled:opacity-40 disabled:active:scale-100 dark:border-red-500/30 dark:text-red-400 dark:hover:bg-red-500/10"
                   >
                     {C.delete}
                   </button>
@@ -530,7 +531,7 @@ export default function CallList({ tasks }: { tasks: CallTask[] }) {
           <button
             onClick={() => setTypeFilter("")}
             className={
-              "rounded-full border px-3 py-1 text-xs font-medium transition-colors " +
+              "flex min-h-9 items-center rounded-full border px-3.5 text-xs font-medium transition-colors duration-150 " +
               (typeFilter === ""
                 ? "border-sky-500/60 bg-sky-500/10 text-sky-600 dark:text-sky-300"
                 : "border-edge2 bg-chip text-soft hover:border-edge3 hover:text-ink")
@@ -544,7 +545,7 @@ export default function CallList({ tasks }: { tasks: CallTask[] }) {
               onClick={() => setTypeFilter(type)}
               disabled={!typeCounts[type]}
               className={
-                "flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition-colors disabled:opacity-40 " +
+                "flex min-h-9 items-center gap-1.5 rounded-full border px-3.5 text-xs font-medium transition-colors duration-150 disabled:opacity-40 " +
                 (typeFilter === type
                   ? "border-sky-500/60 bg-sky-500/10 text-sky-600 dark:text-sky-300"
                   : "border-edge2 bg-chip text-soft hover:border-edge3 hover:text-ink")
@@ -559,14 +560,14 @@ export default function CallList({ tasks }: { tasks: CallTask[] }) {
           ))}
         </div>
 
-        <div className="flex flex-wrap items-center gap-0.5 rounded-lg border border-edge2 p-0.5">
+        <div className="flex w-full flex-wrap items-center gap-0.5 rounded-lg bg-chip p-1 sm:w-auto">
           {rangeTabs.map((tab) => (
             <button
               key={tab.key}
               onClick={() => setRange(tab.key)}
               className={
-                "flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition-colors " +
-                (range === tab.key ? "bg-sky-600 text-white" : "text-soft hover:bg-chip hover:text-ink")
+                "flex min-h-8 flex-1 items-center justify-center gap-1.5 rounded-md px-2.5 text-xs font-medium transition-colors duration-150 sm:flex-none " +
+                (range === tab.key ? "bg-panel text-ink shadow-sm dark:bg-white/[0.08]" : "text-soft hover:text-ink")
               }
             >
               {tab.label}
@@ -583,23 +584,23 @@ export default function CallList({ tasks }: { tasks: CallTask[] }) {
       </div>
 
       {visible.length === 0 ? (
-        <div className="rounded-xl border border-edge/60 bg-panel p-10 text-center">
+        <div className="rounded-xl border border-edge/70 bg-panel p-10 text-center shadow-sm">
           {/* Ein leeres To-Do ist eine gute Nachricht und kein Mangel an Daten
               — es soll auch so klingen. */}
-          <p className="text-faint">{range === "todo" ? C.todoClear : C.emptyForRange}</p>
-          <p className="mt-1 text-xs text-mute">{C.emptyHint}</p>
+          <p className="text-base font-medium text-ink">{range === "todo" ? C.todoClear : C.emptyForRange}</p>
+          <p className="mx-auto mt-1.5 max-w-md text-sm text-faint">{C.emptyHint}</p>
         </div>
       ) : (
-        <div className="overflow-x-auto rounded-xl border border-edge/60 bg-panel">
+        <div className="overflow-x-auto rounded-xl border border-edge/70 bg-panel shadow-sm">
           <table className="w-full min-w-[64rem] border-collapse text-left">
             <thead>
-              <tr className="border-b border-edge2/60 text-[11px] font-medium uppercase tracking-wide text-mute">
+              <tr className="border-b border-edge/70 text-2xs font-medium uppercase tracking-wider text-faint">
                 <th className="w-8 py-2 pl-4 pr-1" />
-                <th className="px-3 py-2">{C.colTask}</th>
-                <th className="px-3 py-2">{C.colContact}</th>
-                <th className="px-3 py-2">{C.colCompany}</th>
-                <th className="px-3 py-2">{C.colPhone}</th>
-                <th className="px-3 py-2">{C.colEmail}</th>
+                <th className="px-3 py-2.5">{C.colTask}</th>
+                <th className="px-3 py-2.5">{C.colContact}</th>
+                <th className="px-3 py-2.5">{C.colCompany}</th>
+                <th className="px-3 py-2.5">{C.colPhone}</th>
+                <th className="px-3 py-2.5">{C.colEmail}</th>
                 <th className="w-28 px-3 py-2">{C.colDue}</th>
                 <th className="w-24 py-2 pl-1 pr-4" />
               </tr>

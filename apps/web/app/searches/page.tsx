@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getCurrentWorkspace } from "@/lib/workspace/server";
 import { getLangServer } from "@/lib/i18n/lang";
 import { dict } from "@/lib/i18n/dict";
+import { primaryBtnCls, secondaryBtnCls } from "@/lib/ui";
 import type { SearchListRow } from "@/lib/search-list";
 import { parentByChild } from "@/lib/search-group";
 import AutoRefresh from "../auto-refresh";
@@ -104,7 +105,7 @@ export default async function SearchesPage() {
   return (
     <div className="fade-up space-y-6">
       {anyRunning && <AutoRefresh />}
-      <div className="flex items-end justify-between">
+      <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight text-ink">{t.searches.title}</h1>
           <p className="text-sm text-faint">{t.searches.subtitle}</p>
@@ -112,17 +113,11 @@ export default async function SearchesPage() {
         {/* Zwei Wege zu einer Lead-Liste, gleichrangig nebeneinander: suchen
             oder mitbringen. Der Import stand vorher in den Einstellungen und
             landete dort nicht einmal in einer Liste. */}
-        <div className="flex items-center gap-2">
-          <Link
-            href="/searches/import"
-            className="rounded-lg border border-edge2 px-4 py-2.5 text-sm font-medium text-soft transition-colors hover:border-sky-500 hover:text-sky-600 dark:hover:text-sky-400"
-          >
+        <div className="flex flex-wrap items-center gap-2">
+          <Link href="/searches/import" className={secondaryBtnCls}>
             {t.importCsv.heading}
           </Link>
-          <Link
-            href="/"
-            className="rounded-lg bg-ink px-5 py-2.5 text-sm font-medium text-surface shadow-sm transition-all hover:opacity-85 active:scale-[0.98]"
-          >
+          <Link href="/" className={primaryBtnCls}>
             {t.searches.newSearch}
           </Link>
         </div>
@@ -136,19 +131,21 @@ export default async function SearchesPage() {
       />
 
       {trash.length > 0 && (
-        <details className="rounded-lg border border-edge/60 bg-panel">
-          <summary className="cursor-pointer px-5 py-3 text-sm text-faint hover:text-soft">
+        <details className="overflow-hidden rounded-xl border border-edge/70 bg-panel shadow-sm">
+          <summary className="cursor-pointer px-4 py-3.5 text-sm text-faint transition-colors hover:text-soft sm:px-5">
             {t.searches.trash} ({trash.length})
           </summary>
           {/* Sammelaktion oben, damit sie bei langem Papierkorb nicht erst
               hinter allen Eintraegen auftaucht. */}
-          <div className="flex justify-end border-t border-edge/60 px-5 py-2.5">
+          <div className="flex justify-end border-t border-edge/70 px-4 py-2.5 sm:px-5">
             <EmptyTrashButton searchIds={trash.map((tr) => tr.id)} />
           </div>
-          <div className="divide-y divide-edge/60 border-t border-edge/60">
+          {/* Umbrechend statt einzeilig: Name, Ort und zwei Knoepfe brauchen
+              zusammen mehr als die 358 Pixel eines 390er Bildschirms. */}
+          <div className="divide-y divide-edge/70 border-t border-edge/70">
             {trash.map((tr) => (
-              <div key={tr.id} className="flex items-center gap-3 px-5 py-3">
-                <span className="min-w-0 flex-1 truncate text-sm text-soft">
+              <div key={tr.id} className="flex flex-wrap items-center gap-2 px-4 py-3 sm:flex-nowrap sm:gap-3 sm:px-5">
+                <span className="min-w-0 flex-1 basis-full truncate text-sm text-soft sm:basis-auto">
                   {tr.name ?? tr.query}
                   <span className="ml-2 text-xs text-mute">{tr.location}</span>
                 </span>

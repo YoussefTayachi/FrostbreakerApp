@@ -57,32 +57,32 @@ export default function NoteComposer({
   }
 
   return (
-    <div className="rounded-lg border border-edge/60 bg-panel p-3">
-      <p className="mb-2 text-xs font-medium text-ink">{C.noteHeading}</p>
+    <div className="rounded-xl border border-edge/70 bg-panel p-3 shadow-sm">
+      <p className="mb-2 text-2xs font-semibold uppercase tracking-wider text-faint">{C.noteHeading}</p>
       <textarea
         value={body}
         onChange={(e) => setBody(e.target.value)}
         placeholder={C.notePlaceholder}
         rows={3}
-        className="w-full rounded-lg border border-edge2 bg-field px-3 py-2 text-xs text-ink placeholder-mute outline-none transition-colors focus:border-sky-500"
+        className="w-full rounded-lg border border-edge2 bg-field px-3 py-2 text-sm text-ink placeholder-mute outline-none transition-[border-color,box-shadow] duration-150 focus:border-sky-500 focus:ring-4 focus:ring-sky-500/15"
       />
       {canChooseScope && (
         <div className="mt-2 flex flex-wrap items-center gap-3">
-          <label className="flex cursor-pointer items-center gap-1.5 text-[11px] text-soft">
+          <label className="flex min-h-9 cursor-pointer items-center gap-2 text-xs text-soft">
             <input
               type="radio"
               checked={!businessWide}
               onChange={() => setBusinessWide(false)}
-              className="h-3 w-3 accent-sky-500"
+              className="h-4 w-4 accent-sky-500"
             />
             {C.noteScopeContact}
           </label>
-          <label className="flex cursor-pointer items-center gap-1.5 text-[11px] text-soft" title={C.noteScopeHint}>
+          <label className="flex min-h-9 cursor-pointer items-center gap-2 text-xs text-soft" title={C.noteScopeHint}>
             <input
               type="radio"
               checked={businessWide}
               onChange={() => setBusinessWide(true)}
-              className="h-3 w-3 accent-sky-500"
+              className="h-4 w-4 accent-sky-500"
             />
             {C.noteScopeBusiness}
           </label>
@@ -92,7 +92,7 @@ export default function NoteComposer({
         <button
           onClick={save}
           disabled={saving || !body.trim()}
-          className="rounded-lg bg-sky-600 px-3.5 py-1.5 text-xs font-medium text-white transition-all hover:brightness-110 active:scale-[0.98] disabled:opacity-40"
+          className="rounded-lg bg-sky-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-[background-color,transform] duration-150 hover:bg-sky-500 active:scale-[0.98] disabled:opacity-40 disabled:active:scale-100"
         >
           {saving ? C.noteSaving : C.noteSave}
         </button>

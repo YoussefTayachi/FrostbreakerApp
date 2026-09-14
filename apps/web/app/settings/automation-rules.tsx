@@ -110,7 +110,16 @@ export default function AutomationRules() {
     push(enabled ? A.enabled : A.disabled, "success");
   }
 
-  if (loading) return null;
+  // Platzhalter in der Form der Regelliste: fuenf Zeilen, gleiche Hoehe.
+  if (loading) {
+    return (
+      <div className="space-y-3">
+        {Array.from({ length: 5 }).map((_, i) => (
+          <div key={i} className="skeleton h-[74px] rounded-xl" />
+        ))}
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-3">
@@ -122,22 +131,23 @@ export default function AutomationRules() {
           <div
             key={kind}
             className={
-              "rounded-lg border px-4 py-3 transition-colors " +
-              (on ? "border-sky-500/40 bg-sky-500/5" : "border-edge2 bg-surface/40")
+              "rounded-xl border px-4 py-3.5 transition-colors duration-150 " +
+              (on ? "border-sky-500/40 bg-sky-500/5" : "border-edge/70 bg-surface/40")
             }
           >
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
-                <p className="text-sm font-medium text-ink">{A.ruleTitles[kind]}</p>
-                <p className="mt-0.5 text-xs text-faint">{A.ruleBodies[kind]}</p>
+                <p className="text-sm font-semibold text-ink">{A.ruleTitles[kind]}</p>
+                <p className="mt-1 text-sm leading-relaxed text-faint">{A.ruleBodies[kind]}</p>
               </div>
               <button
                 onClick={() => toggle(kind, !on)}
                 disabled={busy === kind}
                 role="switch"
                 aria-checked={on}
+                aria-label={A.ruleTitles[kind]}
                 className={
-                  "relative h-5 w-9 shrink-0 rounded-full transition-colors disabled:opacity-40 " +
+                  "relative h-6 w-11 shrink-0 rounded-full transition-colors duration-200 disabled:opacity-40 " +
                   (on ? "bg-sky-600" : "bg-edge3")
                 }
               >
@@ -149,12 +159,13 @@ export default function AutomationRules() {
                     1104..1120, die Pille endete bei 1106 — also 14 px
                     ausserhalb, sichtbar als weisser Fleck neben dem blauen
                     Schalter. Mit festem left sitzt er in beiden Zustaenden
-                    2 px innerhalb: aus bei 0, an um 16 px verschoben, bei
-                    36 px Pille und 16 px Knopf. */}
+                    2 px innerhalb: aus bei 0, an um 20 px verschoben, bei
+                    44 px Pille und 20 px Knopf (Systemmass von iOS, und der
+                    einzige Tipppunkt dieser Zeile). */}
                 <span
                   className={
-                    "absolute left-0.5 top-0.5 h-4 w-4 rounded-full bg-white shadow-sm transition-transform " +
-                    (on ? "translate-x-4" : "translate-x-0")
+                    "absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow-sm transition-transform duration-200 " +
+                    (on ? "translate-x-5" : "translate-x-0")
                   }
                 />
               </button>
@@ -163,12 +174,12 @@ export default function AutomationRules() {
             {/* Nur die Wiedervorlage hat eine Einstellung. Die anderen beiden
                 haengen an einem Ereignis und brauchen keine. */}
             {kind === "stale_reminder" && on && (
-              <label className="mt-2.5 flex items-center gap-2 text-xs text-faint">
+              <label className="mt-3 flex flex-wrap items-center gap-2 text-sm text-faint">
                 {A.staleAfter}
                 <select
                   value={days}
                   onChange={(e) => toggle(kind, true, { days: Number(e.target.value) })}
-                  className="rounded-lg border border-edge2 bg-field px-2 py-1 text-xs text-ink outline-none focus:border-sky-500"
+                  className="rounded-lg border border-edge2 bg-field px-2.5 py-1.5 text-sm text-ink outline-none transition-[border-color,box-shadow] duration-150 focus:border-sky-500 focus:ring-4 focus:ring-sky-500/15"
                 >
                   {STALE_DAY_OPTIONS.map((d) => (
                     <option key={d} value={d}>
@@ -182,12 +193,12 @@ export default function AutomationRules() {
             {/* Die Kettenregeln warten ab dem Versand, nicht ab dem letzten
                 Kontakt — deshalb eine eigene Beschriftung. */}
             {CHAIN_DAY_OPTIONS[kind] && on && (
-              <label className="mt-2.5 flex items-center gap-2 text-xs text-faint">
+              <label className="mt-3 flex flex-wrap items-center gap-2 text-sm text-faint">
                 {A.chainAfter}
                 <select
                   value={rules[kind]?.config?.days ?? CHAIN_DEFAULT_DAYS[kind]}
                   onChange={(e) => toggle(kind, true, { days: Number(e.target.value) })}
-                  className="rounded-lg border border-edge2 bg-field px-2 py-1 text-xs text-ink outline-none focus:border-sky-500"
+                  className="rounded-lg border border-edge2 bg-field px-2.5 py-1.5 text-sm text-ink outline-none transition-[border-color,box-shadow] duration-150 focus:border-sky-500 focus:ring-4 focus:ring-sky-500/15"
                 >
                   {CHAIN_DAY_OPTIONS[kind].map((d) => (
                     <option key={d} value={d}>
@@ -201,7 +212,7 @@ export default function AutomationRules() {
         );
       })}
 
-      <p className="text-[11px] text-mute">{A.footnote}</p>
+      <p className="pt-1 text-xs leading-relaxed text-faint">{A.footnote}</p>
     </div>
   );
 }

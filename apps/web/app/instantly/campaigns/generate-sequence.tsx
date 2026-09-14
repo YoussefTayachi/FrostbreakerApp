@@ -160,7 +160,7 @@ export default function GenerateSequence({
         <p className="text-sm leading-relaxed text-soft">{G.noOffer}</p>
         <Link
           href="/offers"
-          className="mt-2 inline-block text-xs font-medium transition-opacity hover:opacity-75"
+          className="mt-2 inline-block text-sm font-medium transition-opacity hover:opacity-75"
           style={{ color: "var(--fb-frost)" }}
         >
           {G.createOffer} →
@@ -170,7 +170,7 @@ export default function GenerateSequence({
   }
 
   return (
-    <div className="fb-hud fb-ticks relative overflow-hidden rounded-xl border border-edge/60 bg-panel p-4 sm:p-5">
+    <div className="fb-hud fb-ticks relative overflow-hidden rounded-xl border border-edge/70 bg-panel p-4 shadow-sm sm:p-5">
       <div className="fb-grid-bg absolute inset-0" aria-hidden />
       {busy && <span className="fb-scan" aria-hidden />}
 
@@ -186,7 +186,7 @@ export default function GenerateSequence({
                 {G.eyebrow}
               </p>
               <h2 className="text-base font-semibold text-ink">{G.heading}</h2>
-              <p className="mt-0.5 max-w-md text-xs leading-relaxed text-faint">
+              <p className="mt-1 max-w-md text-sm leading-relaxed text-faint">
                 {busy ? G.sayWorking : fertig > 0 ? G.sayDone : G.hint}
               </p>
             </div>
@@ -233,13 +233,13 @@ export default function GenerateSequence({
             Pixeln bekommt ein Feld sonst rund 80, und "Aufhaenger" oder
             "Nachfassen" verschwindet hinter truncate zu "Aufha…" -- vier
             abgeschnittene Woerter sagen weniger als gar keine Beschriftung. */}
-        <div className="mt-4 grid grid-cols-2 gap-1.5 sm:grid-cols-4">
+        <div className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-4">
           {STUFEN.map((i) => {
             const an = fertig > i;
             return (
               <div
                 key={i}
-                className="relative overflow-hidden rounded-md border px-2 py-1.5 transition-colors duration-300"
+                className="relative overflow-hidden rounded-lg border px-2.5 py-2 transition-colors duration-300"
                 style={{
                   borderColor: an
                     ? "color-mix(in srgb, var(--fb-ready) 45%, transparent)"
@@ -250,12 +250,12 @@ export default function GenerateSequence({
                 }}
               >
                 <span
-                  className="fb-num block text-[10px] leading-none"
+                  className="fb-num block text-2xs leading-none"
                   style={{ color: an ? "var(--fb-ready)" : "var(--color-mute)" }}
                 >
                   {String(i + 1).padStart(2, "0")}
                 </span>
-                <span className="mt-1 block truncate text-[11px] leading-4 text-faint">
+                <span className="mt-1 block truncate text-2xs leading-4 text-faint">
                   {G.stepNames[i]}
                 </span>
               </div>
@@ -270,7 +270,7 @@ export default function GenerateSequence({
             Modellaufrufs verschwindet die Zeile: dann ist die Frage
             beantwortet. */}
         {!busy && (
-          <p className="mt-3 text-xs leading-5 text-faint">
+          <p className="mt-4 text-sm leading-6 text-faint">
             {G.templateHint}{" "}
             <button
               type="button"
@@ -289,10 +289,10 @@ export default function GenerateSequence({
             mehr wert als eine Fehlermeldung — und der Torwart prueft ohnehin
             noch einmal, bevor etwas rausgeht. */}
         {problems.length > 0 && (
-          <ul className="mt-3 space-y-1 border-t border-edge/60 pt-3">
+          <ul className="mt-4 space-y-1.5 border-t border-edge/70 pt-3">
             {problems.map((p, i) => (
-              <li key={i} className="flex gap-2 text-[11px] leading-4 text-amber-700 dark:text-amber-500">
-                <span aria-hidden className="mt-1 h-1 w-1 shrink-0 rounded-full bg-amber-500" />
+              <li key={i} className="flex gap-2 text-xs leading-5 text-amber-700 dark:text-amber-500">
+                <span aria-hidden className="mt-2 h-1 w-1 shrink-0 rounded-full bg-amber-500" />
                 {problemText(p, G.problems)}
               </li>
             ))}

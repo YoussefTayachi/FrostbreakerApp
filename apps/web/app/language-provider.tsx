@@ -36,7 +36,7 @@ export function LanguageToggle() {
     <button
       onClick={() => setLang(lang === "de" ? "en" : "de")}
       title={lang === "de" ? "Switch to English" : "Auf Deutsch wechseln"}
-      className="flex h-8 w-8 items-center justify-center rounded-lg border border-edge/60 text-[11px] font-semibold uppercase text-soft transition-all hover:border-edge2 hover:text-ink active:scale-90"
+      className="flex h-8 w-8 items-center justify-center rounded-full text-2xs font-semibold uppercase text-soft transition-all hover:bg-ink/[0.06] hover:text-ink active:scale-90 dark:hover:bg-white/[0.08]"
     >
       {lang === "de" ? "EN" : "DE"}
     </button>

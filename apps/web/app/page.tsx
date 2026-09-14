@@ -337,7 +337,7 @@ export default async function Dashboard({
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight text-ink">{t.dashboard.title}</h1>
-          <p className="text-sm text-faint">{t.dashboard.subtitle}</p>
+          <p className="mt-1 text-sm text-faint">{t.dashboard.subtitle}</p>
         </div>
         {hasActive && (
           <div className="flex flex-col items-end gap-1.5">
@@ -346,7 +346,7 @@ export default async function Dashboard({
               {stats.jobs_active} {t.dashboard.agentsWorking}
             </span>
             <div className="h-1 w-36 overflow-hidden rounded-full bg-chip">
-              <div className="h-full w-1/3 animate-[slide_1.4s_ease-in-out_infinite] rounded-full bg-gradient-to-r from-sky-500 to-sky-500" />
+              <div className="h-full w-1/3 animate-[slide_1.4s_ease-in-out_infinite] rounded-full bg-sky-500" />
             </div>
           </div>
         )}
@@ -364,13 +364,13 @@ export default async function Dashboard({
       )}
 
       {!onboardingDone && (
-        <div className="rounded-lg border border-edge/60 bg-panel p-5">
-          <div className="mb-4 flex items-center justify-between">
+        <div className="rounded-xl border border-edge/70 bg-panel p-5 shadow-sm sm:p-6">
+          <div className="mb-4 flex items-center justify-between gap-4">
             <div>
-              <h2 className="font-medium text-ink">{t.onboarding.heading}</h2>
+              <h2 className="text-base font-semibold text-ink">{t.onboarding.heading}</h2>
               <p className="mt-1 text-sm text-faint">
                 {t.onboarding.subtitle}{" "}
-                <Link href="/guide" className="font-medium text-sky-600 hover:text-sky-500 dark:text-sky-400">
+                <Link href="/guide" className="font-medium text-sky-600 transition-colors hover:text-sky-500 dark:text-sky-400">
                   {t.onboarding.guideLink}
                 </Link>
               </p>
@@ -383,7 +383,7 @@ export default async function Dashboard({
                   strokeDasharray={`${(onboardingDoneCount / onboardingSteps.length) * 97.4} 97.4`}
                 />
               </svg>
-              <span className="absolute inset-0 flex items-center justify-center text-[11px] font-semibold text-ink">
+              <span className="absolute inset-0 flex items-center justify-center text-2xs font-semibold text-ink">
                 {onboardingDoneCount}/{onboardingSteps.length}
               </span>
             </div>
@@ -410,14 +410,14 @@ export default async function Dashboard({
               <div
                 key={title}
                 className={
-                  "rounded-lg border p-4 " +
-                  (done ? "border-emerald-500/25 bg-emerald-500/5" : "border-edge/60 bg-surface/60")
+                  "rounded-xl border p-4 transition-colors " +
+                  (done ? "border-emerald-500/25 bg-emerald-500/5" : "border-edge/70 bg-surface/60")
                 }
               >
                 <div className="mb-2 flex items-center justify-between">
                   <Icon className={"h-4 w-4 " + (done ? "text-emerald-500" : "text-faint")} />
                   {done && (
-                    <span className="flex items-center gap-1 text-[10px] font-medium text-emerald-600 dark:text-emerald-300">
+                    <span className="flex items-center gap-1 text-2xs font-medium text-emerald-600 dark:text-emerald-300">
                       ✓ {t.onboarding.doneLabel}
                     </span>
                   )}
@@ -425,7 +425,10 @@ export default async function Dashboard({
                 <h3 className="text-sm font-medium text-ink">{title}</h3>
                 <p className="mt-1 text-xs text-faint">{body}</p>
                 {!done && (
-                  <Link href={href} className="mt-2.5 inline-block text-xs font-medium text-sky-600 hover:text-sky-500 dark:text-sky-400">
+                  <Link
+                    href={href}
+                    className="-mb-1 mt-1 inline-flex min-h-10 items-center text-xs font-medium text-sky-600 transition-colors hover:text-sky-500 dark:text-sky-400"
+                  >
                     {cta} →
                   </Link>
                 )}
@@ -449,25 +452,33 @@ export default async function Dashboard({
           Reihen zu einem Block zusammen. Waagerecht getrennt wird nur unter
           md, senkrecht nur ab md -- in der einzeiligen Leiste am Schreibtisch
           gibt es keine Reihen zu trennen. */}
-      <div className="grid grid-cols-2 divide-x divide-y divide-edge overflow-hidden rounded-lg border border-edge/60 bg-panel shadow-sm sm:grid-cols-3 md:grid-cols-6 md:divide-y-0">
+      <div className="grid grid-cols-2 divide-x divide-y divide-edge/70 overflow-hidden rounded-xl border border-edge/70 bg-panel shadow-sm sm:grid-cols-3 md:grid-cols-6 md:divide-y-0">
         {kpis.map((k) => {
           const inhalt = (
             <>
-              <p className="text-[11px] font-medium uppercase tracking-wide text-mute">{k.label}</p>
-              <p className={"mt-0.5 text-2xl font-semibold tracking-tight " + (k.hero ? "text-sky-600 dark:text-sky-400" : "text-ink")}>
+              <p className="text-2xs font-medium uppercase tracking-wider text-mute">{k.label}</p>
+              {/* tabular: sechs Zahlen nebeneinander stehen nur mit gleich
+                  breiten Ziffern auf einer Linie, sonst wandert jede beim
+                  Hochzaehlen. */}
+              <p
+                className={
+                  "mt-1 text-2xl font-semibold tabular tracking-tight " +
+                  (k.hero ? "text-sky-600 dark:text-sky-400" : "text-ink")
+                }
+              >
                 {typeof k.value === "number" ? <CountUp value={k.value} /> : k.value}
               </p>
-              {k.sub && <p className="text-[11px] text-mute">{k.sub}</p>}
+              {k.sub && <p className="mt-0.5 text-2xs text-faint">{k.sub}</p>}
             </>
           );
           // Die Kostenkachel fuehrt zur Aufschluesselung: die Frage "wie
           // kommt die Zahl zustande" stellt sich genau dort.
           return k.href ? (
-            <Link key={k.label} href={k.href} className="block px-4 py-3.5 transition-colors hover:bg-edge/30">
+            <Link key={k.label} href={k.href} className="block px-4 py-4 transition-colors hover:bg-wash">
               {inhalt}
             </Link>
           ) : (
-            <div key={k.label} className="px-4 py-3.5">{inhalt}</div>
+            <div key={k.label} className="px-4 py-4">{inhalt}</div>
           );
         })}
       </div>
@@ -480,7 +491,7 @@ export default async function Dashboard({
           Traegt seinen Zeitraum und seine Annahmen mit sich: eine Zahl, die
           man nicht nachrechnen kann, glaubt man genau einmal. */}
       {roi.hours > 0 && (
-        <div className="rounded-lg border border-sky-200/70 bg-gradient-to-r from-sky-50 via-panel to-panel px-4 py-3 dark:border-sky-500/25 dark:from-sky-500/10">
+        <div className="rounded-xl border border-sky-200/70 bg-gradient-to-r from-sky-50 via-panel to-panel px-4 py-3.5 shadow-sm dark:border-sky-500/25 dark:from-sky-500/10 sm:px-5">
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
             <svg className="h-4 w-4 shrink-0 text-sky-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 3" />
@@ -504,7 +515,7 @@ export default async function Dashboard({
           </div>
 
           {/* Die Rechnung im Klartext. */}
-          <p className="mt-1.5 pl-7 text-[11px] text-mute">
+          <p className="mt-2 pl-7 text-xs leading-relaxed text-faint">
             {t.dashboard.roiBasis(roi.contacts, MIN_PER_CONTACT, roi.icebreakers, MIN_PER_ICEBREAKER, HOURLY_EUR)}
             {abosImFenster > 0 && " · " + t.dashboard.roiSubscriptions(abosMonatlich, fensterTage)}
           </p>
@@ -512,13 +523,13 @@ export default async function Dashboard({
           {/* Zwei Vorbehalte, die die Zahl relativieren — und die genau
               deshalb danebenstehen und nicht weggelassen werden. */}
           {abosImFenster === 0 && (
-            <p className="mt-1 pl-7 text-[11px] text-amber-600 dark:text-amber-500">
+            <p className="mt-1.5 pl-7 text-xs text-amber-700 dark:text-amber-500">
               {t.dashboard.roiNoSubscriptions}{" "}
               <Link href="/costs" className="underline underline-offset-2">{t.dashboard.roiEnterCosts}</Link>
             </p>
           )}
           {messungJuenger && messungSeit && (
-            <p className="mt-1 pl-7 text-[11px] text-amber-600 dark:text-amber-500">
+            <p className="mt-1.5 pl-7 text-xs text-amber-700 dark:text-amber-500">
               {t.dashboard.roiCostsSince(messungSeit.toLocaleDateString(lang === "de" ? "de-DE" : "en-US"))}
             </p>
           )}
@@ -538,31 +549,31 @@ export default async function Dashboard({
           : null;
         return (
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <div className="rounded-lg border border-edge/60 bg-panel p-4">
-              <p className="text-[11px] font-medium uppercase tracking-wide text-mute">{t.dashboard.instantlySent}</p>
-              <p className="mt-0.5 text-xl font-semibold text-ink">{stats.instantly.emails_sent}</p>
-              <p className="text-[11px] text-faint">{stats.instantly.replies_unique} {t.dashboard.instantlyReplies}</p>
+            <div className="rounded-xl border border-edge/70 bg-panel p-4 shadow-sm">
+              <p className="text-2xs font-medium uppercase tracking-wider text-mute">{t.dashboard.instantlySent}</p>
+              <p className="mt-0.5 text-xl font-semibold tabular text-ink">{stats.instantly.emails_sent}</p>
+              <p className="text-2xs tabular text-faint">{stats.instantly.replies_unique} {t.dashboard.instantlyReplies}</p>
             </div>
-            <div className="rounded-lg border border-edge/60 bg-panel p-4">
-              <p className="text-[11px] font-medium uppercase tracking-wide text-mute">{t.dashboard.instantlyBounceRate}</p>
-              <p className={"mt-0.5 text-xl font-semibold " + (riskyBounceRate ? "text-red-600 dark:text-red-400" : "text-ink")}>
+            <div className="rounded-xl border border-edge/70 bg-panel p-4 shadow-sm">
+              <p className="text-2xs font-medium uppercase tracking-wider text-mute">{t.dashboard.instantlyBounceRate}</p>
+              <p className={"mt-0.5 text-xl font-semibold tabular " + (riskyBounceRate ? "text-red-600 dark:text-red-400" : "text-ink")}>
                 {bounceRate.toFixed(1)}%
               </p>
-              <p className="text-[11px] text-faint">
+              <p className="text-2xs text-faint">
                 {riskyBounceRate ? t.dashboard.instantlyBounceRisky : t.dashboard.instantlyBounceOk}
               </p>
             </div>
-            <div className="rounded-lg border border-edge/60 bg-panel p-4">
-              <p className="text-[11px] font-medium uppercase tracking-wide text-mute">{t.dashboard.instantlyMeetings}</p>
-              <p className="mt-0.5 text-xl font-semibold text-ink">{stats.meetings_booked}</p>
-              <p className="text-[11px] text-faint">{stats.customers} {t.dashboard.instantlyCustomers}</p>
+            <div className="rounded-xl border border-edge/70 bg-panel p-4 shadow-sm">
+              <p className="text-2xs font-medium uppercase tracking-wider text-mute">{t.dashboard.instantlyMeetings}</p>
+              <p className="mt-0.5 text-xl font-semibold tabular text-ink">{stats.meetings_booked}</p>
+              <p className="text-2xs text-faint">{stats.customers} {t.dashboard.instantlyCustomers}</p>
             </div>
-            <div className="rounded-lg border border-edge/60 bg-panel p-4">
-              <p className="text-[11px] font-medium uppercase tracking-wide text-mute">{t.dashboard.instantlyPipelineValue}</p>
-              <p className="mt-0.5 text-xl font-semibold text-emerald-600 dark:text-emerald-400">
+            <div className="rounded-xl border border-edge/70 bg-panel p-4 shadow-sm">
+              <p className="text-2xs font-medium uppercase tracking-wider text-mute">{t.dashboard.instantlyPipelineValue}</p>
+              <p className="mt-0.5 text-xl font-semibold tabular text-emerald-600 dark:text-emerald-400">
                 ~{Math.round(stats.instantly.opportunity_value)} €
               </p>
-              <p className="text-[11px] text-faint">
+              <p className="text-2xs text-faint">
                 {stats.instantly.opportunities} {t.dashboard.instantlyOpportunities}
                 {costPerOpportunity !== null && ` · ${costPerOpportunity.toFixed(2)} $ ${t.dashboard.instantlyCostPer}`}
               </p>
@@ -573,14 +584,19 @@ export default async function Dashboard({
 
       {/* Chart + Neueste Leads */}
       <div className="grid gap-5 lg:grid-cols-5">
-        <div className="rounded-lg border border-edge/60 bg-panel p-5 shadow-sm lg:col-span-3">
-          <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-            <h2 className="text-sm font-medium text-ink">{t.dashboard.chartTitle(rangeDays)}</h2>
-            <div className="flex items-center gap-3">
-              <span className="text-xs text-mute">
+        <div className="rounded-xl border border-edge/70 bg-panel p-4 shadow-sm sm:p-5 lg:col-span-3">
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+            <h2 className="text-base font-semibold text-ink">{t.dashboard.chartTitle(rangeDays)}</h2>
+            {/* Auf dem Handy bricht diese Reihe um: Segmentleiste und
+                Kalenderfelder brauchen zusammen rund 330 Pixel und stuenden
+                sonst neben einer Ueberschrift, die selbst schon 200 will. */}
+            <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:gap-3">
+              <span className="text-xs text-faint">
                 {stats.emails_sent ?? 0} {t.dashboard.emailsSent} · {stats.replies ?? 0} {t.dashboard.replies}
               </span>
-              <div className="flex overflow-hidden rounded-lg border border-edge2">
+              {/* Segment-Umschalter: aktives Feld als erhabene Flaeche auf der
+                  eingelassenen Leiste, wie in den Systemoberflaechen. */}
+              <div className="inline-flex rounded-lg bg-chip p-1">
                 {RANGE_OPTIONS.map((days) => (
                   <Link
                     key={days}
@@ -588,12 +604,12 @@ export default async function Dashboard({
                       days === DEFAULT_RANGE_DAYS ? "/" : days === 0 ? "/?range=all" : `/?range=${days}`
                     }
                     className={
-                      "px-2.5 py-1 text-xs font-medium transition-colors " +
+                      "rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors " +
                       // Bei aktiver Kalenderauswahl ist keiner der festen
                       // Bereiche gemeint; sonst saehe es aus, als gaelten beide.
                       (!useDateRange && days === rangeDays
-                        ? "bg-sky-600 text-white"
-                        : "text-soft hover:bg-chip hover:text-ink")
+                        ? "bg-panel text-ink shadow-sm dark:bg-white/[0.08]"
+                        : "text-soft hover:text-ink")
                     }
                   >
                     {t.dashboard.rangeOptions[String(days)]}
@@ -605,15 +621,20 @@ export default async function Dashboard({
           </div>
           <ActivityChart data={stats.activity ?? []} />
         </div>
-        <div className="overflow-hidden rounded-lg border border-edge/60 bg-panel shadow-sm lg:col-span-2">
-          <div className="flex items-center justify-between border-b border-edge/60 px-4 py-3">
-            <h2 className="text-sm font-medium text-ink">{t.dashboard.recentLeads}</h2>
-            <Link href="/leads" className="text-xs text-faint hover:text-ink">{t.dashboard.all}</Link>
+        <div className="overflow-hidden rounded-xl border border-edge/70 bg-panel shadow-sm lg:col-span-2">
+          <div className="flex items-center justify-between gap-3 border-b border-edge/70 px-4 py-3">
+            <h2 className="text-base font-semibold text-ink">{t.dashboard.recentLeads}</h2>
+            <Link
+              href="/leads"
+              className="-my-1.5 -mr-2 rounded-md px-2 py-2 text-xs text-faint transition-colors hover:bg-wash hover:text-ink"
+            >
+              {t.dashboard.all}
+            </Link>
           </div>
-          <div className="divide-y divide-edge/60">
+          <div className="divide-y divide-edge/70">
             {recent.map((c) => (
-              <div key={c.id} className="flex items-center gap-3 px-4 py-2.5">
-                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-chip text-[11px] font-semibold text-soft">
+              <div key={c.id} className="flex items-center gap-3 px-4 py-3">
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-chip text-2xs font-semibold text-soft">
                   {(c.full_name ?? "?").split(" ").map((w: string) => w[0]).slice(0, 2).join("")}
                 </div>
                 <div className="min-w-0 flex-1">
@@ -629,7 +650,7 @@ export default async function Dashboard({
               </div>
             ))}
             {recent.length === 0 && (
-              <p className="px-4 py-8 text-center text-sm text-mute">{t.dashboard.noLeadsYet}</p>
+              <p className="px-4 py-8 text-center text-sm text-faint">{t.dashboard.noLeadsYet}</p>
             )}
           </div>
         </div>
@@ -638,90 +659,103 @@ export default async function Dashboard({
       {/* Neue Suche. Die id ist das Ziel von "Suche wiederholen" auf der
           Suchdetailseite — ohne sie fuellt sich das Formular ausserhalb des
           Sichtbereichs, und der Klick sieht folgenlos aus. */}
-      <section id="neue-suche" className="scroll-mt-4 rounded-lg border border-edge/60 bg-panel p-5 shadow-sm">
-        <h2 className="mb-1 text-sm font-medium text-ink">{t.dashboard.newSearch}</h2>
-        <p className="mb-4 text-sm text-faint">{t.dashboard.newSearchHint}</p>
+      <section
+        id="neue-suche"
+        className="scroll-mt-4 rounded-xl border border-edge/70 bg-panel p-4 shadow-sm sm:p-6"
+      >
+        <h2 className="text-base font-semibold text-ink">{t.dashboard.newSearch}</h2>
+        <p className="mb-5 mt-1 text-sm text-faint">{t.dashboard.newSearchHint}</p>
         <NewSearchForm workspaceId={workspaceId} apiKeyProviders={apiKeyProviders} />
       </section>
 
       {/* Letzte Suchen */}
-      <section className="overflow-hidden rounded-lg border border-edge/60 bg-panel shadow-sm">
-        <div className="flex items-center justify-between border-b border-edge/60 px-4 py-3 sm:px-5">
-          <h2 className="text-sm font-medium text-ink">{t.dashboard.recentSearches}</h2>
-          <Link href="/searches" className="text-xs text-faint hover:text-ink">{t.dashboard.showAll}</Link>
+      <section className="overflow-hidden rounded-xl border border-edge/70 bg-panel shadow-sm">
+        <div className="flex items-center justify-between gap-3 border-b border-edge/70 px-4 py-3 sm:px-5">
+          <h2 className="text-base font-semibold text-ink">{t.dashboard.recentSearches}</h2>
+          <Link
+            href="/searches"
+            className="-my-1.5 -mr-2 rounded-md px-2 py-2 text-xs text-faint transition-colors hover:bg-wash hover:text-ink"
+          >
+            {t.dashboard.showAll}
+          </Link>
         </div>
         {/* Sechs Spalten ohne waagerechten Ausweg: die Tabelle stand in einem
             overflow-hidden und wurde auf dem Handy schlicht abgeschnitten --
             sichtbar waren Name und ein Teil der Quelle, Ort, Status und Datum
             fielen weg. Deshalb ab sm die Tabelle, darunter dieselben Suchen
             als Karten. */}
-        <table className="hidden w-full text-sm sm:table">
-          <thead>
-            <tr className="border-b border-edge/60 text-left text-xs text-mute">
-              <th className="px-5 py-2 font-medium">{t.dashboard.table.list}</th>
-              <th className="px-5 py-2 font-medium">{t.dashboard.table.source}</th>
-              <th className="px-5 py-2 font-medium">{t.dashboard.table.location}</th>
-              <th className="px-5 py-2 font-medium">{t.dashboard.table.max}</th>
-              <th className="px-5 py-2 font-medium">{t.dashboard.table.status}</th>
-              <th className="px-5 py-2 font-medium">{t.dashboard.table.created}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {searches.map((s) => (
-              <tr key={s.id} className="border-b border-edge/60 transition-colors last:border-0 hover:bg-wash">
-                <td className="px-5 py-2.5 font-medium text-ink">
-                  <Link href={"/searches/" + s.id} className="hover:underline underline-offset-4">
-                    {s.name ?? s.query}
-                  </Link>
-                </td>
-                <td className="px-5 py-2.5">
-                  <span
-                    className={
-                      "rounded-md border px-1.5 py-0.5 text-[11px] " +
-                      searchSourceBadgeClass(s.source)
-                    }
-                  >
-                    {searchSourceLabel(s.source)}
-                  </span>
-                </td>
-                <td className="px-5 py-2.5 text-soft">{s.location}</td>
-                <td className="px-5 py-2.5 text-soft" title={s.target_email_count ? `${s.max_results} Firmen durchsucht` : undefined}>
-                  {s.target_email_count ? `🎯 ${s.target_email_count}` : s.max_results}
-                </td>
-                <td className="px-5 py-2.5"><StatusBadge status={s.status} labels={t.common.statusLabels} /></td>
-                <td className="px-5 py-2.5 text-faint">
-                  <LocalTime
-                    iso={s.created_at}
-                    lang={lang}
-                    serverFormatted={formatDate(s.created_at, lang)}
-                  />
-                </td>
+        <div className="hidden overflow-x-auto sm:block">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-edge/70 text-left text-xs font-medium text-faint">
+                <th className="whitespace-nowrap px-5 py-2.5 font-medium">{t.dashboard.table.list}</th>
+                <th className="whitespace-nowrap px-5 py-2.5 font-medium">{t.dashboard.table.source}</th>
+                <th className="whitespace-nowrap px-5 py-2.5 font-medium">{t.dashboard.table.location}</th>
+                <th className="whitespace-nowrap px-5 py-2.5 font-medium">{t.dashboard.table.max}</th>
+                <th className="whitespace-nowrap px-5 py-2.5 font-medium">{t.dashboard.table.status}</th>
+                <th className="whitespace-nowrap px-5 py-2.5 font-medium">{t.dashboard.table.created}</th>
               </tr>
-            ))}
-            {searches.length === 0 && (
-              <tr>
-                <td colSpan={6} className="px-5 py-8 text-center text-mute">{t.dashboard.noSearchesYet}</td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {searches.map((s) => (
+                <tr key={s.id} className="border-b border-edge/70 transition-colors last:border-0 hover:bg-wash">
+                  <td className="whitespace-nowrap px-5 py-3 font-medium text-ink">
+                    <Link href={"/searches/" + s.id} className="hover:underline underline-offset-4">
+                      {s.name ?? s.query}
+                    </Link>
+                  </td>
+                  <td className="whitespace-nowrap px-5 py-3">
+                    <span
+                      className={
+                        "rounded-full border px-2.5 py-0.5 text-xs font-medium " +
+                        searchSourceBadgeClass(s.source)
+                      }
+                    >
+                      {searchSourceLabel(s.source)}
+                    </span>
+                  </td>
+                  <td className="whitespace-nowrap px-5 py-3 text-soft">{s.location}</td>
+                  <td className="whitespace-nowrap px-5 py-3 text-soft" title={s.target_email_count ? `${s.max_results} Firmen durchsucht` : undefined}>
+                    {s.target_email_count ? `🎯 ${s.target_email_count}` : s.max_results}
+                  </td>
+                  <td className="whitespace-nowrap px-5 py-3"><StatusBadge status={s.status} labels={t.common.statusLabels} /></td>
+                  <td className="whitespace-nowrap px-5 py-3 text-faint">
+                    <LocalTime
+                      iso={s.created_at}
+                      lang={lang}
+                      serverFormatted={formatDate(s.created_at, lang)}
+                    />
+                  </td>
+                </tr>
+              ))}
+              {searches.length === 0 && (
+                <tr>
+                  <td colSpan={6} className="px-5 py-8 text-center text-mute">{t.dashboard.noSearchesYet}</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
 
         {/* Dieselben Suchen fuer alles unter sm. Name und Status in die erste
             Zeile, der Rest als eine Zeile Beiwerk darunter: auf einem
             Uebersichtsbildschirm zaehlt, welche Liste laeuft und welche
             fertig ist. Ort, Quelle und Menge beantworten die Frage danach. */}
-        <div className="divide-y divide-edge/60 sm:hidden">
+        <div className="divide-y divide-edge/70 sm:hidden">
           {searches.map((s) => (
             <Link
               key={s.id}
               href={"/searches/" + s.id}
-              className="flex items-start justify-between gap-3 px-4 py-3 transition-colors hover:bg-wash"
+              className="flex items-start justify-between gap-3 px-4 py-3.5 transition-colors hover:bg-wash active:bg-chip"
             >
               <div className="min-w-0">
                 <p className="truncate text-sm font-medium text-ink">{s.name ?? s.query}</p>
                 <p className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-faint">
                   <span
-                    className={"rounded-md border px-1.5 py-0.5 text-[11px] " + searchSourceBadgeClass(s.source)}
+                    className={
+                      "rounded-full border px-2.5 py-0.5 text-xs font-medium " +
+                      searchSourceBadgeClass(s.source)
+                    }
                   >
                     {searchSourceLabel(s.source)}
                   </span>
@@ -738,7 +772,7 @@ export default async function Dashboard({
             </Link>
           ))}
           {searches.length === 0 && (
-            <p className="px-4 py-8 text-center text-sm text-mute">{t.dashboard.noSearchesYet}</p>
+            <p className="px-4 py-8 text-center text-sm text-faint">{t.dashboard.noSearchesYet}</p>
           )}
         </div>
       </section>
@@ -749,7 +783,7 @@ export default async function Dashboard({
 function StatusBadge({ status, labels }: { status: string; labels: Record<string, string> }) {
   const config: Record<string, { dot: string; text: string }> = {
     pending: { dot: "bg-amber-400", text: "text-amber-700 dark:text-amber-300" },
-    running: { dot: "bg-blue-500 animate-pulse", text: "text-blue-700 dark:text-blue-300" },
+    running: { dot: "bg-sky-500 animate-pulse", text: "text-sky-700 dark:text-sky-300" },
     completed: { dot: "bg-emerald-500", text: "text-emerald-700 dark:text-emerald-300" },
     failed: { dot: "bg-red-500", text: "text-red-700 dark:text-red-300" },
   };

@@ -21,7 +21,7 @@ export default function ThemeToggle() {
     <button
       onClick={toggle}
       title={dark ? "Light Mode" : "Dark Mode"}
-      className="flex h-8 w-8 items-center justify-center rounded-lg border border-edge/60 text-soft transition-all hover:border-edge2 hover:text-ink active:scale-90"
+      className="flex h-8 w-8 items-center justify-center rounded-full text-soft transition-all hover:bg-ink/[0.06] hover:text-ink active:scale-90 dark:hover:bg-white/[0.08]"
     >
       {dark ? (
         <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">

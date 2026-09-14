@@ -22,10 +22,30 @@ export default async function UnsubscribePage({
   const ok = status === "ok";
 
   return (
-    <div className="flex min-h-screen items-center justify-center px-4">
-      <div className={cardCls + " max-w-md text-center"}>
-        <h1 className="text-lg font-semibold text-ink">{ok ? u.doneTitle : u.invalidTitle}</h1>
-        <p className="mt-2 text-sm text-faint">{ok ? u.doneBody : u.invalidBody}</p>
+    <div className="flex min-h-[70vh] items-center justify-center px-4 py-10">
+      <div className={cardCls + " fade-up w-full max-w-md text-center"}>
+        {/* Das Ergebnis zuerst als Zeichen, dann als Satz: wer den Link aus einer
+            Mail heraus oeffnet, will in einer halben Sekunde wissen, ob es
+            geklappt hat. */}
+        <span
+          aria-hidden
+          className={
+            "mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full " +
+            (ok
+              ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-300"
+              : "bg-amber-500/10 text-amber-600 dark:text-amber-300")
+          }
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-6 w-6">
+            {ok ? <path d="m5 13 4 4L19 7" /> : <><path d="M12 8v5" /><path d="M12 17h.01" /></>}
+          </svg>
+        </span>
+        <h1 className="text-xl font-semibold tracking-tight text-ink">
+          {ok ? u.doneTitle : u.invalidTitle}
+        </h1>
+        <p className="mt-2 text-sm leading-relaxed text-faint">
+          {ok ? u.doneBody : u.invalidBody}
+        </p>
       </div>
     </div>
   );

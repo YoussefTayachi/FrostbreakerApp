@@ -93,9 +93,9 @@ export default function DealBoard({
 
   if (rows.length === 0) {
     return (
-      <div className="rounded-xl border border-edge/60 bg-panel px-5 py-14 text-center">
+      <div className="rounded-xl border border-edge/70 bg-panel px-5 py-14 text-center shadow-sm">
         <p className="text-sm text-faint">{P.dealsEmpty}</p>
-        <p className="mx-auto mt-1 max-w-md text-xs text-mute">{P.dealsEmptyHint}</p>
+        <p className="mx-auto mt-1.5 max-w-md text-sm text-mute">{P.dealsEmptyHint}</p>
       </div>
     );
   }
@@ -112,7 +112,9 @@ export default function DealBoard({
           hier -mx-8 stehen, ragte das Board auf dem Handy 16 Pixel ueber beide
           Kanten hinaus -- und weil es selbst waagerecht scrollt, wuerde
           stattdessen die ganze Seite waagerecht wackeln. */}
-      <div className="-mx-4 mt-4 h-[calc(100vh-15rem)] min-h-[22rem] overflow-x-auto px-4 pb-1 sm:-mx-6 sm:px-6 md:-mx-8 md:px-8">
+      {/* snap-x wie im Kontakt-Board: auf dem Handy rastet der Blick an einer
+          Spaltenkante ein statt dazwischen stehen zu bleiben. */}
+      <div className="-mx-4 mt-4 h-[calc(100vh-15rem)] min-h-[22rem] snap-x snap-proximity overflow-x-auto px-4 pb-1 sm:snap-none sm:-mx-6 sm:px-6 md:-mx-8 md:px-8">
         <div className="flex h-full gap-0">
           {DEAL_STAGE_IDS.map((stage) => {
             const items = groups[stage] ?? [];
@@ -135,8 +137,8 @@ export default function DealBoard({
                   if (deal) moveTo(deal, stage);
                 }}
                 className={
-                  "flex h-full w-72 shrink-0 flex-col overflow-hidden border-l transition-colors first:border-l-0 " +
-                  (isTarget ? "border-sky-500/70 bg-sky-500/5" : "border-edge2/60")
+                  "flex h-full w-72 shrink-0 snap-start flex-col overflow-hidden border-l transition-colors duration-150 first:border-l-0 " +
+                  (isTarget ? "border-sky-500/70 bg-sky-500/5" : "border-edge")
                 }
               >
                 {/* Spaltenkopf wie bei Pipedrive: Stufe fett, darunter die
@@ -152,7 +154,7 @@ export default function DealBoard({
                     {formatMoney(total, "EUR", lang)} · {P.dealCount(items.length)}
                   </p>
                   {weighted > 0 && (
-                    <p className="truncate text-[11px] text-mute" title={P.weightedHint}>
+                    <p className="truncate text-xs text-mute" title={P.weightedHint}>
                       {P.weighted(formatMoney(weighted, "EUR", lang))}
                     </p>
                   )}
@@ -182,7 +184,7 @@ export default function DealBoard({
                           onOpenContact(deal.business_id, deal.contact_id);
                         }}
                         className={
-                          "group cursor-grab rounded-lg border border-edge/40 bg-panel px-3.5 py-3 shadow-sm transition-all hover:shadow-md active:cursor-grabbing " +
+                          "group cursor-grab rounded-xl border border-edge/50 bg-panel px-3.5 py-3 shadow-sm transition-[box-shadow,border-color,opacity] duration-150 hover:border-edge/80 hover:shadow-md active:cursor-grabbing " +
                           (dragId === deal.id ? "opacity-40" : "")
                         }
                       >
@@ -233,13 +235,13 @@ export default function DealBoard({
                             website={deal.company_website}
                             size={14}
                           />
-                          <span className="text-[13px] font-medium tabular-nums text-ink">
+                          <span className="text-xs font-medium tabular-nums text-ink">
                             {formatMoney(dealValue(deal), deal.currency, lang)}
                           </span>
                           {deal.expected_close_date && (
                             <span
                               className={
-                                "ml-auto text-[11px] " + (overdue ? "text-red-500" : "text-mute")
+                                "ml-auto text-xs tabular-nums " + (overdue ? "text-red-600 dark:text-red-400" : "text-mute")
                               }
                               title={P.expectedClose}
                             >
@@ -252,7 +254,7 @@ export default function DealBoard({
                   })}
 
                   {items.length === 0 && (
-                    <p className="py-8 text-center text-[11px] text-mute">
+                    <p className="py-10 text-center text-xs text-mute">
                       {isTarget ? P.dropHere : P.columnEmpty}
                     </p>
                   )}
@@ -263,7 +265,7 @@ export default function DealBoard({
         </div>
       </div>
 
-      <p className="mt-1 text-xs text-faint">
+      <p className="mt-1.5 text-xs tabular-nums text-faint">
         {P.dealCount(rows.length)} · {formatMoney(stageTotal(rows), "EUR", lang)}
       </p>
     </>

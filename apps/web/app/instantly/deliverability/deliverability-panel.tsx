@@ -88,7 +88,7 @@ export default function DeliverabilityPanel({ hasInstantlyKey }: { hasInstantlyK
       <div className={cardCls}>
         {hasInstantlyKey && domains.length > 0 && (
           <div className="mb-4">
-            <p className="mb-1.5 text-xs font-medium text-faint">{D.quickSelectLabel}</p>
+            <p className="mb-2 text-2xs font-medium uppercase tracking-wider text-mute">{D.quickSelectLabel}</p>
             <div className="flex flex-wrap gap-1.5">
               {domains.map((d) => (
                 <button
@@ -96,7 +96,7 @@ export default function DeliverabilityPanel({ hasInstantlyKey }: { hasInstantlyK
                   type="button"
                   onClick={() => setDomain(d)}
                   className={
-                    "rounded-full border px-3 py-1 text-xs transition-colors " +
+                    "rounded-full border px-3 py-1.5 text-xs font-medium transition-colors duration-150 " +
                     (domain === d
                       ? "border-sky-500 bg-sky-500/10 text-sky-600 dark:text-sky-300"
                       : "border-edge2 text-faint hover:border-sky-500/50 hover:text-ink")
@@ -108,10 +108,12 @@ export default function DeliverabilityPanel({ hasInstantlyKey }: { hasInstantlyK
             </div>
           </div>
         )}
-        {!hasInstantlyKey && <p className="mb-4 text-xs text-faint">{D.noKeyHint}</p>}
+        {!hasInstantlyKey && <p className="mb-4 text-sm text-faint">{D.noKeyHint}</p>}
 
-        <div className="flex flex-wrap items-end gap-3">
-          <label className="flex flex-1 min-w-52 flex-col text-sm font-medium text-soft">
+        {/* Unter sm untereinander: Domain, Selektor und Knopf nebeneinander
+            ergaeben auf 390 Pixel drei unlesbare Spalten. */}
+        <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
+          <label className="flex min-w-52 flex-col text-sm font-medium text-soft sm:flex-1">
             {D.domainLabel}
             <input
               value={domain}
@@ -127,20 +129,20 @@ export default function DeliverabilityPanel({ hasInstantlyKey }: { hasInstantlyK
               value={dkimSelector}
               onChange={(e) => setDkimSelector(e.target.value)}
               placeholder={D.dkimSelectorPlaceholder}
-              className={inputCls + " mt-1.5 w-56"}
+              className={inputCls + " mt-1.5 w-full sm:w-56"}
             />
           </label>
-          <button onClick={() => runCheck(domain)} disabled={loading || !domain.trim()} className={primaryBtnCls}>
+          <button onClick={() => runCheck(domain)} disabled={loading || !domain.trim()} className={primaryBtnCls + " w-full sm:w-auto"}>
             {loading ? D.checking : D.checkButton}
           </button>
         </div>
-        <p className="mt-2 text-xs text-faint">{D.dkimSelectorHint}</p>
-        {error && <p className="mt-2 text-xs text-red-500">{error}</p>}
+        <p className="mt-2.5 text-xs text-faint">{D.dkimSelectorHint}</p>
+        {error && <p className="mt-2.5 text-sm text-red-600 dark:text-red-400">{error}</p>}
       </div>
 
       {report && (
         <div className="space-y-4">
-          <p className="text-xs text-faint">
+          <p className="text-xs text-mute">
             {D.checkedAtPrefix}
             {new Date(report.checkedAt).toLocaleString()}
           </p>
@@ -153,11 +155,11 @@ export default function DeliverabilityPanel({ hasInstantlyKey }: { hasInstantlyK
             ] as const
           ).map((section) => (
             <div key={section.key} className={cardCls}>
-              <div className="flex items-center justify-between">
-                <h2 className="font-medium text-ink">{section.heading}</h2>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <h2 className="text-base font-semibold text-ink">{section.heading}</h2>
                 <span
                   className={
-                    "flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs " +
+                    "flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium " +
                     STATUS_STYLES[section.status]
                   }
                 >
@@ -174,7 +176,7 @@ export default function DeliverabilityPanel({ hasInstantlyKey }: { hasInstantlyK
                 <p className="mt-2 text-xs text-faint">{D.foundSelectorsLabel} {section.selector}</p>
               )}
               {section.record && (
-                <code className="mt-2 block break-all rounded bg-panel2 px-2.5 py-2 font-mono text-[11px] text-mute">
+                <code className="mt-3 block break-all rounded-lg bg-panel2 px-3 py-2.5 font-mono text-xs text-faint">
                   {D.recordLabel} {section.record}
                 </code>
               )}

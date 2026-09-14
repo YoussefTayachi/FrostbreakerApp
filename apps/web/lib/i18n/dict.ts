@@ -106,10 +106,10 @@ const de = {
       `Gerechnet: ${kontakte} Kontakte mit E-Mail × ${minK} Min + ${aufhaenger} Aufhänger × ${minA} Min, zu ${satz} €/h. Kontakte ohne Adresse zählen nicht mit.`,
     roiSubscriptions: (monatlich: number, tage: number) =>
       `Kosten enthalten $${monatlich.toFixed(2)}/Monat Tarife, anteilig für ${tage} Tage.`,
-    roiNoSubscriptions: "Nur gemessener Verbrauch — deine Tarife für Instantly, Apollo und Co. fehlen darin.",
+    roiNoSubscriptions: "Nur gemessener Verbrauch: Tarife für Instantly, Apollo und Co. fehlen.",
     roiEnterCosts: "Jetzt eintragen",
     roiCostsSince: (datum: string) =>
-      `Kosten werden erst seit ${datum} erfasst — für den Zeitraum davor fehlen sie, sie waren nicht null.`,
+      `Kosten werden erst seit ${datum} erfasst: für die Zeit davor fehlen sie, sie waren nicht null.`,
     instantlySent: "Versendet (Instantly)",
     instantlyReplies: "eindeutige Antworten",
     instantlyBounceRate: "Bounce-Rate",
@@ -161,7 +161,7 @@ const de = {
     groupBadge: (teilsuchen: number) => `${teilsuchen} Teilsuchen`,
     groupProgress: (fertig: number, gesamt: number) => `${fertig}/${gesamt} Teilsuchen fertig`,
     groupFailed: (fehlgeschlagen: number, gesamt: number) =>
-      `${fehlgeschlagen} von ${gesamt} Teilsuchen fehlgeschlagen — die übrigen Leads sind vollständig in dieser Liste.`,
+      `${fehlgeschlagen} von ${gesamt} Teilsuchen fehlgeschlagen, die übrigen Leads sind vollständig in dieser Liste.`,
     searchingBusinesses: "Firmen werden gesucht",
     enriching: "Anreicherung",
     done: "Fertig",
@@ -195,17 +195,17 @@ const de = {
     movedToast: (n: number) => (n === 1 ? "Liste verschoben." : `${n} Listen verschoben.`),
     archive: "Archivieren",
     archiveTitle:
-      "Blendet die Liste hier aus. Leads, LinkedIn, Kampagnen und der Dublettenschutz bleiben unverändert — anders als beim Löschen.",
+      "Blendet die Liste nur hier aus. Leads, LinkedIn, Kampagnen und Dublettenschutz bleiben unverändert, anders als beim Löschen.",
     archiveSection: "Archiv",
     archiveHint:
-      "Archivierte Listen sind nur hier ausgeblendet. Ihre Leads bleiben in „Alle Leads“, in LinkedIn und in der Kampagnen-Auswahl nutzbar, und ihre Firmen zählen weiter im Dublettenschutz. Ein laufendes Abo wird beim Archivieren angehalten.",
+      "Archivierte Listen sind nur hier ausgeblendet. Ihre Leads bleiben in „Alle Leads“, LinkedIn und der Kampagnen-Auswahl nutzbar, ihre Firmen zählen weiter im Dublettenschutz. Ein laufendes Abo wird dabei angehalten.",
     unarchive: "Zurückholen",
     archivedToast: (n: number) =>
       n === 1 ? "Liste archiviert. Ein Abo wurde dabei angehalten." : `${n} Listen archiviert.`,
     unarchivedToast: (n: number) =>
       n === 1 ? "Liste zurückgeholt." : `${n} Listen zurückgeholt.`,
     deleteConfirm: (n: number) =>
-      `${n === 1 ? "Diese Liste" : `Diese ${n} Listen`} in den Papierkorb legen?\n\nDie Leads verschwinden damit aus „Alle Leads“, aus LinkedIn, aus der Kampagnen-Auswahl und aus der Pipeline — nur gewonnene Kunden bleiben dort stehen. Ein Abo wird abgeschaltet.\n\nBereits angeschriebene Kontakte werden im Archiv gemerkt und nie erneut angeschrieben. Noch nicht kontaktierte Firmen zählen dagegen nicht mehr im Dublettenschutz: eine spätere Suche kann sie erneut kaufen.\n\nWenn du nur aufräumen willst, nimm „Archivieren“.`,
+      `${n === 1 ? "Diese Liste" : `Diese ${n} Listen`} in den Papierkorb legen?\n\nDie Leads verschwinden aus „Alle Leads“, aus LinkedIn, aus der Kampagnen-Auswahl und aus der Pipeline. Nur gewonnene Kunden bleiben dort. Ein Abo wird abgeschaltet.\n\nBereits angeschriebene Kontakte bleiben im Archiv gemerkt und werden nie erneut angeschrieben. Firmen ohne Kontakt zählen nicht mehr im Dublettenschutz: eine spätere Suche kann sie erneut kaufen.\n\nZum Aufräumen reicht „Archivieren“.`,
     deletedToast: (n: number) =>
       n === 1 ? "In den Papierkorb verschoben." : `${n} Listen in den Papierkorb verschoben.`,
     restoredToast: (n: number) =>
@@ -229,20 +229,20 @@ const de = {
     tariffDependent: "tarifabhängig",
     planShare: (betrag: string) => `${betrag} Tarif (eingetragen)`,
     creditsPerLead: (credits: string, leads: number, proLead: string) =>
-      `${credits} Credits für ${leads} Leads in diesem Zeitraum — ${proLead} pro Lead. Apollo und Prospeo berechnen zweimal: einmal die Adresse der Person, einmal den Firmendatensatz.`,
+      `${credits} Credits für ${leads} Leads in diesem Zeitraum, ${proLead} pro Lead. Apollo und Prospeo berechnen zweimal: Adresse der Person und Firmendatensatz.`,
     splitUsage: "Verbrauch",
     splitPlans: "Tarife",
     splitProRated: (monatlich: number, tage: number) =>
       `$${monatlich.toFixed(2)}/Monat, anteilig für ${tage} Tage`,
     subsTitle: "Was deine Tarife kosten",
     subsHint:
-      "Instantly hat keinen zählbaren Aufruf, und was ein Apollo- oder Hunter-Credit wert ist, hängt am gebuchten Paket. Die App kann das nicht messen — trag ein, was du monatlich zahlst, dann stimmt die Kostenzahl auf dem Dashboard. Leer lassen heißt „weiß ich nicht“, 0 heißt „Free-Plan“.",
+      "Instantly hat keinen zählbaren Aufruf, und ein Apollo- oder Hunter-Credit ist je nach Paket unterschiedlich viel wert. Trag ein, was du monatlich zahlst, dann stimmt die Kostenzahl im Dashboard. Leer heißt „weiß ich nicht“, 0 heißt „Free-Plan“.",
     subsPerMonth: "/Monat",
     subsTotal: "Zusammen",
     subsSaved: "Tarife gespeichert",
     subsMeasuredBadge: "wird gemessen",
     subsMeasuredWarning:
-      "Diese Anbieter rechnen pro Aufruf ab und stehen bereits mit ihrem tatsächlichen Verbrauch in der Tabelle unten. Ein Monatsbetrag hier kommt oben zusätzlich dazu — trag ihn nur ein, wenn du eine Grundgebühr zahlst, die unabhängig vom Verbrauch anfällt.",
+      "Diese Anbieter rechnen pro Aufruf ab und stehen schon mit ihrem Verbrauch in der Tabelle unten. Trag hier nur eine Grundgebühr ein, die unabhängig vom Verbrauch anfällt.",
     methodNote:
       "Jeder kostenpflichtige Aufruf schreibt beim Ausführen eine Zeile mit der tatsächlich verbrauchten Menge. Bei OpenAI sind das die von der API gemeldeten Tokens, ein Korrektur-Versuch zählt also doppelt. Bei Apollo zählt jede freigeschaltete Adresse, auch wenn der Datensatz danach verworfen wurde.",
   },
@@ -253,10 +253,10 @@ const de = {
     listNamePlaceholder: "z.B. Pipedrive-Bestand Mai",
     withIcebreaker: "Aufhänger erzeugen lassen",
     withIcebreakerHint:
-      "Kostet einen Modellaufruf je Firma. Klappt nur, wo die Datei eine Website mitbringt — ohne Quelle bleibt der Aufhänger leer, statt erfunden zu werden.",
+      "Kostet einen Modellaufruf je Firma. Klappt nur mit Website in der Datei, sonst bleibt der Aufhänger leer statt erfunden.",
     openList: "Liste öffnen →",
     description:
-      "Kontakte aus einer CSV-Datei übernehmen, etwa einem Pipedrive-Export. Spaltenzuordnung und Vorschau vorweg — ein Import lässt sich nicht rückgängig machen.",
+      "Kontakte aus einer CSV-Datei übernehmen, etwa einem Pipedrive-Export. Spaltenzuordnung und Vorschau vorweg, ein Import lässt sich nicht rückgängig machen.",
     pickFile: "CSV-Datei wählen",
     pickHint: "Trennzeichen und Spalten werden erkannt",
     tooShort: "Die Datei enthält keine Datenzeilen.",
@@ -264,7 +264,7 @@ const de = {
     otherFile: "Andere Datei",
     noHeader: "(ohne Überschrift)",
     targetLabels: {
-      ignore: "— nicht übernehmen —",
+      ignore: "nicht übernehmen",
       first_name: "Vorname",
       last_name: "Nachname",
       full_name: "Name",
@@ -288,7 +288,7 @@ const de = {
   customFields: {
     heading: "Eigene Felder",
     description:
-      "Zusatzangaben, die es hier noch nicht gibt — Branche, Vertragsende, Zuständigkeit. Sie erscheinen im aufgeklappten Datensatz.",
+      "Zusatzangaben, die es noch nicht gibt: Branche, Vertragsende, Zuständigkeit. Sie erscheinen im aufgeklappten Datensatz.",
     entityLabels: { contact: "Kontakt", business: "Firma", deal: "Deal" } as Record<string, string>,
     typeLabels: {
       text: "Text",
@@ -305,7 +305,7 @@ const de = {
       `Feld „${label}" entfernen? Bereits erfasste Werte bleiben gespeichert, werden aber nicht mehr angezeigt.`,
     needsOptions: "Ein Auswahlfeld braucht mindestens eine Möglichkeit.",
     footnote:
-      "Der technische Schlüssel entsteht einmal aus der Beschriftung und ändert sich danach nicht mehr — eine Umbenennung kostet also keine Daten.",
+      "Der technische Schlüssel entsteht einmal aus der Beschriftung und ändert sich danach nicht mehr: Umbenennen kostet keine Daten.",
     detailsHeading: "Eigene Felder",
     notSet: "nicht gesetzt",
     errors: {
@@ -333,9 +333,9 @@ const de = {
       stale_reminder:
         "Kontakte, bei denen etwas läuft, die aber seit einer Weile unberührt sind, kommen auf Wiedervorlage. Höchstens 25 pro Tag, damit die Anrufliste nicht überläuft.",
       no_reply_linkedin:
-        "Wer angeschrieben wurde und nicht geantwortet hat, landet automatisch in der LinkedIn-Liste — aber nur, wenn ein Profil hinterlegt ist. Der zweite Kanal kostet nichts und verdoppelt die Chance, gesehen zu werden.",
+        "Wer angeschrieben wurde und nicht geantwortet hat, landet automatisch in der LinkedIn-Liste, wenn ein Profil hinterlegt ist. Der zweite Kanal kostet nichts und verdoppelt die Chance, gesehen zu werden.",
       no_reply_call:
-        "Bleibt es still, kommt der Anruf in die Anrufliste. Nur wo eine Nummer da ist, und erst wenn die LinkedIn-Aufgabe erledigt ist — es entsteht immer nur ein nächster Schritt.",
+        "Bleibt es still, kommt der Anruf in die Anrufliste: nur mit Nummer, und erst nach der LinkedIn-Aufgabe. Es entsteht immer nur ein nächster Schritt.",
     } as Record<string, string>,
     staleAfter: "Nach",
     chainAfter: "Warten",
@@ -353,7 +353,7 @@ const de = {
     senderLabel: "Unterschrift",
     senderPlaceholder: "Youssef",
     hint:
-      "Beides darf leer bleiben. Ohne Terminlink wird dem Modell ausdrücklich verboten, einen zu erfinden — es schlägt dann konkrete Zeitfenster vor. Sonst stünde eine plausible, tote Adresse in einer echten Geschäftsmail, und das fällt erst dem Empfänger auf.",
+      "Beides darf leer bleiben. Ohne Terminlink erfindet das Modell keinen, sondern schlägt konkrete Zeitfenster vor: sonst stünde eine tote Adresse in einer echten Mail, und das fällt erst dem Empfänger auf.",
   },
   replyNotify: {
     heading: "Benachrichtigung bei Antworten",
@@ -373,7 +373,7 @@ const de = {
   searchActions: {
     trashTitle: "In den Papierkorb",
     trashConfirm:
-      "Diese Liste in den Papierkorb legen?\n\nDamit verschwindet sie aus „Alle Leads\", aus LinkedIn, aus der Kampagnen-Auswahl und aus der Pipeline — dort bleiben nur gewonnene Kunden stehen. Ein Abo wird abgeschaltet.\n\nBereits angeschriebene Kontakte werden im Archiv gemerkt und nie erneut angeschrieben. Noch nicht kontaktierte Firmen zählen dagegen nicht mehr im Dublettenschutz: eine spätere Suche kann sie erneut kaufen (bei Apollo rund 2 Credits pro Lead).\n\nWenn du nur aufräumen willst, nimm stattdessen „Archivieren\".",
+      "Diese Liste in den Papierkorb legen?\n\nSie verschwindet aus „Alle Leads\", aus LinkedIn, aus der Kampagnen-Auswahl und aus der Pipeline. Nur gewonnene Kunden bleiben dort. Ein Abo wird abgeschaltet.\n\nBereits angeschriebene Kontakte bleiben im Archiv gemerkt und werden nie erneut angeschrieben. Firmen ohne Kontakt zählen nicht mehr im Dublettenschutz: eine spätere Suche kann sie erneut kaufen (bei Apollo rund 2 Credits pro Lead).\n\nZum Aufräumen reicht stattdessen „Archivieren\".",
     // Abbrechen ist NICHT Loeschen: der Papierkorb ruehrt den laufenden Job
     // nicht an, er wuerde weiter Credits verbrauchen (Migration 0086).
     cancel: "Abbrechen",
@@ -381,7 +381,7 @@ const de = {
     cancelConfirm:
       "Suche wirklich abbrechen? Bereits gefundene Leads bleiben erhalten, es werden aber keine weiteren mehr geholt.",
     cancelled: "Suche abgebrochen. Es werden keine weiteren Credits verbraucht.",
-    cancelTooLate: "Die Suche war schon fertig — es gab nichts mehr abzubrechen.",
+    cancelTooLate: "Die Suche war schon fertig, es gab nichts mehr abzubrechen.",
     delete: "Löschen",
     restore: "Wiederherstellen",
     hardDeleteConfirm: "Liste und alle zugehörigen Leads endgültig löschen? Das kann nicht rückgängig gemacht werden.",
@@ -448,7 +448,7 @@ const de = {
     preset: {
       save: "Als Vorlage speichern",
       saveTitle:
-        "Filter dieser Suche unter einem Namen sichern — sie stehen danach im Suchformular zur Auswahl.",
+        "Filter dieser Suche unter einem Namen sichern, sie stehen danach im Suchformular zur Auswahl.",
       namePlaceholder: "Name der Vorlage",
       cancel: "Abbrechen",
       saved: (name: string) => `Vorlage „${name}" gespeichert.`,
@@ -505,7 +505,7 @@ const de = {
     apolloSenioritiesHint: "Nur diese Stufen werden angefragt. Je niedriger die Stufe, desto mehr Treffer, aber auch mehr Credits für Leute ohne Entscheidungsbefugnis.",
     apolloSegments: "Marktsegmente",
     apolloSegmentsHint:
-      "Mehrere Segmente sind ein ODER. Einzelne schneiden hart — „Non-Profit“ und „B2B2C“ ließen in einer Testsuche von 2.443 Treffern nur 2 bzw. 4 übrig. Nichts anhaken heißt: alle.",
+      "Mehrere Segmente sind ein ODER. Einzelne schneiden hart: „Non-Profit“ und „B2B2C“ ließen in einer Testsuche von 2.443 Treffern nur 2 bzw. 4 übrig. Nichts anhaken heißt: alle.",
     apolloSegmentLabels: {
       b2b: "B2B",
       b2c: "B2C",
@@ -584,9 +584,9 @@ const de = {
     coveragePreview: (combinations: number, niches: number, cities: number, companies: number, leads: number) =>
       `→ ${combinations} Suchen (${niches} Nischen × ${cities} Städte), insgesamt bis zu ${companies} durchsuchte Firmen. Konservativ geschätzt ~${leads} Leads mit E-Mail.`,
     coverageQueueHint:
-      "Die Warteschlange arbeitet die Suchen nacheinander ab. Je nach Auslastung dauert das deutlich länger als eine einzelne Suche — eine feste Zeit lässt sich nicht zusagen.",
+      "Die Warteschlange arbeitet die Suchen nacheinander ab. Je nach Auslastung dauert das länger als eine einzelne Suche, eine feste Zeit lässt sich nicht zusagen.",
     coverageCityLimit: (target: number, needed: number, available: number, estimated: number) =>
-      `Für ${target} Leads bräuchte es ${needed} Städte, unsere Liste für dieses Land hat ${available}. Mehr als ~${estimated} Leads sind daraus nicht zu holen — für mehr Volumen ein zweites Land oder eine zweite Nische nehmen.`,
+      `Für ${target} Leads bräuchte es ${needed} Städte, unsere Liste für dieses Land hat ${available}. Mehr als ~${estimated} Leads gibt das nicht her: für mehr Volumen ein zweites Land oder eine zweite Nische nehmen.`,
     coverageFanoutLimit: (target: number, needed: number, max: number) =>
       `Für ${target} Leads bräuchte es ${needed} Städte. Pro Absenden sind ${max} Kombinationen erlaubt: den Rest als zweite Tranche starten, sobald du siehst, was die erste tatsächlich hergibt.`,
     coverageTooManyNiches: (max: number) =>
@@ -658,7 +658,7 @@ const de = {
     } as Record<string, string>,
     searchFilterPrefix: "Suche: ",
     fromList: "Aus Lead-Liste:",
-    fromListTitle: "Lead-Liste, aus der diese Firma stammt — klicken zum Öffnen.",
+    fromListTitle: "Lead-Liste, aus der diese Firma stammt: klicken zum Öffnen.",
     onlyWithEmail: "Nur mit E-Mail",
     onlyWithPhone: "Nur mit Telefonnummer",
     onlyWithPhoneTitle: "Zeigt nur Firmen mit einer Telefonnummer: eigene Durchwahl des Kontakts oder Firmennummer.",
@@ -677,7 +677,7 @@ const de = {
     trafficRankTitle: (quelle: string): string =>
       quelle === "tranco"
         ? "Popularitätsrang der Website laut Tranco (täglich aktualisiert, Top 1 Mio.). Kleiner = größer. Keine Besuchszahl."
-        : "Popularitätsrang der Website laut Apollo (Alexa-Altbestand, seit 2022 nicht mehr aktualisiert). Kleiner = größer. Keine Besuchszahl — und wo nichts steht, heißt das „unbekannt“, nicht „wenig“.",
+        : "Popularitätsrang der Website laut Apollo (Alexa-Altbestand, seit 2022 nicht mehr aktualisiert). Kleiner = größer, keine Besuchszahl. Fehlt der Wert, heißt das „unbekannt“, nicht „wenig“.",
     columnLabels: {
       title: "Position", email: "E-Mail", phone: "Telefon", sources: "Quellen",
       company_summary: "Firmenbeschreibung", status: "Status",
@@ -722,7 +722,7 @@ const de = {
     pipelineVerifiedByApollo: "Von Apollo bereits verifiziert geliefert",
     pipelinePersonalize: "KI-Personalisierung",
     pipelinePersonalizeDone: "Eröffnungszeile generiert",
-    pipelinePersonalizeRunning: "wird gerade erzeugt — dauert meist unter einer Minute",
+    pipelinePersonalizeRunning: "wird gerade erzeugt, dauert meist unter einer Minute",
     companySummaryHeading: "Firmenbeschreibung",
     personalizationHeading: "Personalisierung",
     websiteFindingHeading: "Website Befund",
@@ -983,7 +983,7 @@ const de = {
   linkedin: {
     title: "LinkedIn",
     subtitle:
-      "Kontakte mit LinkedIn-Profil, mit fertiger Nachricht daneben. Geschrieben wird in LinkedIn selbst — es gibt dort keine Schnittstelle für Nachrichten, und Automatisierung kostet das Konto. Hier stehen Vorbereitung und Protokoll.",
+      "Kontakte mit LinkedIn-Profil, mit fertiger Nachricht daneben. LinkedIn hat keine Schnittstelle für Nachrichten, und Automatisierung kostet das Konto: hier stehen nur Vorbereitung und Protokoll.",
     filterOnlyWithoutEmail: "Nur ohne E-Mail-Adresse",
     filterHideContacted: "Bereits angeschriebene ausblenden",
     // Übersicht
@@ -1000,10 +1000,10 @@ const de = {
     cardFollowUpsDue: (n: number) => `${n} × Antwort prüfen`,
     followUpsDueBanner: (n: number) =>
       n === 1
-        ? "Bei 1 Kontakt ist die Antwort-Prüfung fällig — schau kurz auf LinkedIn nach."
-        : `Bei ${n} Kontakten ist die Antwort-Prüfung fällig — schau kurz auf LinkedIn nach.`,
+        ? "Bei 1 Kontakt ist die Antwort-Prüfung fällig: kurz auf LinkedIn nachsehen."
+        : `Bei ${n} Kontakten ist die Antwort-Prüfung fällig: kurz auf LinkedIn nachsehen.`,
     truncatedRows: (max: number) =>
-      `Es wurden ${max} Profile geladen — die Zahlen unten können dadurch zu niedrig sein.`,
+      `Es wurden ${max} Profile geladen, die Zahlen unten können dadurch zu niedrig sein.`,
     // Detailansicht
     backToLists: "Alle Lead-Listen",
     progress: (done: number, total: number) => `${done} von ${total} angeschrieben`,
@@ -1012,7 +1012,7 @@ const de = {
     templateHide: "Vorlage zuklappen",
     templateHeading: "Nachrichtenvorlage",
     templateHint:
-      "Gilt für alle Nachrichten. Variablen werden pro Empfänger ersetzt — fehlt der Icebreaker, verschwindet sein Absatz spurlos.",
+      "Gilt für alle Nachrichten. Variablen werden pro Empfänger ersetzt: fehlt der Icebreaker, verschwindet sein Absatz spurlos.",
     insertVariable: "Variable einfügen:",
     variableFirstName: "{{firstName}}",
     variableCompanyName: "{{companyName}}",
@@ -1038,12 +1038,12 @@ const de = {
     templateFromOffer: "Aus Angebot erzeugen",
     templateGenerating: "Schreibt...",
     templateTooLong: (ist: number, max: number) =>
-      `Mit eingesetztem Aufhänger rund ${ist} Zeichen — LinkedIn erlaubt ${max}. Bitte kürzen, sonst schneidet LinkedIn mitten im Satz ab.`,
+      `Mit Aufhänger rund ${ist} Zeichen, LinkedIn erlaubt ${max}. Bitte kürzen, sonst schneidet LinkedIn mitten im Satz ab.`,
     templateIsDefault: "Standardvorlage",
     templateUnknownPlaceholders: (names: string) =>
       `rot = kein gültiger Platzhalter, landet wörtlich beim Empfänger: ${names}`,
     badgeNoEmail: "keine E-Mail",
-    badgeNoEmailTitle: "Für diesen Kontakt ist LinkedIn der einzige Weg — per Kampagne nicht erreichbar.",
+    badgeNoEmailTitle: "Für diesen Kontakt ist LinkedIn der einzige Weg, per Kampagne nicht erreichbar.",
     badgeNoIcebreaker: "kein Icebreaker",
     badgeContacted: "angeschrieben",
     copyButton: "Nachricht kopieren",
@@ -1075,22 +1075,22 @@ const de = {
     // muesste der Nutzer selbst nachhalten, wen er wann angeschrieben hat.
     followUpSubject: "Antwort auf LinkedIn prüfen",
     followUpPlanned: (day: string) => `Nachfassen am ${day}`,
-    followUpDue: "Antwort prüfen — heute fällig.",
+    followUpDue: "Antwort prüfen: heute fällig.",
     followUpNoAnswer: "Keine Antwort",
-    followUpDismissed: "Abgehakt — der Kontakt bleibt in der Kette.",
+    followUpDismissed: "Abgehakt, der Kontakt bleibt in der Kette.",
     filterFollowUpsDue: (n: number) => `${n} × Antwort prüfen`,
     loggedWithFollowUp: (days: number) =>
       `Protokolliert. In ${days} Tagen wird an die Antwort-Prüfung erinnert.`,
     replyEffect:
-      "Dieser Kontakt bekommt danach keine Kalt-Mail mehr — weder in einer neuen Kampagne noch beim Nachreichen von Leads, und die Kette plant für ihn keinen nächsten Schritt.",
+      "Dieser Kontakt bekommt danach keine Kalt-Mail mehr: weder in einer neuen Kampagne noch beim Nachreichen von Leads, und die Kette plant keinen nächsten Schritt für ihn.",
     openLead: "Lead öffnen",
     emptyState:
-      "Keine Kontakte mit LinkedIn-Profil. Die Profile kommen aus Apollo und der KI-Recherche — starte eine Suche, dann füllt sich die Liste.",
+      "Keine Kontakte mit LinkedIn-Profil. Profile kommen aus Apollo und der KI-Recherche: starte eine Suche, dann füllt sich die Liste.",
     emptyFiltered: "Keine Kontakte für diese Filter.",
   },
   calls: {
     title: "Anrufliste",
-    subtitle: "Alles Fällige über alle Leads: Anrufe, Rückrufe, Termine, Aufgaben. Gewählt wird mit dem eigenen Telefon. Hier stehen Nummer, Vorbereitung und Ergebnis.",
+    subtitle: "Alles Fällige über alle Leads: Anrufe, Rückrufe, Termine, Aufgaben. Gewählt wird mit dem eigenen Telefon, hier stehen Nummer, Vorbereitung und Ergebnis.",
     sectionOverdue: "Überfällig",
     sectionToday: "Heute",
     sectionTomorrow: "Morgen",
@@ -1143,7 +1143,7 @@ const de = {
   pipeline: {
     title: "Pipeline",
     subtitle:
-      "Alle Kontakte nach Stufe. In der Liste siehst du Kontaktweg, letzten Kontakt und was ansteht — im Board den Trichter.",
+      "Alle Kontakte nach Stufe: die Liste zeigt Kontaktweg, letzten Kontakt und was ansteht, das Board den Trichter.",
     loading: "Lade Pipeline...",
     // Ansichten
     viewList: "Liste",
@@ -1151,7 +1151,7 @@ const de = {
     viewDeals: "Deals",
     dealCount: (n: number) => (n === 1 ? "1 Deal" : `${n} Deals`),
     weighted: (value: string) => `gewichtet ${value}`,
-    weightedHint: "Wert mal Abschlusswahrscheinlichkeit — die ehrlichere Prognose.",
+    weightedHint: "Wert mal Abschlusswahrscheinlichkeit: die ehrlichere Prognose.",
     expectedClose: "Erwarteter Abschluss",
     dealStaleTitle: (days: number) => `Seit ${days} Tagen unverändert.`,
     dealsEmpty: "Noch keine offenen Deals.",
@@ -1188,7 +1188,7 @@ const de = {
     planCallback: "Rückruf",
     inDays: (d: number) => (d === 1 ? "morgen" : `+${d} T`),
     callbackSubject: "Rückruf",
-    callbackPlanned: (day: string) => `Rückruf für ${day} geplant — steht jetzt in der Anrufliste`,
+    callbackPlanned: (day: string) => `Rückruf für ${day} geplant, steht jetzt in der Anrufliste`,
     dueOn: (day: string) => `fällig ${day}`,
     dueOverdue: (day: string) => `überfällig seit ${day}`,
     openInCallList: "In der Anrufliste öffnen",
@@ -1237,7 +1237,7 @@ const de = {
     replySend: "Antwort senden",
     suggest: "Vorschläge",
     suggesting: "Denkt nach...",
-    suggestHint: "Klick übernimmt den Entwurf ins Textfeld — dort noch anpassen, bevor du sendest.",
+    suggestHint: "Klick übernimmt den Entwurf ins Textfeld, dort anpassen vor dem Senden.",
     suggestError: "Vorschläge konnten nicht erzeugt werden.",
     replySending: "Sendet...",
     replySentToast: "Antwort gesendet",
@@ -1245,11 +1245,11 @@ const de = {
     replySubjectPrefix: "Re: ",
     unsubscribedBadge: "Abgemeldet",
     unsubscribedNote:
-      "Diese Adresse steht auf der Blockliste und bekommt aus keiner Kampagne mehr Post. Antworten ist hier deshalb gesperrt — nimm sie unter Einstellungen › Blockliste heraus, wenn das ein Irrtum war.",
+      "Diese Adresse steht auf der Blockliste und bekommt aus keiner Kampagne mehr Post. Antworten ist deshalb gesperrt: bei einem Irrtum unter Einstellungen › Blockliste entfernen.",
   },
   blocklist: {
     title: "Blockliste",
-    subtitle: "Bestandskunden & bereits kontaktierte Leads: werden nie angezeigt, nie exportiert und bei neuen Suchen gar nicht erst recherchiert.",
+    subtitle: "Bestandskunden und bereits kontaktierte Leads: nie angezeigt, nie exportiert, bei neuen Suchen nicht recherchiert.",
     addHeading: "Einträge hinzufügen",
     addHint1: "E-Mails blockieren die Person, Domains (z.B.",
     addHint2: ") die ganze Firma. Einfach einfügen: eine pro Zeile oder mit Komma getrennt. CSV-Upload nimmt automatisch alle enthaltenen E-Mail-Adressen.",
@@ -1272,13 +1272,13 @@ const de = {
     removeSelected: "Auswahl entfernen",
     removeSelectedConfirm: (n: number) => `${n} Einträge von der Blockliste entfernen?`,
     removedMultiple: (n: number) => `${n} Einträge entfernt.`,
-    archiveHeading: (n: number) => `Bereits angeschrieben — aus gelöschten Listen (${n})`,
+    archiveHeading: (n: number) => `Bereits angeschrieben, aus gelöschten Listen (${n})`,
     archiveHint:
-      "Wenn du eine Lead-Liste löschst, merkt sich Frostbreaker jeden Kontakt daraus, der schon angeschrieben wurde. Diese Adressen kommen in keine neue Kampagne mehr, und ihre Firmen werden bei einer neuen Suche übersprungen — du zahlst also nicht zweimal für dieselben Leads. Nie kontaktierte Leads stehen hier bewusst nicht: die darfst du wiederfinden.",
+      "Löschst du eine Lead-Liste, merkt sich Frostbreaker jeden bereits angeschriebenen Kontakt daraus. Diese Adressen kommen in keine neue Kampagne mehr, ihre Firmen werden bei einer neuen Suche übersprungen: du zahlst nicht zweimal für dieselben Leads. Nie kontaktierte Leads stehen hier bewusst nicht, die darfst du wiederfinden.",
     archiveRelease: "Freigeben",
     archiveReleaseTitle: "Nimmt den Eintrag aus dem Archiv. Danach darf dieser Kontakt wieder angeschrieben werden.",
     archiveReleaseConfirm: (wen: string) =>
-      `„${wen}" wieder freigeben?\n\nDer Kontakt kann danach erneut gefunden und angeschrieben werden — und kostet dabei erneut Credits.`,
+      `„${wen}" wieder freigeben?\n\nDer Kontakt kann danach erneut gefunden und angeschrieben werden und kostet dabei erneut Credits.`,
     archiveReleased: "Freigegeben.",
     archiveTruncated: (gezeigt: number, gesamt: number) =>
       `${gezeigt} von ${gesamt} angezeigt.`,
@@ -1306,7 +1306,7 @@ const de = {
     keyTestOk: (anbieter: string) => `${anbieter}-Key ist gültig.`,
     keyTestFail: (anbieter: string) => `${anbieter} hat den Key abgelehnt oder ist nicht erreichbar.`,
     keyTestTitle:
-      "Kostenloser Prüfaufruf, verbraucht keine Credits. Sagt nur, ob der Key gültig ist — nicht, ob dein Tarif alle Filter freigibt.",
+      "Kostenloser Prüfaufruf, verbraucht keine Credits. Sagt nur, ob der Key gültig ist, nicht ob dein Tarif alle Filter freigibt.",
     replaceKeyPlaceholder: "Neuen Key eingeben zum Ersetzen",
     keyPlaceholder: "API-Key",
     save: "Speichern",
@@ -1318,7 +1318,7 @@ const de = {
     sections: {
       "/settings/keys": {
         title: "API-Schlüssel",
-        hint: "Google Maps, OpenAI, Hunter, Apollo, NeverBounce — verschlüsselt gespeichert.",
+        hint: "Google Maps, OpenAI, Hunter, Apollo, NeverBounce: verschlüsselt gespeichert.",
       },
       "/settings/automations": {
         title: "Automatisierungen",
@@ -1330,7 +1330,7 @@ const de = {
       },
       "/settings/team": {
         title: "Team",
-        hint: "Eigene Zugänge für deine Leute, mit Rollen — statt eines geteilten Passworts.",
+        hint: "Eigene Zugänge für deine Leute, mit Rollen statt einem geteilten Passwort.",
       },
       "/settings/mcp": {
         title: "Claude-Zugang",
@@ -1402,14 +1402,14 @@ const de = {
       // Anleitung und die Website nennen; eine zweite Empfehlung waere
       // genau die Sorte Widerspruch, die niemand aufloest.
       warmupDay: (d: number, target: number) => `Aufwärmen: Tag ${d} von ${target}`,
-      warmupReady: "Aufgewärmt — bereit für den Versand",
+      warmupReady: "Aufgewärmt, bereit für den Versand",
       warmupPaused: "Aufwärmen pausiert",
       warmupUnknown: "Aufwärmen läuft (Startzeitpunkt unbekannt)",
       warmupBlockedTitle: "Instantly hat das Aufwärmen für dieses Postfach gesperrt",
       warmupBlockedWhy:
-        "Das passiert, wenn ein Postfach Warmup-Mails anderer Nutzer abweist — meistens, weil die DNS-Einträge (SPF, DKIM, DMARC) fehlen oder falsch sind. Solange die Sperre besteht, wärmt dieses Postfach nicht auf.",
+        "Das passiert, wenn ein Postfach Warmup-Mails anderer Nutzer abweist, meistens weil DNS-Einträge (SPF, DKIM, DMARC) fehlen oder falsch sind. Solange die Sperre besteht, wärmt dieses Postfach nicht auf.",
       warmupBlockedSteps: [
-        "Zuerst die DNS-Einträge prüfen — ohne das sperrt Instantly gleich wieder.",
+        "Zuerst die DNS-Einträge prüfen, sonst sperrt Instantly gleich wieder.",
         "In Instantly unter „Email Accounts“ auf das rote Flammen-Symbol neben diesem Postfach klicken.",
         "„Request Reactivation Code“ wählen. Der Code geht an genau diese Adresse.",
         "Den Code im Postfach abholen (auch im Spam nachsehen) und in Instantly eintragen.",
@@ -1423,8 +1423,8 @@ const de = {
       warmupSummaryAllReadyOn: (date: string) => `alle bereit ab ${date}`,
       warmupSummaryBlocked: (n: number) =>
         n === 1
-          ? "1 Postfach ist von Instantly gesperrt und wärmt nicht auf — siehe unten."
-          : `${n} Postfächer sind von Instantly gesperrt und wärmen nicht auf — siehe unten.`,
+          ? "1 Postfach ist von Instantly gesperrt und wärmt nicht auf, siehe unten."
+          : `${n} Postfächer sind von Instantly gesperrt und wärmen nicht auf, siehe unten.`,
       startWarmup: "Warmup starten",
       pauseWarmup: "Warmup pausieren",
       warmupEnabled: "Warmup gestartet",
@@ -1491,7 +1491,7 @@ const de = {
       doneButton: "Fertig",
       kindConnector: "Konnektor",
       // Die Zustimmungsseite (/oauth/authorize). Der eine Moment, in dem ein
-      // Mensch entscheidet — deshalb steht dort, WER fragt, WOHIN es danach
+      // Mensch entscheidet, deshalb steht dort, WER fragt, WOHIN es danach
       // geht und WAS die Anwendung darf, und nicht mehr.
       consentTitle: (client: string) => `${client} mit Frostbreaker verbinden`,
       consentAs: (email: string, ziel: string) =>
@@ -1530,22 +1530,22 @@ const de = {
       // erkennbar ist, was ersetzt gehoert.
       setupTokenPlaceholder: "fbk_mcp_DEIN_TOKEN",
       setupTokenPlaceholderHint:
-        "In den Schnipseln steht ein Platzhalter statt eines echten Tokens. Setz deinen eigenen dafür ein — zu sehen ist er nur direkt nach dem Erzeugen.",
+        "In den Schnipseln steht ein Platzhalter statt eines echten Tokens. Setz deinen eigenen dafür ein, er ist nur direkt nach dem Erzeugen sichtbar.",
       setupClaudeCodeLabel: "Claude Code",
       setupClaudeCodeHint: "Claude Code verbindet sich direkt mit einem entfernten MCP-Server: Adresse und Token in die Konfiguration eintragen, fertig.",
       setupClaudeDesktopLabel: "Claude Desktop",
       setupClaudeDesktopHint:
-        "Nur für ältere Fassungen ohne Konnektoren. Die Brücke mcp-remote, gestartet über npx, übernimmt die Verbindung stellvertretend; Node.js muss dafür installiert sein. Wenn dein Claude Desktop Konnektoren kennt, nimm den Weg oben — dieser hier ist die fehleranfälligere Variante.",
+        "Nur für ältere Fassungen ohne Konnektoren. Die Brücke mcp-remote, gestartet über npx, übernimmt die Verbindung stellvertretend; Node.js muss dafür installiert sein. Kennt dein Claude Desktop Konnektoren, nimm den Weg oben: dieser hier ist fehleranfälliger.",
       setupClaudeDesktopSteps: [
-        "In Claude Desktop: Einstellungen → Entwickler → Konfiguration bearbeiten. Das öffnet die richtige Datei, egal wo sie liegt — such sie nicht selbst, der Pfad unterscheidet sich je nach Installationsart.",
+        "In Claude Desktop: Einstellungen → Entwickler → Konfiguration bearbeiten. Das öffnet die richtige Datei, egal wo sie liegt, nicht selbst suchen: der Pfad unterscheidet sich je nach Installationsart.",
         "Den Block unten hineinkopieren. Steht dort schon ein mcpServers-Abschnitt, kommt frostbreaker als weiterer Eintrag hinein.",
         "Speichern.",
         "Claude Desktop VOLLSTÄNDIG beenden, nicht nur das Fenster schließen: Rechtsklick auf das Symbol im Infobereich neben der Uhr, dann Beenden. Danach neu öffnen.",
       ] as string[],
       setupClaudeDesktopQuitWarning:
-        "Schritt 4 ist der, an dem die meisten scheitern. Claude Desktop läuft nach dem Schließen des Fensters im Hintergrund weiter und liest die Konfiguration dann nicht neu — es sieht so aus, als hätte der Eintrag nicht funktioniert.",
+        "Schritt 4 ist der, an dem die meisten scheitern. Claude Desktop läuft nach dem Schließen des Fensters im Hintergrund weiter und liest die Konfiguration nicht neu: es sieht so aus, als hätte der Eintrag nicht funktioniert.",
       setupWebNote:
-        "Ein von Hand erzeugter Token läuft nur ab, wenn du oben eine Gültigkeit gewählt hast. Über claude.ai im Browser lässt er sich nicht eintragen — dort geht ausschließlich der Konnektor.",
+        "Ein von Hand erzeugter Token läuft nur ab, wenn du oben eine Gültigkeit gewählt hast. Über claude.ai im Browser lässt er sich nicht eintragen, dort geht ausschließlich der Konnektor.",
       emptyTitle: "Noch kein Token",
       emptyBody: "Hier stehen deine Zugriffstoken für Claude, sobald du den ersten erzeugt hast.",
       colName: "Name",
@@ -1623,9 +1623,9 @@ const de = {
       newPageTitle: "Neue Kampagne",
       variants: {
         stepLabel: (n: number) => `Schritt ${n}`,
-        singleVariant: "nur eine Fassung — kein Vergleich möglich",
+        singleVariant: "nur eine Fassung, kein Vergleich möglich",
         needMore: (n: number) => `noch ${n} Sendungen bis zur Mindestmenge`,
-        tooClose: "zu knapp beieinander — der Unterschied kann Zufall sein",
+        tooClose: "zu knapp beieinander, der Unterschied kann Zufall sein",
         winnerIs: (letter: string) => `Variante ${letter} gewinnt`,
         verdicts: {
           winner: "gewinnt",
@@ -1640,7 +1640,7 @@ const de = {
         colRate: "Antwortquote",
         empty: "Noch keine Auswertung. Sie entsteht, sobald die Kampagne sendet.",
         openTrackingOff:
-          "Öffnungen werden für diese Kampagne nicht gezählt. Die Spalte bleibt deshalb leer — das ist keine Aussage über die Mails.",
+          "Öffnungen werden für diese Kampagne nicht gezählt. Die Spalte bleibt deshalb leer, das sagt nichts über die Mails aus.",
         methodNote:
           "Gemessen an eindeutigen Antworten je gesendeter Mail. Ein Gewinner wird erst genannt, wenn jede Fassung mindestens 50 Mails hinter sich hat und der Abstand einem Zufallstest standhält.",
       },
@@ -1703,7 +1703,7 @@ const de = {
         removeVariant: (letter: string) => `Variante ${letter} löschen`,
         disableVariant: (letter: string) => `${letter} abschalten`,
         enableVariant: (letter: string) => `${letter} wieder senden`,
-        lastVariantHint: "Die letzte sendende Fassung lässt sich nicht abschalten — der Schritt würde dann nichts mehr verschicken.",
+        lastVariantHint: "Die letzte sendende Fassung lässt sich nicht abschalten, sonst verschickt der Schritt nichts mehr.",
         variantDisabledHint: (letter: string) =>
           `Variante ${letter} ist abgeschaltet: sie bleibt in der Auswertung stehen, wird aber nicht mehr versendet.`,
         variantHint:
@@ -1711,7 +1711,7 @@ const de = {
         trackingLabel: "Messung",
         openTracking: "Öffnungen zählen",
         openTrackingHint:
-          "Setzt ein unsichtbares Zählpixel in jede Mail. Zeigt, ob gelesen wurde — ist aber eines der Merkmale, an denen Spamfilter kalte Massenmails erkennen.",
+          "Setzt ein unsichtbares Zählpixel in jede Mail. Zeigt, ob gelesen wurde, ist aber eines der Merkmale, an denen Spamfilter kalte Massenmails erkennen.",
         linkTracking: "Klicks zählen",
         linkTrackingHint:
           "Schreibt jeden Link auf eine Weiterleitung um. Kostet zusätzlich Vertrauen, weil die sichtbare Adresse nicht mehr das Ziel ist.",
@@ -1729,7 +1729,7 @@ const de = {
         dailyLimitPlaceholder: "Tageslimit",
         dailyLimitLabel: "Max. Mails/Tag",
         dailyLimitHint:
-          "Mehr Mails verschickt diese Kampagne pro Tag nicht, verteilt auf die ausgewählten Mailboxen. Bei frischen Domains niedrig anfangen (10–20) und langsam steigern: ein Schwall am ersten Tag kostet dauerhaft Zustellbarkeit.",
+          "Mehr Mails verschickt diese Kampagne pro Tag nicht, verteilt auf die ausgewählten Mailboxen. Bei frischen Domains niedrig anfangen (10 bis 20) und langsam steigern: ein Schwall am ersten Tag kostet dauerhaft Zustellbarkeit.",
         create: "Kampagne anlegen (als Entwurf)",
         creating: "Wird angelegt…",
         created: "Kampagne angelegt, noch als Entwurf: starte sie auf der Kampagnenseite.",
@@ -1882,7 +1882,7 @@ const de = {
           retry: "Erneut versuchen",
           empty: "Diese Kampagne hat noch keine Leads.",
           truncated:
-            "Sehr große Kampagne — es wurden nicht alle Leads geladen. Nutze die Suche, um gezielt nachzusehen.",
+            "Sehr große Kampagne, es wurden nicht alle Leads geladen. Nutze die Suche, um gezielt nachzusehen.",
         },
         addingLeads: "Fügt hinzu…",
         noNewLeads: "Keine neuen Leads verfügbar.",
@@ -1901,7 +1901,7 @@ const de = {
     subtitle: "Wer an diesem Workspace arbeiten darf.",
     inviteTitle: "Jemanden einladen",
     inviteHint:
-      "Die Einladung gilt f\u00fcr die Adresse, nicht f\u00fcr ein Konto. Wer sich mit ihr anmeldet, landet direkt hier \u2014 ohne eigenen leeren Workspace. Sag der Person selbst Bescheid: wir verschicken daf\u00fcr keine Mail.",
+      "Die Einladung gilt f\u00fcr die Adresse, nicht f\u00fcr ein Konto. Wer sich mit ihr anmeldet, landet direkt hier, ohne eigenen leeren Workspace. Sag der Person selbst Bescheid, wir verschicken daf\u00fcr keine Mail.",
     emailPlaceholder: "name@agentur.de",
     inviteButton: "Einladen",
     invited: "Eingeladen. Die Person landet hier, sobald sie sich mit dieser Adresse anmeldet.",
@@ -1910,13 +1910,13 @@ const de = {
     listTitle: "Mitglieder",
     loading: "Lädt …",
     you: "(du)",
-    pending: "Einladung offen \u2014 noch nicht angemeldet",
+    pending: "Einladung offen, noch nicht angemeldet",
     remove: "Entfernen",
     removeConfirm: "{email} aus diesem Workspace entfernen?",
     removed: "Entfernt.",
     lastAdmin: "Der letzte Admin kann nicht entfernt oder herabgestuft werden.",
     lastAdminNote:
-      "Du bist der einzige Admin. Solange das so ist, l\u00e4sst sich dieser Zugang nicht entfernen oder herabstufen \u2014 sonst st\u00fcnde der Workspace ohne jemanden da, der noch einladen kann.",
+      "Du bist der einzige Admin. Solange das so ist, l\u00e4sst sich dieser Zugang nicht entfernen oder herabstufen, sonst st\u00fcnde der Workspace ohne jemanden da, der noch einladen kann.",
     memberNote: "Einladen, Rollen \u00e4ndern und Entfernen k\u00f6nnen nur Admins dieses Workspaces.",
     roleAdmin: "Admin",
     roleMember: "Mitglied",
@@ -1924,7 +1924,7 @@ const de = {
     adminRights:
       "Alles aus Mitglied, dazu: einladen, Rollen \u00e4ndern, entfernen, Workspace umbenennen und die API-Schl\u00fcssel sehen und \u00e4ndern.",
     memberRights:
-      "Suchen anlegen, Leads bearbeiten, Kampagnen starten, Postfach, Pipeline, Anrufliste und LinkedIn \u2014 alles Operative. Nicht: API-Schl\u00fcssel, Team und Abo.",
+      "Suchen anlegen, Leads bearbeiten, Kampagnen starten, Postfach, Pipeline, Anrufliste und LinkedIn: alles Operative. Nicht: API-Schl\u00fcssel, Team und Abo.",
   },
   branding: {
     heading: "Branding & Report-Link",
@@ -1959,7 +1959,7 @@ const de = {
     subtitle:
       "Was du verkaufst, an wen und mit welchem Nutzen. Daraus schreibt die App deine Mail-Sequenz und deine LinkedIn-Vorlage.",
     coreLabel: "Zustand",
-    coreReady: "Bereit — die Sequenz kann geschrieben werden.",
+    coreReady: "Bereit: die Sequenz kann geschrieben werden.",
     coreMissing: (n: number) =>
       n === 1 ? "Noch ein Pflichtfeld, dann kann die Sequenz entstehen." : `Noch ${n} Pflichtfelder, dann kann die Sequenz entstehen.`,
     /** Die Herkunft eines Vorschlags, nicht seine Gattung: dass es ein
@@ -2003,12 +2003,12 @@ const de = {
     websiteSubtitle: "Spart das Abtippen: die App liest die Seite und schlägt die Felder unten vor.",
     websitePlaceholder: "deine-firma.de",
     websiteHint:
-      "Nichts wird automatisch übernommen — jeder Vorschlag steht unter seinem Feld, du entscheidest einzeln. Vier Felder bleiben bewusst leer, weil sie nicht auf deiner Seite stehen, sondern Entscheidungen sind: was du schickst, wie lange das dauert, deine eine Frage und der Ton.",
+      "Nichts wird automatisch übernommen, jeder Vorschlag steht unter seinem Feld, du entscheidest einzeln. Vier Felder bleiben bewusst leer, weil sie Entscheidungen sind statt Fakten von deiner Seite: was du schickst, wie lange das dauert, deine eine Frage und der Ton.",
     signatureHeading: "Absender",
     signatureSubtitle: "Unter welchem Namen geht die Mail raus?",
     signaturePlaceholder: "Beste Grüße\nYoussef\nFrostbreaker",
     signatureHint:
-      "Steht unter jeder Mail. Bleibt das Feld leer, endet die Mail ohne Unterschrift — die KI denkt sich keinen Namen aus.",
+      "Steht unter jeder Mail. Bleibt das Feld leer, endet die Mail ohne Unterschrift: die KI denkt sich keinen Namen aus.",
     readWebsite: "Aus Website übernehmen",
     reading: "Liest...",
     suggestionsReady: (n: number) => `${n} Vorschläge aus der Website`,
@@ -2020,9 +2020,9 @@ const de = {
      */
     websiteProduct: {
       heading: "Worum soll es in diesem Angebot gehen?",
-      hint: "Core hat auf deiner Website mehr als ein Produkt oder eine Leistung gefunden. Ein Angebot beschreibt immer nur eines davon — für das zweite legst du später ein eigenes an.",
+      hint: "Core hat auf deiner Website mehr als ein Produkt oder eine Leistung gefunden. Ein Angebot beschreibt immer nur eines, für das zweite legst du später ein eigenes an.",
       other: "Etwas anderes",
-      otherPlaceholder: "z. B. Chatarmin — WhatsApp-Marketing für Shops",
+      otherPlaceholder: "z. B. Chatarmin, WhatsApp-Marketing für Shops",
       confirm: "Weiter",
     },
     /** Der zweite Kern, „Aim": dasselbe Angebot, zugeschnitten auf EINE
@@ -2052,7 +2052,7 @@ const de = {
         heading: (liste: string) => `Worum geht es bei „${liste}"?`,
         hint: "Aim hat in deinem Angebot mehr als ein Produkt oder eine Leistung gefunden. Für eine Liste gilt immer nur eines davon.",
         other: "Etwas anderes",
-        otherPlaceholder: "z. B. Chatarmin — WhatsApp-Marketing für Shops",
+        otherPlaceholder: "z. B. Chatarmin, WhatsApp-Marketing für Shops",
         confirm: "Weiter",
       },
     },
@@ -2074,15 +2074,15 @@ const de = {
       },
       problem: {
         label: "Welches Problem hat der Kunde vorher?",
-        hint: "Das, was ihn stört, bevor er dich kennt. Prüffrage: Wenn das 90 Tage so weiterläuft — was kostet ihn das?",
+        hint: "Das, was ihn stört, bevor er dich kennt. Prüffrage: Was kostet es ihn, wenn das 90 Tage so weiterläuft?",
       },
       friction: {
         label: "Woran genau bleibt er hängen?",
-        hint: "Der EINE Punkt, kurz bevor jemand Geld ausgeben würde. Etwas, das dein Kunde selbst nachsehen kann — nicht „veraltete Website\", sondern „das Buchungsformular fragt neun Felder ab\".",
+        hint: "Der EINE Punkt, kurz bevor jemand Geld ausgeben würde. Etwas, das dein Kunde selbst nachsehen kann: nicht „veraltete Website\", sondern „das Buchungsformular fragt neun Felder ab\".",
       },
       friction_reason: {
         label: "Warum lässt das Käufer zögern?",
-        hint: "Beobachtetes Verhalten, kein Vorwurf. Passend zum Beispiel oben: „Sie fangen das Formular an, sehen neun Pflichtfelder und brechen ab.\" Beschreib, was der Besucher TUT — nicht, was die Firma falsch macht.",
+        hint: "Beobachtetes Verhalten, kein Vorwurf. Passend zum Beispiel oben: „Sie fangen das Formular an, sehen neun Pflichtfelder und brechen ab.\" Beschreib, was der Besucher TUT, nicht was die Firma falsch macht.",
       },
       outcome: {
         label: "Was ist danach anders?",
@@ -2090,11 +2090,11 @@ const de = {
       },
       mechanism: {
         label: "Wie entsteht das Ergebnis?",
-        hint: "In einem Satz und ohne Werkzeugwörter — kein „KI\", kein „Agent\", kein Produktname. Steht nie in der ersten Mail, trägt aber die Antwort, wenn jemand Ja sagt.",
+        hint: "In einem Satz und ohne Werkzeugwörter: kein „KI\", kein „Agent\", kein Produktname. Steht nie in der ersten Mail, trägt aber die Antwort, wenn jemand Ja sagt.",
       },
       proof: {
         label: "Womit kannst du das belegen?",
-        hint: "Referenzen, Ergebnisse, Jahre. Leer lassen, wenn es nichts gibt — dann erfindet die KI ausdrücklich nichts.",
+        hint: "Referenzen, Ergebnisse, Jahre. Leer lassen, wenn es nichts gibt: dann erfindet die KI nichts.",
       },
       preview_asset: {
         label: "Was schickst du, wenn er Ja sagt?",
@@ -2106,7 +2106,7 @@ const de = {
       },
       cta: {
         label: "Die eine Frage, auf die er Ja oder Nein sagt",
-        hint: "Eine Zeile, ein Fragezeichen, keine zweite Option. Kein Termin, kein Kalenderlink — die steht wortgleich in allen vier Mails.",
+        hint: "Eine Zeile, ein Fragezeichen, keine zweite Option. Kein Termin, kein Kalenderlink: sie steht wortgleich in allen vier Mails.",
       },
       tone: {
         label: "Wie soll es klingen?",
@@ -2139,7 +2139,7 @@ const de = {
       apply: "Übernehmen",
       dismiss: "Passt so",
       related: (feld: string) => `Gehört eher in: ${feld}`,
-      hint: "Core liest dein Angebot gegen das Playbook — nicht den Text, sondern ob jedes Feld seine Frage beantwortet.",
+      hint: "Core liest dein Angebot gegen das Playbook: nicht den Text, sondern ob jedes Feld seine Frage beantwortet.",
     },
     /** Die vier Abschnitte des Formulars. */
     stages: {
@@ -2157,7 +2157,7 @@ const de = {
       },
       ask: {
         label: "Worum du bittest",
-        hint: "Eine Frage — in allen vier Mails dieselbe.",
+        hint: "Eine Frage, in allen vier Mails dieselbe.",
       },
     },
     /**
@@ -2202,7 +2202,7 @@ const de = {
     saveState: {
       saving: "Speichert...",
       saved: "Gespeichert",
-      failed: "Nicht gespeichert — nochmal versuchen",
+      failed: "Nicht gespeichert, nochmal versuchen",
       hint: "Änderungen werden automatisch gespeichert.",
     },
     /** Die Befunde der Playbook-Prüfungen, unter dem jeweiligen Feld. */
@@ -2211,10 +2211,10 @@ const de = {
       outcomeNoTimeframe: "Kein Zeitrahmen. Ohne „in X Tagen\" wirkst du wie eine Dauerberatung, und der Kunde schiebt die Entscheidung.",
       outcomeNoNumber: "Keine Zahl. Ein Ergebnis, das man nicht messen kann, kann der Kunde intern nicht rechtfertigen.",
       mechanismJargon: (w: string[]) =>
-        `Werkzeugwörter im Mechanismus: ${w.join(", ")}. Der Kunde kauft ein Ergebnis, kein Werkzeug — beschreib, was passiert.`,
+        `Werkzeugwörter im Mechanismus: ${w.join(", ")}. Der Kunde kauft ein Ergebnis, kein Werkzeug: beschreib, was passiert.`,
       microYesMultiline: "Mehr als eine Zeile. Zwei Fragen sind keine Entscheidung mehr.",
       microYesNoQuestion: "Keine Frage. Ohne Fragezeichen gibt es nichts, worauf man Ja sagt.",
-      microYesMeeting: "Das ist eine Terminbitte. Sie ist die größte Bitte, die eine Kaltmail stellen kann — deshalb wird sie am häufigsten übergangen.",
+      microYesMeeting: "Das ist eine Terminbitte, die größte Bitte, die eine Kaltmail stellen kann. Deshalb wird sie am häufigsten übergangen.",
       microYesLink: "Ein Link gehört nicht in die Frage. Der kommt, wenn jemand Ja gesagt hat.",
       microYesTooLong: "Zu lang für eine Ja/Nein-Frage. Kürz sie auf einen Satz.",
       reviewTimeMissing: "Du versprichst etwas, sagst aber nicht, wie lange es dauert. Genau das entscheidet, ob jemand hinsieht.",
@@ -2230,11 +2230,11 @@ const de = {
     offerLabel: "Angebot",
     stepNames: ["Erstkontakt", "Blickwinkel", "Nachfrage", "Abschied"],
     sayWorking: "Ich schreibe vier Stufen mit je zwei Fassungen.",
-    sayDone: "Fertig. Lies drüber, ändere was du willst — abgeschickt ist nichts.",
+    sayDone: "Fertig. Lies drüber, ändere was du willst, abgeschickt ist nichts.",
     generate: "Sequenz erzeugen",
     working: "Schreibt...",
     done: "Sequenz eingefügt",
-    hint: "Vier Stufen mit je zwei Fassungen aus deinem Angebot. Du kannst danach alles ändern — abgeschickt wird nichts.",
+    hint: "Vier Stufen mit je zwei Fassungen aus deinem Angebot. Du kannst danach alles ändern, abgeschickt wird nichts.",
     noOffer: "Dafür braucht die App zuerst dein Angebot: was du verkaufst, an wen und mit welchem Nutzen.",
     createOffer: "Angebot anlegen",
     // Der zweite, leisere Weg: dieselben vier Stufen, ohne Modellaufruf.
@@ -2253,12 +2253,12 @@ const de = {
       unknownTags: (tags: string) => `Diese Platzhalter ersetzt Instantly nicht: ${tags}`,
       dash: (step: number) => `In Stufe ${step} steht ein Gedankenstrich.`,
       variantsTooSimilar: (step: number) =>
-        `Die zwei Fassungen von Stufe ${step} sagen dasselbe — so misst der Vergleich nichts.`,
+        `Die zwei Fassungen von Stufe ${step} sagen dasselbe, so misst der Vergleich nichts.`,
       noGreeting: (step: number) => `Stufe ${step} hat keine Anrede.`,
       missingSignature: (step: number) => `Stufe ${step} endet ohne deine Unterschrift.`,
       noParagraphs: (step: number) => `Stufe ${step} ist ein Block ohne Absätze.`,
       personalizationLeadIn: (text: string) =>
-        `„${text}" steht vor dem Aufhänger — der ist schon ein ganzer Satz und braucht keine Einleitung.`,
+        `„${text}" steht vor dem Aufhänger, der ist schon ein ganzer Satz und braucht keine Einleitung.`,
       stepTooLong: (step: number, words: number, max: number) =>
         `Stufe ${step} hat ${words} Wörter, erlaubt sind ${max}. Jede Stufe ist kürzer als die davor.`,
       notShorter: (step: number) =>
@@ -2266,15 +2266,15 @@ const de = {
       subjectTooLong: (step: number, words: number, max: number) =>
         `Der Betreff von Stufe ${step} hat ${words} Wörter, erlaubt sind ${max}.`,
       subjectDrift: (step: number) =>
-        `Stufe ${step} hat einen anderen Betreff als Stufe 1 — die Nachfassmails gehören ins selbe Gespräch.`,
+        `Stufe ${step} hat einen anderen Betreff als Stufe 1, die Nachfassmails gehören ins selbe Gespräch.`,
       subjectNoMirror: (step: number) =>
         `Der Betreff von Stufe ${step} kündigt etwas anderes an als die Frage in der Mail.`,
       subjectIsMicroYes: (step: number) =>
-        `Der Betreff von Stufe ${step} ist die Frage selbst. Steht sie schon im Posteingang, hat die Mail nichts mehr zu sagen — benenne stattdessen, worum es geht.`,
+        `Der Betreff von Stufe ${step} ist die Frage selbst. Steht sie schon im Posteingang, hat die Mail nichts mehr zu sagen: benenne stattdessen, worum es geht.`,
       subjectAsks: (step: number) =>
         `Der Betreff von Stufe ${step} stellt eine Frage. Ein Betreff ist ein Schild, gefragt wird in der letzten Zeile.`,
       bannedPhrase: (step: number, phrase: string) =>
-        `In Stufe ${step} steht „${phrase}" — daran erkennt man Massenpost auf den ersten Blick.`,
+        `In Stufe ${step} steht „${phrase}", daran erkennt man Massenpost auf den ersten Blick.`,
       meetingAsk: (step: number) =>
         `Stufe ${step} bittet um einen Termin. Das ist die größte Bitte, die eine Kaltmail stellen kann.`,
       copiedNote: (step: number, text: string) =>
@@ -2372,11 +2372,11 @@ const de = {
     watch: {
       title: "Laufende Überwachung",
       subtitle:
-        "Einmal täglich werden die DNS-Einträge aller verbundenen Absender-Domains geprüft. Gemeldet wird, wenn etwas kaputtgeht — nicht täglich derselbe Zustand.",
+        "Einmal täglich werden die DNS-Einträge aller verbundenen Absender-Domains geprüft. Gemeldet wird nur, wenn etwas kaputtgeht.",
       noneYet: "Noch nichts geprüft. Der erste Durchlauf passiert automatisch, sobald ein Postfach verbunden ist.",
       autoPause: "Kampagne bei zu hoher Bounce-Quote automatisch anhalten",
       autoPauseHint:
-        "Ab 5 % Bounce (mindestens 50 gesendete Mails). Weiterzusenden kostet nicht die Kampagne, sondern den Ruf der Absender-Domain — und der kommt nicht zurück. Du bekommst eine Mail und kannst mit einem Klick fortsetzen.",
+        "Ab 5 % Bounce (mindestens 50 gesendete Mails). Weiterzusenden kostet nicht die Kampagne, sondern den Ruf der Absender-Domain, und der kommt nicht zurück. Du bekommst eine Mail und kannst mit einem Klick fortsetzen.",
     },
     title: "Zustellbarkeit",
     subtitle: "Prüfe SPF, DKIM und DMARC deiner Sende-Domain. Davon hängt ab, ob deine Mails im Posteingang landen statt im Spam.",
@@ -2486,8 +2486,8 @@ const de = {
     savedWithProblems: "Gespeichert, verstößt weiter gegen die Vorgaben.",
     saved: "Gespeichert.",
     empty: "Keine Aufhänger vorhanden. Sie entstehen automatisch, während eine Suche läuft.",
-    allClean: "Nichts zu prüfen — alle Aufhänger halten sich an die Vorgaben.",
-    truncated: "Sehr viele Zeilen — es werden die ersten 2000 gezeigt.",
+    allClean: "Nichts zu prüfen: alle Aufhänger halten sich an die Vorgaben.",
+    truncated: "Sehr viele Zeilen, es werden die ersten 2000 gezeigt.",
     // Der Ausgang aus der Sackgasse: schlägt das Laden fehl, stand die Liste
     // vorher unbegrenzt im Skelettzustand. Wortwahl wie bei der Mail-Vorschau
     // (instantly.campaigns.form.mailPreview.error/retry), es ist dieselbe Art
@@ -2509,7 +2509,7 @@ const de = {
     hidePassed: "Bestandene ausblenden",
     override: "Trotzdem starten",
     overrideHint:
-      "Die Blocker bleiben bestehen. Fehlende SPF- oder DKIM-Einträge bedeuten, dass ein großer Teil der Mails im Spam landet — und der Ruf der Absender-Domain leidet dauerhaft.",
+      "Die Blocker bleiben bestehen. Fehlende SPF- oder DKIM-Einträge bedeuten, dass ein großer Teil der Mails im Spam landet, und der Ruf der Absender-Domain leidet dauerhaft.",
     checks: {
       leads: {
         ok: (n: number) => `${n} sendbare Leads`,
@@ -2546,13 +2546,13 @@ const de = {
         ok: "Alle Leads haben einen Aufhänger",
         bad: (count: number, total: number, percent: number) =>
           `${count} von ${total} Leads (${percent} %) haben keinen Aufhänger`,
-        why: "Bei diesen Leads bleibt {{personalization}} leer — die Mail beginnt dann mitten im Satz.",
+        why: "Bei diesen Leads bleibt {{personalization}} leer, die Mail beginnt dann mitten im Satz.",
       },
       icebreakerFailing: {
         ok: "Die Aufhänger halten sich an die Vorgaben",
         bad: (count: number, total: number, percent: number) =>
           `${count} von ${total} Aufhängern (${percent} %) verstoßen gegen die Vorgaben`,
-        why: "Zu lang oder mit verbotenen Zeichen — beides fällt Empfängern als KI-Text auf.",
+        why: "Zu lang oder mit verbotenen Zeichen, beides fällt Empfängern als KI-Text auf.",
         action: "Aufhänger prüfen",
       },
       websiteFindingMissing: {
@@ -2581,7 +2581,7 @@ const de = {
   },
   effectiveness: {
     title: "Wirkung",
-    subtitle: "Was tatsächlich Antworten bringt — und was nur so aussieht.",
+    subtitle: "Was tatsächlich Antworten bringt, und was nur so aussieht.",
     contacted: "Angeschrieben",
     replied: "Geantwortet",
     rate: "Antwortquote",
@@ -2593,15 +2593,15 @@ const de = {
     byWeekday: "Nach Wochentag",
     byWeekdayHint: "Wochentag des Versands, nicht der Antwort.",
     byHour: "Nach Tageszeit",
-    byHourHint: "In Blöcken von drei Stunden — einzelne Stunden wären 24 Zahlen, von denen keine etwas bedeutet.",
-    thin: (n: number) => `${n} — zu wenig`,
+    byHourHint: "In Blöcken von drei Stunden, einzelne Stunden wären 24 Zahlen, von denen keine etwas bedeutet.",
+    thin: (n: number) => `${n}, zu wenig`,
     noData: "Noch keine Daten.",
     methodNote: (min: number) =>
       `Gemessen an Kontakten, nicht an Mails: eine Sequenz schickt mehrere Mails an dieselbe Person, und die eine Antwort darauf gehört nicht geteilt. Unter ${min} angeschriebenen Kontakten je Zeile wird bewusst keine Quote ausgewiesen.`,
 
     byCopy: "Nach Text",
     byCopyHint:
-      "Welcher Schritt und welche Fassung. Die Zuordnung kommt von Instantly selbst — eine Antwort trägt den Schritt der Mail, auf die sie antwortet.",
+      "Welcher Schritt und welche Fassung. Die Zuordnung kommt von Instantly selbst: eine Antwort trägt den Schritt der Mail, auf die sie antwortet.",
     step: "Schritt",
     variant: "Fassung",
     contacts: "Kontakte",
@@ -2613,11 +2613,11 @@ const de = {
     autoReplies: "Abwesenheit",
     noAttribution: "Noch keine zugeordneten Nachrichten.",
     orphaned: (n: number) =>
-      `${n} Nachrichten gehören zu Kampagnen, die es bei Instantly nicht mehr gibt — sie sind hier nicht mitgezählt.`,
+      `${n} Nachrichten gehören zu Kampagnen, die es bei Instantly nicht mehr gibt, sie sind hier nicht mitgezählt.`,
     bestStep: "bester Schritt",
     externalCampaign: "(nur bei Instantly)",
     unattributed: (n: number) =>
-      `${n} Nachrichten ohne Zuordnung — sie fehlen in dieser Auswertung.`,
+      `${n} Nachrichten ohne Zuordnung, sie fehlen in dieser Auswertung.`,
     copyWarning:
       "Eine Antwortquote allein ist die falsche Zielgröße: eine Fassung kann führen und trotzdem nur Absagen sammeln. Die Spalte, auf die es ankommt, ist Termine.",
 
@@ -2673,7 +2673,7 @@ const de = {
   prospeo: {
     modeLabel: "Prospeo",
     modeHint:
-      "Firma, Entscheider und geprüfte Adresse in einem Lauf — wie Apollo, aber mit Filtern, die es sonst nirgends gibt: wer gerade Stellen ausschreibt, wie viel Website-Traffic eine Firma hat und welche Technik sie einsetzt.",
+      "Firma, Entscheider und geprüfte Adresse in einem Lauf, wie Apollo, aber mit Filtern, die es sonst nirgends gibt: wer gerade Stellen ausschreibt, wie viel Website-Traffic eine Firma hat und welche Technik sie einsetzt.",
     groupPerson: "Person",
     groupCompany: "Firma",
     groupStarter: "Technik, Stellen und Umsatz",
@@ -2693,7 +2693,7 @@ const de = {
     matchSimilar: "ähnlich",
     matchStrict: "streng",
     locations: "Orte der Firma",
-    locationsHint: "Werte kommen von Prospeo — tippen und aus der Liste wählen. Frei getippte Orte kennt Prospeo nicht.",
+    locationsHint: "Werte kommen von Prospeo, tippen und aus der Liste wählen. Frei getippte Orte kennt Prospeo nicht.",
     locationsPlaceholder: "United States, Berlin …",
     industries: "Branchen",
     industriesPlaceholder: "Tippen, z. B. Retail",
@@ -2723,14 +2723,14 @@ const de = {
     trafficCountriesPlaceholder: "United States …",
     countryPct: "Mindestanteil dieser Länder in %",
     countryPctHint: "Nur zusammen mit Ländern verwendbar.",
-    maxReached: (n: number) => `Höchstens ${n} — Auswahl voll`,
+    maxReached: (n: number) => `Höchstens ${n}, Auswahl voll`,
     noSuggestions: "Keine Vorschläge.",
     countButton: "Treffer zählen",
     counting: "Zähle …",
     countCost: "kostet 1 Prospeo-Credit",
     countResult: (n: number) => `${n.toLocaleString("de-DE")} Treffer`,
     countCapped: (n: number) => `abrufbar sind ${n.toLocaleString("de-DE")}`,
-    needsFilter: "Mindestens ein Filter muss gesetzt sein — sonst läuft die Suche durch 200 Millionen Kontakte.",
+    needsFilter: "Mindestens ein Filter muss gesetzt sein, sonst läuft die Suche durch 200 Millionen Kontakte.",
     errorPlan: (tarif: string) => `Prospeo hat abgelehnt: ein Filter braucht den ${tarif}-Tarif.`,
     errorInvalidFilters: "Prospeo hat einen Filterwert abgelehnt.",
     errorNoKey: "Kein Prospeo-Key hinterlegt.",
@@ -2741,18 +2741,18 @@ const de = {
   providerAlerts: {
     title: (provider: string) => `${provider}: Guthaben aufgebraucht`,
     body:
-      "Die Lead-Suche kommt deshalb nicht weiter. Die betroffenen Jobs sind nicht verloren — sie sind zurückgestellt und laufen von allein weiter, sobald du aufgeladen hast.",
+      "Die Lead-Suche kommt deshalb nicht weiter. Die betroffenen Jobs sind nicht verloren, sondern zurückgestellt: sie laufen von allein weiter, sobald du aufgeladen hast.",
     since: (when: string) => `Seit ${when}`,
   },
   workerStatus: {
     downTitle: "Die Lead-Maschine läuft gerade nicht",
     downBody:
-      "Neue Suchen werden eingereiht, aber nicht abgearbeitet. Prüf zuerst, ob das Guthaben beim Hoster aufgebraucht ist — das ist die häufigste Ursache.",
+      "Neue Suchen werden eingereiht, aber nicht abgearbeitet. Prüf zuerst, ob das Guthaben beim Hoster aufgebraucht ist, das ist die häufigste Ursache.",
     lastSeen: (when: string) => `Zuletzt gemeldet: ${when}`,
     pendingWaiting: (n: number) => `${n} Jobs warten`,
     backlogTitle: "Die Warteschlange staut sich",
     backlogBody: (n: number) =>
-      `${n} Jobs sind fällig und noch nicht dran. Der Worker läuft, kommt aber nicht hinterher — das kann bei einer großen Suche normal sein und sollte sich von selbst auflösen.`,
+      `${n} Jobs sind fällig und noch nicht dran. Der Worker läuft, kommt aber nicht hinterher: das kann bei einer großen Suche normal sein und sollte sich von selbst auflösen.`,
     partial: (alive: number, total: number) =>
       `Nur ${alive} von ${total} Arbeitsprozessen antworten. Es läuft weiter, aber langsamer.`,
   },
@@ -2922,10 +2922,10 @@ const en: Dictionary = {
       `Calculation: ${contacts} contacts with email × ${minC} min + ${icebreakers} icebreakers × ${minI} min, at €${rate}/h. Contacts without an address are not counted.`,
     roiSubscriptions: (monthly: number, days: number) =>
       `Costs include $${monthly.toFixed(2)}/month in plans, pro-rated for ${days} days.`,
-    roiNoSubscriptions: "Measured usage only — your plans for Instantly, Apollo and the rest are missing from this.",
+    roiNoSubscriptions: "Measured usage only: your plans for Instantly, Apollo and the rest are missing.",
     roiEnterCosts: "Enter them now",
     roiCostsSince: (date: string) =>
-      `Costs have only been recorded since ${date} — for the period before that they are missing, not zero.`,
+      `Costs have only been recorded since ${date}: earlier costs are missing, not zero.`,
     instantlySent: "Sent (Instantly)",
     instantlyReplies: "unique replies",
     instantlyBounceRate: "Bounce rate",
@@ -2975,7 +2975,7 @@ const en: Dictionary = {
     groupBadge: (teilsuchen: number) => `${teilsuchen} sub-searches`,
     groupProgress: (fertig: number, gesamt: number) => `${fertig}/${gesamt} sub-searches done`,
     groupFailed: (fehlgeschlagen: number, gesamt: number) =>
-      `${fehlgeschlagen} of ${gesamt} sub-searches failed — the leads from the rest are all in this list.`,
+      `${fehlgeschlagen} of ${gesamt} sub-searches failed, the leads from the rest are all in this list.`,
     searchingBusinesses: "Searching for companies",
     enriching: "Enriching",
     done: "Done",
@@ -3009,16 +3009,16 @@ const en: Dictionary = {
     movedToast: (n: number) => (n === 1 ? "List moved." : `${n} lists moved.`),
     archive: "Archive",
     archiveTitle:
-      "Hides the list here. Leads, LinkedIn, campaigns and duplicate protection stay untouched — unlike deleting.",
+      "Hides the list only here. Leads, LinkedIn, campaigns and duplicate protection stay untouched, unlike deleting.",
     archiveSection: "Archive",
     archiveHint:
-      "Archived lists are hidden here only. Their leads stay usable in \"All Leads\", in LinkedIn and in the campaign picker, and their companies still count for duplicate protection. A running subscription is stopped when archiving.",
+      "Archived lists are hidden here only. Their leads stay usable in \"All Leads\", LinkedIn and the campaign picker, their companies still count for duplicate protection. A running subscription is stopped when archiving.",
     unarchive: "Restore",
     archivedToast: (n: number) =>
       n === 1 ? "List archived. A subscription was stopped." : `${n} lists archived.`,
     unarchivedToast: (n: number) => (n === 1 ? "List restored." : `${n} lists restored.`),
     deleteConfirm: (n: number) =>
-      `Move ${n === 1 ? "this list" : `these ${n} lists`} to the trash?\n\nTheir leads disappear from "All Leads", from LinkedIn, from the campaign picker and from the pipeline — only won customers stay there. A subscription is switched off.\n\nContacts you already reached out to are kept in the archive and will never be contacted again. Companies you never reached out to no longer count for duplicate protection: a later search can buy them again.\n\nIf you only want to tidy up, use "Archive" instead.`,
+      `Move ${n === 1 ? "this list" : `these ${n} lists`} to the trash?\n\nLeads disappear from "All Leads", LinkedIn, the campaign picker and the pipeline. Only won customers stay. The subscription switches off.\n\nContacts you already reached stay in the archive and are never contacted again. Companies you never reached no longer count for duplicate protection: a later search can buy them again.\n\nTo just tidy up, use "Archive" instead.`,
     deletedToast: (n: number) =>
       n === 1 ? "Moved to the trash." : `${n} lists moved to the trash.`,
     restoredToast: (n: number) => (n === 1 ? "Restored." : `${n} lists restored.`),
@@ -3038,20 +3038,20 @@ const en: Dictionary = {
     tariffDependent: "depends on plan",
     planShare: (amount: string) => `${amount} plan (entered)`,
     creditsPerLead: (credits: string, leads: number, perLead: string) =>
-      `${credits} credits for ${leads} leads in this range — ${perLead} per lead. Apollo and Prospeo charge twice: once for the person's address, once for the company record.`,
+      `${credits} credits for ${leads} leads in this range, ${perLead} per lead. Apollo and Prospeo charge twice: for the person's address and for the company record.`,
     splitUsage: "Usage",
     splitPlans: "Plans",
     splitProRated: (monthly: number, days: number) =>
       `$${monthly.toFixed(2)}/month, pro-rated for ${days} days`,
     subsTitle: "What your plans cost",
     subsHint:
-      "Instantly has no countable call, and what an Apollo or Hunter credit is worth depends on the package you booked. The app cannot measure this — enter what you pay per month and the cost figure on the dashboard becomes correct. Leaving a field empty means \"I don't know\", 0 means \"free plan\".",
+      "Instantly has no countable call, and an Apollo or Hunter credit is worth a different amount per package. Enter what you pay per month and the dashboard figure becomes correct. Empty means \"I don't know\", 0 means \"free plan\".",
     subsPerMonth: "/month",
     subsTotal: "Together",
     subsSaved: "Plans saved",
     subsMeasuredBadge: "measured",
     subsMeasuredWarning:
-      "These providers bill per call and already appear with their actual usage in the table below. A monthly amount here is added on top — only enter it if you pay a base fee that applies regardless of usage.",
+      "These providers bill per call and already appear with their usage in the table below. Only enter a base fee here, one that applies regardless of usage.",
     methodNote:
       "Every paid call writes a row with the amount actually consumed as it runs. For OpenAI those are the tokens the API itself reports, so a correction attempt counts twice. For Apollo every revealed address counts, even when the record was discarded afterwards.",
   },
@@ -3062,10 +3062,10 @@ const en: Dictionary = {
     listNamePlaceholder: "e.g. Pipedrive backlog May",
     withIcebreaker: "Generate icebreakers",
     withIcebreakerHint:
-      "Costs one model call per company. Only works where the file brings a website — without a source the icebreaker stays empty rather than being invented.",
+      "Costs one model call per company. Only works with a website in the file, otherwise the icebreaker stays empty instead of invented.",
     openList: "Open list →",
     description:
-      "Bring contacts in from a CSV file, for example a Pipedrive export. Column mapping and a preview first — an import cannot be undone.",
+      "Bring contacts in from a CSV file, for example a Pipedrive export. Column mapping and a preview come first, an import cannot be undone.",
     pickFile: "Choose a CSV file",
     pickHint: "Delimiter and columns are detected",
     tooShort: "The file contains no data rows.",
@@ -3073,7 +3073,7 @@ const en: Dictionary = {
     otherFile: "Different file",
     noHeader: "(no header)",
     targetLabels: {
-      ignore: "— do not import —",
+      ignore: "do not import",
       first_name: "First name",
       last_name: "Last name",
       full_name: "Name",
@@ -3097,7 +3097,7 @@ const en: Dictionary = {
   customFields: {
     heading: "Custom fields",
     description:
-      "Extra details that do not exist here yet — industry, contract end, owner. They show up in the expanded record.",
+      "Extra details that don't exist yet: industry, contract end, owner. They show up in the expanded record.",
     entityLabels: { contact: "Contact", business: "Company", deal: "Deal" },
     typeLabels: { text: "Text", number: "Number", date: "Date", select: "Choice" },
     labelPlaceholder: "Label, e.g. Industry",
@@ -3109,7 +3109,7 @@ const en: Dictionary = {
       `Remove the field "${label}"? Values already captured stay stored but are no longer shown.`,
     needsOptions: "A choice field needs at least one option.",
     footnote:
-      "The technical key is derived once from the label and never changes afterwards — renaming costs no data.",
+      "The technical key is derived once from the label and never changes: renaming costs no data.",
     detailsHeading: "Custom fields",
     notSet: "not set",
     errors: {
@@ -3137,9 +3137,9 @@ const en: Dictionary = {
       stale_reminder:
         "Contacts with something in motion that have gone untouched for a while come back up. At most 25 per day, so the call list does not overflow.",
       no_reply_linkedin:
-        "Anyone who was mailed and did not reply lands in the LinkedIn list automatically — but only if a profile is on file. The second channel costs nothing and doubles the chance of being seen.",
+        "Anyone who was mailed and did not reply lands in the LinkedIn list automatically, if a profile is on file. The second channel costs nothing and doubles the chance of being seen.",
       no_reply_call:
-        "If it stays quiet, the call goes into the call list. Only where a number exists, and only once the LinkedIn task is done — there is always exactly one next step.",
+        "If it stays quiet, the call goes into the call list: only with a number, and only after the LinkedIn task. There is always exactly one next step.",
     },
     staleAfter: "After",
     chainAfter: "Wait",
@@ -3157,7 +3157,7 @@ const en: Dictionary = {
     senderLabel: "Sign-off",
     senderPlaceholder: "Youssef",
     hint:
-      "Both may stay empty. Without a booking link the model is explicitly forbidden from inventing one — it proposes concrete time slots instead. Otherwise a plausible, dead address ends up in a real business email, and only the recipient finds out.",
+      "Both may stay empty. Without a booking link the model won't invent one, it proposes concrete time slots instead: otherwise a dead address ends up in a real email, and only the recipient finds out.",
   },
   replyNotify: {
     heading: "Reply notifications",
@@ -3177,13 +3177,13 @@ const en: Dictionary = {
   searchActions: {
     trashTitle: "Move to trash",
     trashConfirm:
-      "Move this list to the trash?\n\nIt disappears from \"All Leads\", from LinkedIn, from the campaign picker and from the pipeline — only won customers stay there. A subscription is switched off.\n\nContacts you already reached out to are kept in the archive and will never be contacted again. Companies you never reached out to stop counting for duplicate protection: a later search can buy them again (around 2 Apollo credits per lead).\n\nIf you only want to tidy up, use \"Archive\" instead.",
+      "Move this list to the trash?\n\nIt disappears from \"All Leads\", from LinkedIn, from the campaign picker and from the pipeline. Only won customers stay there. A subscription is switched off.\n\nContacts you already reached out to are kept in the archive and will never be contacted again. Companies you never reached out to stop counting for duplicate protection: a later search can buy them again (around 2 Apollo credits per lead).\n\nTo just tidy up, use \"Archive\" instead.",
     cancel: "Cancel",
     cancelTitle: "Stops the running search before it spends more credits.",
     cancelConfirm:
       "Really cancel this search? Leads found so far are kept, but no further ones will be fetched.",
     cancelled: "Search cancelled. No further credits will be spent.",
-    cancelTooLate: "The search had already finished — there was nothing left to cancel.",
+    cancelTooLate: "The search had already finished, there was nothing left to cancel.",
     delete: "Delete",
     restore: "Restore",
     hardDeleteConfirm: "Permanently delete this list and all its leads? This cannot be undone.",
@@ -3244,7 +3244,7 @@ const en: Dictionary = {
     preset: {
       save: "Save as template",
       saveTitle:
-        "Store this search's filters under a name — they will show up in the search form afterwards.",
+        "Store this search's filters under a name, they will show up in the search form afterwards.",
       namePlaceholder: "Template name",
       cancel: "Cancel",
       saved: (name: string) => `Template "${name}" saved.`,
@@ -3294,7 +3294,7 @@ const en: Dictionary = {
     apolloSenioritiesHint: "Only these levels are requested. The lower the level, the more hits, but also more credits spent on people without buying authority.",
     apolloSegments: "Market segments",
     apolloSegmentsHint:
-      "Several segments act as an OR. Single ones cut hard — in a test search, “Non-profit” and “B2B2C” left only 2 and 4 of 2,443 hits. Selecting nothing means all of them.",
+      "Several segments act as an OR. Single ones cut hard: in a test search, “Non-profit” and “B2B2C” left only 2 and 4 of 2,443 hits. Selecting nothing means all of them.",
     apolloSegmentLabels: {
       b2b: "B2B",
       b2c: "B2C",
@@ -3371,9 +3371,9 @@ const en: Dictionary = {
     coveragePreview: (combinations: number, niches: number, cities: number, companies: number, leads: number) =>
       `→ ${combinations} searches (${niches} niches × ${cities} cities), up to ${companies} companies searched in total. Conservatively estimated ~${leads} leads with an email.`,
     coverageQueueHint:
-      "The queue works through the searches one after another. Depending on load this takes considerably longer than a single search — no fixed time can be promised.",
+      "The queue works through the searches one after another. Depending on load this takes longer than a single search, no fixed time can be promised.",
     coverageCityLimit: (target: number, needed: number, available: number, estimated: number) =>
-      `${target} leads would need ${needed} cities, our list for this country has ${available}. There are no more than ~${estimated} leads to get from it — for more volume add a second country or a second niche.`,
+      `${target} leads would need ${needed} cities, our list for this country has ${available}. No more than ~${estimated} leads are in there: add a second country or niche for more volume.`,
     coverageFanoutLimit: (target: number, needed: number, max: number) =>
       `${target} leads would need ${needed} cities. Each submit allows ${max} combinations: start the rest as a second batch once you see what the first one actually returns.`,
     coverageTooManyNiches: (max: number) =>
@@ -3442,7 +3442,7 @@ const en: Dictionary = {
     },
     searchFilterPrefix: "Search: ",
     fromList: "From lead list:",
-    fromListTitle: "Lead list this company came from — click to open.",
+    fromListTitle: "Lead list this company came from: click to open.",
     onlyWithEmail: "Only with email",
     onlyWithPhone: "Only with phone",
     onlyWithPhoneTitle: "Shows only companies with a phone number: the contact's own line or the company number.",
@@ -3461,7 +3461,7 @@ const en: Dictionary = {
     trafficRankTitle: (source: string): string =>
       source === "tranco"
         ? "Website popularity rank per Tranco (updated daily, top 1M). Lower = bigger. Not a visit count."
-        : "Website popularity rank per Apollo (legacy Alexa data, not updated since 2022). Lower = bigger. Not a visit count — and a missing rank means \"unknown\", not \"small\".",
+        : "Website popularity rank per Apollo (legacy Alexa data, not updated since 2022). Lower = bigger, not a visit count. A missing rank means \"unknown\", not \"small\".",
     columnLabels: {
       title: "Title", email: "Email", phone: "Phone", sources: "Sources",
       company_summary: "Company summary", status: "Status",
@@ -3506,7 +3506,7 @@ const en: Dictionary = {
     pipelineVerifiedByApollo: "Delivered already verified by Apollo",
     pipelinePersonalize: "AI personalization",
     pipelinePersonalizeDone: "Opening line generated",
-    pipelinePersonalizeRunning: "being generated — usually takes under a minute",
+    pipelinePersonalizeRunning: "being generated, usually takes under a minute",
     companySummaryHeading: "Company summary",
     personalizationHeading: "Personalization",
     websiteFindingHeading: "Website finding",
@@ -3757,7 +3757,7 @@ const en: Dictionary = {
   linkedin: {
     title: "LinkedIn",
     subtitle:
-      "Contacts with a LinkedIn profile, with the message ready next to them. You send from LinkedIn itself — there is no messaging API, and automation costs you the account. This page handles preparation and logging.",
+      "Contacts with a LinkedIn profile, with the message ready next to them. LinkedIn has no messaging API, and automation costs you the account: this page only handles preparation and logging.",
     filterOnlyWithoutEmail: "Only without an email address",
     filterHideContacted: "Hide already contacted",
     statLists: "Lead lists",
@@ -3773,17 +3773,17 @@ const en: Dictionary = {
     cardFollowUpsDue: (n: number) => `${n} × check for a reply`,
     followUpsDueBanner: (n: number) =>
       n === 1
-        ? "1 contact is due for a reply check — take a quick look on LinkedIn."
-        : `${n} contacts are due for a reply check — take a quick look on LinkedIn.`,
+        ? "1 contact is due for a reply check: take a quick look on LinkedIn."
+        : `${n} contacts are due for a reply check: take a quick look on LinkedIn.`,
     truncatedRows: (max: number) =>
-      `Loaded ${max} profiles — the counts below may therefore be too low.`,
+      `Loaded ${max} profiles, the counts below may therefore be too low.`,
     backToLists: "All lead lists",
     progress: (done: number, total: number) => `${done} of ${total} contacted`,
     templateShow: "Edit template",
     templateHide: "Collapse template",
     templateHeading: "Message template",
     templateHint:
-      "Applies to every message. Variables are replaced per recipient — if the icebreaker is missing, its paragraph disappears cleanly.",
+      "Applies to every message. Variables are replaced per recipient: if the icebreaker is missing, its paragraph disappears cleanly.",
     insertVariable: "Insert variable:",
     variableFirstName: "{{firstName}}",
     variableCompanyName: "{{companyName}}",
@@ -3809,12 +3809,12 @@ const en: Dictionary = {
     templateFromOffer: "Generate from offer",
     templateGenerating: "Writing...",
     templateTooLong: (ist: number, max: number) =>
-      `About ${ist} characters once the opening line is inserted — LinkedIn allows ${max}. Please shorten it, otherwise LinkedIn cuts mid-sentence.`,
+      `About ${ist} characters with the opening line inserted, LinkedIn allows ${max}. Please shorten it, otherwise LinkedIn cuts mid-sentence.`,
     templateIsDefault: "Default template",
     templateUnknownPlaceholders: (names: string) =>
       `red = not a valid placeholder, reaches the recipient verbatim: ${names}`,
     badgeNoEmail: "no email",
-    badgeNoEmailTitle: "LinkedIn is the only route for this contact — a campaign cannot reach them.",
+    badgeNoEmailTitle: "LinkedIn is the only route for this contact, a campaign cannot reach them.",
     badgeNoIcebreaker: "no icebreaker",
     badgeContacted: "contacted",
     copyButton: "Copy message",
@@ -3842,22 +3842,22 @@ const en: Dictionary = {
     replyLogged: "Reply logged",
     followUpSubject: "Check for a reply on LinkedIn",
     followUpPlanned: (day: string) => `Follow up on ${day}`,
-    followUpDue: "Check for a reply — due today.",
+    followUpDue: "Check for a reply: due today.",
     followUpNoAnswer: "No reply",
-    followUpDismissed: "Cleared — the contact stays in the chain.",
+    followUpDismissed: "Cleared, the contact stays in the chain.",
     filterFollowUpsDue: (n: number) => `${n} × check for a reply`,
     loggedWithFollowUp: (days: number) =>
       `Logged. You'll be reminded to check for a reply in ${days} days.`,
     replyEffect:
-      "This contact will not receive a cold email after this — not in a new campaign, not when leads are topped up, and the chain plans no next step for them.",
+      "This contact will not receive a cold email after this: not in a new campaign, not when leads are topped up, and the chain plans no next step for them.",
     openLead: "Open lead",
     emptyState:
-      "No contacts with a LinkedIn profile. Profiles come from Apollo and the AI research step — start a search and this list fills up.",
+      "No contacts with a LinkedIn profile. Profiles come from Apollo and the AI research step: start a search and this list fills up.",
     emptyFiltered: "No contacts for these filters.",
   },
   calls: {
     title: "Call list",
-    subtitle: "Everything due across all leads: calls, callbacks, meetings, tasks. You dial with your own phone. This is the number, the prep, and the outcome.",
+    subtitle: "Everything due across all leads: calls, callbacks, meetings, tasks. You dial with your own phone, this is the number, the prep, and the outcome.",
     sectionOverdue: "Overdue",
     sectionToday: "Today",
     sectionTomorrow: "Tomorrow",
@@ -3910,14 +3910,14 @@ const en: Dictionary = {
   pipeline: {
     title: "Pipeline",
     subtitle:
-      "All contacts by stage. The list shows how to reach them, when you last did, and what is due — the board shows the funnel.",
+      "All contacts by stage: the list shows how to reach them, when you last did, and what is due, the board shows the funnel.",
     loading: "Loading pipeline...",
     viewList: "List",
     viewBoard: "Contacts",
     viewDeals: "Deals",
     dealCount: (n: number) => (n === 1 ? "1 deal" : `${n} deals`),
     weighted: (value: string) => `weighted ${value}`,
-    weightedHint: "Value times probability — the more honest forecast.",
+    weightedHint: "Value times probability: the more honest forecast.",
     expectedClose: "Expected close",
     dealStaleTitle: (days: number) => `Unchanged for ${days} days.`,
     dealsEmpty: "No open deals yet.",
@@ -3951,7 +3951,7 @@ const en: Dictionary = {
     planCallback: "Callback",
     inDays: (d: number) => (d === 1 ? "tomorrow" : `+${d}d`),
     callbackSubject: "Callback",
-    callbackPlanned: (day: string) => `Callback planned for ${day} — it is now in the call list`,
+    callbackPlanned: (day: string) => `Callback planned for ${day}, it is now in the call list`,
     dueOn: (day: string) => `due ${day}`,
     dueOverdue: (day: string) => `overdue since ${day}`,
     openInCallList: "Open in the call list",
@@ -4000,7 +4000,7 @@ const en: Dictionary = {
     replySend: "Send reply",
     suggest: "Suggestions",
     suggesting: "Thinking...",
-    suggestHint: "Click to load a draft into the text box — adjust it there before you send.",
+    suggestHint: "Click to load a draft into the text box, adjust it there before you send.",
     suggestError: "Could not generate suggestions.",
     replySending: "Sending...",
     replySentToast: "Reply sent",
@@ -4008,7 +4008,7 @@ const en: Dictionary = {
     replySubjectPrefix: "Re: ",
     unsubscribedBadge: "Unsubscribed",
     unsubscribedNote:
-      "This address is on the blocklist and no campaign will mail it again. Replying is disabled here — take it off under Settings › Blocklist if that was a mistake.",
+      "This address is on the blocklist and no campaign will mail it again. Replying is disabled: remove it under Settings › Blocklist if that was a mistake.",
   },
   blocklist: {
     title: "Blocklist",
@@ -4035,13 +4035,13 @@ const en: Dictionary = {
     removeSelected: "Remove selection",
     removeSelectedConfirm: (n: number) => `Remove ${n} entries from the blocklist?`,
     removedMultiple: (n: number) => `${n} entries removed.`,
-    archiveHeading: (n: number) => `Already contacted — from deleted lists (${n})`,
+    archiveHeading: (n: number) => `Already contacted, from deleted lists (${n})`,
     archiveHint:
-      "When you delete a lead list, Frostbreaker remembers every contact in it you had already reached out to. Those addresses never enter a new campaign again, and their companies are skipped by new searches — so you don't pay twice for the same leads. Leads you never contacted are deliberately not listed here: those you are meant to find again.",
+      "Delete a lead list and Frostbreaker remembers every contact in it you already reached out to. Those addresses never enter a new campaign again, their companies are skipped by new searches: you don't pay twice for the same leads. Leads you never contacted are deliberately not listed here, those you are meant to find again.",
     archiveRelease: "Release",
     archiveReleaseTitle: "Takes the entry out of the archive. After that this contact may be reached out to again.",
     archiveReleaseConfirm: (who: string) =>
-      `Release "${who}" again?\n\nThe contact can then be found and contacted again — and will cost credits again.`,
+      `Release "${who}" again?\n\nThe contact can then be found and contacted again, and will cost credits again.`,
     archiveReleased: "Released.",
     archiveTruncated: (shown: number, total: number) => `Showing ${shown} of ${total}.`,
   },
@@ -4065,7 +4065,7 @@ const en: Dictionary = {
     keyTestOk: (provider: string) => `${provider} key is valid.`,
     keyTestFail: (provider: string) => `${provider} rejected the key or is unreachable.`,
     keyTestTitle:
-      "Free check call, consumes no credits. Only tells you the key is valid — not whether your plan unlocks every filter.",
+      "Free check call, consumes no credits. Only tells you the key is valid, not whether your plan unlocks every filter.",
     replaceKeyPlaceholder: "Enter a new key to replace it",
     keyPlaceholder: "API key",
     save: "Save",
@@ -4077,7 +4077,7 @@ const en: Dictionary = {
     sections: {
       "/settings/keys": {
         title: "API keys",
-        hint: "Google Maps, OpenAI, Hunter, Apollo, NeverBounce — stored encrypted.",
+        hint: "Google Maps, OpenAI, Hunter, Apollo, NeverBounce: stored encrypted.",
       },
       "/settings/automations": {
         title: "Automations",
@@ -4089,7 +4089,7 @@ const en: Dictionary = {
       },
       "/settings/team": {
         title: "Team",
-        hint: "Individual logins for your people, with roles — instead of one shared password.",
+        hint: "Individual logins for your people, with roles instead of one shared password.",
       },
       "/settings/mcp": {
         title: "Claude access",
@@ -4157,14 +4157,14 @@ const en: Dictionary = {
       deleteConfirm: (email: string) => `Really remove ${email}?`,
       warmupScore: "Warmup score",
       warmupDay: (d: number, target: number) => `Warmup: day ${d} of ${target}`,
-      warmupReady: "Warmed up — ready to send",
+      warmupReady: "Warmed up, ready to send",
       warmupPaused: "Warmup paused",
       warmupUnknown: "Warmup running (start time unknown)",
       warmupBlockedTitle: "Instantly disabled warmup for this mailbox",
       warmupBlockedWhy:
-        "This happens when a mailbox bounces warmup emails from other users — usually because DNS records (SPF, DKIM, DMARC) are missing or wrong. While the block is in place, this mailbox is not warming up.",
+        "This happens when a mailbox bounces warmup emails from other users, usually because DNS records (SPF, DKIM, DMARC) are missing or wrong. While the block is in place, this mailbox is not warming up.",
       warmupBlockedSteps: [
-        "Check the DNS records first — without that Instantly will block it again right away.",
+        "Check the DNS records first, otherwise Instantly will block it again right away.",
         "In Instantly, open “Email Accounts” and click the red flame icon next to this mailbox.",
         "Choose “Request Reactivation Code”. The code goes to this exact address.",
         "Pick the code up in that mailbox (check spam too) and enter it in Instantly.",
@@ -4178,8 +4178,8 @@ const en: Dictionary = {
       warmupSummaryAllReadyOn: (date: string) => `all ready from ${date}`,
       warmupSummaryBlocked: (n: number) =>
         n === 1
-          ? "1 mailbox is blocked by Instantly and is not warming up — see below."
-          : `${n} mailboxes are blocked by Instantly and are not warming up — see below.`,
+          ? "1 mailbox is blocked by Instantly and is not warming up, see below."
+          : `${n} mailboxes are blocked by Instantly and are not warming up, see below.`,
       startWarmup: "Start warmup",
       pauseWarmup: "Pause warmup",
       warmupEnabled: "Warmup started",
@@ -4279,22 +4279,22 @@ const en: Dictionary = {
       setupHeading: "Alternative: token by hand",
       setupTokenPlaceholder: "fbk_mcp_YOUR_TOKEN",
       setupTokenPlaceholderHint:
-        "The snippets contain a placeholder instead of a real token. Put your own in its place — it's only visible right after you create it.",
+        "The snippets contain a placeholder instead of a real token. Put your own in its place, it's only visible right after you create it.",
       setupClaudeCodeLabel: "Claude Code",
       setupClaudeCodeHint: "Claude Code connects to a remote MCP server directly: add the address and this token to its configuration, and that's it.",
       setupClaudeDesktopLabel: "Claude Desktop",
       setupClaudeDesktopHint:
-        "Only for older versions without connectors. The bridge mcp-remote, started via npx, makes the connection on its behalf; Node.js has to be installed for this. If your Claude Desktop knows connectors, take the route above — this one is the more fragile variant.",
+        "Only for older versions without connectors. The bridge mcp-remote, started via npx, makes the connection on its behalf; Node.js has to be installed for this. If your Claude Desktop knows connectors, take the route above: this one is the more fragile variant.",
       setupClaudeDesktopSteps: [
-        "In Claude Desktop: Settings → Developer → Edit Config. That opens the right file wherever it lives — don't go looking for it yourself, the path differs by install type.",
+        "In Claude Desktop: Settings → Developer → Edit Config. That opens the right file wherever it lives, don't go looking for it yourself: the path differs by install type.",
         "Paste the block below. If an mcpServers section is already there, add frostbreaker as another entry inside it.",
         "Save.",
         "Quit Claude Desktop COMPLETELY, don't just close the window: right-click its icon in the system tray, then Quit. Then open it again.",
       ] as string[],
       setupClaudeDesktopQuitWarning:
-        "Step 4 is where most people get stuck. Closing the window leaves Claude Desktop running in the background, where it never re-reads the config — and it looks like the entry simply didn't work.",
+        "Step 4 is where most people get stuck. Closing the window leaves Claude Desktop running in the background, where it never re-reads the config: it looks like the entry simply didn't work.",
       setupWebNote:
-        "A hand-made token only expires if you picked a validity above. It can't be entered in claude.ai in the browser — there, the connector is the only route.",
+        "A hand-made token only expires if you picked a validity above. It can't be entered in claude.ai in the browser, there the connector is the only route.",
       emptyTitle: "No token yet",
       emptyBody: "Your Claude access tokens will appear here once you create the first one.",
       colName: "Name",
@@ -4372,9 +4372,9 @@ const en: Dictionary = {
       newPageTitle: "New campaign",
       variants: {
         stepLabel: (n: number) => `Step ${n}`,
-        singleVariant: "only one version — nothing to compare",
+        singleVariant: "only one version, nothing to compare",
         needMore: (n: number) => `${n} more sends until the minimum`,
-        tooClose: "too close — the difference could be chance",
+        tooClose: "too close, the difference could be chance",
         winnerIs: (letter: string) => `Variant ${letter} wins`,
         verdicts: {
           winner: "wins",
@@ -4389,7 +4389,7 @@ const en: Dictionary = {
         colRate: "Reply rate",
         empty: "No results yet. They appear once the campaign starts sending.",
         openTrackingOff:
-          "Opens are not counted for this campaign. The column stays empty — that says nothing about the mails.",
+          "Opens are not counted for this campaign. The column stays empty, that says nothing about the mails.",
         methodNote:
           "Measured as unique replies per mail sent. A winner is only named once every version has at least 50 sends and the gap survives a chance test.",
       },
@@ -4447,7 +4447,7 @@ const en: Dictionary = {
         removeVariant: (letter: string) => `Delete variant ${letter}`,
         disableVariant: (letter: string) => `Turn ${letter} off`,
         enableVariant: (letter: string) => `Send ${letter} again`,
-        lastVariantHint: "The last sending version cannot be turned off — the step would stop sending anything.",
+        lastVariantHint: "The last sending version cannot be turned off, the step would stop sending anything.",
         variantDisabledHint: (letter: string) =>
           `Variant ${letter} is off: it stays in the results but is no longer sent.`,
         variantHint:
@@ -4455,7 +4455,7 @@ const en: Dictionary = {
         trackingLabel: "Tracking",
         openTracking: "Count opens",
         openTrackingHint:
-          "Puts an invisible pixel in every mail. Shows whether it was read — but it is one of the markers spam filters use to spot cold bulk mail.",
+          "Puts an invisible pixel in every mail. Shows whether it was read, but it is also one of the markers spam filters use to spot cold bulk mail.",
         linkTracking: "Count clicks",
         linkTrackingHint:
           "Rewrites every link through a redirect. Costs additional trust, because the visible address is no longer the destination.",
@@ -4473,7 +4473,7 @@ const en: Dictionary = {
         dailyLimitPlaceholder: "Daily limit",
         dailyLimitLabel: "Max. emails/day",
         dailyLimitHint:
-          "This campaign sends no more than this per day, spread across the selected mailboxes. Start low on fresh domains (10–20) and raise it slowly: a burst on day one costs you deliverability for good.",
+          "This campaign sends no more than this per day, spread across the selected mailboxes. Start low on fresh domains (10 to 20) and raise it slowly: a burst on day one costs you deliverability for good.",
         create: "Create campaign (as draft)",
         creating: "Creating…",
         created: "Campaign created, still a draft: start it from the campaigns page.",
@@ -4622,7 +4622,7 @@ const en: Dictionary = {
           retry: "Try again",
           empty: "This campaign has no leads yet.",
           truncated:
-            "Very large campaign — not all leads were loaded. Use search to look up specific ones.",
+            "Very large campaign, not all leads were loaded. Use search to look up specific ones.",
         },
         addingLeads: "Adding…",
         noNewLeads: "No new leads available.",
@@ -4639,7 +4639,7 @@ const en: Dictionary = {
     subtitle: "Who is allowed to work in this workspace.",
     inviteTitle: "Invite someone",
     inviteHint:
-      "The invitation is tied to the address, not to an account. Whoever signs up with it lands here directly \u2014 without an empty workspace of their own. Tell them yourself: we do not send an email for this.",
+      "The invitation is tied to the address, not to an account. Whoever signs up with it lands here directly, without an empty workspace of their own. Tell them yourself, we do not send an email for this.",
     emailPlaceholder: "name@agency.com",
     inviteButton: "Invite",
     invited: "Invited. They land here as soon as they sign up with this address.",
@@ -4648,13 +4648,13 @@ const en: Dictionary = {
     listTitle: "Members",
     loading: "Loading …",
     you: "(you)",
-    pending: "Invitation open \u2014 not signed up yet",
+    pending: "Invitation open, not signed up yet",
     remove: "Remove",
     removeConfirm: "Remove {email} from this workspace?",
     removed: "Removed.",
     lastAdmin: "The last admin cannot be removed or demoted.",
     lastAdminNote:
-      "You are the only admin. While that is the case, this access cannot be removed or demoted \u2014 otherwise the workspace would be left without anyone who can still invite.",
+      "You are the only admin. While that is the case, this access cannot be removed or demoted, otherwise the workspace would be left without anyone who can still invite.",
     memberNote: "Only admins of this workspace can invite, change roles and remove people.",
     roleAdmin: "Admin",
     roleMember: "Member",
@@ -4662,7 +4662,7 @@ const en: Dictionary = {
     adminRights:
       "Everything a member can, plus: invite, change roles, remove, rename the workspace, and view and change the API keys.",
     memberRights:
-      "Create searches, work on leads, start campaigns, inbox, pipeline, call list and LinkedIn \u2014 everything operational. Not: API keys, team and subscription.",
+      "Create searches, work on leads, start campaigns, inbox, pipeline, call list and LinkedIn: everything operational. Not: API keys, team and subscription.",
   },
   branding: {
     heading: "Branding & report link",
@@ -4697,7 +4697,7 @@ const en: Dictionary = {
     subtitle:
       "What you sell, to whom and with what benefit. The app writes your email sequence and LinkedIn template from this.",
     coreLabel: "Status",
-    coreReady: "Ready — the sequence can be written.",
+    coreReady: "Ready: the sequence can be written.",
     coreMissing: (n: number) =>
       n === 1 ? "One required field left, then the sequence can be written." : `${n} required fields left, then the sequence can be written.`,
     suggestionLabel: "From your website",
@@ -4731,12 +4731,12 @@ const en: Dictionary = {
     websiteSubtitle: "Saves the typing: the app reads the page and suggests the fields below.",
     websitePlaceholder: "your-company.com",
     websiteHint:
-      "Nothing is applied automatically — every suggestion sits under its field and you decide one by one. Four fields stay empty on purpose because they are not on your page but decisions: what you send, how long it takes, your one question, and the tone.",
+      "Nothing is applied automatically, every suggestion sits under its field and you decide one by one. Four fields stay empty on purpose because they are decisions rather than facts on your page: what you send, how long it takes, your one question, and the tone.",
     signatureHeading: "Sender",
     signatureSubtitle: "Which name does the email go out under?",
     signaturePlaceholder: "Best,\nYoussef\nFrostbreaker",
     signatureHint:
-      "Sits under every email. Leave it empty and the email ends without a signature — the AI does not make up a name.",
+      "Sits under every email. Leave it empty and the email ends without a signature: the AI does not make up a name.",
     readWebsite: "Read from website",
     reading: "Reading...",
     suggestionsReady: (n: number) => `${n} suggestions from the website`,
@@ -4744,9 +4744,9 @@ const en: Dictionary = {
      *  product or service. Plain wording, not a final copy pass. */
     websiteProduct: {
       heading: "Which one should this offer be about?",
-      hint: "Core found more than one product or service on your website. An offer is always about just one of them -- you can add a second offer for the other one later.",
+      hint: "Core found more than one product or service on your website. An offer is always about just one of them, add a second offer for the other one later.",
       other: "Something else",
-      otherPlaceholder: "e.g. Chatarmin — WhatsApp marketing for shops",
+      otherPlaceholder: "e.g. Chatarmin, WhatsApp marketing for shops",
       confirm: "Continue",
     },
     /** The second core, "Aim": the same offer, tailored to ONE lead list. */
@@ -4773,7 +4773,7 @@ const en: Dictionary = {
         heading: (liste: string) => `What is "${liste}" about?`,
         hint: "Aim found more than one product or service in your offer. A list is always about just one of them.",
         other: "Something else",
-        otherPlaceholder: "e.g. Chatarmin — WhatsApp marketing for shops",
+        otherPlaceholder: "e.g. Chatarmin, WhatsApp marketing for shops",
         confirm: "Continue",
       },
     },
@@ -4793,7 +4793,7 @@ const en: Dictionary = {
       },
       friction: {
         label: "Where exactly do they get stuck?",
-        hint: "The ONE point, right before someone would spend money. Something your customer can check themselves — not \"outdated website\" but \"the booking form asks for nine fields\".",
+        hint: "The ONE point, right before someone would spend money. Something your customer can check themselves: not \"outdated website\" but \"the booking form asks for nine fields\".",
       },
       friction_reason: {
         label: "Why does that make buyers hesitate?",
@@ -4805,11 +4805,11 @@ const en: Dictionary = {
       },
       mechanism: {
         label: "How does the result happen?",
-        hint: "One sentence, no tool words — no \"AI\", no \"agent\", no product names. Never goes in the first email, but it carries your reply once someone says yes.",
+        hint: "One sentence, no tool words: no \"AI\", no \"agent\", no product names. Never goes in the first email, but it carries your reply once someone says yes.",
       },
       proof: {
         label: "What backs that up?",
-        hint: "References, results, years. Leave empty if there is nothing — then the AI is explicitly told to invent none.",
+        hint: "References, results, years. Leave empty if there is nothing: then the AI is explicitly told to invent none.",
       },
       preview_asset: {
         label: "What do you send once they say yes?",
@@ -4821,7 +4821,7 @@ const en: Dictionary = {
       },
       cta: {
         label: "The one question they answer yes or no to",
-        hint: "One line, one question mark, no second option. No meeting, no calendar link — it appears word for word in all four emails.",
+        hint: "One line, one question mark, no second option. No meeting, no calendar link: it appears word for word in all four emails.",
       },
       tone: { label: "How should it sound?", hint: "Optional. e.g. direct, no hype, no jargon." },
     },
@@ -4849,7 +4849,7 @@ const en: Dictionary = {
       apply: "Use this",
       dismiss: "Leave it",
       related: (feld: string) => `Belongs in: ${feld}`,
-      hint: "Core reads your offer against the playbook — not the wording, but whether each field answers its question.",
+      hint: "Core reads your offer against the playbook: not the wording, but whether each field answers its question.",
     },
     /** The four sections of the form. */
     stages: {
@@ -4867,7 +4867,7 @@ const en: Dictionary = {
       },
       ask: {
         label: "What you are asking for",
-        hint: "One question — the same one in all four emails.",
+        hint: "One question, the same one in all four emails.",
       },
     },
     /** The custom fields (migration 0098). Two statements have to survive any
@@ -4909,7 +4909,7 @@ const en: Dictionary = {
     saveState: {
       saving: "Saving...",
       saved: "Saved",
-      failed: "Not saved — try again",
+      failed: "Not saved, try again",
       hint: "Changes are saved automatically.",
     },
     /** Findings of the playbook checks, under the field they belong to. */
@@ -4918,7 +4918,7 @@ const en: Dictionary = {
       outcomeNoTimeframe: "No timeframe. Without an \"in X days\" you read like an open-ended consultancy, and the decision gets postponed.",
       outcomeNoNumber: "No number. A result nobody can measure is a result nobody can justify internally.",
       mechanismJargon: (w: string[]) =>
-        `Tool words in the mechanism: ${w.join(", ")}. The buyer buys a result, not a tool — describe what happens.`,
+        `Tool words in the mechanism: ${w.join(", ")}. The buyer buys a result, not a tool: describe what happens.`,
       microYesMultiline: "More than one line. Two questions are no longer a decision.",
       microYesNoQuestion: "Not a question. Without a question mark there is nothing to say yes to.",
       microYesMeeting: "That is a meeting request. It is the largest ask a cold email can make, which is why it is skipped most often.",
@@ -4937,11 +4937,11 @@ const en: Dictionary = {
     offerLabel: "Offer",
     stepNames: ["First touch", "New angle", "Nudge", "Sign-off"],
     sayWorking: "Writing four steps with two variants each.",
-    sayDone: "Done. Read it over, change what you like — nothing is sent.",
+    sayDone: "Done. Read it over, change what you like, nothing is sent.",
     generate: "Generate sequence",
     working: "Writing...",
     done: "Sequence inserted",
-    hint: "Four steps with two variants each, from your offer. You can change everything afterwards — nothing is sent.",
+    hint: "Four steps with two variants each, from your offer. You can change everything afterwards, nothing is sent.",
     noOffer: "For this the app needs your offer first: what you sell, to whom and with what benefit.",
     createOffer: "Create an offer",
     templateHint: "Offer still thin?",
@@ -4959,12 +4959,12 @@ const en: Dictionary = {
       unknownTags: (tags: string) => `Instantly does not replace these placeholders: ${tags}`,
       dash: (step: number) => `Step ${step} contains a dash character.`,
       variantsTooSimilar: (step: number) =>
-        `The two variants of step ${step} say the same thing — the comparison measures nothing.`,
+        `The two variants of step ${step} say the same thing, the comparison measures nothing.`,
       noGreeting: (step: number) => `Step ${step} has no greeting.`,
       missingSignature: (step: number) => `Step ${step} ends without your signature.`,
       noParagraphs: (step: number) => `Step ${step} is one block without paragraphs.`,
       personalizationLeadIn: (text: string) =>
-        `"${text}" sits in front of the opening line — that line is already a full sentence and needs no lead-in.`,
+        `"${text}" sits in front of the opening line, that line is already a full sentence and needs no lead-in.`,
       stepTooLong: (step: number, words: number, max: number) =>
         `Step ${step} is ${words} words, the limit is ${max}. Every step is shorter than the one before it.`,
       notShorter: (step: number) =>
@@ -4972,15 +4972,15 @@ const en: Dictionary = {
       subjectTooLong: (step: number, words: number, max: number) =>
         `The subject of step ${step} is ${words} words, the limit is ${max}.`,
       subjectDrift: (step: number) =>
-        `Step ${step} uses a different subject than step 1 — the follow-ups belong to the same conversation.`,
+        `Step ${step} uses a different subject than step 1, the follow-ups belong to the same conversation.`,
       subjectNoMirror: (step: number) =>
         `The subject of step ${step} announces something other than the question the email asks.`,
       subjectIsMicroYes: (step: number) =>
-        `The subject of step ${step} is the question itself. If it already sits in the inbox, the mail has nothing left to say — name what it is about instead.`,
+        `The subject of step ${step} is the question itself. If it already sits in the inbox, the mail has nothing left to say: name what it is about instead.`,
       subjectAsks: (step: number) =>
         `The subject of step ${step} asks a question. A subject is a label; the asking happens in the last line.`,
       bannedPhrase: (step: number, phrase: string) =>
-        `Step ${step} contains "${phrase}" — that marks the mail as bulk mail on sight.`,
+        `Step ${step} contains "${phrase}", that marks the mail as bulk mail on sight.`,
       meetingAsk: (step: number) =>
         `Step ${step} asks for a meeting. That is the largest ask a cold email can make.`,
       copiedNote: (step: number, text: string) =>
@@ -5076,11 +5076,11 @@ const en: Dictionary = {
     watch: {
       title: "Ongoing monitoring",
       subtitle:
-        "Once a day the DNS records of every connected sending domain are checked. You hear about it when something breaks — not every day about the same state.",
+        "Once a day the DNS records of every connected sending domain are checked. You only hear about it when something breaks.",
       noneYet: "Nothing checked yet. The first run happens automatically once a mailbox is connected.",
       autoPause: "Pause campaigns automatically on a high bounce rate",
       autoPauseHint:
-        "At 5% bounce (minimum 50 mails sent). Sending on does not cost you the campaign, it costs your sending domain's reputation — and that does not come back. You get an email and can resume with one click.",
+        "At 5% bounce (minimum 50 mails sent). Sending on does not cost you the campaign, it costs your sending domain's reputation, and that does not come back. You get an email and can resume with one click.",
     },
     title: "Deliverability",
     subtitle: "Check SPF, DKIM and DMARC for your sending domain. It decides whether your emails land in the inbox instead of spam.",
@@ -5190,8 +5190,8 @@ const en: Dictionary = {
     savedWithProblems: "Saved, still violates the rules.",
     saved: "Saved.",
     empty: "No icebreakers yet. They are written automatically while a search runs.",
-    allClean: "Nothing to review — every icebreaker follows the rules.",
-    truncated: "Very many rows — showing the first 2000.",
+    allClean: "Nothing to review: every icebreaker follows the rules.",
+    truncated: "Very many rows, showing the first 2000.",
     loadError: "The list could not be loaded.",
     retry: "Try again",
     noName: "No name",
@@ -5206,7 +5206,7 @@ const en: Dictionary = {
     hidePassed: "Hide passed",
     override: "Start anyway",
     overrideHint:
-      "The blockers remain. Missing SPF or DKIM records mean a large share of your mail lands in spam — and the sending domain's reputation carries that permanently.",
+      "The blockers remain. Missing SPF or DKIM records mean a large share of your mail lands in spam, and the sending domain's reputation carries that permanently.",
     checks: {
       leads: {
         ok: (n: number) => `${n} sendable leads`,
@@ -5243,13 +5243,13 @@ const en: Dictionary = {
         ok: "Every lead has an icebreaker",
         bad: (count: number, total: number, percent: number) =>
           `${count} of ${total} leads (${percent}%) have no icebreaker`,
-        why: "For those leads {{personalization}} stays empty — the mail then starts mid-sentence.",
+        why: "For those leads {{personalization}} stays empty, the mail then starts mid-sentence.",
       },
       icebreakerFailing: {
         ok: "The icebreakers follow the rules",
         bad: (count: number, total: number, percent: number) =>
           `${count} of ${total} icebreakers (${percent}%) violate the rules`,
-        why: "Too long or containing banned characters — both read as AI text to recipients.",
+        why: "Too long or containing banned characters, both read as AI text to recipients.",
         action: "Review icebreakers",
       },
       websiteFindingMissing: {
@@ -5278,7 +5278,7 @@ const en: Dictionary = {
   },
   effectiveness: {
     title: "Effect",
-    subtitle: "What actually brings replies — and what only looks like it.",
+    subtitle: "What actually brings replies, and what only looks like it.",
     contacted: "Contacted",
     replied: "Replied",
     rate: "Reply rate",
@@ -5290,15 +5290,15 @@ const en: Dictionary = {
     byWeekday: "By weekday",
     byWeekdayHint: "Weekday the mail went out, not the day of the reply.",
     byHour: "By time of day",
-    byHourHint: "In three-hour blocks — single hours would be 24 numbers, none of which means anything.",
-    thin: (n: number) => `${n} — too few`,
+    byHourHint: "In three-hour blocks, single hours would be 24 numbers, none of which means anything.",
+    thin: (n: number) => `${n}, too few`,
     noData: "No data yet.",
     methodNote: (min: number) =>
       `Measured per contact, not per mail: a sequence sends several mails to the same person, and the one reply should not be divided. Below ${min} contacted people per row no rate is shown, on purpose.`,
 
     byCopy: "By copy",
     byCopyHint:
-      "Which step and which version. The attribution comes from Instantly itself — a reply carries the step of the mail it answers.",
+      "Which step and which version. The attribution comes from Instantly itself: a reply carries the step of the mail it answers.",
     step: "Step",
     variant: "Version",
     contacts: "Contacts",
@@ -5310,10 +5310,10 @@ const en: Dictionary = {
     autoReplies: "Auto-reply",
     noAttribution: "No attributed messages yet.",
     orphaned: (n: number) =>
-      `${n} messages belong to campaigns that no longer exist in Instantly — they are not counted here.`,
+      `${n} messages belong to campaigns that no longer exist in Instantly, they are not counted here.`,
     bestStep: "best step",
     externalCampaign: "(only in Instantly)",
-    unattributed: (n: number) => `${n} messages without attribution — they are missing from this breakdown.`,
+    unattributed: (n: number) => `${n} messages without attribution, they are missing from this breakdown.`,
     copyWarning:
       "Reply rate alone is the wrong target: a version can lead and still collect nothing but rejections. The column that counts is meetings.",
 
@@ -5367,7 +5367,7 @@ const en: Dictionary = {
   prospeo: {
     modeLabel: "Prospeo",
     modeHint:
-      "Company, decision maker and verified address in one run — like Apollo, but with filters you get nowhere else: who is hiring right now, how much website traffic a company has, and what technology it runs.",
+      "Company, decision maker and verified address in one run, like Apollo, but with filters you get nowhere else: who is hiring right now, how much website traffic a company has, and what technology it runs.",
     groupPerson: "Person",
     groupCompany: "Company",
     groupStarter: "Technology, hiring and revenue",
@@ -5387,7 +5387,7 @@ const en: Dictionary = {
     matchSimilar: "similar",
     matchStrict: "strict",
     locations: "Company locations",
-    locationsHint: "Values come from Prospeo — type and pick from the list. Freely typed locations are unknown to Prospeo.",
+    locationsHint: "Values come from Prospeo, type and pick from the list. Freely typed locations are unknown to Prospeo.",
     locationsPlaceholder: "United States, Berlin …",
     industries: "Industries",
     industriesPlaceholder: "Type, e.g. Retail",
@@ -5417,14 +5417,14 @@ const en: Dictionary = {
     trafficCountriesPlaceholder: "United States …",
     countryPct: "Minimum share of those countries in %",
     countryPctHint: "Only usable together with countries.",
-    maxReached: (n: number) => `${n} at most — selection full`,
+    maxReached: (n: number) => `${n} at most, selection full`,
     noSuggestions: "No suggestions.",
     countButton: "Count matches",
     counting: "Counting …",
     countCost: "costs 1 Prospeo credit",
     countResult: (n: number) => `${n.toLocaleString("en-US")} matches`,
     countCapped: (n: number) => `${n.toLocaleString("en-US")} retrievable`,
-    needsFilter: "At least one filter must be set — otherwise the search runs through 200 million contacts.",
+    needsFilter: "At least one filter must be set, otherwise the search runs through 200 million contacts.",
     errorPlan: (plan: string) => `Prospeo rejected this: one filter requires the ${plan} plan.`,
     errorInvalidFilters: "Prospeo rejected a filter value.",
     errorNoKey: "No Prospeo key stored.",
@@ -5435,18 +5435,18 @@ const en: Dictionary = {
   providerAlerts: {
     title: (provider: string) => `${provider}: out of credit`,
     body:
-      "The lead search cannot continue. The affected jobs are not lost — they are on hold and will resume on their own once you top up.",
+      "The lead search cannot continue. The affected jobs are not lost, only on hold: they resume on their own once you top up.",
     since: (when: string) => `Since ${when}`,
   },
   workerStatus: {
     downTitle: "The lead engine is not running",
     downBody:
-      "New searches are queued but not processed. Check whether the hosting credit has run out — that is the most common cause.",
+      "New searches are queued but not processed. Check whether the hosting credit has run out, that is the most common cause.",
     lastSeen: (when: string) => `Last seen: ${when}`,
     pendingWaiting: (n: number) => `${n} jobs waiting`,
     backlogTitle: "The queue is backing up",
     backlogBody: (n: number) =>
-      `${n} jobs are due and not picked up yet. The worker is running but falling behind — this can be normal during a large search and should clear on its own.`,
+      `${n} jobs are due and not picked up yet. The worker is running but falling behind: this can be normal during a large search and should clear on its own.`,
     partial: (alive: number, total: number) =>
       `Only ${alive} of ${total} worker processes are responding. Work continues, but slower.`,
   },

@@ -138,7 +138,7 @@ export default function CampaignForm({
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       <input
         placeholder={F.namePlaceholder}
         value={value.name}
@@ -147,9 +147,9 @@ export default function CampaignForm({
       />
 
       <div>
-        <p className="mb-1.5 text-xs font-medium text-faint">{F.mailboxesLabel}</p>
-        {accounts === null && <p className="text-xs text-faint">{t.common.saving}</p>}
-        {accounts !== null && accounts.length === 0 && <p className="text-xs text-faint">{F.noMailboxes}</p>}
+        <p className="mb-2 text-xs font-medium text-faint">{F.mailboxesLabel}</p>
+        {accounts === null && <div className="skeleton h-8 w-56" aria-hidden />}
+        {accounts !== null && accounts.length === 0 && <p className="text-sm text-faint">{F.noMailboxes}</p>}
         <div className="flex flex-wrap gap-2">
           {(accounts ?? []).map((a) => (
             <button
@@ -164,7 +164,7 @@ export default function CampaignForm({
               // vollstaendige Adresse fuer den abgeschnittenen Fall.
               title={a.email}
               className={
-                "max-w-full truncate rounded-full border px-3 py-2 text-xs transition-colors sm:py-1 " +
+                "max-w-full truncate rounded-full border px-3 py-2 text-xs font-medium transition-colors duration-150 sm:py-1.5 " +
                 (value.mailboxes.includes(a.email)
                   ? "border-sky-500 bg-sky-500/10 text-sky-600 dark:text-sky-300"
                   : "border-edge2 text-faint hover:border-sky-500/50")
@@ -191,7 +191,7 @@ export default function CampaignForm({
             inlinePreview={previewSearchIds === undefined}
           />
         ))}
-        <button type="button" onClick={addStep} className="text-xs font-medium text-sky-600 hover:text-sky-500 dark:text-sky-400">
+        <button type="button" onClick={addStep} className="text-sm font-medium text-sky-600 transition-colors hover:text-sky-500 dark:text-sky-400">
           {F.addStep}
         </button>
       </div>
@@ -211,7 +211,7 @@ export default function CampaignForm({
       )}
 
       <div>
-        <p className="mb-1.5 text-xs font-medium text-faint">{F.scheduleLabel}</p>
+        <p className="mb-2 text-xs font-medium text-faint">{F.scheduleLabel}</p>
         {/* Drei Bloecke untereinander statt einer einzigen umbrechenden Reihe.
 
             Die alte Reihe war `flex flex-wrap` ueber sieben Tagesknoepfe, zwei
@@ -237,7 +237,7 @@ export default function CampaignForm({
                 type="button"
                 onClick={() => toggleDay(d)}
                 className={
-                  "h-10 rounded-md border text-xs transition-colors sm:h-7 sm:w-7 sm:text-[11px] " +
+                  "h-10 rounded-lg border text-xs font-medium transition-colors duration-150 sm:h-8 sm:w-8 " +
                   (value.days.includes(d)
                     ? "border-sky-500 bg-sky-500/10 text-sky-600 dark:text-sky-300"
                     : "border-edge2 text-faint hover:border-sky-500/50")
@@ -258,7 +258,7 @@ export default function CampaignForm({
               onChange={(e) => onChange({ ...value, from: e.target.value })}
               className={inputCls + " min-w-0 flex-1 sm:flex-none"}
             />
-            <span className="shrink-0 text-xs text-faint">{F.until}</span>
+            <span className="shrink-0 text-sm text-faint">{F.until}</span>
             <input
               type="time"
               value={value.to}
@@ -285,7 +285,7 @@ export default function CampaignForm({
               vorbelegt, dadurch war der Platzhalter nie sichtbar und daneben
               stand eine nackte Zahl ohne jede Erklaerung. Die Uhrzeit- und
               Zeitzonenfelder erklaeren sich von selbst, diese Zahl nicht. */}
-          <label className="flex items-center gap-2 text-xs text-faint">
+          <label className="flex items-center gap-2.5 text-sm text-faint">
             {F.dailyLimitLabel}
             <input
               type="number"
@@ -297,7 +297,7 @@ export default function CampaignForm({
             />
           </label>
         </div>
-        <p className="mt-1.5 text-xs text-mute">{F.dailyLimitHint}</p>
+        <p className="mt-2 text-xs text-faint">{F.dailyLimitHint}</p>
       </div>
 
       {/* Bewusste Entscheidung statt Instantlys Vorgabe.
@@ -308,30 +308,30 @@ export default function CampaignForm({
           umgeschriebene Links sind zwei der Merkmale, an denen Spamfilter
           kalte Massenmails erkennen. */}
       <div>
-        <p className="mb-1.5 text-xs font-medium text-faint">{F.trackingLabel}</p>
-        <div className="space-y-1.5">
-          <label className="flex items-start gap-2 text-sm text-ink">
+        <p className="mb-2 text-xs font-medium text-faint">{F.trackingLabel}</p>
+        <div className="space-y-2.5">
+          <label className="flex items-start gap-2.5 text-sm text-ink">
             <input
               type="checkbox"
               checked={value.openTracking}
               onChange={(e) => onChange({ ...value, openTracking: e.target.checked })}
-              className="mt-0.5"
+              className="mt-1 h-4 w-4 accent-sky-600"
             />
             <span>
               {F.openTracking}
-              <span className="block text-xs text-faint">{F.openTrackingHint}</span>
+              <span className="mt-0.5 block text-xs text-faint">{F.openTrackingHint}</span>
             </span>
           </label>
-          <label className="flex items-start gap-2 text-sm text-ink">
+          <label className="flex items-start gap-2.5 text-sm text-ink">
             <input
               type="checkbox"
               checked={value.linkTracking}
               onChange={(e) => onChange({ ...value, linkTracking: e.target.checked })}
-              className="mt-0.5"
+              className="mt-1 h-4 w-4 accent-sky-600"
             />
             <span>
               {F.linkTracking}
-              <span className="block text-xs text-faint">{F.linkTrackingHint}</span>
+              <span className="mt-0.5 block text-xs text-faint">{F.linkTrackingHint}</span>
             </span>
           </label>
         </div>

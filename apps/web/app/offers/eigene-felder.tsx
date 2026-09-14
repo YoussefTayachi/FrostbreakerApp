@@ -59,7 +59,7 @@ const FILL_FROM_OPTIONS: FieldFillFrom[] = ["core", "aim", "both", "manual"];
  * Feldnamen und las sich wie ein zweites Eingabefeld.
  */
 const auswahlCls =
-  "min-h-9 rounded-lg border border-edge2 bg-chip px-2.5 text-[13px] text-soft " +
+  "min-h-9 rounded-lg border border-edge2 bg-chip px-2.5 text-xs text-soft " +
   "outline-none transition-colors focus:border-sky-500";
 
 /** Zeilenknoepfe der Verwaltung: gleich gross, ruhig, erst beim Zeigen
@@ -236,7 +236,7 @@ export default function EigeneFelder({
           className={textfeldCls + " mt-2"}
         />
         <div className="mt-2 flex flex-wrap items-center gap-2">
-          <label htmlFor="eigen-neu-quelle" className="text-[13px] text-faint">
+          <label htmlFor="eigen-neu-quelle" className="text-xs text-faint">
             {C.fillFromLabel}
           </label>
           <select
@@ -252,16 +252,16 @@ export default function EigeneFelder({
             ))}
           </select>
         </div>
-        <p className="mt-2.5 max-w-[60ch] text-[13px] leading-relaxed text-faint">
+        <p className="mt-2.5 max-w-[60ch] text-xs leading-relaxed text-faint">
           {C.instructionHint}
         </p>
       </div>
     ) : (
-      <p className="max-w-[60ch] text-[13px] leading-relaxed text-faint">{C.max(MAX_CUSTOM_FIELDS)}</p>
+      <p className="max-w-[60ch] text-xs leading-relaxed text-faint">{C.max(MAX_CUSTOM_FIELDS)}</p>
     );
 
   return (
-    <section className="fb-ticks relative rounded-xl border border-edge/60 bg-panel">
+    <section className="fb-ticks relative rounded-xl border border-edge/70 bg-panel">
       <button
         type="button"
         onClick={() => setOffen((v) => !v)}
@@ -276,7 +276,7 @@ export default function EigeneFelder({
         <span
           aria-hidden
           className={
-            "fb-num relative z-[1] flex h-10 w-10 shrink-0 items-center justify-center rounded-full border-2 bg-panel text-[13px] font-semibold transition-colors " +
+            "fb-num relative z-[1] flex h-10 w-10 shrink-0 items-center justify-center rounded-full border-2 bg-panel text-xs font-semibold transition-colors " +
             (defs.length === 0 ? "border-dashed" : "")
           }
           style={{
@@ -289,12 +289,12 @@ export default function EigeneFelder({
           {defs.length === 0 ? "+" : `${voll}/${defs.length}`}
         </span>
         <span className="min-w-0 flex-1">
-          <span className="block text-[15px] font-medium text-ink">{C.heading}</span>
-          <span className="mt-0.5 block text-[13px] leading-relaxed text-faint">{C.hint}</span>
+          <span className="block text-sm font-medium text-ink">{C.heading}</span>
+          <span className="mt-0.5 block text-xs leading-relaxed text-faint">{C.hint}</span>
         </span>
         <span
           aria-hidden
-          className="shrink-0 text-mute transition-transform duration-200"
+          className="shrink-0 text-faint transition-transform duration-200"
           style={{ transform: offen ? "rotate(90deg)" : "none" }}
         >
           ›
@@ -311,26 +311,26 @@ export default function EigeneFelder({
            Der Hinweis auf die Reichweite steht schon HIER und nicht erst bei
            der Verwaltung: dass diese Felder allen Angeboten gehoeren, muss
            man wissen, bevor man das erste anlegt. */
-        <div className="space-y-3 border-t border-edge/60 px-4 pb-5 pt-4">
-          <p className="max-w-[60ch] text-[13px] leading-relaxed text-soft">{C.empty}</p>
-          <p className="max-w-[60ch] text-[13px] leading-relaxed text-faint">{C.workspaceNote}</p>
+        <div className="space-y-3 border-t border-edge/70 px-4 pb-5 pt-4">
+          <p className="max-w-[60ch] text-xs leading-relaxed text-soft">{C.empty}</p>
+          <p className="max-w-[60ch] text-xs leading-relaxed text-faint">{C.workspaceNote}</p>
           {neuesFeld}
         </div>
       )}
 
       {offen && defs.length > 0 && (
-        <div className="space-y-5 border-t border-edge/60 px-4 pb-5 pt-4">
+        <div className="space-y-5 border-t border-edge/70 px-4 pb-5 pt-4">
           {/* ── Die Werte ────────────────────────────────────────────────
               Wie bei den zwoelf festen Feldern: Beschriftung, die Anweisung
               als Hinweis darunter, das Textfeld, und darunter der Vorschlag
               mit Uebernehmen/Verwerfen. */}
           {defs.map((d) => (
             <div key={d.id}>
-              <label htmlFor={`eigen-${d.key}`} className="text-[15px] font-medium text-ink">
+              <label htmlFor={`eigen-${d.key}`} className="text-sm font-medium text-ink">
                 {d.label}
               </label>
               {d.instruction.trim() && (
-                <p className="mb-2 mt-0.5 text-[13px] leading-relaxed text-faint">
+                <p className="mb-2 mt-0.5 text-xs leading-relaxed text-faint">
                   {d.instruction}
                 </p>
               )}
@@ -350,8 +350,8 @@ export default function EigeneFelder({
                   }}
                 >
                   <Herkunft farbe={vorschlagFarbe} label={vorschlagLabel} />
-                  <p className="text-[15px] leading-relaxed text-ink">{vorschlaege[d.key]}</p>
-                  <div className="mt-2.5 flex items-center gap-4 text-[13px]">
+                  <p className="text-sm leading-relaxed text-ink">{vorschlaege[d.key]}</p>
+                  <div className="mt-2.5 flex items-center gap-4 text-xs">
                     <button
                       type="button"
                       onClick={() => onUebernehmen(d.key)}
@@ -389,9 +389,9 @@ export default function EigeneFelder({
               auf (px-4 pb-5). Der untere Radius ist 11px und nicht 12:
               innerhalb eines 1px-Rahmens ist der Innenradius um genau diese
               Linie kleiner, sonst blitzt sie in der Ecke durch. */}
-          <div className="-mx-4 -mb-5 rounded-b-[11px] border-t border-edge/60 bg-wash px-4 pb-5 pt-4">
-            <p className="text-[13px] font-medium text-soft">{C.manageHeading}</p>
-            <p className="mb-3 mt-0.5 max-w-[60ch] text-[13px] leading-relaxed text-faint">
+          <div className="-mx-4 -mb-5 rounded-b-[11px] border-t border-edge/70 bg-wash px-4 pb-5 pt-4">
+            <p className="text-xs font-medium text-soft">{C.manageHeading}</p>
+            <p className="mb-3 mt-0.5 max-w-[60ch] text-xs leading-relaxed text-faint">
               {C.workspaceNote}
             </p>
 
@@ -471,7 +471,7 @@ export default function EigeneFelder({
                       deiner Website" allein sagt niemandem, welche Frage hier
                       beantwortet wird. */}
                   <div className="mt-2 flex flex-wrap items-center gap-2">
-                    <label htmlFor={`eigen-quelle-${d.id}`} className="text-[13px] text-faint">
+                    <label htmlFor={`eigen-quelle-${d.id}`} className="text-xs text-faint">
                       {C.fillFromLabel}
                     </label>
                     <select
@@ -493,7 +493,7 @@ export default function EigeneFelder({
 
             <div className="mt-3">{neuesFeld}</div>
 
-            <p className="mt-3 max-w-[60ch] text-[13px] leading-relaxed text-faint">
+            <p className="mt-3 max-w-[60ch] text-xs leading-relaxed text-faint">
               {C.fillFromHint}
             </p>
           </div>

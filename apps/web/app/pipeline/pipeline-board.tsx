@@ -94,7 +94,7 @@ export default function PipelineBoard({
 
   if (contacts.length === 0) {
     return (
-      <p className="rounded-lg border border-edge/60 bg-panel px-5 py-14 text-center text-sm text-faint">
+      <p className="rounded-xl border border-edge/70 bg-panel px-5 py-14 text-center text-sm text-faint shadow-sm">
         {P.empty}
       </p>
     );
@@ -104,17 +104,17 @@ export default function PipelineBoard({
 
   return (
     <>
-      <div className="flex flex-wrap items-center gap-3">
-        <div className="relative min-w-52 flex-1">
-          <IconSearch className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-mute" />
+      <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-3">
+        <div className="relative min-w-0 flex-1 sm:min-w-52">
+          <IconSearch className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-mute" />
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder={P.searchPlaceholder}
-            className="w-full rounded-lg border border-edge2 bg-field py-2 pl-9 pr-3 text-sm text-ink placeholder-mute outline-none transition-colors focus:border-sky-500"
+            className="w-full rounded-lg border border-edge2 bg-field py-2.5 pl-9 pr-3 text-sm text-ink placeholder-mute outline-none transition-[border-color,box-shadow] duration-150 focus:border-sky-500 focus:ring-4 focus:ring-sky-500/15"
           />
         </div>
-        <label className="flex cursor-pointer items-center gap-2 text-sm text-soft">
+        <label className="-mx-2 flex min-h-10 cursor-pointer items-center gap-2 rounded-lg px-2 text-sm text-soft transition-colors hover:bg-wash hover:text-ink sm:mx-0 sm:min-h-9">
           <input
             type="checkbox"
             checked={onlyEmail}
@@ -123,18 +123,18 @@ export default function PipelineBoard({
           />
           {P.onlyWithEmail}
         </label>
-        <div className="flex items-center gap-1.5">
-          <span className="text-xs text-faint">{P.cardsPerColumn}</span>
-          <div className="flex overflow-hidden rounded-lg border border-edge2">
+        <div className="flex items-center gap-2">
+          <span className="shrink-0 text-xs text-faint">{P.cardsPerColumn}</span>
+          <div className="inline-flex rounded-lg bg-chip p-1">
             {PAGE_SIZES.map((size) => (
               <button
                 key={size}
                 onClick={() => choosePageSize(size)}
                 className={
-                  "px-2 py-1 text-xs font-medium transition-colors " +
+                  "min-h-8 rounded-md px-2.5 text-xs font-medium tabular-nums transition-colors duration-150 " +
                   (pageSize === size
-                    ? "bg-sky-600 text-white"
-                    : "text-soft hover:bg-chip hover:text-ink")
+                    ? "bg-panel text-ink shadow-sm dark:bg-white/[0.08]"
+                    : "text-soft hover:text-ink")
                 }
               >
                 {size === 0 ? P.cardsAll : size}
@@ -158,7 +158,10 @@ export default function PipelineBoard({
           hier -mx-8 stehen, ragte das Board auf dem Handy 16 Pixel ueber beide
           Kanten hinaus -- und weil es selbst waagerecht scrollt, wuerde
           stattdessen die ganze Seite waagerecht wackeln. */}
-      <div className="-mx-4 mt-4 h-[calc(100vh-15rem)] min-h-[22rem] overflow-x-auto px-4 pb-1 sm:-mx-6 sm:px-6 md:-mx-8 md:px-8">
+      {/* snap-x: auf dem Handy rastet der Blick an einer Spaltenkante ein
+          statt zwischen zwei Spalten stehen zu bleiben. Ab sm abgeschaltet,
+          dort sieht man ohnehin mehrere Spalten auf einmal. */}
+      <div className="-mx-4 mt-4 h-[calc(100vh-15rem)] min-h-[22rem] snap-x snap-proximity overflow-x-auto px-4 pb-1 sm:snap-none sm:-mx-6 sm:px-6 md:-mx-8 md:px-8">
         <div className="flex h-full gap-2.5">
           {OUTREACH_STAGES.map((stage) => {
             const items = byStage.get(stage) ?? [];
@@ -190,8 +193,8 @@ export default function PipelineBoard({
                   // unserer uebrigen Oberflaeche. Die dichtere Setzung passt
                   // im Rest der App, auf einem Board mit wenigen grossen
                   // Elementen wirkt sie gedraengt.
-                  "flex h-full w-72 shrink-0 flex-col overflow-hidden border-l transition-colors first:border-l-0 " +
-                  (isTarget ? "border-sky-500/70 bg-sky-500/5" : "border-edge2/60")
+                  "flex h-full w-72 shrink-0 snap-start flex-col overflow-hidden border-l transition-colors duration-150 first:border-l-0 " +
+                  (isTarget ? "border-sky-500/70 bg-sky-500/5" : "border-edge")
                 }
               >
                 {/*
@@ -247,7 +250,7 @@ export default function PipelineBoard({
                         // Pipedrives Karten sind weisse Flaechen mit weichem
                         // Schatten und fast unsichtbarem Rand: der Rand
                         // traegt dort nichts, der Schatten hebt die Karte.
-                        "group cursor-grab rounded-lg border border-edge/40 bg-panel px-3.5 py-3 shadow-sm transition-all hover:shadow-md active:cursor-grabbing " +
+                        "group cursor-grab rounded-xl border border-edge/50 bg-panel px-3.5 py-3 shadow-sm transition-[box-shadow,border-color,opacity] duration-150 hover:border-edge/80 hover:shadow-md active:cursor-grabbing " +
                         (dragId === contact.id ? "opacity-40" : "")
                       }
                     >
@@ -308,7 +311,7 @@ export default function PipelineBoard({
                         bei 300 Karten je Spalte ist Aufklappen keine Antwort.
                       */}
                       {(contact.last_reply_at || contact.last_touch_at) && (
-                        <p className="mt-2 flex items-center gap-1.5 truncate text-[11px] leading-tight">
+                        <p className="mt-2 flex items-center gap-1.5 truncate text-xs leading-tight">
                           <CompanyLogo
                             name={contact.company_name ?? displayName(contact, "?")}
                             website={contact.company_website}
@@ -333,7 +336,7 @@ export default function PipelineBoard({
                   ))}
 
                   {items.length === 0 && (
-                    <p className="py-8 text-center text-[11px] text-mute">
+                    <p className="py-10 text-center text-xs text-mute">
                       {isTarget ? P.dropHere : query || onlyEmail ? P.noResults : P.columnEmpty}
                     </p>
                   )}
@@ -341,7 +344,7 @@ export default function PipelineBoard({
                   {items.length > shown.length && (
                     <button
                       onClick={() => setExtra((prev) => ({ ...prev, [stage]: (prev[stage] ?? 0) + 30 }))}
-                      className="w-full rounded-lg border border-dashed border-edge3 py-1.5 text-[11px] font-medium text-faint transition-colors hover:border-sky-500/60 hover:text-sky-600 dark:hover:text-sky-400"
+                      className="w-full rounded-lg border border-dashed border-edge2 py-2 text-xs font-medium text-faint transition-colors hover:border-sky-500/60 hover:bg-sky-500/5 hover:text-sky-600 dark:hover:text-sky-400"
                     >
                       {P.loadMore} · {P.truncated(shown.length, items.length)}
                     </button>
@@ -353,7 +356,7 @@ export default function PipelineBoard({
         </div>
       </div>
 
-      <p className="mt-1 text-xs text-faint">{P.columnCount(totalShown)}</p>
+      <p className="mt-1.5 text-xs tabular-nums text-faint">{P.columnCount(totalShown)}</p>
 
     </>
   );

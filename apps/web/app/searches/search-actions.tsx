@@ -6,6 +6,31 @@ import { useT } from "../language-provider";
 import { useToast } from "../toast-provider";
 import { useWorkspace } from "../workspace-provider";
 
+/**
+ * Die Knoepfe IN einer Listenzeile.
+ *
+ * Eigene Groesse statt secondaryBtnCls aus lib/ui: in einer Zeile mit Name,
+ * drei Kennzahlen, Fortschritt und Ordnerwahl waere die volle Knopfhoehe von
+ * 42 Pixeln der lauteste Teil der Zeile. h-10 unter sm und h-9 darueber: auf
+ * dem Handy zaehlt das Tippziel, am Schreibtisch die Dichte.
+ *
+ * Exportiert, weil searches-list.tsx dieselben Knoepfe daneben stellt
+ * (Archivieren, Zurueckholen) und zwei Fassungen derselben Groesse genau die
+ * Abweichung sind, die beim naechsten Feinschliff auseinanderlaeuft.
+ */
+export const rowActionBtnCls =
+  "inline-flex h-10 shrink-0 items-center rounded-lg border border-edge2 bg-panel px-2.5 text-xs " +
+  "font-medium text-soft transition-[background-color,border-color,transform] duration-150 " +
+  "hover:bg-chip hover:text-ink active:scale-[0.98] disabled:opacity-60 disabled:active:scale-100 sm:h-9";
+
+/** Dieselbe Groesse, aber in Rot: fuer alles, was Leads aus Kampagnen und dem
+ *  Dublettenschutz nimmt. */
+export const rowDangerBtnCls =
+  "inline-flex h-10 shrink-0 items-center rounded-lg border border-red-300 px-2.5 text-xs font-medium " +
+  "text-red-600 transition-[background-color,border-color,transform] duration-150 hover:bg-red-50 " +
+  "hover:text-red-700 active:scale-[0.98] disabled:opacity-60 dark:border-red-500/30 dark:text-red-400 " +
+  "dark:hover:bg-red-500/10 dark:hover:text-red-300 sm:h-9";
+
 export function TrashButton({ searchId }: { searchId: string }) {
   const router = useRouter();
   const { t } = useT();
@@ -59,7 +84,7 @@ export function TrashButton({ searchId }: { searchId: string }) {
           },
         });
       }}
-      className="rounded-lg border border-edge/60 px-3 py-2 text-sm text-faint transition-colors hover:border-red-500/50 hover:text-red-600 dark:hover:text-red-600 dark:text-red-400"
+      className={rowDangerBtnCls}
     >
       {t.searchActions.delete}
     </button>
@@ -101,7 +126,7 @@ export function CancelButton({ searchId }: { searchId: string }) {
         router.refresh();
         push(data ? t.searchActions.cancelled : t.searchActions.cancelTooLate, data ? "success" : "error");
       }}
-      className="rounded-lg border border-amber-500/50 px-3 py-2 text-sm font-medium text-amber-700 transition-colors hover:bg-amber-500/10 dark:text-amber-500"
+      className="inline-flex h-10 shrink-0 items-center rounded-lg border border-amber-500/50 px-2.5 text-xs font-medium text-amber-700 transition-[background-color,transform] duration-150 hover:bg-amber-500/10 active:scale-[0.98] dark:text-amber-500 sm:h-9"
     >
       {t.searchActions.cancel}
     </button>
@@ -124,7 +149,7 @@ export function RestoreButton({ searchId }: { searchId: string }) {
         router.refresh();
         push(t.searchActions.restored, "success");
       }}
-      className="rounded-lg border border-edge2 px-4 py-2 text-sm text-soft transition-colors hover:border-edge3 hover:text-ink"
+      className={rowActionBtnCls}
     >
       {t.searchActions.restore}
     </button>
@@ -156,7 +181,7 @@ export function HardDeleteButton({ searchId }: { searchId: string }) {
         router.refresh();
         push(t.searchActions.hardDeleted, "success");
       }}
-      className="rounded-lg border border-red-300 dark:border-red-900/60 px-4 py-2 text-sm text-red-600 dark:text-red-400 transition-colors hover:border-red-500 hover:text-red-500 dark:hover:text-red-500 dark:text-red-300"
+      className={rowDangerBtnCls}
     >
       {t.searchActions.hardDelete}
     </button>
@@ -220,7 +245,7 @@ export function EmptyTrashButton({ searchIds }: { searchIds: string[] }) {
         router.refresh();
         push(t.searchActions.emptyTrashDone(searchIds.length), "success");
       }}
-      className="rounded-lg border border-red-300 px-3 py-1.5 text-xs text-red-600 transition-colors hover:border-red-500 hover:text-red-500 dark:border-red-900/60 dark:text-red-400 dark:hover:text-red-500"
+      className={rowDangerBtnCls}
     >
       {t.searchActions.emptyTrash(searchIds.length)}
     </button>

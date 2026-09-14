@@ -4,7 +4,7 @@ import { getCurrentWorkspace } from "@/lib/workspace/server";
 import { getLangServer } from "@/lib/i18n/lang";
 import { dict } from "@/lib/i18n/dict";
 import { IconLock, IconMail, IconSend, IconShield, IconSparkle } from "../icons";
-import { cardCls } from "@/lib/ui";
+import { cardCls, primaryBtnCls } from "@/lib/ui";
 
 export default async function InstantlyOverviewPage() {
   const lang = await getLangServer();
@@ -43,66 +43,62 @@ export default async function InstantlyOverviewPage() {
     { href: "/instantly/email-check", icon: IconSparkle, title: O.cardEmailCheckTitle, body: O.cardEmailCheckBody },
   ];
 
+  const kpis = [
+    { label: O.statsSent, value: totals.sent },
+    { label: O.statsOpens, value: totals.opens },
+    { label: O.statsReplies, value: totals.replies },
+    { label: O.statsBounces, value: totals.bounces },
+  ];
+
   return (
-    <div className="max-w-3xl space-y-6">
+    <div className="max-w-5xl space-y-6">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight text-ink">{O.title}</h1>
-        <p className="text-sm text-faint">{O.subtitle}</p>
+        <p className="mt-1 text-sm text-faint">{O.subtitle}</p>
       </div>
 
       {!hasKey && (
-        <div className={cardCls + " border-dashed"}>
-          <h2 className="font-medium text-ink">{O.notConnectedHeading}</h2>
+        <div className="rounded-xl border border-dashed border-edge2 bg-panel p-5 shadow-sm sm:p-6">
+          <h2 className="text-base font-semibold text-ink">{O.notConnectedHeading}</h2>
           <p className="mb-4 mt-1 text-sm text-faint">{O.notConnectedBody}</p>
-          <Link
-            href="/instantly/connection"
-            className="inline-block rounded-lg bg-sky-600 px-5 py-2.5 text-sm font-medium text-white shadow-lg shadow-sky-600/25 transition-all hover:bg-sky-500"
-          >
+          <Link href="/instantly/connection" className={primaryBtnCls + " inline-block"}>
             {O.connectNow}
           </Link>
         </div>
       )}
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {cards.map(({ href, icon: Icon, title, body }) => (
-          <Link
-            key={href}
-            href={href}
-            className="rounded-lg border border-edge/60 bg-panel p-5 transition-all hover:-translate-y-0.5 hover:border-sky-500/50"
-          >
-            <Icon className="mb-2 h-5 w-5 text-sky-600 dark:text-sky-400" />
-            <h3 className="font-medium text-ink">{title}</h3>
-            <p className="mt-1 text-xs text-faint">{body}</p>
-          </Link>
-        ))}
-      </div>
-
       {hasKey && (
         <div className={cardCls}>
-          <h2 className="mb-4 font-medium text-ink">{O.statsHeading}</h2>
-          {!hasStats && <p className="text-sm text-faint">{O.noStats}</p>}
+          <h2 className="text-base font-semibold text-ink">{O.statsHeading}</h2>
+          {!hasStats && <p className="py-6 text-center text-sm text-faint">{O.noStats}</p>}
           {hasStats && (
-            <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-              <div>
-                <p className="text-2xl font-semibold text-ink">{totals.sent}</p>
-                <p className="text-xs text-faint">{O.statsSent}</p>
-              </div>
-              <div>
-                <p className="text-2xl font-semibold text-ink">{totals.opens}</p>
-                <p className="text-xs text-faint">{O.statsOpens}</p>
-              </div>
-              <div>
-                <p className="text-2xl font-semibold text-ink">{totals.replies}</p>
-                <p className="text-xs text-faint">{O.statsReplies}</p>
-              </div>
-              <div>
-                <p className="text-2xl font-semibold text-ink">{totals.bounces}</p>
-                <p className="text-xs text-faint">{O.statsBounces}</p>
-              </div>
+            <div className="mt-4 grid grid-cols-2 gap-x-4 gap-y-5 sm:grid-cols-4">
+              {kpis.map(({ label, value }) => (
+                <div key={label}>
+                  <p className="text-2xl font-semibold tabular-nums tracking-tight text-ink">{value}</p>
+                  <p className="mt-0.5 text-2xs font-medium uppercase tracking-wider text-mute">{label}</p>
+                </div>
+              ))}
             </div>
           )}
         </div>
       )}
+
+      {/* Die Navigationskarten liegen unter den Zahlen: wer den Bereich
+          oeffnet, will erst wissen wie es steht, dann wohin. */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {cards.map(({ href, icon: Icon, title, body }) => (
+          <Link
+            key={href}
+            href={href}
+            className="rounded-xl border border-edge/70 bg-panel p-5 shadow-sm transition-[border-color,box-shadow] duration-150 hover:border-edge2 hover:shadow-md"
+          >
+            <Icon className="h-5 w-5 text-sky-600 transition-colors dark:text-sky-400" />
+            <h3 className="mt-3 text-sm font-semibold text-ink">{title}</h3>
+            <p className="mt-1 text-sm text-faint">{body}</p>
+          </Link>
+        ))}
+      </div>
     </div>
   );
 }

@@ -304,14 +304,14 @@ export default function LinkedInTemplate({
   }
 
   return (
-    <div className="rounded-xl border border-edge/60 bg-panel p-4">
+    <div className="rounded-xl border border-edge/70 bg-panel p-4 shadow-sm sm:p-5">
       <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
         <div>
-          <h2 className="text-sm font-semibold text-ink">{L.templateHeading}</h2>
-          <p className="text-xs text-faint">{L.templateHint}</p>
+          <h2 className="text-base font-semibold text-ink">{L.templateHeading}</h2>
+          <p className="mt-0.5 text-xs text-faint">{L.templateHint}</p>
         </div>
         {!current && !dirty && (
-          <span className="rounded-full bg-chip px-2 py-0.5 text-[10px] text-mute">{L.templateIsDefault}</span>
+          <span className="rounded-full bg-chip px-2.5 py-0.5 text-xs font-medium text-mute">{L.templateIsDefault}</span>
         )}
       </div>
 
@@ -327,7 +327,7 @@ export default function LinkedInTemplate({
               type="button"
               onClick={() => switchTo(tpl.id)}
               className={
-                "flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs transition-colors " +
+                "flex min-h-9 items-center gap-1.5 rounded-lg border px-3 text-xs transition-colors duration-150 " +
                 (active
                   ? "border-sky-500/60 bg-sky-500/10 font-medium text-sky-700 dark:text-sky-300"
                   : "border-edge2 text-soft hover:border-edge3 hover:text-ink")
@@ -335,7 +335,7 @@ export default function LinkedInTemplate({
             >
               {tpl.name}
               {tpl.is_default && (
-                <span title={L.templateDefaultTitle} className="text-[10px] text-amber-500">
+                <span title={L.templateDefaultTitle} className="text-2xs text-amber-500">
                   ★
                 </span>
               )}
@@ -346,20 +346,20 @@ export default function LinkedInTemplate({
           type="button"
           onClick={createTemplate}
           disabled={busy}
-          className="rounded-lg border border-dashed border-edge2 px-2.5 py-1 text-xs text-faint transition-colors hover:border-sky-500/50 hover:text-sky-600 disabled:opacity-40 dark:hover:text-sky-400"
+          className="min-h-9 rounded-lg border border-dashed border-edge2 px-3 text-xs font-medium text-faint transition-colors duration-150 hover:border-sky-500/50 hover:bg-sky-500/5 hover:text-sky-600 disabled:opacity-40 dark:hover:text-sky-400"
         >
           + {L.templateNew}
         </button>
       </div>
 
       <div className="mb-2 flex flex-wrap items-center gap-1.5">
-        <span className="text-[11px] text-faint">{L.insertVariable}</span>
+        <span className="text-2xs font-medium uppercase tracking-wider text-mute">{L.insertVariable}</span>
         {VARIABLES.map((v) => (
           <button
             key={v.token}
             type="button"
             onClick={() => insertVariable(v.token)}
-            className="rounded-full border border-edge2 px-2 py-0.5 font-mono text-[11px] text-faint transition-colors hover:border-sky-500/50 hover:text-sky-600 dark:hover:text-sky-400"
+            className="min-h-8 rounded-full border border-edge2 px-2.5 font-mono text-2xs text-faint transition-colors duration-150 hover:border-sky-500/50 hover:bg-sky-500/5 hover:text-sky-600 dark:hover:text-sky-400"
           >
             {v.label}
           </button>
@@ -374,13 +374,13 @@ export default function LinkedInTemplate({
         highlights={highlights}
       />
 
-      <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px]">
+      <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
         <span className="flex items-center gap-1 text-faint">
           <span className="inline-block h-2.5 w-2.5 rounded-sm bg-sky-500/40" aria-hidden />
           {L.legendValid}
         </span>
         {bad.length > 0 && (
-          <span className="flex items-center gap-1 text-red-500">
+          <span className="flex items-center gap-1 text-red-600 dark:text-red-400">
             <span className="inline-block h-2.5 w-2.5 rounded-sm bg-red-500/40" aria-hidden />
             {L.templateUnknownPlaceholders(bad.join(", "))}
           </span>
@@ -388,11 +388,11 @@ export default function LinkedInTemplate({
       </div>
 
       {preview && (
-        <details className="mt-3 rounded-lg border border-edge2/70" open>
-          <summary className="cursor-pointer px-3 py-1.5 text-[11px] text-faint hover:text-soft">
+        <details className="mt-3 overflow-hidden rounded-xl border border-edge/70 bg-wash/70" open>
+          <summary className="cursor-pointer px-3 py-2 text-xs font-medium text-faint transition-colors hover:text-soft">
             {previewLabel ? L.previewWith(previewLabel) : L.previewToggle}
           </summary>
-          <div className="whitespace-pre-wrap border-t border-edge2/70 px-3 py-2.5 text-xs leading-relaxed text-soft">
+          <div className="whitespace-pre-wrap border-t border-edge/70 bg-panel px-3 py-2.5 text-sm leading-relaxed text-soft">
             {preview}
           </div>
         </details>
@@ -402,7 +402,7 @@ export default function LinkedInTemplate({
         <button
           onClick={save}
           disabled={saving || (!dirty && Boolean(current))}
-          className="rounded-lg bg-sky-600 px-3.5 py-1.5 text-xs font-medium text-white transition-all hover:brightness-110 active:scale-[0.98] disabled:opacity-40"
+          className="min-h-9 rounded-lg bg-sky-600 px-4 text-sm font-semibold text-white shadow-sm transition-[background-color,transform] duration-150 hover:bg-sky-500 active:scale-[0.98] disabled:opacity-40 disabled:active:scale-100"
         >
           {saving ? t.common.saving : dirty || !current ? L.templateSave : L.templateSavedState}
         </button>
@@ -413,21 +413,21 @@ export default function LinkedInTemplate({
           <button
             onClick={ausAngebot}
             disabled={generating}
-            className="rounded-lg border border-sky-500/40 px-3 py-1.5 text-xs text-sky-600 transition-colors hover:bg-sky-500/10 disabled:opacity-40 dark:text-sky-400"
+            className="min-h-9 rounded-lg border border-sky-500/40 px-3.5 text-sm font-medium text-sky-600 transition-[background-color,transform] duration-150 hover:bg-sky-500/10 active:scale-[0.98] disabled:opacity-40 disabled:active:scale-100 dark:text-sky-400"
           >
             {generating ? L.templateGenerating : L.templateFromOffer}
           </button>
         )}
         <button
           onClick={() => onTemplateChange(getDefaultLinkedInTemplate(lang))}
-          className="rounded-lg border border-edge2 px-3 py-1.5 text-xs text-soft transition-colors hover:text-ink"
+          className="min-h-9 rounded-lg border border-edge2 bg-panel px-3.5 text-sm font-medium text-soft transition-[background-color,transform] duration-150 hover:bg-chip hover:text-ink active:scale-[0.98]"
         >
           {L.templateReset}
         </button>
 
         {/* Verwalten nur, wenn es etwas zu verwalten gibt. */}
         {current && (
-          <span className="ml-auto flex items-center gap-2 text-[11px]">
+          <span className="ml-auto flex items-center gap-3 text-xs font-medium">
             {!current.is_default && (
               <button onClick={makeDefault} disabled={busy} className="text-faint transition-colors hover:text-ink disabled:opacity-40">
                 {L.templateMakeDefault}

@@ -28,7 +28,7 @@
  */
 export default function Herkunft({ farbe, label }: { farbe: string; label: string }) {
   return (
-    <p className="mb-1.5 flex items-center gap-2 text-[13px] font-medium leading-snug text-soft">
+    <p className="mb-1.5 flex items-center gap-2 text-xs font-medium leading-snug text-soft">
       <span
         aria-hidden
         className="h-2 w-2 shrink-0 rounded-full"

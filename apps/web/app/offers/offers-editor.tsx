@@ -105,8 +105,9 @@ type VorschlagQuelle = "website" | "search";
  * px-4 hinter px-3.5 zu haengen gewinnt also nicht zuverlaessig.
  */
 const feldBasis =
-  "rounded-lg border border-edge2 bg-field px-4 py-3 text-[15px] leading-[1.6] text-ink " +
-  "placeholder-mute outline-none transition-colors focus:border-sky-500";
+  "rounded-lg border border-edge2 bg-field px-4 py-3 text-sm leading-[1.6] text-ink " +
+  "placeholder-mute outline-none transition-[border-color,box-shadow] duration-150 " +
+  "focus:border-sky-500 focus:ring-4 focus:ring-sky-500/15";
 const textfeldCls = feldBasis + " w-full resize-y";
 
 /** Karte der Instrumentenfläche: Haarlinienrahmen, Eckwinkel, Monoschild. */
@@ -122,7 +123,7 @@ function Karte({
   return (
     <section
       className={
-        "fb-ticks relative rounded-xl border border-edge/60 bg-panel p-5 " + className
+        "fb-ticks relative rounded-xl border border-edge/70 bg-panel p-5 " + className
       }
     >
       <p className="fb-label mb-3 text-mute">{label}</p>
@@ -948,7 +949,7 @@ export default function OffersEditor({
    * Zweimal dieselbe Liste ist eine Frage zu viel.
    */
   const hubInhalt = (
-    <div className="fb-ticks rounded-2xl border border-edge/60 bg-panel px-4 py-4 shadow-xl">
+    <div className="fb-ticks rounded-2xl border border-edge/70 bg-panel px-4 py-4 shadow-xl">
       <div className="flex flex-col items-center">
         <Thaw
           state={fehlend.length === 0 ? "ready" : gefuellt.size === 0 ? "cold" : "listening"}
@@ -956,12 +957,12 @@ export default function OffersEditor({
           label="Core"
         />
         <span
-          className="fb-num -mt-1 text-[20px] font-semibold leading-none"
+          className="fb-num -mt-1 text-xl font-semibold leading-none"
           style={{ color: fehlend.length === 0 ? "var(--fb-ready)" : "var(--fb-frost)" }}
         >
           {prozent}%
         </span>
-        <p className="mt-2 min-h-8 text-center text-[12.5px] leading-[1.4] text-soft">
+        <p className="mt-2 min-h-8 text-center text-xs leading-[1.4] text-soft">
           {fehlend.length === 0
             ? gefuellt.size === OFFER_TEXT_FIELDS.length
               ? O.sayComplete
@@ -975,7 +976,7 @@ export default function OffersEditor({
       <button
         onClick={pruefen}
         disabled={coachLaeuft || gefuellt.size === 0}
-        className="relative mt-2 min-h-10 w-full overflow-hidden rounded-lg border text-[13.5px] font-medium transition-all hover:brightness-110 disabled:opacity-40 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500"
+        className="relative mt-2 min-h-10 w-full overflow-hidden rounded-lg border text-xs font-medium transition-all hover:brightness-110 disabled:opacity-40 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500"
         style={{
           borderColor: "color-mix(in srgb, var(--fb-frost) 45%, transparent)",
           color: "var(--fb-frost)",
@@ -987,7 +988,7 @@ export default function OffersEditor({
       </button>
 
       {coachBefunde !== null && !coachLaeuft && (
-        <p className="fb-open mt-1.5 text-center text-[12px] leading-snug text-soft">
+        <p className="fb-open mt-1.5 text-center text-2xs leading-snug text-soft">
           {coachBefunde.length === 0 ? O.coach.clean : O.coach.found(coachBefunde.length)}
         </p>
       )}
@@ -995,7 +996,7 @@ export default function OffersEditor({
       {fehlend.length === 0 && (
         <Link
           href="/instantly/campaigns/new"
-          className="mt-2 flex min-h-10 w-full items-center justify-center rounded-lg border text-[13.5px] font-medium transition-all hover:brightness-110"
+          className="mt-2 flex min-h-10 w-full items-center justify-center rounded-lg border text-xs font-medium transition-all hover:brightness-110"
           style={{
             borderColor: "color-mix(in srgb, var(--fb-ready) 50%, transparent)",
             color: "var(--fb-ready)",
@@ -1006,7 +1007,7 @@ export default function OffersEditor({
         </Link>
       )}
 
-      <p className="mt-2 text-center text-[11px] text-mute">
+      <p className="mt-2 text-center text-2xs text-faint">
         {fehler ? O.saveState.failed : speichert || geaendert ? O.saveState.saving : O.saveState.saved}
       </p>
     </div>
@@ -1038,11 +1039,11 @@ export default function OffersEditor({
             <button
               type="button"
               onClick={() => wechsle(o.id)}
-              className="flex items-center gap-1.5 py-1.5 pl-3 pr-1.5 text-[13px] focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500"
+              className="flex items-center gap-1.5 py-1.5 pl-3 pr-1.5 text-xs focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500"
             >
               {o.name}
               {o.is_default && (
-                <span title={O.defaultTitle} aria-label={O.defaultTitle} className="text-[10px] text-amber-500">
+                <span title={O.defaultTitle} aria-label={O.defaultTitle} className="text-2xs text-amber-500">
                   ★
                 </span>
               )}
@@ -1051,14 +1052,17 @@ export default function OffersEditor({
                 <button> waere ungueltiges HTML, und ein Klick auf das × soll
                 nicht auch noch den Reiter wechseln. Erst ab Hover/Fokus
                 sichtbar, damit die Leiste in Ruhe nicht nach zwoelf
-                Loeschknoepfen aussieht. */}
+                Loeschknoepfen aussieht.
+                Unter sm dagegen immer sichtbar: auf einem Telefon gibt es
+                kein Ueberfahren, dort war der Knopf schlicht nicht
+                erreichbar. */}
             <button
               type="button"
               onClick={() => loeschen(o.id, o.name)}
               disabled={busy}
               title={t.common.delete}
               aria-label={O.deleteConfirm(o.name)}
-              className="mr-1.5 rounded px-1 text-sm text-mute opacity-0 transition-opacity hover:text-red-600 focus-visible:opacity-100 focus-visible:outline-none group-hover:opacity-100 disabled:opacity-40 dark:hover:text-red-400"
+              className="mr-1.5 rounded px-1 text-sm text-faint opacity-0 transition-opacity duration-150 hover:text-red-600 focus-visible:opacity-100 focus-visible:outline-none group-hover:opacity-100 disabled:opacity-40 max-sm:opacity-100 dark:hover:text-red-400"
             >
               ×
             </button>
@@ -1068,7 +1072,7 @@ export default function OffersEditor({
           <button
             type="button"
             onClick={() => setLegeAn(true)}
-            className="min-h-9 rounded-lg border border-dashed border-edge2 px-3 text-[13px] text-faint transition-colors hover:border-sky-500/50 hover:text-sky-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 dark:hover:text-sky-400"
+            className="min-h-9 rounded-lg border border-dashed border-edge2 px-3 text-xs text-faint transition-colors hover:border-sky-500/50 hover:text-sky-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 dark:hover:text-sky-400"
           >
             + {O.newOffer}
           </button>
@@ -1129,7 +1133,9 @@ export default function OffersEditor({
           {vorlage === "website" && (
             <p className="mt-2 text-xs leading-relaxed text-faint">{O.templateWebsiteHint}</p>
           )}
-          {offers.length === 0 && <p className="mt-2.5 text-xs leading-relaxed text-mute">{O.emptyHint}</p>}
+          {offers.length === 0 && (
+            <p className="mt-2.5 text-xs leading-relaxed text-faint">{O.emptyHint}</p>
+          )}
         </Karte>
       )}
 
@@ -1144,7 +1150,7 @@ export default function OffersEditor({
             <Karte label={O.languageHeading}>
               <div className="flex flex-wrap items-start gap-x-8 gap-y-4">
                 <div>
-                  <p className="mb-2 text-[13px] text-faint">{O.languageSubtitle}</p>
+                  <p className="mb-2 text-xs text-faint">{O.languageSubtitle}</p>
                   <div className="flex gap-2">
                     {(["de", "en"] as const).map((code) => (
                       <Schalter
@@ -1162,7 +1168,7 @@ export default function OffersEditor({
                     Bedeutung. */}
                 {entwurf.language === "de" && (
                   <div>
-                    <p className="mb-2 text-[13px] text-faint">{O.addressSubtitle}</p>
+                    <p className="mb-2 text-xs text-faint">{O.addressSubtitle}</p>
                     <div className="flex gap-2">
                       {(["du", "sie"] as const).map((form) => (
                         <Schalter
@@ -1182,11 +1188,11 @@ export default function OffersEditor({
                   beantworten zusammen die Frage "wer schreibt hier wem, und
                   wie". Getrennte Karten haetten drei Antworten auf drei
                   Seiten verteilt. */}
-              <div className="mt-5 border-t border-edge/60 pt-4">
-                <label htmlFor="feld-signature" className="block text-[15px] font-medium text-ink">
+              <div className="mt-5 border-t border-edge/70 pt-4">
+                <label htmlFor="feld-signature" className="block text-sm font-medium text-ink">
                   {O.signatureHeading}
                 </label>
-                <p className="mb-2 mt-0.5 text-[13px] text-faint">{O.signatureSubtitle}</p>
+                <p className="mb-2 mt-0.5 text-xs text-faint">{O.signatureSubtitle}</p>
                 <textarea
                   id="feld-signature"
                   value={entwurf.signature}
@@ -1199,7 +1205,7 @@ export default function OffersEditor({
                     Pixel breit ist, sind diese beiden Karten 664 statt 502
                     breit, und der Hinweis lief auf rund 85 Zeichen je Zeile.
                     Lesbar sind 60 bis 75. */}
-                <p className="mt-1.5 max-w-[54ch] text-[13px] leading-relaxed text-mute">{O.signatureHint}</p>
+                <p className="mt-1.5 max-w-[54ch] text-xs leading-relaxed text-faint">{O.signatureHint}</p>
               </div>
             </Karte>
 
@@ -1208,7 +1214,7 @@ export default function OffersEditor({
                   dasselbe und muessen sich gleich lesen. Die uebrigen
                   Unterzeilen der Seite bleiben bei 13 — die stehen an
                   Eingabefeldern und nicht an einem Handgriff. */}
-              <p className="mb-3 text-[14px] leading-relaxed text-soft">{O.websiteSubtitle}</p>
+              <p className="mb-3 text-sm leading-relaxed text-soft">{O.websiteSubtitle}</p>
               <div className="relative flex flex-wrap items-center gap-2">
                 <input
                   value={entwurf.website ?? ""}
@@ -1263,7 +1269,7 @@ export default function OffersEditor({
                   der erklaert, was gleich mit den Feldern passiert. text-faint
                   sind 4,5:1. Gilt hier und im Listen-Kasten — die uebrigen
                   Hinweise der Seite stehen noch auf text-mute. */}
-              <p className="mt-2 max-w-[54ch] text-[13px] leading-relaxed text-faint">{O.websiteHint}</p>
+              <p className="mt-2 max-w-[54ch] text-xs leading-relaxed text-faint">{O.websiteHint}</p>
             </Karte>
 
             {/* ── Der zweite Kern ──────────────────────────────────────
@@ -1306,7 +1312,7 @@ export default function OffersEditor({
                       (13 Pixel): dieser Absatz ist nicht der Nachsatz zu einem
                       Eingabefeld, sondern die einzige Erklaerung dessen, was
                       der Knopf daneben tut. */}
-                  <p className="max-w-[54ch] text-[14px] leading-relaxed text-soft">
+                  <p className="max-w-[54ch] text-sm leading-relaxed text-soft">
                     {O.fromSearch.subtitle}
                   </p>
                   {!listeOffen && !produktWahl && (
@@ -1334,16 +1340,16 @@ export default function OffersEditor({
                       {/* Kein fb-label: das ist eine Frage an den Nutzer und
                           kein Instrumentenschild. Gesetzt wie die anderen
                           Fragen dieser Seite ("Wie sprichst du an?"). */}
-                      <p className="mb-2 text-[13px] text-faint">{O.fromSearch.pickHeading}</p>
+                      <p className="mb-2 text-xs text-faint">{O.fromSearch.pickHeading}</p>
                       <div className="max-h-64 space-y-0.5 overflow-y-auto rounded-lg border border-edge2 bg-field p-2">
                         {listen === null && (
-                          <p className="px-2 py-2 text-[14px] text-mute">{O.fromSearch.loading}</p>
+                          <p className="px-2 py-2 text-sm text-mute">{O.fromSearch.loading}</p>
                         )}
                         {/* text-faint, nicht text-mute: „Lädt..." ist ein
                             Platzhalter und darf blass sein, „noch keine Liste"
                             ist die Antwort auf die gestellte Frage. */}
                         {listen?.length === 0 && (
-                          <p className="px-2 py-2 text-[14px] text-faint">
+                          <p className="px-2 py-2 text-sm text-faint">
                             {O.fromSearch.noSearches}
                           </p>
                         )}
@@ -1358,20 +1364,20 @@ export default function OffersEditor({
                               type="button"
                               onClick={() => void ausListe(s)}
                               disabled={laeuft || !!liestListe}
-                              className="flex min-h-9 w-full items-center gap-2.5 rounded-md px-2.5 text-left text-[14px] text-ink transition-colors hover:bg-chip focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 disabled:cursor-not-allowed disabled:text-mute disabled:hover:bg-transparent"
+                              className="flex min-h-9 w-full items-center gap-2.5 rounded-md px-2.5 text-left text-sm text-ink transition-colors hover:bg-chip focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 disabled:cursor-not-allowed disabled:text-mute disabled:hover:bg-transparent"
                             >
                               <span className="min-w-0 flex-1 truncate">{s.name ?? s.query}</span>
                               {s.location && (
-                                <span className="shrink-0 text-[13px] text-mute">{s.location}</span>
+                                <span className="shrink-0 text-xs text-mute">{s.location}</span>
                               )}
                               {laeuft && (
-                                <span className="shrink-0 text-[13px] text-mute">
+                                <span className="shrink-0 text-xs text-mute">
                                   {O.fromSearch.running}
                                 </span>
                               )}
                               {liestListe === s.id && (
                                 <span
-                                  className="shrink-0 text-[13px] font-medium"
+                                  className="shrink-0 text-xs font-medium"
                                   style={{ color: "var(--fb-aim)" }}
                                 >
                                   {O.fromSearch.reading}
@@ -1384,7 +1390,7 @@ export default function OffersEditor({
                       <button
                         type="button"
                         onClick={() => setListeOffen(false)}
-                        className="mt-2 min-h-8 rounded text-[13px] text-faint transition-colors hover:text-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500"
+                        className="mt-2 min-h-8 rounded text-xs text-faint transition-colors hover:text-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500"
                       >
                         {O.cancel}
                       </button>
@@ -1425,7 +1431,7 @@ export default function OffersEditor({
                   {listenFehler && (
                     <p
                       role="alert"
-                      className="mt-3 max-w-[54ch] text-[14px] leading-relaxed"
+                      className="mt-3 max-w-[54ch] text-sm leading-relaxed"
                       style={{ color: "var(--fb-warn)" }}
                     >
                       {listenFehler}
@@ -1433,7 +1439,7 @@ export default function OffersEditor({
                   )}
                 </div>
               </div>
-              <p className="mt-3 max-w-[54ch] text-[13px] leading-relaxed text-faint">
+              <p className="mt-3 max-w-[54ch] text-xs leading-relaxed text-faint">
                 {O.fromSearch.hint}
               </p>
             </Karte>
@@ -1477,7 +1483,7 @@ export default function OffersEditor({
                   return (
                     <section
                       key={stufe.id}
-                      className="fb-ticks relative rounded-xl border border-edge/60 bg-panel"
+                      className="fb-ticks relative rounded-xl border border-edge/70 bg-panel"
                     >
                       <button
                         type="button"
@@ -1490,22 +1496,22 @@ export default function OffersEditor({
                             eine Pflichtfrage offen ist. */}
                         <span
                           aria-hidden
-                          className="fb-num relative z-[1] flex h-10 w-10 shrink-0 items-center justify-center rounded-full border-2 bg-panel text-[13px] font-semibold transition-colors"
+                          className="fb-num relative z-[1] flex h-10 w-10 shrink-0 items-center justify-center rounded-full border-2 bg-panel text-xs font-semibold transition-colors"
                           style={{ borderColor: farbe, color: farbe }}
                         >
                           {voll}/{felder.length}
                         </span>
                         <span className="min-w-0 flex-1">
-                          <span className="block text-[15px] font-medium text-ink">
+                          <span className="block text-sm font-medium text-ink">
                             {O.stages[stufe.id].label}
                           </span>
-                          <span className="mt-0.5 block text-[13px] leading-relaxed text-faint">
+                          <span className="mt-0.5 block text-xs leading-relaxed text-faint">
                             {O.stages[stufe.id].hint}
                           </span>
                         </span>
                         <span
                           aria-hidden
-                          className="shrink-0 text-mute transition-transform duration-200"
+                          className="shrink-0 text-faint transition-transform duration-200"
                           style={{ transform: offeneStufe ? "rotate(90deg)" : "none" }}
                         >
                           ›
@@ -1513,7 +1519,7 @@ export default function OffersEditor({
                       </button>
 
                       {offeneStufe && (
-                        <div className="space-y-5 border-t border-edge/60 px-4 pb-5 pt-4">
+                        <div className="space-y-5 border-t border-edge/70 px-4 pb-5 pt-4">
                           {felder.map((key) => {
                             const pflicht = REQUIRED_FOR_GENERATION.includes(key);
                             const offen = fehlend.includes(key);
@@ -1523,10 +1529,10 @@ export default function OffersEditor({
                                   {/* Die Nummer ist keine Zierde: die zwoelf
                                       Felder sind eine Reihenfolge, und genau so
                                       ist auch die Legende am Ring sortiert. */}
-                                  <span className="fb-num shrink-0 text-[11px] text-mute">
+                                  <span className="fb-num shrink-0 text-2xs text-mute">
                                     {String(fieldNumber(key)).padStart(2, "0")}
                                   </span>
-                                  <label htmlFor={`feld-${key}`} className="text-[15px] font-medium text-ink">
+                                  <label htmlFor={`feld-${key}`} className="text-sm font-medium text-ink">
                                     {O.fields[key].label}
                                   </label>
                                   {/* Pflicht nur fuers Erzeugen, nicht fuers
@@ -1538,7 +1544,7 @@ export default function OffersEditor({
                                     </span>
                                   )}
                                 </div>
-                                <p className="mb-2 pl-6 text-[13px] leading-relaxed text-faint">
+                                <p className="mb-2 pl-6 text-xs leading-relaxed text-faint">
                                   {O.fields[key].hint}
                                 </p>
                                 <div className="pl-6">
@@ -1556,7 +1562,7 @@ export default function OffersEditor({
                         {(befunde.get(key) ?? []).map((f, n) => (
                           <p
                             key={n}
-                            className="mt-1.5 rounded-lg border-l-2 border-amber-500/50 bg-amber-500/5 px-3 py-1.5 text-[13px] leading-relaxed text-soft"
+                            className="mt-1.5 rounded-lg border-l-2 border-amber-500/50 bg-amber-500/5 px-3 py-1.5 text-xs leading-relaxed text-soft"
                           >
                             <span className="fb-label mr-1.5 text-amber-700 dark:text-amber-400">
                               {O.findings.heading}
@@ -1579,8 +1585,8 @@ export default function OffersEditor({
                             }}
                           >
                             <Herkunft farbe={vorschlagFarbe} label={vorschlagLabel} />
-                            <p className="text-[15px] leading-relaxed text-ink">{vorschlaege[key]}</p>
-                            <div className="mt-2.5 flex items-center gap-4 text-[13px]">
+                            <p className="text-sm leading-relaxed text-ink">{vorschlaege[key]}</p>
+                            <div className="mt-2.5 flex items-center gap-4 text-xs">
                               <button
                                 type="button"
                                 onClick={() => uebernehmen(key)}
@@ -1660,7 +1666,7 @@ export default function OffersEditor({
               ("welcher gilt jetzt?"). */}
           {!breit && (
           <aside className="lg:sticky lg:top-4 lg:self-start">
-            <div className="fb-ticks relative overflow-hidden rounded-xl border border-edge/60 bg-panel p-6">
+            <div className="fb-ticks relative overflow-hidden rounded-xl border border-edge/70 bg-panel p-6">
               <div className="fb-grid-bg absolute inset-0" aria-hidden />
               <div className="relative">
                 <p className="fb-label mb-4 text-mute">{O.coreLabel}</p>
@@ -1688,11 +1694,11 @@ export default function OffersEditor({
                 {/* THAWs Knopf steht direkt unter ihm, nicht bei den anderen:
                     er ist der einzige auf dieser Seite, der etwas LIEST statt
                     etwas zu speichern oder weiterzugehen. */}
-                <div className="mt-4 border-t border-edge/60 pt-4">
+                <div className="mt-4 border-t border-edge/70 pt-4">
                   <button
                     onClick={pruefen}
                     disabled={coachLaeuft || gefuellt.size === 0}
-                    className="relative min-h-10 w-full overflow-hidden rounded-lg border text-[13.5px] font-medium transition-all hover:brightness-110 disabled:opacity-40 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500"
+                    className="relative min-h-10 w-full overflow-hidden rounded-lg border text-xs font-medium transition-all hover:brightness-110 disabled:opacity-40 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500"
                     style={{
                       borderColor: "color-mix(in srgb, var(--fb-frost) 45%, transparent)",
                       color: "var(--fb-frost)",
@@ -1703,16 +1709,16 @@ export default function OffersEditor({
                     <span className="relative">{coachLaeuft ? O.coach.running : O.coach.run}</span>
                   </button>
                   {coachBefunde !== null && !coachLaeuft && (
-                    <p className="fb-open mt-2 text-center text-[12.5px] leading-relaxed text-soft">
+                    <p className="fb-open mt-2 text-center text-xs leading-relaxed text-soft">
                       {coachBefunde.length === 0 ? O.coach.clean : O.coach.found(coachBefunde.length)}
                     </p>
                   )}
                   {coachBefunde === null && !coachLaeuft && (
-                    <p className="mt-2 text-center text-[12px] leading-relaxed text-mute">{O.coach.hint}</p>
+                    <p className="mt-2 text-center text-2xs leading-relaxed text-faint">{O.coach.hint}</p>
                   )}
                 </div>
 
-                <div className="mt-4 space-y-2 border-t border-edge/60 pt-4">
+                <div className="mt-4 space-y-2 border-t border-edge/70 pt-4">
                   {/* Kein Speicherknopf mehr, sondern eine Anzeige.
                       Der Knopf war die Ursache des gemeldeten Fehlers: ein
                       Umschalter, der eingerastet AUSSAH, war es erst nach
@@ -1724,10 +1730,10 @@ export default function OffersEditor({
                     disabled={speichert || (!geaendert && !fehler)}
                     aria-live="polite"
                     className={
-                      "flex min-h-9 w-full items-center justify-center gap-2 rounded-lg text-[13px] font-medium transition-colors " +
+                      "flex min-h-9 w-full items-center justify-center gap-2 rounded-lg text-xs font-medium transition-colors " +
                       (fehler
                         ? "border border-red-500/40 bg-red-500/5 text-red-600 dark:text-red-400"
-                        : "text-mute")
+                        : "text-faint")
                     }
                   >
                     <span
@@ -1751,7 +1757,7 @@ export default function OffersEditor({
                   {fehlend.length === 0 ? (
                     <Link
                       href="/instantly/campaigns/new"
-                      className="flex min-h-11 w-full items-center justify-center rounded-lg border text-[15px] font-medium transition-all hover:brightness-110"
+                      className="flex min-h-11 w-full items-center justify-center rounded-lg border text-sm font-medium transition-all hover:brightness-110"
                       style={{
                         borderColor: "color-mix(in srgb, var(--fb-ready) 50%, transparent)",
                         color: "var(--fb-ready)",
@@ -1767,22 +1773,25 @@ export default function OffersEditor({
                   )}
                 </div>
 
-                <div className="mt-4 flex items-center justify-between border-t border-edge/60 pt-3 text-xs">
+                {/* -mx-2: die beiden Knoepfe bekommen einen Tippbereich von
+                    rund 36 Pixeln, ohne dass ihre Beschriftung aus der Flucht
+                    der Karte rutscht. */}
+                <div className="-mx-2 mt-4 flex items-center justify-between border-t border-edge/70 pt-3 text-xs">
                   {!aktuell.is_default ? (
                     <button
                       onClick={alsStandard}
                       disabled={busy}
-                      className="text-faint transition-colors hover:text-ink disabled:opacity-40"
+                      className="rounded-lg px-2 py-1.5 font-medium text-faint transition-colors duration-150 hover:bg-chip hover:text-ink disabled:opacity-40"
                     >
                       {O.makeDefault}
                     </button>
                   ) : (
-                    <span className="fb-label text-mute">{O.defaultTitle}</span>
+                    <span className="fb-label px-2 text-mute">{O.defaultTitle}</span>
                   )}
                   <button
                     onClick={() => loeschen(aktuell.id, aktuell.name)}
                     disabled={busy}
-                    className="text-faint transition-colors hover:text-red-600 disabled:opacity-40 dark:hover:text-red-400"
+                    className="rounded-lg px-2 py-1.5 font-medium text-faint transition-colors duration-150 hover:bg-red-500/10 hover:text-red-600 disabled:opacity-40 dark:hover:text-red-400"
                   >
                     {t.common.delete}
                   </button>

@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useT } from "../../language-provider";
 import { useToast } from "../../toast-provider";
-import { STATUS_BADGE_CLS } from "@/lib/ui";
+import { primaryBtnCls, STATUS_BADGE_CLS } from "@/lib/ui";
 
 type CampaignListItem = {
   id: string;
@@ -78,10 +78,10 @@ export default function InstantlyCampaignsPage() {
     // Scrollbalken, obwohl daneben Platz frei ist. `main` deckelt ohnehin bei
     // 1216, breiter wird die Seite dadurch nicht.
     <div className="max-w-6xl space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight text-ink">{C.title}</h1>
-          <p className="text-sm text-faint">{C.description}</p>
+          <p className="mt-1 text-sm text-faint">{C.description}</p>
         </div>
         {items !== null && (
           /* w-full unter sm: die Kopfzeile bricht auf dem Handy ohnehin um,
@@ -90,7 +90,7 @@ export default function InstantlyCampaignsPage() {
              die eine Handlung dieser Seite. */
           <Link
             href="/instantly/campaigns/new"
-            className="w-full rounded-lg bg-sky-600 px-5 py-3 text-center text-sm font-medium text-white shadow-lg shadow-sky-600/25 transition-all hover:bg-sky-500 sm:w-auto sm:py-2.5"
+            className={primaryBtnCls + " w-full text-center sm:w-auto"}
           >
             {C.newButton}
           </Link>
@@ -98,7 +98,7 @@ export default function InstantlyCampaignsPage() {
       </div>
 
       {error && (
-        <div className="rounded-lg border border-edge/60 bg-panel p-6">
+        <div className="rounded-xl border border-edge/70 bg-panel p-5 shadow-sm sm:p-6">
           <p className="text-sm text-faint">
             {C.needsKeyBody}{" "}
             <Link href="/instantly/connection" className="font-medium text-sky-600 hover:text-sky-500 dark:text-sky-400">
@@ -111,14 +111,21 @@ export default function InstantlyCampaignsPage() {
       {/* Steht ueber der Tabelle, weil er der Grund ist, warum in ihr etwas
           Neues steht, das der Nutzer nie selbst angelegt hat. */}
       {!error && entwuerfe > 0 && (
-        <div className="rounded-lg border border-sky-500/40 bg-sky-500/5 px-4 py-3 text-sm text-faint">
+        <div className="rounded-xl border border-sky-500/30 bg-sky-500/5 px-4 py-3 text-sm text-soft">
           {C.mcpDraftsHint(entwuerfe)}
         </div>
       )}
 
-      {!error && items === null && <p className="text-sm text-faint">{t.common.saving}</p>}
+      {/* Ladezustand in der Form der Liste, nicht als Punkt in der Mitte. */}
+      {!error && items === null && (
+        <div className="space-y-2" aria-hidden>
+          <div className="skeleton h-14" />
+          <div className="skeleton h-14" />
+          <div className="skeleton h-14" />
+        </div>
+      )}
       {!error && items !== null && items.length === 0 && (
-        <div className="rounded-lg border border-dashed border-edge2 p-6 text-center">
+        <div className="rounded-xl border border-dashed border-edge2 px-6 py-10 text-center">
           <p className="text-sm text-faint">{C.empty}</p>
         </div>
       )}
@@ -146,9 +153,9 @@ export default function InstantlyCampaignsPage() {
            hat den Namen verloren, zu dem die Zahl gehoert. Darunter steht
            deshalb dieselbe Information als Karte -- eine Kampagne je Block,
            Kennzahlen im Raster, nichts abgeschnitten. */
-        <div className="hidden overflow-x-auto rounded-lg border border-edge/60 md:block">
+        <div className="hidden overflow-x-auto rounded-xl border border-edge/70 bg-panel shadow-sm md:block">
           <table className="w-full min-w-[58rem] text-sm">
-            <thead className="bg-panel2 text-left text-xs text-faint">
+            <thead className="border-b border-edge/70 bg-panel2 text-left text-xs text-faint">
               <tr>
                 <th className="px-4 py-3 font-medium">{C.columnName}</th>
                 <th className="px-4 py-3 font-medium">{C.columnStatus}</th>
@@ -162,7 +169,7 @@ export default function InstantlyCampaignsPage() {
             </thead>
             <tbody>
               {items.map((c) => (
-                <tr key={c.id} className="border-t border-edge/60">
+                <tr key={c.id} className="border-t border-edge/70 transition-colors duration-150 hover:bg-wash">
                   {/* Name und Lead-Liste uebereinander statt in zwei Spalten:
                       die Liste ist Zusatzinformation zum Namen, keine eigene
                       Groesse — und spart die Breite fuer die Kennzahlen. */}
@@ -180,11 +187,11 @@ export default function InstantlyCampaignsPage() {
                         beiden sind aber nicht dasselbe, und nur eine davon
                         muss noch angelegt werden. */}
                     {c.is_draft ? (
-                      <span className="rounded-full border border-sky-500/40 px-2 py-0.5 text-[11px] text-sky-600 dark:text-sky-400">
+                      <span className="rounded-full border border-sky-500/40 px-2.5 py-0.5 text-xs font-medium text-sky-600 dark:text-sky-400">
                         {C.mcpDraftBadge}
                       </span>
                     ) : (
-                      <span className={"rounded-full border px-2 py-0.5 text-[11px] " + (STATUS_BADGE_CLS[c.status] ?? "")}>
+                      <span className={"rounded-full border px-2.5 py-0.5 text-xs font-medium " + (STATUS_BADGE_CLS[c.status] ?? "")}>
                         {t.instantly.statusLabels[c.status as keyof typeof t.instantly.statusLabels] ?? c.status}
                       </span>
                     )}
@@ -205,7 +212,7 @@ export default function InstantlyCampaignsPage() {
                         </div>
                         <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-chip">
                           <div
-                            className="h-full rounded-full bg-sky-500 transition-[width]"
+                            className="h-full rounded-full bg-sky-500 transition-[width] duration-300"
                             style={{
                               width: `${Math.min(100, Math.round((c.stats.contacted_count / c.stats.leads_count) * 100))}%`,
                             }}
@@ -243,7 +250,7 @@ export default function InstantlyCampaignsPage() {
                     <span className="flex items-center justify-end gap-3">
                       <Link
                         href={c.is_draft ? `/instantly/campaigns/new?draft=${c.id}` : `/instantly/campaigns/${c.id}`}
-                        className="text-xs font-medium text-sky-600 hover:text-sky-500 dark:text-sky-400"
+                        className="text-sm font-medium text-sky-600 transition-colors hover:text-sky-500 dark:text-sky-400"
                       >
                         {c.is_draft ? C.mcpDraftReview : C.manage}
                       </Link>
@@ -251,7 +258,7 @@ export default function InstantlyCampaignsPage() {
                         type="button"
                         disabled={deletingId === c.id}
                         onClick={() => deleteCampaign(c)}
-                        className="text-xs font-medium text-faint transition-colors hover:text-red-600 disabled:opacity-50 dark:hover:text-red-400"
+                        className="text-sm font-medium text-faint transition-colors hover:text-red-600 disabled:opacity-50 dark:hover:text-red-400"
                       >
                         {C.delete}
                       </button>
@@ -276,7 +283,7 @@ export default function InstantlyCampaignsPage() {
                 ? Math.round((c.stats.contacted_count / c.stats.leads_count) * 100)
                 : null;
             return (
-              <div key={c.id} className="rounded-lg border border-edge/60 bg-panel p-4">
+              <div key={c.id} className="rounded-xl border border-edge/70 bg-panel p-4 shadow-sm">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <p className="font-medium text-ink">{c.name}</p>
@@ -286,11 +293,11 @@ export default function InstantlyCampaignsPage() {
                     </p>
                   </div>
                   {c.is_draft ? (
-                    <span className="shrink-0 rounded-full border border-sky-500/40 px-2 py-0.5 text-[11px] text-sky-600 dark:text-sky-400">
+                    <span className="shrink-0 rounded-full border border-sky-500/40 px-2.5 py-0.5 text-xs font-medium text-sky-600 dark:text-sky-400">
                       {C.mcpDraftBadge}
                     </span>
                   ) : (
-                    <span className={"shrink-0 rounded-full border px-2 py-0.5 text-[11px] " + (STATUS_BADGE_CLS[c.status] ?? "")}>
+                    <span className={"shrink-0 rounded-full border px-2.5 py-0.5 text-xs font-medium " + (STATUS_BADGE_CLS[c.status] ?? "")}>
                       {t.instantly.statusLabels[c.status as keyof typeof t.instantly.statusLabels] ?? c.status}
                     </span>
                   )}
@@ -306,7 +313,7 @@ export default function InstantlyCampaignsPage() {
                     </div>
                     <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-chip">
                       <div
-                        className="h-full rounded-full bg-sky-500 transition-[width]"
+                        className="h-full rounded-full bg-sky-500 transition-[width] duration-300"
                         style={{ width: `${Math.min(100, fortschritt)}%` }}
                       />
                     </div>
@@ -316,7 +323,7 @@ export default function InstantlyCampaignsPage() {
                 {/* Vier Zahlen im Raster statt vier Spalten: die Beschriftung
                     steht ueber dem Wert und nicht in einem Kopf zwei
                     Bildschirmhoehen weiter oben. */}
-                <div className="mt-3 grid grid-cols-4 gap-2 border-t border-edge/60 pt-3">
+                <div className="mt-4 grid grid-cols-4 gap-2 border-t border-edge/70 pt-3">
                   {[
                     { label: C.columnLeads, wert: c.stats?.leads_count, cls: "text-soft" },
                     { label: C.columnContacted, wert: c.stats?.contacted_count, cls: "text-soft" },
@@ -332,7 +339,7 @@ export default function InstantlyCampaignsPage() {
                     },
                   ].map((k) => (
                     <div key={k.label}>
-                      <p className="text-[11px] text-mute">{k.label}</p>
+                      <p className="text-2xs font-medium uppercase tracking-wider text-mute">{k.label}</p>
                       <p className={"mt-0.5 text-sm tabular-nums " + k.cls}>{k.wert ?? "–"}</p>
                     </div>
                   ))}
@@ -344,7 +351,7 @@ export default function InstantlyCampaignsPage() {
                 <div className="mt-3 flex items-center gap-2">
                   <Link
                     href={c.is_draft ? `/instantly/campaigns/new?draft=${c.id}` : `/instantly/campaigns/${c.id}`}
-                    className="flex-1 rounded-lg border border-edge2 px-3 py-2.5 text-center text-sm font-medium text-sky-600 transition-colors hover:border-sky-500 dark:text-sky-400"
+                    className="flex-1 rounded-lg border border-edge2 bg-panel px-3 py-2.5 text-center text-sm font-medium text-sky-600 shadow-sm transition-[border-color,transform] duration-150 hover:border-sky-500 active:scale-[0.98] dark:text-sky-400"
                   >
                     {c.is_draft ? C.mcpDraftReview : C.manage}
                   </Link>
@@ -352,7 +359,7 @@ export default function InstantlyCampaignsPage() {
                     type="button"
                     disabled={deletingId === c.id}
                     onClick={() => deleteCampaign(c)}
-                    className="rounded-lg border border-edge2 px-3 py-2.5 text-sm font-medium text-faint transition-colors hover:border-red-500/50 hover:text-red-600 disabled:opacity-50 dark:hover:text-red-400"
+                    className="rounded-lg border border-edge2 bg-panel px-3 py-2.5 text-sm font-medium text-faint shadow-sm transition-[border-color,color,transform] duration-150 hover:border-red-500/50 hover:text-red-600 active:scale-[0.98] disabled:opacity-50 dark:hover:text-red-400"
                   >
                     {C.delete}
                   </button>

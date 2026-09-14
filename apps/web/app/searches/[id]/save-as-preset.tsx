@@ -87,10 +87,18 @@ export default function SaveAsPreset({
     push(treffer ? S.savedOverwritten(sauber) : S.saved(sauber), "success");
   }
 
+  /* Dieselbe Groesse wie die Knoepfe in der Kopfzeile darueber (Abo-Auswahl,
+     Kampagnenverknuepfung): drei Zeilen Kleinkram in drei Hoehen war der
+     unruhigste Teil dieser Seite. */
+  const chipCls =
+    "inline-flex h-9 shrink-0 items-center rounded-lg border border-edge2 bg-panel px-3 text-xs " +
+    "font-medium text-soft transition-[background-color,border-color,transform] duration-150 " +
+    "hover:bg-chip hover:text-ink active:scale-[0.98] disabled:opacity-60 disabled:active:scale-100";
+
   return (
     <div className="flex flex-wrap items-center gap-2">
       {open ? (
-        <div className="flex items-center gap-1.5">
+        <div className="flex w-full flex-wrap items-center gap-1.5 sm:w-auto sm:flex-nowrap">
           <input
             autoFocus
             value={name}
@@ -101,18 +109,18 @@ export default function SaveAsPreset({
             }}
             maxLength={80}
             placeholder={S.namePlaceholder}
-            className="w-52 rounded-lg border border-edge2 bg-field px-2 py-1 text-xs text-ink outline-none focus:border-sky-500"
+            className="h-9 w-full min-w-0 rounded-lg border border-edge2 bg-field px-3 text-xs text-ink outline-none transition-[border-color,box-shadow] duration-150 focus:border-sky-500 focus:ring-4 focus:ring-sky-500/15 sm:w-52"
           />
           <button
             onClick={() => void save()}
             disabled={saving || !name.trim()}
-            className="rounded-lg bg-sky-600 px-2.5 py-1 text-xs font-medium text-white transition-colors hover:bg-sky-700 disabled:opacity-60"
+            className="inline-flex h-9 shrink-0 items-center rounded-lg bg-sky-600 px-3 text-xs font-semibold text-white shadow-sm transition-[background-color,transform] duration-150 hover:bg-sky-500 active:scale-[0.98] disabled:opacity-60 disabled:active:scale-100"
           >
             {saving ? t.common.saving : t.common.save}
           </button>
           <button
             onClick={() => setOpen(false)}
-            className="rounded-lg border border-edge2 px-2.5 py-1 text-xs text-soft transition-colors hover:text-ink"
+            className={chipCls}
           >
             {S.cancel}
           </button>
@@ -121,7 +129,7 @@ export default function SaveAsPreset({
         <button
           onClick={() => setOpen(true)}
           title={S.saveTitle}
-          className="rounded-lg border border-edge2 px-2.5 py-1 text-xs text-soft transition-colors hover:border-edge3 hover:text-ink"
+          className={chipCls}
         >
           {S.save}
         </button>
@@ -131,7 +139,7 @@ export default function SaveAsPreset({
           benennen muessen. */}
       <Link
         href={`/?wiederholen=${searchId}`}
-        className="rounded-lg border border-edge2 px-2.5 py-1 text-xs text-soft transition-colors hover:border-edge3 hover:text-ink"
+        className={chipCls}
       >
         {S.repeat}
       </Link>

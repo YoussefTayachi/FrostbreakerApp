@@ -58,7 +58,7 @@ type PreviewLead = MergeTagSource;
  *  voll). Eine Flaeche, die mal da ist und mal nicht, liest sich als Fehler --
  *  deshalb an einer Stelle und nicht je Zweig abgeschrieben. Der Rahmen kommt
  *  von aussen dazu, weil er den Befund traegt (siehe `rahmen` unten). */
-const wanneCls = "rounded-lg border bg-field p-3 transition-colors";
+const wanneCls = "rounded-xl border bg-field p-4 transition-colors sm:p-5";
 
 /**
  * Die kleinen Schaltflaechen der Vorschau: blaettern, Stufe, Fassung, Sprung
@@ -76,10 +76,10 @@ const wanneCls = "rounded-lg border bg-field p-3 transition-colors";
  */
 const pillBaseCls =
   "rounded-md border transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500";
-const pillCls = pillBaseCls + " px-2 py-0.5 text-[11px]";
-/** Die Blaetterpfeile. 24 Pixel im Quadrat, weil man sie zehnmal hintereinander
- *  trifft (WCAG 2.2, 2.5.8); bei px-2 py-0.5 waren es 20. */
-const arrowCls = pillBaseCls + " flex h-6 w-6 items-center justify-center text-sm";
+const pillCls = pillBaseCls + " px-2.5 py-1 text-xs font-medium";
+/** Die Blaetterpfeile. 32 Pixel im Quadrat, weil man sie zehnmal hintereinander
+ *  trifft (WCAG 2.2, 2.5.8 verlangt 24); bei px-2 py-0.5 waren es 20. */
+const arrowCls = pillBaseCls + " flex h-8 w-8 items-center justify-center text-base";
 const pillAnCls = "border-sky-500 bg-sky-500/10 text-sky-600 dark:text-sky-300";
 const pillAusCls = "border-edge2 text-faint hover:border-sky-500/50 hover:text-ink";
 
@@ -172,13 +172,13 @@ export default function MailPreview({
 
   const kopf = (
     <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-      <p className="text-xs font-medium text-faint">{P.heading}</p>
+      <p className="text-sm font-semibold text-ink">{P.heading}</p>
       {/* Nur wenn tatsaechlich mehr Leads dahinterstehen, als hier blaetterbar
           sind. Bei drei Empfaengern und drei gezeigten Mails waere das Wort
           "Stichprobe" eine Uebertreibung, und die Zaehlung daneben sagt es
           ohnehin genauer. */}
       {daten.state === "ready" && daten.sendable > daten.leads.length && (
-        <p className="text-[11px] text-faint">{P.sample(daten.sendable)}</p>
+        <p className="text-xs text-faint">{P.sample(daten.sendable)}</p>
       )}
     </div>
   );
@@ -193,7 +193,7 @@ export default function MailPreview({
     return (
       <div className={wanneCls + " border-edge2"}>
         {kopf}
-        <p className="mt-1.5 text-xs text-faint">{text}</p>
+        <p className="mt-2 text-sm text-faint">{text}</p>
         {extra}
       </div>
     );
@@ -210,7 +210,7 @@ export default function MailPreview({
       <button
         type="button"
         onClick={() => setVersuch((v) => v + 1)}
-        className="mt-1.5 rounded-md text-[11px] font-medium text-sky-600 hover:text-sky-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 dark:text-sky-400"
+        className="mt-2 rounded-md text-sm font-medium text-sky-600 transition-colors hover:text-sky-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 dark:text-sky-400"
       >
         {P.retry}
       </button>
@@ -247,7 +247,7 @@ export default function MailPreview({
           "weiter" ist der Sprung von der vollstaendigen Mail zu der mit dem
           Loch (pickPreviewLeads sortiert das Paar nach vorn), und ohne
           Beschriftung sieht man nur, dass sich der Text geaendert hat. */}
-      <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+      <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
         {/* aria-live: beim Blaettern wandert der Fokus nicht mit, er bleibt auf
             dem Pfeil. Ohne diese Ansage hoert man nur "weiter, Schaltflaeche"
             und erfaehrt nie, wer jetzt dasteht. */}
@@ -260,7 +260,7 @@ export default function MailPreview({
               aussieht, wie sie aussieht. Auf text-mute (2,4:1) war genau die
               Zeile unlesbar, die den Sprung von "vollstaendig" zu "hier fehlt
               etwas" benennt. */}
-          <p className="text-[11px] text-faint">
+          <p className="mt-0.5 text-xs text-faint">
             {hasWebsiteFinding(lead) ? P.caseWithFinding : P.caseWithoutFinding}
           </p>
         </div>
@@ -278,7 +278,7 @@ export default function MailPreview({
           </button>
           {/* tabular-nums: ohne sie wechselt die Zeichenbreite bei jedem
               Blaettern und die beiden Pfeile rutschen unter dem Finger weg. */}
-          <span className="text-[11px] tabular-nums text-faint">{P.counter(li + 1, leads.length)}</span>
+          <span className="text-xs tabular-nums text-faint">{P.counter(li + 1, leads.length)}</span>
           <button
             type="button"
             onClick={() => setLeadIndex(li + 1)}
@@ -303,7 +303,7 @@ export default function MailPreview({
       <div
         role="group"
         aria-label={F.sequenceLabel}
-        className="mt-2 flex flex-wrap items-center gap-1.5 border-t border-edge2/60 pt-2"
+        className="mt-3 flex flex-wrap items-center gap-1.5 border-t border-edge/70 pt-3"
       >
         {steps.map((_, i) => (
           <button
@@ -365,15 +365,15 @@ export default function MailPreview({
           allein die Reihenfolge im erzeugten Stylesheet. Fuer die sehr lange
           Abmelde-URL ist "anywhere" die richtige der beiden: sie bricht auch
           dann, wenn im ganzen Wort keine Trennstelle vorkommt. */}
-      <div className="mt-2 rounded-md bg-panel2 px-4 py-3.5">
+      <div className="mt-3 rounded-xl bg-panel2 px-4 py-4 sm:px-6 sm:py-5">
         {/* text-soft statt text-faint: dieses Schild sitzt als einziges nicht
             auf Weiss, und text-faint kommt auf bg-panel2 nur auf 4,2:1. */}
-        <p className="text-[11px] text-soft">{F.subjectPlaceholder}</p>
-        <p className="mt-0.5 text-sm font-medium text-ink [overflow-wrap:anywhere]">
+        <p className="text-2xs font-medium uppercase tracking-wider text-soft">{F.subjectPlaceholder}</p>
+        <p className="mt-1 text-base font-semibold text-ink [overflow-wrap:anywhere]">
           {rendered!.subject.trim() ? rendered!.subject : <span className="text-soft">{P.noSubject}</span>}
         </p>
         <div
-          className="mt-3 border-t border-edge2/70 pt-3 text-sm leading-relaxed text-ink [&_div]:min-h-[1em] [overflow-wrap:anywhere]"
+          className="mt-4 border-t border-edge/70 pt-4 text-base leading-relaxed text-ink [&_div]:min-h-[1em] [overflow-wrap:anywhere]"
           dangerouslySetInnerHTML={{ __html: plainTextToInstantlyHtml(rendered!.body) }}
         />
       </div>
@@ -381,19 +381,19 @@ export default function MailPreview({
       {/* Der Befund zum Text darueber. Er benennt, was das Loch war: im Text
           selbst steht dazu bewusst nichts, denn dort steht, was der Empfaenger
           sieht, und der sieht keinen Hinweis. */}
-      <div className="mt-2 space-y-1.5">
+      <div className="mt-3 space-y-2">
         {zurueckgehalten && (
-          <p className="rounded-md border border-amber-500/40 bg-amber-500/5 px-2.5 py-1.5 text-[11px] text-amber-700 dark:text-amber-400">
+          <p className="rounded-lg border border-amber-500/40 bg-amber-500/5 px-3 py-2 text-xs text-amber-700 dark:text-amber-400">
             {P.heldBack}
           </p>
         )}
         {rendered!.empty.length > 0 && (
-          <p className="rounded-md border border-amber-500/40 bg-amber-500/5 px-2.5 py-1.5 text-[11px] text-amber-700 dark:text-amber-400">
+          <p className="rounded-lg border border-amber-500/40 bg-amber-500/5 px-3 py-2 text-xs text-amber-700 dark:text-amber-400">
             {P.empty(rendered!.empty.map(tagText).join(", "))}
           </p>
         )}
         {rendered!.unknown.length > 0 && (
-          <p className="rounded-md border border-red-500/40 bg-red-500/5 px-2.5 py-1.5 text-[11px] text-red-600 dark:text-red-400">
+          <p className="rounded-lg border border-red-500/40 bg-red-500/5 px-3 py-2 text-xs text-red-600 dark:text-red-400">
             {P.unknown(rendered!.unknown.join(", "))}
           </p>
         )}
@@ -401,20 +401,20 @@ export default function MailPreview({
           /* Der gute Fall bleibt still: kein Gruen, kein Kasten, nur ein Satz.
              Laut ist hier nur, was Arbeit macht -- sonst waere beim Blaettern
              jede zweite Mail ein Ausrufezeichen. */
-          <p className="text-[11px] text-faint">{P.allFilled}</p>
+          <p className="text-xs text-faint">{P.allFilled}</p>
         )}
         {/* Die Vorschau zeigt immer nur eine Fassung. Ohne diese Zeile
             muesste man acht Karten durchklicken, um zu merken, dass das Loch
             nicht hier sitzt, sondern in Schritt 3 Variante B. */}
         {andereLuecken.length > 0 && (
-          <p className="flex flex-wrap items-center gap-1.5 text-[11px] text-faint">
+          <p className="flex flex-wrap items-center gap-1.5 text-xs text-faint">
             {P.gapsElsewhere}
             {andereLuecken.map((g) => (
               <button
                 key={`${g.step}-${g.variant}`}
                 type="button"
                 onClick={() => onSelectionChange({ step: g.step, variant: g.variant })}
-                className={pillBaseCls + " px-1.5 py-0.5 text-[11px] " + pillAusCls}
+                className={pillBaseCls + " px-2 py-0.5 text-xs font-medium " + pillAusCls}
               >
                 {F.stepLabel(g.step + 1)}
                 {(steps[g.step]?.variants.length ?? 0) > 1 && ` ${variantLabel(g.variant)}`}

@@ -169,15 +169,20 @@ export default function DealsPanel({
   const openDeals = deals.filter((d) => d.status === "open");
   const openValue = openDeals.reduce((sum, d) => sum + (Number(d.value) || 0), 0);
   const weighted = weightedValue(deals);
+  // text-sm statt text-xs: das ist ein Formularfeld, und 13px sind unter der
+  // Untergrenze fuer Eingaben. px-3/py-2 halten es trotzdem kompakt genug fuer
+  // den Drawer.
   const fieldCls =
-    "rounded-lg border border-edge2 bg-field px-2.5 py-1.5 text-xs text-ink placeholder-mute outline-none transition-colors focus:border-sky-500";
+    "rounded-lg border border-edge2 bg-field px-3 py-2 text-sm text-ink placeholder-mute " +
+    "outline-none transition-[border-color,box-shadow] duration-150 focus:border-sky-500 " +
+    "focus:ring-4 focus:ring-sky-500/15";
 
   return (
     <div className={className}>
       <div className="mb-2 flex items-center justify-between gap-2">
-        <p className="text-xs font-medium uppercase tracking-wider text-faint">{C.dealsHeading}</p>
+        <p className="text-2xs font-semibold uppercase tracking-wider text-faint">{C.dealsHeading}</p>
         {openDeals.length > 0 && (
-          <span className="text-[10px] text-faint">
+          <span className="text-xs tabular-nums text-faint">
             {formatMoney(openValue, openDeals[0].currency, lang)} ·{" "}
             {C.dealWeighted(formatMoney(weighted, openDeals[0].currency, lang))}
           </span>
@@ -186,7 +191,7 @@ export default function DealsPanel({
 
       <div className="space-y-2">
         {deals.length === 0 && !draft && (
-          <p className="rounded-lg border border-edge/60 bg-surface/60 px-3 py-4 text-center text-xs text-faint">
+          <p className="rounded-xl border border-edge/70 bg-wash/70 px-3 py-8 text-center text-sm text-faint">
             {C.dealsEmpty}
           </p>
         )}
@@ -195,26 +200,26 @@ export default function DealsPanel({
           <div
             key={deal.id}
             className={
-              "rounded-lg border px-3 py-2.5 " +
+              "rounded-xl border px-3 py-2.5 transition-colors duration-150 " +
               (deal.status === "won"
                 ? "border-emerald-500/30 bg-emerald-500/5"
                 : deal.status === "lost"
                 ? "border-red-500/25 bg-red-500/5"
-                : "border-edge/60 bg-surface/60")
+                : "border-edge/70 bg-wash/70")
             }
           >
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0">
                 <p className="truncate text-sm font-medium text-ink">{deal.title}</p>
-                <p className="text-[11px] text-faint">
+                <p className="mt-0.5 text-xs text-faint">
                   {C.dealStageLabels[deal.stage] ?? deal.stage} · {deal.probability}% ·{" "}
                   {C.dealStatusLabels[deal.status] ?? deal.status}
                   {deal.expected_close_date && " · " + formatDay(deal.expected_close_date, lang)}
                 </p>
-                {deal.lost_reason && <p className="mt-0.5 text-[11px] text-red-500">{deal.lost_reason}</p>}
+                {deal.lost_reason && <p className="mt-0.5 text-xs text-red-600 dark:text-red-400">{deal.lost_reason}</p>}
                 {losing === deal.id && (
-                  <div className="mt-2 rounded-lg border border-red-500/30 bg-red-500/5 p-2.5">
-                    <p className="mb-1.5 text-[11px] font-medium text-red-600 dark:text-red-400">
+                  <div className="pop-in mt-2 rounded-xl border border-red-500/30 bg-red-500/5 p-2.5">
+                    <p className="mb-1.5 text-xs font-medium text-red-600 dark:text-red-400">
                       {C.dealLostReasonPrompt}
                     </p>
                     <div className="flex flex-wrap gap-1.5">
@@ -225,7 +230,7 @@ export default function DealsPanel({
                             setLosing(null);
                             setStatus(deal, "lost", C.dealLostReasons[reason] ?? reason);
                           }}
-                          className="rounded-full border border-edge2 bg-panel px-2.5 py-0.5 text-[11px] text-soft transition-colors hover:border-red-500/50 hover:text-red-600 dark:hover:text-red-400"
+                          className="rounded-full border border-edge2 bg-panel px-2.5 py-1 text-xs font-medium text-soft transition-colors hover:border-red-500/50 hover:bg-red-500/5 hover:text-red-600 dark:hover:text-red-400"
                         >
                           {C.dealLostReasons[reason] ?? reason}
                         </button>
@@ -239,7 +244,7 @@ export default function DealsPanel({
               </span>
             </div>
 
-            <div className="mt-2 flex flex-wrap items-center gap-2 text-[10px] font-medium">
+            <div className="mt-2.5 flex flex-wrap items-center gap-x-3 gap-y-2 text-xs font-medium">
               <button
                 onClick={() =>
                   setDraft({
@@ -263,13 +268,13 @@ export default function DealsPanel({
                       wer sie sucht, soll sie nicht suchen muessen. */}
                   <button
                     onClick={() => setStatus(deal, "won")}
-                    className="rounded-md bg-emerald-600 px-2 py-0.5 text-[11px] font-medium text-white transition-all hover:brightness-110 active:scale-[0.98]"
+                    className="rounded-lg bg-emerald-600 px-2.5 py-1 text-xs font-semibold text-white transition-[background-color,transform] duration-150 hover:bg-emerald-500 active:scale-[0.98]"
                   >
                     {C.dealWin}
                   </button>
                   <button
                     onClick={() => setLosing(losing === deal.id ? null : deal.id)}
-                    className="rounded-md border border-red-500/50 px-2 py-0.5 text-[11px] font-medium text-red-600 transition-colors hover:bg-red-500/10 dark:text-red-400"
+                    className="rounded-lg border border-red-500/40 px-2.5 py-1 text-xs font-medium text-red-600 transition-[background-color,transform] duration-150 hover:bg-red-500/10 active:scale-[0.98] dark:text-red-400"
                   >
                     {C.dealLose}
                   </button>
@@ -293,7 +298,7 @@ export default function DealsPanel({
         ))}
 
         {draft ? (
-          <div className="rounded-lg border border-sky-500/40 bg-sky-500/5 p-3">
+          <div className="pop-in rounded-xl border border-sky-500/40 bg-sky-500/5 p-3">
             <input
               autoFocus
               value={draft.title}
@@ -302,7 +307,7 @@ export default function DealsPanel({
               className={fieldCls + " mb-2 w-full"}
             />
             <div className="grid gap-2 sm:grid-cols-2">
-              <label className="text-[10px] font-medium text-faint sm:col-span-2">
+              <label className="text-2xs font-medium text-faint sm:col-span-2">
                 {C.dealValueLabel} ({DEAL_CURRENCY})
                 <input
                   type="number"
@@ -313,7 +318,7 @@ export default function DealsPanel({
                   className={fieldCls + " mt-0.5 w-full"}
                 />
               </label>
-              <label className="text-[10px] font-medium text-faint">
+              <label className="text-2xs font-medium text-faint">
                 {C.dealStageLabel}
                 <select
                   value={draft.stage}
@@ -332,7 +337,7 @@ export default function DealsPanel({
                   ))}
                 </select>
               </label>
-              <label className="text-[10px] font-medium text-faint">
+              <label className="text-2xs font-medium text-faint">
                 {C.dealProbabilityLabel}
                 <input
                   type="number"
@@ -343,7 +348,7 @@ export default function DealsPanel({
                   className={fieldCls + " mt-0.5 w-full"}
                 />
               </label>
-              <label className="text-[10px] font-medium text-faint sm:col-span-2">
+              <label className="text-2xs font-medium text-faint sm:col-span-2">
                 {C.dealExpectedCloseLabel}
                 <input
                   type="date"
@@ -356,14 +361,14 @@ export default function DealsPanel({
             <div className="mt-2 flex justify-end gap-2">
               <button
                 onClick={() => setDraft(null)}
-                className="rounded-lg border border-edge2 px-3 py-1.5 text-xs text-soft transition-colors hover:text-ink"
+                className="rounded-lg border border-edge2 bg-panel px-3.5 py-2 text-sm font-medium text-soft transition-[background-color,transform] duration-150 hover:bg-chip hover:text-ink active:scale-[0.98]"
               >
                 {C.dealCancel}
               </button>
               <button
                 onClick={saveDraft}
                 disabled={saving}
-                className="rounded-lg bg-sky-600 px-3.5 py-1.5 text-xs font-medium text-white transition-all hover:brightness-110 active:scale-[0.98] disabled:opacity-40"
+                className="rounded-lg bg-sky-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-[background-color,transform] duration-150 hover:bg-sky-500 active:scale-[0.98] disabled:opacity-40 disabled:active:scale-100"
               >
                 {saving ? C.dealSaving : C.dealSave}
               </button>
@@ -372,7 +377,7 @@ export default function DealsPanel({
         ) : (
           <button
             onClick={() => setDraft(emptyDraft())}
-            className="w-full rounded-lg border border-dashed border-edge3 px-3 py-2 text-xs font-medium text-faint transition-colors hover:border-sky-500/60 hover:text-sky-600 dark:hover:text-sky-400"
+            className="w-full rounded-xl border border-dashed border-edge2 px-3 py-3 text-sm font-medium text-faint transition-colors hover:border-sky-500/60 hover:bg-sky-500/5 hover:text-sky-600 dark:hover:text-sky-400"
           >
             {C.dealNew}
           </button>

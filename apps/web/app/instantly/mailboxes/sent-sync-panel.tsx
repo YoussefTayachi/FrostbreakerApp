@@ -120,15 +120,15 @@ export default function SentSyncPanel() {
       </div>
 
       {rows === null ? (
-        <p className="text-sm text-faint">{S.loading}</p>
+        <div className="skeleton h-16" aria-hidden />
       ) : rows.length === 0 ? (
-        <p className="rounded-lg border border-edge/60 bg-wash/60 px-4 py-3 text-sm text-faint">
+        <p className="rounded-lg border border-dashed border-edge2 px-4 py-10 text-center text-sm text-faint">
           {S.empty}
         </p>
       ) : (
-        <ul className="divide-y divide-edge/60 overflow-hidden rounded-lg border border-edge/60">
+        <ul className="divide-y divide-edge/70 overflow-hidden rounded-lg border border-edge/70">
           {rows.map((box) => (
-            <li key={box.email} className="flex flex-wrap items-center gap-3 px-4 py-3">
+            <li key={box.email} className="flex flex-wrap items-center gap-3 px-4 py-3 transition-colors duration-150 hover:bg-wash">
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-medium text-ink">{box.email}</p>
                 <p className="mt-0.5 truncate text-xs text-faint">
@@ -149,7 +149,7 @@ export default function SentSyncPanel() {
               <button
                 onClick={() => remove(box.email)}
                 disabled={removing === box.email}
-                className={secondaryBtnCls}
+                className={secondaryBtnCls + " w-full sm:w-auto"}
               >
                 {removing === box.email ? S.removing : S.remove}
               </button>
@@ -163,10 +163,10 @@ export default function SentSyncPanel() {
           {S.add}
         </button>
       ) : (
-        <div className="space-y-3 rounded-lg border border-edge/60 bg-wash/40 p-4">
-          <div className="grid gap-3 sm:grid-cols-2">
+        <div className="pop-in space-y-4 rounded-xl border border-edge/70 bg-panel2 p-4">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <label className="flex flex-col gap-1.5">
-              <span className="text-xs font-medium text-soft">{S.emailLabel}</span>
+              <span className="text-xs font-medium text-faint">{S.emailLabel}</span>
               <input
                 value={form.email}
                 onChange={(e) => setEmail(e.target.value)}
@@ -176,7 +176,7 @@ export default function SentSyncPanel() {
               />
             </label>
             <label className="flex flex-col gap-1.5">
-              <span className="text-xs font-medium text-soft">{S.hostLabel}</span>
+              <span className="text-xs font-medium text-faint">{S.hostLabel}</span>
               <input
                 value={form.host}
                 onChange={(e) => setForm((f) => ({ ...f, host: e.target.value }))}
@@ -186,7 +186,7 @@ export default function SentSyncPanel() {
               />
             </label>
             <label className="flex flex-col gap-1.5">
-              <span className="text-xs font-medium text-soft">{S.portLabel}</span>
+              <span className="text-xs font-medium text-faint">{S.portLabel}</span>
               <input
                 value={form.port}
                 onChange={(e) => setForm((f) => ({ ...f, port: e.target.value }))}
@@ -195,7 +195,7 @@ export default function SentSyncPanel() {
               />
             </label>
             <label className="flex flex-col gap-1.5">
-              <span className="text-xs font-medium text-soft">{S.passwordLabel}</span>
+              <span className="text-xs font-medium text-faint">{S.passwordLabel}</span>
               <input
                 type="password"
                 value={form.password}
@@ -205,7 +205,7 @@ export default function SentSyncPanel() {
               />
             </label>
             <label className="flex flex-col gap-1.5">
-              <span className="text-xs font-medium text-soft">{S.userLabel}</span>
+              <span className="text-xs font-medium text-faint">{S.userLabel}</span>
               <input
                 value={form.username}
                 onChange={(e) => setForm((f) => ({ ...f, username: e.target.value }))}
@@ -216,7 +216,7 @@ export default function SentSyncPanel() {
               <span className="text-xs text-mute">{S.userHint}</span>
             </label>
             <label className="flex flex-col gap-1.5">
-              <span className="text-xs font-medium text-soft">{S.folderLabel}</span>
+              <span className="text-xs font-medium text-faint">{S.folderLabel}</span>
               <input
                 value={form.sentFolder}
                 onChange={(e) => setForm((f) => ({ ...f, sentFolder: e.target.value }))}
@@ -229,7 +229,7 @@ export default function SentSyncPanel() {
           </div>
           <p className="text-xs text-mute">{S.onlyKnownContacts}</p>
           <div className="flex flex-wrap gap-2">
-            <button onClick={save} disabled={!kannSpeichern || saving} className={primaryBtnCls}>
+            <button onClick={save} disabled={!kannSpeichern || saving} className={primaryBtnCls + " flex-1 sm:flex-none"}>
               {saving ? S.saving : S.save}
             </button>
             <button
@@ -237,7 +237,7 @@ export default function SentSyncPanel() {
                 setOpen(false);
                 setForm(LEER);
               }}
-              className={secondaryBtnCls}
+              className={secondaryBtnCls + " flex-1 sm:flex-none"}
             >
               {S.cancel}
             </button>

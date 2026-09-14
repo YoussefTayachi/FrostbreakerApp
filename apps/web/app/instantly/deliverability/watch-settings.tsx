@@ -63,14 +63,14 @@ export default function WatchSettings() {
   }
 
   return (
-    <div className="space-y-4 rounded-xl border border-edge2 bg-panel p-5">
+    <div className="space-y-4 rounded-xl border border-edge/70 bg-panel p-5 shadow-sm sm:p-6">
       <div>
-        <h2 className="font-medium text-ink">{W.title}</h2>
-        <p className="mt-0.5 text-sm text-faint">{W.subtitle}</p>
+        <h2 className="text-base font-semibold text-ink">{W.title}</h2>
+        <p className="mt-1 text-sm text-faint">{W.subtitle}</p>
       </div>
 
-      {rows === null && <p className="text-sm text-faint">{t.common.saving}</p>}
-      {rows?.length === 0 && <p className="text-sm text-faint">{W.noneYet}</p>}
+      {rows === null && <div className="skeleton h-10" aria-hidden />}
+      {rows?.length === 0 && <p className="py-10 text-center text-sm text-faint">{W.noneYet}</p>}
 
       {rows && rows.length > 0 && (
         <div className="space-y-1.5">
@@ -83,7 +83,7 @@ export default function WatchSettings() {
               <div
                 key={r.domain}
                 className={
-                  "flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border px-3 py-2 text-sm " +
+                  "flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border px-3.5 py-2.5 text-sm " +
                   (broken ? "border-red-500/40 bg-red-500/5" : "border-edge2")
                 }
               >
@@ -104,17 +104,17 @@ export default function WatchSettings() {
         </div>
       )}
 
-      <label className="flex items-start gap-2 border-t border-edge2/60 pt-4 text-sm text-ink">
+      <label className="flex items-start gap-2.5 border-t border-edge/70 pt-4 text-sm text-ink">
         <input
           type="checkbox"
           checked={autoPause ?? true}
           disabled={autoPause === null || saving}
           onChange={(e) => toggleAutoPause(e.target.checked)}
-          className="mt-0.5"
+          className="mt-1 h-4 w-4 accent-sky-600"
         />
         <span>
           {W.autoPause}
-          <span className="block text-xs text-faint">{W.autoPauseHint}</span>
+          <span className="mt-0.5 block text-xs text-faint">{W.autoPauseHint}</span>
         </span>
       </label>
     </div>

@@ -32,7 +32,7 @@ export default async function PipelinePage() {
   const t = dict[lang];
   const supabase = await createClient();
   const ws = await getCurrentWorkspace(supabase);
-  if (!ws) return <p className="text-faint">Kein Workspace gefunden.</p>;
+  if (!ws) return <p className="text-sm text-faint">Kein Workspace gefunden.</p>;
 
   // Beide Bretter in einem Zug: der Nutzer schaltet zwischen ihnen um, ohne
   // dass die Seite neu laedt. Zwei RPCs parallel kosten weniger als ein
@@ -51,7 +51,7 @@ export default async function PipelinePage() {
   // Normalzustand aussehen.
   if (error) {
     return (
-      <p className="rounded-lg border border-red-500/40 bg-red-500/5 px-4 py-3 text-sm text-red-600 dark:text-red-400">
+      <p className="rounded-xl border border-red-500/40 bg-red-500/5 px-4 py-3 text-sm text-red-600 dark:text-red-400">
         {t.common.error + error.message}
       </p>
     );
@@ -66,7 +66,7 @@ export default async function PipelinePage() {
     <div className="fade-up">
       <div className="mb-4">
         <h1 className="text-2xl font-semibold tracking-tight text-ink">{t.pipeline.title}</h1>
-        <p className="text-sm text-faint">{t.pipeline.subtitle}</p>
+        <p className="mt-1 text-sm text-faint">{t.pipeline.subtitle}</p>
       </div>
       <PipelineView rows={rows} deals={deals} />
     </div>

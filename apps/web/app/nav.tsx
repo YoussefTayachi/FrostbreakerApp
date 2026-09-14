@@ -158,13 +158,13 @@ export default function Nav() {
     // Der Abstand zwischen den Gruppen ist bewusst knapp: er muss die Gruppen
     // noch trennen, darf die Liste aber nicht ueber die Fensterhoehe treiben
     // (siehe Kommentar zur Seitenleiste in layout.tsx).
-    <nav className="flex flex-col gap-2">
+    <nav className="flex flex-col gap-2.5">
       {groups.map(({ parent, children }) => (
         <div key={parent.href} className="flex flex-col gap-0.5">
           <NavRow entry={parent} active={isActive(parent.href)} />
           {/* Die Leiste links verbindet die Untereinträge sichtbar mit ihrem
               Hauptpunkt. Ohne sie wirkt die Einrueckung wie ein Zufall. */}
-          <div className="ml-[22px] flex flex-col gap-0.5 border-l border-edge2/70 pl-2">
+          <div className="ml-[21px] flex flex-col gap-0.5 border-l border-edge2 pl-2">
             {children.map((child) => (
               <NavRow key={child.href} entry={child} active={isActive(child.href)} sub />
             ))}
@@ -182,27 +182,29 @@ function NavRow({ entry, active, sub }: { entry: NavEntry; active: boolean; sub?
     <Link
       href={entry.href}
       className={
-        "relative flex items-center gap-2.5 rounded-lg transition-all duration-200 " +
-        // Zeilenhoehe ausdruecklich gesetzt, nicht geerbt: text-[13px] legt in
-        // Tailwind nur die Schriftgroesse fest, die Hoehe kaeme sonst aus der
-        // Vererbung (1.5 => ~20px) und machte jede Untereintragszeile vier
-        // Pixel hoeher, als sie sein muss. Mal zwoelf Untereintraege ist genau
+        "relative flex items-center gap-2.5 rounded-lg transition-[background-color,color,transform] duration-150 active:scale-[0.985] " +
+        // Feste Hoehen statt Innenabstand plus geerbter Zeilenhoehe: 36px
+        // fuer Hauptpunkte, 32px fuer Unterpunkte. Mal zwoelf Unterpunkte ist
         // das der Unterschied zwischen "passt ins Fenster" und "passt nicht".
-        (sub ? "px-2.5 py-1 text-[13px] leading-4 " : "px-3 py-2 text-sm leading-5 ") +
+        (sub ? "h-8 px-2.5 text-xs " : "h-9 px-3 text-sm ") +
+        // Aktiv ist eine gefuellte Flaeche, kein Rahmen: so machen es die
+        // Seitenleisten von macOS und Krea. Ein Rahmen um einen Menuepunkt
+        // sieht nach Knopf aus, und ein Menuepunkt ist keiner.
         (active
-          ? "border border-edge/60 bg-panel font-medium text-ink shadow-sm"
-          : "border border-transparent text-soft hover:bg-chip hover:text-ink")
+          ? "bg-ink/[0.07] font-medium text-ink dark:bg-white/[0.09]"
+          : "text-soft hover:bg-ink/[0.045] hover:text-ink dark:hover:bg-white/[0.06]")
       }
     >
       <Icon
         className={
           (sub ? "h-4 w-4 " : "h-[18px] w-[18px] ") +
+          "shrink-0 transition-colors " +
           (active ? "text-sky-600 dark:text-sky-400" : "text-faint")
         }
       />
-      <span className="flex-1">{label}</span>
+      <span className="min-w-0 flex-1 truncate">{label}</span>
       {badge > 0 && (
-        <span className="min-w-5 rounded-full bg-sky-600 px-1.5 py-0.5 text-center text-[10px] font-semibold leading-none text-white">
+        <span className="min-w-5 rounded-full bg-sky-600 px-1.5 py-0.5 text-center text-2xs font-semibold leading-none text-white">
           {badge > 99 ? "99+" : badge}
         </span>
       )}

@@ -188,7 +188,7 @@ export default function PipelineList({
             key={tab.key}
             onClick={() => setFocus(tab.key)}
             className={
-              "flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition-colors " +
+              "flex min-h-9 items-center gap-1.5 rounded-full border px-3.5 text-xs font-medium transition-colors duration-150 " +
               (focus === tab.key
                 ? "border-sky-500/60 bg-sky-500/10 text-sky-600 dark:text-sky-300"
                 : "border-edge2 bg-chip text-soft hover:border-edge3 hover:text-ink")
@@ -204,20 +204,20 @@ export default function PipelineList({
         ))}
       </div>
 
-      <div className="flex flex-wrap items-center gap-3">
-        <div className="relative min-w-52 flex-1">
-          <IconSearch className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-mute" />
+      <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-3">
+        <div className="relative min-w-0 flex-1 sm:min-w-52">
+          <IconSearch className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-mute" />
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder={P.searchPlaceholder}
-            className="w-full rounded-lg border border-edge2 bg-field py-2 pl-9 pr-3 text-sm text-ink placeholder-mute outline-none transition-colors focus:border-sky-500"
+            className="w-full rounded-lg border border-edge2 bg-field py-2.5 pl-9 pr-3 text-sm text-ink placeholder-mute outline-none transition-[border-color,box-shadow] duration-150 focus:border-sky-500 focus:ring-4 focus:ring-sky-500/15"
           />
         </div>
         <select
           value={stageFilter}
           onChange={(e) => setStageFilter(e.target.value)}
-          className="rounded-lg border border-edge2 bg-field px-2.5 py-2 text-sm text-ink outline-none focus:border-sky-500"
+          className="min-w-0 flex-1 rounded-lg border border-edge2 bg-field px-3 py-2.5 text-sm text-ink outline-none transition-[border-color,box-shadow] duration-150 focus:border-sky-500 focus:ring-4 focus:ring-sky-500/15 sm:flex-none"
         >
           <option value="">{P.allStages}</option>
           {OUTREACH_STAGES.map((s) => (
@@ -229,7 +229,7 @@ export default function PipelineList({
         <select
           value={listFilter}
           onChange={(e) => setListFilter(e.target.value)}
-          className="max-w-56 rounded-lg border border-edge2 bg-field px-2.5 py-2 text-sm text-ink outline-none focus:border-sky-500"
+          className="min-w-0 flex-1 rounded-lg border border-edge2 bg-field px-3 py-2.5 text-sm text-ink outline-none transition-[border-color,box-shadow] duration-150 focus:border-sky-500 focus:ring-4 focus:ring-sky-500/15 sm:max-w-56 sm:flex-none"
         >
           <option value="">{P.allLists}</option>
           {lists.map((l) => (
@@ -241,7 +241,7 @@ export default function PipelineList({
       </div>
 
       {groups.length === 0 ? (
-        <p className="rounded-xl border border-edge/60 bg-panel px-4 py-10 text-center text-sm text-faint">
+        <p className="rounded-xl border border-edge/70 bg-panel px-4 py-10 text-center text-sm text-faint">
           {P.noResults}
         </p>
       ) : (
@@ -255,15 +255,15 @@ export default function PipelineList({
           Vorbild ist Pipedrives Listenansicht: Kopfzeile, feste Spalten, von
           links nach rechts lesbar.
         */
-        <div className="overflow-x-auto rounded-xl border border-edge/60 bg-panel">
+        <div className="overflow-x-auto rounded-xl border border-edge/70 bg-panel shadow-sm">
           <table className="w-full min-w-[52rem] border-collapse text-left">
             <thead>
-              <tr className="border-b border-edge2/60 text-[11px] font-medium uppercase tracking-wide text-mute">
-                <th className="px-4 py-2">{P.colContact}</th>
-                <th className="w-32 px-3 py-2">{P.colChannels}</th>
-                <th className="w-44 px-3 py-2">{P.colLastTouch}</th>
-                <th className="w-40 px-3 py-2">{P.colNextStep}</th>
-                <th className="w-36 px-3 py-2">{P.colStage}</th>
+              <tr className="border-b border-edge/70 text-2xs font-medium uppercase tracking-wider text-faint">
+                <th className="px-4 py-2.5">{P.colContact}</th>
+                <th className="w-32 px-3 py-2.5">{P.colChannels}</th>
+                <th className="w-44 px-3 py-2.5">{P.colLastTouch}</th>
+                <th className="w-40 px-3 py-2.5">{P.colNextStep}</th>
+                <th className="w-36 px-3 py-2.5">{P.colStage}</th>
               </tr>
             </thead>
             <tbody>
@@ -273,13 +273,13 @@ export default function PipelineList({
                   <Fragment key={group.id}>
                     <tr
                       onClick={() => toggleGroup(group.id)}
-                      className="cursor-pointer border-b border-edge2/60 bg-surface/40 transition-colors hover:bg-chip/50"
+                      className="cursor-pointer border-b border-edge/70 bg-wash transition-colors duration-150 hover:bg-chip/60"
                     >
                       <td colSpan={5} className="px-4 py-2">
                         <div className="flex items-center gap-2">
                           <span
                             className={
-                              "text-[10px] text-mute transition-transform " + (isOpen ? "rotate-90" : "")
+                              "text-xs text-mute transition-transform duration-150 " + (isOpen ? "rotate-90" : "")
                             }
                           >
                             &#9654;
@@ -314,7 +314,7 @@ export default function PipelineList({
         </div>
       )}
 
-      <p className="text-xs text-faint">{P.columnCount(filtered.length)}</p>
+      <p className="text-xs tabular-nums text-faint">{P.columnCount(filtered.length)}</p>
     </div>
   );
 }
@@ -341,7 +341,7 @@ function Row({
   const days = daysInStage(row);
 
   return (
-    <tr className="border-b border-edge2/40 transition-colors last:border-0 hover:bg-chip/40">
+    <tr className="border-b border-edge/70 transition-colors duration-150 last:border-0 hover:bg-wash">
       <td className="px-4 py-2">
         <button onClick={onOpen} className="flex min-w-0 items-center gap-2.5 text-left">
           <CompanyLogo
@@ -362,7 +362,7 @@ function Row({
                 />
               )}
             </p>
-            <p className="truncate text-[11px] text-faint">
+            <p className="truncate text-xs text-faint">
               {[row.company_name, row.title].filter(Boolean).join(" · ")}
             </p>
           </div>
@@ -373,7 +373,7 @@ function Row({
         <ContactChannels row={row} />
       </td>
 
-      <td className="px-3 py-2 text-[11px] leading-tight">
+      <td className="px-3 py-2 text-xs leading-tight">
         {row.last_reply_at ? (
           <span className="text-sky-600 dark:text-sky-400">
             {P.repliedAgo(formatRelative(row.last_reply_at, lang))}
@@ -390,7 +390,7 @@ function Row({
         )}
       </td>
 
-      <td className="px-3 py-2 text-[11px] leading-tight">
+      <td className="px-3 py-2 text-xs leading-tight">
         {row.next_due_at ? (
           <Link
             href="/calls"
@@ -414,7 +414,7 @@ function Row({
                   onPlanCallback(d);
                 }}
                 disabled={busy}
-                className="rounded border border-edge2 px-1.5 py-0.5 text-[10px] text-soft transition-colors hover:border-sky-500/60 hover:text-sky-600 disabled:opacity-40 dark:hover:text-sky-400"
+className="rounded-md border border-edge2 px-2 py-1 text-xs font-medium text-soft transition-colors duration-150 hover:border-sky-500/60 hover:bg-sky-500/5 hover:text-sky-600 disabled:opacity-40 dark:hover:text-sky-400"
               >
                 {P.inDays(d)}
               </button>
@@ -423,7 +423,7 @@ function Row({
         ) : (
           <button
             onClick={() => setCallbackOpen(true)}
-            className="text-mute transition-colors hover:text-sky-600 dark:hover:text-sky-400"
+            className="font-medium text-mute transition-colors hover:text-sky-600 dark:hover:text-sky-400"
           >
             + {P.planCallback}
           </button>

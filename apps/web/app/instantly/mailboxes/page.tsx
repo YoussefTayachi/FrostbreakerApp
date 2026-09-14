@@ -20,10 +20,10 @@ export default async function InstantlyMailboxesPage() {
     .maybeSingle();
 
   return (
-    <div className="fade-up max-w-2xl space-y-6">
+    <div className="max-w-3xl space-y-6">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight text-ink">{t.instantly.mailboxesPage.title}</h1>
-        <p className="text-sm text-faint">{t.instantly.mailboxesPage.description}</p>
+        <p className="mt-1 text-sm text-faint">{t.instantly.mailboxesPage.description}</p>
       </div>
       <MailboxesPanel hasInstantlyKey={!!key} />
       {/* Darunter und nicht daneben: Versenden ist der Hauptfall, Mitlesen

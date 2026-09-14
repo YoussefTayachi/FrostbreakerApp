@@ -29,7 +29,7 @@ export default function CompanyLogo({
   if (!url || failed) {
     return (
       <span
-        className="flex shrink-0 items-center justify-center rounded-md bg-chip text-[10px] font-semibold text-soft"
+        className="flex shrink-0 items-center justify-center rounded-md bg-chip text-2xs font-semibold text-soft ring-1 ring-inset ring-edge/70"
         style={{ width: px, height: px }}
       >
         {(name || "?").slice(0, 1).toUpperCase()}
@@ -42,7 +42,10 @@ export default function CompanyLogo({
       alt=""
       width={size}
       height={size}
-      className="shrink-0 rounded-md bg-chip object-contain"
+      // Haarlinie innen statt aussen: ein Favicon mit weissem Grund
+      // verschwimmt sonst auf der weissen Karte, und ring-inset aendert die
+      // Abmessungen nicht.
+      className="shrink-0 rounded-md bg-chip object-contain ring-1 ring-inset ring-edge/70"
       style={{ width: px, height: px }}
       onError={() => setFailed(true)}
     />

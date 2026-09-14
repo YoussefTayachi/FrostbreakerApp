@@ -60,11 +60,11 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
           <div
             key={toast.id}
             onClick={() => dismiss(toast.id)}
-            className="fade-up pointer-events-auto flex cursor-pointer items-start gap-2.5 rounded-lg border border-edge/60 bg-panel px-4 py-3 text-sm text-ink shadow-2xl"
+            className="fade-up pointer-events-auto flex cursor-pointer items-start gap-2.5 rounded-xl border border-edge/70 bg-panel px-4 py-3.5 text-sm text-ink shadow-xl"
           >
             <span
               className={
-                "mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-[10px] font-bold text-white " +
+                "mt-0.5 flex h-4.5 w-4.5 shrink-0 items-center justify-center rounded-full text-2xs font-bold text-white " +
                 DOT[toast.type]
               }
             >
@@ -78,7 +78,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
                   dismiss(toast.id);
                   toast.action!.onClick();
                 }}
-                className="-my-0.5 shrink-0 rounded-md border border-edge2 px-2 py-1 text-xs font-medium text-soft transition-colors hover:border-edge3 hover:text-ink"
+                className="-my-1 shrink-0 rounded-lg border border-edge2 px-2.5 py-1.5 text-xs font-medium text-soft transition-[background-color,border-color,transform] duration-150 hover:bg-chip hover:text-ink active:scale-[0.98]"
               >
                 {toast.action.label}
               </button>

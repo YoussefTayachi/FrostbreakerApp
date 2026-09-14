@@ -185,12 +185,12 @@ export default function BlocklistPage() {
     <div className="fade-up max-w-3xl space-y-6">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight text-ink">{t.blocklist.title}</h1>
-        <p className="text-sm text-faint">{t.blocklist.subtitle}</p>
+        <p className="mt-1 text-sm text-faint">{t.blocklist.subtitle}</p>
       </div>
 
-      <div className="rounded-lg border border-edge/60 bg-panel p-6">
-        <h2 className="mb-1 font-medium text-ink">{t.blocklist.addHeading}</h2>
-        <p className="mb-3 text-xs text-faint">
+      <div className="rounded-xl border border-edge/70 bg-panel p-4 shadow-sm sm:p-6">
+        <h2 className="mb-1 text-base font-semibold text-ink">{t.blocklist.addHeading}</h2>
+        <p className="mb-3 text-sm text-faint">
           {t.blocklist.addHint1} <span className="text-soft">kunde-gmbh.de</span>{t.blocklist.addHint2}
         </p>
         <textarea
@@ -198,27 +198,27 @@ export default function BlocklistPage() {
           onChange={(e) => setInput(e.target.value)}
           rows={5}
           placeholder={t.blocklist.textareaPlaceholder}
-          className="w-full rounded-lg border border-edge2 bg-field px-3 py-2 font-mono text-sm text-ink placeholder-mute outline-none focus:border-sky-500"
+          className="w-full rounded-lg border border-edge2 bg-field px-3 py-2.5 font-mono text-sm text-ink placeholder-mute outline-none transition-[border-color,box-shadow] duration-150 focus:border-sky-500 focus:ring-4 focus:ring-sky-500/15"
         />
-        <div className="mt-3 flex items-center gap-3">
+        <div className="mt-3 flex flex-wrap items-center gap-2">
           <button
             onClick={() => addEntries(input)}
-            className="rounded-lg bg-ink px-5 py-2.5 text-sm font-medium text-surface shadow-sm transition-all hover:opacity-85 active:scale-[0.98]"
+            className="min-w-0 flex-1 rounded-lg bg-sky-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-[background-color,transform] duration-150 hover:bg-sky-500 active:scale-[0.98] sm:flex-none"
           >
             {t.blocklist.block}
           </button>
-          <label className="cursor-pointer rounded-lg border border-edge2 px-4 py-2 text-sm text-soft transition-colors hover:border-edge3 hover:text-ink">
+          <label className="min-w-0 flex-1 cursor-pointer rounded-lg border border-edge2 bg-panel px-4 py-2.5 text-center text-sm font-medium text-soft shadow-sm transition-[background-color,border-color] duration-150 hover:bg-chip hover:text-ink sm:flex-none">
             {t.blocklist.uploadCsv}
             <input type="file" accept=".csv,.txt" onChange={onFile} className="hidden" />
           </label>
         </div>
       </div>
 
-      <div className="overflow-hidden rounded-lg border border-edge/60 bg-panel">
-        <div className="flex flex-wrap items-center gap-3 border-b border-edge/60 px-5 py-3">
-          <h2 className="text-sm font-medium text-ink">{t.blocklist.entries(rows.length)}</h2>
+      <div className="overflow-hidden rounded-xl border border-edge/70 bg-panel shadow-sm">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-edge/70 px-4 py-3 sm:px-5">
+          <h2 className="text-base font-semibold text-ink">{t.blocklist.entries(rows.length)}</h2>
           {rows.length > 0 && (
-            <label className="flex cursor-pointer items-center gap-2 text-xs text-soft" title={t.blocklist.selectAll}>
+            <label className="-mx-2 flex min-h-9 cursor-pointer items-center gap-2 rounded-lg px-2 text-xs text-soft transition-colors hover:bg-wash hover:text-ink" title={t.blocklist.selectAll}>
               <input
                 type="checkbox"
                 checked={selected.size === rows.length}
@@ -226,51 +226,51 @@ export default function BlocklistPage() {
                   if (el) el.indeterminate = selected.size > 0 && selected.size < rows.length;
                 }}
                 onChange={toggleSelectAll}
-                className="h-3.5 w-3.5 rounded accent-sky-500"
+                className="h-4 w-4 rounded accent-sky-500"
               />
               {t.blocklist.selectAll}
             </label>
           )}
           {selected.size > 0 && (
             <div className="ml-auto flex items-center gap-3">
-              <span className="text-xs text-faint">{t.blocklist.selectedCount(selected.size)}</span>
+              <span className="text-xs tabular-nums text-faint">{t.blocklist.selectedCount(selected.size)}</span>
               <button
                 onClick={removeSelected}
-                className="text-xs font-medium text-red-600 transition-colors hover:text-red-500 dark:text-red-400"
+                className="min-h-9 text-xs font-medium text-red-600 transition-colors hover:text-red-500 dark:text-red-400"
               >
                 {t.blocklist.removeSelected}
               </button>
-              <button onClick={() => setSelected(new Set())} className="text-xs text-faint hover:text-ink">
+              <button onClick={() => setSelected(new Set())} className="min-h-9 text-xs font-medium text-faint transition-colors hover:text-ink">
                 {t.blocklist.deselect}
               </button>
             </div>
           )}
         </div>
-        <div className="max-h-96 divide-y divide-edge/60 overflow-y-auto">
+        <div className="max-h-96 divide-y divide-edge/70 overflow-y-auto">
           {rows.map((r) => (
-            <div key={r.id} className="flex items-center gap-3 px-5 py-2">
+            <div key={r.id} className="flex min-h-11 items-center gap-3 px-4 py-2 transition-colors hover:bg-wash sm:px-5">
               <input
                 type="checkbox"
                 checked={selected.has(r.id)}
                 onChange={() => toggleOne(r.id)}
-                className="h-3.5 w-3.5 shrink-0 rounded accent-sky-500"
+                className="h-4 w-4 shrink-0 rounded accent-sky-500"
               />
               <span className="min-w-0 flex-1 truncate font-mono text-sm text-soft">
                 {r.email ?? r.domain}
               </span>
-              <span className="rounded-full border border-edge2 bg-chip px-2 py-0.5 text-[11px] text-faint">
+              <span className="shrink-0 rounded-full border border-edge2 bg-chip px-2.5 py-0.5 text-xs font-medium text-faint">
                 {r.email ? t.blocklist.emailBadge : t.blocklist.domainBadge}
               </span>
               <button
                 onClick={() => remove(r.id)}
-                className="text-xs text-mute transition-colors hover:text-red-600 dark:hover:text-red-600 dark:text-red-400"
+                className="shrink-0 text-xs font-medium text-mute transition-colors hover:text-red-600 dark:text-red-400 dark:hover:text-red-300"
               >
                 {t.blocklist.remove}
               </button>
             </div>
           ))}
           {rows.length === 0 && (
-            <p className="px-5 py-8 text-center text-sm text-faint">{t.blocklist.noEntries}</p>
+            <p className="px-5 py-10 text-center text-sm text-faint">{t.blocklist.noEntries}</p>
           )}
         </div>
       </div>
@@ -279,29 +279,29 @@ export default function BlocklistPage() {
           selbst und waere aufgeklappt die laengste Liste der Seite — ohne
           dass es taeglich jemanden interessiert. */}
       {archiveTotal > 0 && (
-        <details className="rounded-lg border border-edge/60 bg-panel">
-          <summary className="cursor-pointer px-5 py-3 text-sm text-soft hover:text-ink">
+        <details className="overflow-hidden rounded-xl border border-edge/70 bg-panel shadow-sm">
+          <summary className="cursor-pointer px-4 py-3.5 text-sm font-medium text-soft transition-colors hover:text-ink sm:px-5">
             {t.blocklist.archiveHeading(archiveTotal)}
           </summary>
-          <p className="border-t border-edge/60 px-5 py-3 text-xs leading-relaxed text-faint">
+          <p className="border-t border-edge/70 bg-wash/70 px-4 py-3 text-sm leading-relaxed text-faint sm:px-5">
             {t.blocklist.archiveHint}
           </p>
-          <div className="max-h-96 divide-y divide-edge/60 overflow-y-auto border-t border-edge/60">
+          <div className="max-h-96 divide-y divide-edge/70 overflow-y-auto border-t border-edge/70">
             {archive.map((a) => (
-              <div key={a.id} className="flex items-center gap-3 px-5 py-2">
+              <div key={a.id} className="flex min-h-11 items-center gap-3 px-4 py-2 transition-colors hover:bg-wash sm:px-5">
                 <span className="min-w-0 flex-1 truncate font-mono text-sm text-soft">
                   {a.email ?? a.domain ?? a.company_name}
                 </span>
                 <span className="hidden max-w-40 truncate text-xs text-mute sm:block">
                   {a.company_name}
                 </span>
-                <span className="rounded-full border border-edge2 bg-chip px-2 py-0.5 text-[11px] text-faint">
+                <span className="shrink-0 rounded-full border border-edge2 bg-chip px-2.5 py-0.5 text-xs font-medium text-faint">
                   {t.leads.statusLabels[a.outreach_status] ?? a.outreach_status}
                 </span>
                 <button
                   onClick={() => void releaseArchived(a)}
                   title={t.blocklist.archiveReleaseTitle}
-                  className="text-xs text-mute transition-colors hover:text-red-600 dark:hover:text-red-500"
+                  className="shrink-0 text-xs font-medium text-mute transition-colors hover:text-red-600 dark:hover:text-red-400"
                 >
                   {t.blocklist.archiveRelease}
                 </button>

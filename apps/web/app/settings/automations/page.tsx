@@ -110,10 +110,10 @@ export default function AutomationsPage() {
   }
 
   return (
-    <div className="fade-up max-w-2xl space-y-6">
+    <div className="fade-up max-w-3xl space-y-6">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight text-ink">{t.automations.heading}</h1>
-        <p className="text-sm text-faint">{t.automations.description}</p>
+        <p className="mt-1 text-sm text-faint">{t.automations.description}</p>
       </div>
 
       <div className={cardCls}>
@@ -121,11 +121,13 @@ export default function AutomationsPage() {
       </div>
 
       <div className={cardCls}>
-        <h2 className="font-medium text-ink">{t.replyNotify.heading}</h2>
-        <p className="mb-4 mt-1 text-sm text-faint">{t.replyNotify.description}</p>
+        <h2 className="text-base font-semibold text-ink">{t.replyNotify.heading}</h2>
+        <p className="mb-5 mt-1 text-sm leading-relaxed text-faint">{t.replyNotify.description}</p>
+        {/* min-w-0 am Feldblock: ohne ihn zwingt die Mindestbreite von 16rem
+            plus zwei Knoepfen die Zeile auf 390 Pixeln aus der Karte. */}
         <div className="flex flex-wrap items-end gap-3">
-          <div className="min-w-[16rem] flex-1">
-            <label className="mb-1.5 block text-xs font-medium text-faint">{t.replyNotify.label}</label>
+          <div className="min-w-0 flex-1 sm:min-w-[16rem]">
+            <label className="mb-1.5 block text-xs font-medium text-soft">{t.replyNotify.label}</label>
             <input
               type="email"
               value={replyNotifyEmail}
@@ -134,26 +136,28 @@ export default function AutomationsPage() {
               className={inputCls + " w-full"}
             />
           </div>
-          <button onClick={saveReplyNotify} disabled={replyNotifySaving} className={secondaryBtnCls}>
-            {replyNotifySaving ? t.common.saving : t.common.save}
-          </button>
-          <button onClick={testReplyNotify} disabled={replyTest === "sending"} className={secondaryBtnCls}>
-            {replyTest === "sending" ? t.replyNotify.testSending : t.replyNotify.test}
-          </button>
+          <div className="flex flex-wrap gap-2.5">
+            <button onClick={saveReplyNotify} disabled={replyNotifySaving} className={secondaryBtnCls}>
+              {replyNotifySaving ? t.common.saving : t.common.save}
+            </button>
+            <button onClick={testReplyNotify} disabled={replyTest === "sending"} className={secondaryBtnCls}>
+              {replyTest === "sending" ? t.replyNotify.testSending : t.replyNotify.test}
+            </button>
+          </div>
         </div>
-        <p className="mt-3 text-xs leading-relaxed text-mute">{t.replyNotify.hint}</p>
+        <p className="mt-3 text-xs leading-relaxed text-faint">{t.replyNotify.hint}</p>
       </div>
 
       {/* Direkt unter der Benachrichtigung: beides betrifft den Moment, in dem
           jemand geantwortet hat — das eine holt dich dazu, das andere
           schreibt den Entwurf. */}
       <div className={cardCls}>
-        <h2 className="font-medium text-ink">{t.replyAssistant.title}</h2>
-        <p className="mt-0.5 text-sm text-faint">{t.replyAssistant.subtitle}</p>
+        <h2 className="text-base font-semibold text-ink">{t.replyAssistant.title}</h2>
+        <p className="mt-1 text-sm leading-relaxed text-faint">{t.replyAssistant.subtitle}</p>
 
-        <div className="mt-3 grid gap-3 sm:grid-cols-2">
+        <div className="mt-5 grid gap-4 sm:grid-cols-2">
           <div>
-            <label className="mb-1 block text-xs font-medium text-faint">{t.replyAssistant.calendarLabel}</label>
+            <label className="mb-1.5 block text-xs font-medium text-soft">{t.replyAssistant.calendarLabel}</label>
             <input
               value={calendarLink}
               onChange={(e) => setCalendarLink(e.target.value)}
@@ -162,7 +166,7 @@ export default function AutomationsPage() {
             />
           </div>
           <div>
-            <label className="mb-1 block text-xs font-medium text-faint">{t.replyAssistant.senderLabel}</label>
+            <label className="mb-1.5 block text-xs font-medium text-soft">{t.replyAssistant.senderLabel}</label>
             <input
               value={senderName}
               onChange={(e) => setSenderName(e.target.value)}
@@ -172,11 +176,17 @@ export default function AutomationsPage() {
           </div>
         </div>
 
-        <p className="mt-2 text-xs leading-relaxed text-mute">{t.replyAssistant.hint}</p>
+        <p className="mt-3 text-xs leading-relaxed text-faint">{t.replyAssistant.hint}</p>
 
-        <button onClick={saveAssistant} disabled={assistantSaving} className={primaryBtnCls + " mt-3"}>
-          {assistantSaving ? t.common.saving : t.common.save}
-        </button>
+        <div className="mt-5 flex justify-end">
+          <button
+            onClick={saveAssistant}
+            disabled={assistantSaving}
+            className={primaryBtnCls + " w-full sm:w-auto"}
+          >
+            {assistantSaving ? t.common.saving : t.common.save}
+          </button>
+        </div>
       </div>
     </div>
   );

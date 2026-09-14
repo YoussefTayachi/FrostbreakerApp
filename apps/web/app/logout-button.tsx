@@ -62,12 +62,12 @@ export default function LogoutButton() {
         onClick={logout}
         disabled={busy}
         title={t.logoutTitle}
-        className="flex w-full items-center gap-1.5 rounded-lg border border-edge2 px-2 py-1 text-xs text-soft transition-colors hover:border-edge3 hover:text-ink disabled:opacity-50"
+        className="flex h-9 w-full items-center gap-2 rounded-lg bg-panel px-3 text-xs font-medium text-soft shadow-sm ring-1 ring-edge/70 transition-[box-shadow,color,transform] hover:ring-edge2 hover:text-ink active:scale-[0.99] disabled:opacity-50"
       >
-        <IconLogout className="h-3.5 w-3.5 shrink-0" />
+        <IconLogout className="h-4 w-4 shrink-0" />
         {busy ? t.loggingOut : t.logout}
       </button>
-      {error && <p className="mt-1 text-[11px] leading-snug text-red-600 dark:text-red-400">{error}</p>}
+      {error && <p className="mt-1 text-2xs leading-snug text-red-600 dark:text-red-400">{error}</p>}
     </>
   );
 }

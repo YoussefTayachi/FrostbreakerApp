@@ -70,13 +70,13 @@ export default function BillingSection() {
 
   return (
     <div className={cardCls}>
-      <h2 className="font-medium text-ink">{B.heading}</h2>
-      <p className="mb-4 mt-1 text-sm text-faint">{B.description}</p>
+      <h2 className="text-base font-semibold text-ink">{B.heading}</h2>
+      <p className="mb-5 mt-1 text-sm leading-relaxed text-faint">{B.description}</p>
 
-      <div className="flex flex-wrap items-center justify-between gap-4 rounded-lg border border-edge/60 bg-surface/60 px-4 py-3.5">
+      <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-edge/70 bg-surface/60 px-4 py-4">
         <div>
-          <p className="font-medium text-ink">{planLabel}</p>
-          <p className="mt-0.5 flex items-center gap-1.5 text-xs text-faint">
+          <p className="text-base font-semibold text-ink">{planLabel}</p>
+          <p className="mt-1 flex flex-wrap items-center gap-1.5 text-sm text-faint">
             <span className={"h-1.5 w-1.5 rounded-full " + (STATUS_DOT[status.status] ?? "bg-faint")} />
             {statusLabel}
             {status.status === "trialing" && status.trialDaysLeft !== null && (
@@ -90,37 +90,39 @@ export default function BillingSection() {
           </p>
         </div>
         {status.plan === "trial" || !status.isActive ? (
-          <Link href="/pricing" className={primaryBtnCls}>{B.upgradeButton}</Link>
+          <Link href="/pricing" className={primaryBtnCls + " w-full text-center sm:w-auto"}>
+            {B.upgradeButton}
+          </Link>
         ) : (
-          <button onClick={openPortal} disabled={busy} className={secondaryBtnCls}>
+          <button onClick={openPortal} disabled={busy} className={secondaryBtnCls + " w-full sm:w-auto"}>
             {B.manageButton}
           </button>
         )}
       </div>
 
       {usage && (
-        <div className="mt-3 rounded-lg border border-edge/60 bg-surface/60 px-4 py-3.5">
-          <div className="flex items-center justify-between text-xs">
+        <div className="mt-3 rounded-xl border border-edge/70 bg-surface/60 px-4 py-4">
+          <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-sm">
             <span className="font-medium text-ink">
               {usage.scope === "trial" ? B.leadUsageHeadingTrial : B.leadUsageHeading}
             </span>
-            <span className="text-faint">
+            <span className="text-faint tabular">
               {usage.cap === null ? B.leadUsageUnlimited : B.leadUsageLabel(usage.used, usage.cap)}
             </span>
           </div>
           {usage.cap !== null && (
             <>
-              <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-chip">
+              <div className="mt-2.5 h-2 overflow-hidden rounded-full bg-chip">
                 <div
                   className={
-                    "h-full rounded-full transition-all " +
+                    "h-full rounded-full transition-[width,background-color] duration-300 " +
                     (usage.used >= usage.cap ? "bg-red-500" : usage.used / usage.cap > 0.8 ? "bg-amber-500" : "bg-sky-500")
                   }
                   style={{ width: `${Math.min(100, (usage.used / usage.cap) * 100)}%` }}
                 />
               </div>
               {usage.used >= usage.cap && (
-                <p className="mt-2 text-xs text-red-500">
+                <p className="mt-2 text-sm text-red-600 dark:text-red-400">
                   {usage.scope === "trial" ? B.leadUsageCapReachedTrial : B.leadUsageCapReached}
                 </p>
               )}

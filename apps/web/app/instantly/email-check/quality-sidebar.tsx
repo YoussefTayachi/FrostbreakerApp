@@ -41,7 +41,7 @@ export default function QualitySidebar({
   const hasContent = hasAnalyzableContent(content);
 
   function categoryRows(issues: { category: IssueCategory; count: number; severity: Severity }[]) {
-    if (issues.length === 0) return <p className="py-2 text-xs text-faint">{Q.noIssues}</p>;
+    if (issues.length === 0) return <p className="py-2 text-sm text-faint">{Q.noIssues}</p>;
     return issues.map(({ category, count, severity }) => (
       <div key={category} className="flex items-center justify-between gap-3 py-1.5 text-sm">
         <span className="flex items-center gap-2 text-soft">
@@ -63,7 +63,7 @@ export default function QualitySidebar({
             type="button"
             onClick={() => setContentLang(l)}
             className={
-              "rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase transition-colors " +
+              "rounded-full border px-2 py-0.5 text-2xs font-semibold uppercase transition-colors " +
               (contentLang === l
                 ? "border-sky-500 bg-sky-500/10 text-sky-600 dark:text-sky-300"
                 : "border-edge2 text-faint hover:border-sky-500/50")
@@ -79,7 +79,7 @@ export default function QualitySidebar({
       {hasContent && (
         <>
           <div>
-            <p className="text-xs font-medium uppercase tracking-wide text-faint">{Q.readability.heading}</p>
+            <p className="text-2xs font-medium uppercase tracking-wider text-mute">{Q.readability.heading}</p>
             <div className="mt-2 flex items-baseline gap-2">
               <span className="text-4xl font-semibold text-ink">
                 {readability.gradeLevel !== null ? Math.round(readability.gradeLevel) : "–"}
@@ -88,27 +88,27 @@ export default function QualitySidebar({
                 {Q.readability.bands[readability.band]}
               </span>
             </div>
-            <p className="mt-1 text-xs text-faint">
+            <p className="mt-1.5 text-xs text-faint">
               {Q.readability.stats(readability.wordCount, readability.sentenceCount, readability.avgSentenceLength)}
             </p>
-            <div className="mt-3 divide-y divide-edge/60 border-t border-edge/60">{categoryRows(groupByCategory(readability.issues))}</div>
+            <div className="mt-3 divide-y divide-edge/70 border-t border-edge/70">{categoryRows(groupByCategory(readability.issues))}</div>
           </div>
 
           <div>
-            <p className="text-xs font-medium uppercase tracking-wide text-faint">{Q.spam.heading}</p>
+            <p className="text-2xs font-medium uppercase tracking-wider text-mute">{Q.spam.heading}</p>
             <div className="mt-2 flex items-baseline gap-2">
               <span className={"text-2xl font-semibold " + TONE_TEXT[RISK_TONE[spam.riskLevel]]}>{Q.spam.levels[spam.riskLevel]}</span>
               <span className="text-xs text-faint">{Q.spam.scoreLabel(spam.riskScore)}</span>
             </div>
-            <div className="mt-3 divide-y divide-edge/60 border-t border-edge/60">{categoryRows(groupByCategory(spam.issues))}</div>
+            <div className="mt-3 divide-y divide-edge/70 border-t border-edge/70">{categoryRows(groupByCategory(spam.issues))}</div>
           </div>
 
           <div>
-            <p className="text-xs font-medium uppercase tracking-wide text-faint">{Q.aiSounding.heading}</p>
+            <p className="text-2xs font-medium uppercase tracking-wider text-mute">{Q.aiSounding.heading}</p>
             <div className="mt-2">
               <span className={"text-2xl font-semibold " + TONE_TEXT[RISK_TONE[aiSounding.band]]}>{Q.aiSounding.levels[aiSounding.band]}</span>
             </div>
-            <div className="mt-3 divide-y divide-edge/60 border-t border-edge/60">{categoryRows(groupByCategory(aiSounding.issues))}</div>
+            <div className="mt-3 divide-y divide-edge/70 border-t border-edge/70">{categoryRows(groupByCategory(aiSounding.issues))}</div>
             {/* Bewusst immer sichtbar, nicht wegklickbar: eine Zahl ohne diesen
                 Hinweis wuerde als Beweis gelesen, den sie nicht liefert. */}
             <p className="mt-3 text-xs leading-relaxed text-soft">{Q.aiSounding.disclaimer}</p>

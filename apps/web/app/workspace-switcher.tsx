@@ -105,9 +105,9 @@ export default function WorkspaceSwitcher({ className = "" }: { className?: stri
     <div className={"relative " + className} ref={ref}>
       <button
         onClick={() => setOpen((v) => !v)}
-        className="flex w-full items-center gap-2 rounded-lg border border-edge/60 bg-panel px-3 py-2 text-left text-sm text-ink transition-colors hover:border-edge2"
+        className="flex h-10 w-full items-center gap-2.5 rounded-lg bg-panel px-3 text-left text-sm text-ink shadow-sm ring-1 ring-edge/70 transition-[box-shadow,transform] hover:ring-edge2 active:scale-[0.99]"
       >
-        <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-sky-500/15 text-[11px] font-semibold text-sky-600 dark:text-sky-400">
+        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-gradient-to-b from-sky-400 to-sky-600 text-2xs font-bold text-white shadow-sm">
           {workspaceName.slice(0, 1).toUpperCase() || "?"}
         </span>
         <span className="min-w-0 flex-1 truncate font-medium">{workspaceName}</span>
@@ -117,8 +117,8 @@ export default function WorkspaceSwitcher({ className = "" }: { className?: stri
       </button>
 
       {open && (
-        <div className="absolute left-0 top-full z-30 mt-1.5 w-full min-w-64 rounded-lg border border-edge/60 bg-panel p-1.5 shadow-2xl">
-          <p className="px-2 pb-1 pt-1 text-[11px] font-medium uppercase tracking-wide text-mute">
+        <div className="pop-in absolute left-0 top-full z-30 mt-2 w-full min-w-64 origin-top rounded-xl border border-edge/70 bg-panel p-1.5 shadow-xl">
+          <p className="px-2 pb-1 pt-1 text-2xs font-medium uppercase tracking-wide text-mute">
             {W.switcherLabel}
           </p>
           <div className="max-h-64 overflow-y-auto">
@@ -183,7 +183,7 @@ export default function WorkspaceSwitcher({ className = "" }: { className?: stri
             ))}
           </div>
 
-          <div className="mt-1 border-t border-edge/60 pt-1">
+          <div className="mt-1 border-t border-edge/70 pt-1">
             {creating ? (
               <div className="flex items-center gap-1.5 px-1 py-1">
                 <input

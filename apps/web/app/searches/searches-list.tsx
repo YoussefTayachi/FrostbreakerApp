@@ -12,7 +12,7 @@ import { useT } from "../language-provider";
 import { useToast } from "../toast-provider";
 import { useWorkspace } from "../workspace-provider";
 import { useLang } from "../language-provider";
-import { CancelButton, TrashButton } from "./search-actions";
+import { CancelButton, TrashButton, rowActionBtnCls, rowDangerBtnCls } from "./search-actions";
 
 /**
  * Die Suchliste mit Ordnern, Archiv und Mehrfachauswahl.
@@ -227,12 +227,15 @@ export default function SearchesList({
   }
 
   const eingabeCls =
-    "rounded-lg border border-edge2 bg-field px-2.5 py-1.5 text-xs text-ink outline-none focus:border-sky-500";
+    "h-10 rounded-lg border border-edge2 bg-field px-3 text-sm text-ink outline-none " +
+    "transition-[border-color,box-shadow] duration-150 focus:border-sky-500 " +
+    "focus:ring-4 focus:ring-sky-500/15 sm:h-9";
+  /* Segment-Umschalter statt einzelner Rahmenknoepfe: die Ordner sind eine
+     Auswahl, von der genau einer gilt. Als Reihe von Rahmen sahen sie aus wie
+     acht unabhaengige Schalter. */
   const reiterCls = (an: boolean) =>
-    "rounded-lg border px-2.5 py-1 text-xs transition-colors " +
-    (an
-      ? "border-sky-500/60 bg-sky-500/10 text-sky-600 dark:text-sky-300"
-      : "border-edge2 text-faint hover:border-edge3 hover:text-ink");
+    "rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors " +
+    (an ? "bg-panel text-ink shadow-sm dark:bg-white/[0.08]" : "text-soft hover:text-ink");
 
   return (
     <div className="space-y-4">
@@ -244,9 +247,9 @@ export default function SearchesList({
           value={q}
           onChange={(e) => setQ(e.target.value)}
           placeholder={S.filterPlaceholder}
-          className={eingabeCls + " w-56"}
+          className={eingabeCls + " w-full sm:w-56"}
         />
-        <select value={quelle} onChange={(e) => setQuelle(e.target.value)} className={eingabeCls}>
+        <select value={quelle} onChange={(e) => setQuelle(e.target.value)} className={eingabeCls + " min-w-0 flex-1 sm:flex-none"}>
           <option value="">{S.filterAllSources}</option>
           {["apollo", "prospeo", "maps", "corporate", "csv"].map((src) => (
             <option key={src} value={src}>
@@ -254,7 +257,7 @@ export default function SearchesList({
             </option>
           ))}
         </select>
-        <select value={status} onChange={(e) => setStatus(e.target.value)} className={eingabeCls}>
+        <select value={status} onChange={(e) => setStatus(e.target.value)} className={eingabeCls + " min-w-0 flex-1 sm:flex-none"}>
           <option value="">{S.filterAllStatuses}</option>
           <option value="running">{S.searchingBusinesses}</option>
           <option value="completed">{S.done}</option>
@@ -267,57 +270,61 @@ export default function SearchesList({
               setQuelle("");
               setStatus("");
             }}
-            className="text-xs text-faint underline underline-offset-2 hover:text-ink"
+            className="rounded-md px-1.5 py-1.5 text-xs text-faint underline underline-offset-2 transition-colors hover:text-ink"
           >
             {S.filterReset}
           </button>
         )}
-        <span className="ml-auto text-xs text-mute">
+        <span className="ml-auto text-xs tabular text-mute">
           {S.countShown(aktiv.length, searches.filter((s) => !s.archived_at).length)}
         </span>
       </div>
 
       {/* Ordner-Reiter */}
-      <div className="flex flex-wrap items-center gap-1.5">
-        <button onClick={() => setOrdner(ALLE)} className={reiterCls(ordner === ALLE)}>
-          {S.folderAll}
-        </button>
-        <button onClick={() => setOrdner(OHNE_ORDNER)} className={reiterCls(ordner === OHNE_ORDNER)}>
-          {S.folderNone}
-        </button>
-        {folders.map((f) => (
-          <span key={f.id} className="group relative inline-flex items-center">
-            <button onClick={() => setOrdner(f.id)} className={reiterCls(ordner === f.id)}>
-              {f.name}
-              <span className="ml-1 text-mute">
-                {searches.filter((s) => s.folder_id === f.id && !s.archived_at).length}
-              </span>
-            </button>
-            {/* Umbenennen und Loeschen nur am gerade offenen Ordner: sonst
-                stehen bei zehn Ordnern zwanzig Miniaturknoepfe in der Zeile. */}
-            {ordner === f.id && (
-              <>
-                <button
-                  onClick={() => void ordnerUmbenennen(f)}
-                  title={S.folderRename}
-                  className="ml-1 text-[11px] text-faint hover:text-ink"
-                >
-                  ✎
-                </button>
-                <button
-                  onClick={() => void ordnerLoeschen(f)}
-                  title={S.folderDelete}
-                  className="ml-1 text-[11px] text-faint hover:text-red-500"
-                >
-                  ✕
-                </button>
-              </>
-            )}
-          </span>
-        ))}
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="inline-flex flex-wrap items-center gap-1 rounded-lg bg-chip p-1">
+          <button onClick={() => setOrdner(ALLE)} className={reiterCls(ordner === ALLE)}>
+            {S.folderAll}
+          </button>
+          <button onClick={() => setOrdner(OHNE_ORDNER)} className={reiterCls(ordner === OHNE_ORDNER)}>
+            {S.folderNone}
+          </button>
+          {folders.map((f) => (
+            <span key={f.id} className="group relative inline-flex items-center">
+              <button onClick={() => setOrdner(f.id)} className={reiterCls(ordner === f.id)}>
+                {f.name}
+                <span className="ml-1 text-mute">
+                  {searches.filter((s) => s.folder_id === f.id && !s.archived_at).length}
+                </span>
+              </button>
+              {/* Umbenennen und Loeschen nur am gerade offenen Ordner: sonst
+                  stehen bei zehn Ordnern zwanzig Miniaturknoepfe in der Zeile. */}
+              {ordner === f.id && (
+                <>
+                  <button
+                    onClick={() => void ordnerUmbenennen(f)}
+                    title={S.folderRename}
+                    aria-label={S.folderRename}
+                    className="ml-0.5 rounded-md px-1.5 py-1.5 text-xs text-faint transition-colors hover:text-ink"
+                  >
+                    ✎
+                  </button>
+                  <button
+                    onClick={() => void ordnerLoeschen(f)}
+                    title={S.folderDelete}
+                    aria-label={S.folderDelete}
+                    className="rounded-md px-1.5 py-1.5 text-xs text-faint transition-colors hover:text-red-500"
+                  >
+                    ✕
+                  </button>
+                </>
+              )}
+            </span>
+          ))}
+        </div>
         <button
           onClick={() => void ordnerAnlegen()}
-          className="rounded-lg border border-dashed border-edge2 px-2.5 py-1 text-xs text-faint transition-colors hover:border-edge3 hover:text-ink"
+          className="rounded-lg border border-dashed border-edge2 px-2.5 py-1.5 text-xs font-medium text-faint transition-colors hover:border-edge3 hover:text-ink"
         >
           {S.folderNew}
         </button>
@@ -326,8 +333,8 @@ export default function SearchesList({
       {/* Sammelaktionen. Erscheinen erst mit der Auswahl — eine Leiste, die
           immer da ist und meistens nichts tut, kostet nur Platz. */}
       {gewaehlt.size > 0 && (
-        <div className="flex flex-wrap items-center gap-2 rounded-lg border border-sky-500/40 bg-sky-500/5 px-3 py-2">
-          <span className="text-xs font-medium text-ink">{S.selectedCount(gewaehlt.size)}</span>
+        <div className="pop-in flex flex-wrap items-center gap-2 rounded-xl border border-sky-500/40 bg-sky-500/5 px-3 py-2.5 shadow-sm sm:px-4">
+          <span className="mr-1 text-sm font-medium text-ink">{S.selectedCount(gewaehlt.size)}</span>
           <select
             value=""
             disabled={busy}
@@ -349,7 +356,7 @@ export default function SearchesList({
           <button
             disabled={busy}
             onClick={() => void archivieren([...gewaehlt])}
-            className="rounded-lg border border-edge2 px-2.5 py-1 text-xs text-soft transition-colors hover:border-edge3 hover:text-ink disabled:opacity-60"
+            className={rowActionBtnCls}
           >
             {S.archive}
           </button>
@@ -360,13 +367,13 @@ export default function SearchesList({
             disabled={busy}
             onClick={() => void loeschen([...gewaehlt])}
             title={t.searchActions.trashTitle}
-            className="rounded-lg border border-red-300 px-2.5 py-1 text-xs text-red-600 transition-colors hover:border-red-500 hover:text-red-500 disabled:opacity-60 dark:border-red-900/60 dark:text-red-400 dark:hover:text-red-500"
+            className={rowDangerBtnCls}
           >
             {t.searchActions.delete}
           </button>
           <button
             onClick={() => setGewaehlt(new Set())}
-            className="text-xs text-faint underline underline-offset-2 hover:text-ink"
+            className="rounded-md px-1.5 py-1.5 text-xs text-faint underline underline-offset-2 transition-colors hover:text-ink"
           >
             {S.clearSelection}
           </button>
@@ -390,35 +397,40 @@ export default function SearchesList({
           />
         ))}
         {aktiv.length === 0 && (
-          <div className="rounded-lg border border-edge/60 bg-panel p-10 text-center text-faint">
+          <div className="rounded-xl border border-edge/70 bg-panel px-6 py-10 text-center text-sm text-faint shadow-sm">
             {searches.length === 0 ? S.emptyState : S.noMatches}
           </div>
         )}
       </div>
 
       {archiviert.length > 0 && (
-        <details className="rounded-lg border border-edge/60 bg-panel">
-          <summary className="cursor-pointer px-5 py-3 text-sm text-faint hover:text-soft">
+        <details className="overflow-hidden rounded-xl border border-edge/70 bg-panel shadow-sm">
+          <summary className="cursor-pointer px-4 py-3.5 text-sm text-faint transition-colors hover:text-soft sm:px-5">
             {S.archiveSection} ({archiviert.length})
           </summary>
-          <p className="border-t border-edge/60 px-5 py-2 text-xs text-mute">{S.archiveHint}</p>
-          <div className="divide-y divide-edge/60 border-t border-edge/60">
+          <p className="border-t border-edge/70 px-4 py-2.5 text-xs text-faint sm:px-5">{S.archiveHint}</p>
+          {/* Umbrechend: Name, Anzahl und Knopf passen auf 358 Pixeln nicht
+              nebeneinander. Der Name bekommt dort die ganze erste Zeile. */}
+          <div className="divide-y divide-edge/70 border-t border-edge/70">
             {archiviert.map((s) => (
-              <div key={s.id} className="flex items-center gap-3 px-5 py-3">
+              <div
+                key={s.id}
+                className="flex flex-wrap items-center gap-2 px-4 py-3 sm:flex-nowrap sm:gap-3 sm:px-5"
+              >
                 <Link
                   href={"/searches/" + s.id}
-                  className="min-w-0 flex-1 truncate text-sm text-soft hover:text-ink"
+                  className="min-w-0 flex-1 basis-full truncate text-sm text-soft transition-colors hover:text-ink sm:basis-auto"
                 >
                   {s.name}
                   <span className="ml-2 text-xs text-mute">{s.location}</span>
                 </Link>
-                <span className="text-xs text-mute">
+                <span className="text-xs tabular text-mute">
                   {s.contacts} {S.metricContacts}
                 </span>
                 <button
                   disabled={busy}
                   onClick={() => void zurueckholen([s.id])}
-                  className="rounded-lg border border-edge2 px-2.5 py-1 text-xs text-soft transition-colors hover:border-edge3 hover:text-ink disabled:opacity-60"
+                  className={rowActionBtnCls + " ml-auto"}
                 >
                   {S.unarchive}
                 </button>
@@ -477,30 +489,38 @@ function SearchRow({
     <Link
       href={"/searches/" + s.id}
       className={
-        "fade-up block rounded-lg border bg-panel p-5 transition-all duration-300 hover:shadow-sm " +
-        (gewaehlt ? "border-sky-500/60" : "border-edge/60 hover:border-edge2")
+        "fade-up block rounded-xl border bg-panel p-4 shadow-sm transition-[border-color,box-shadow] duration-200 hover:shadow-md sm:p-5 " +
+        (gewaehlt
+          ? "border-sky-500/60 ring-1 ring-sky-500/20"
+          : "border-edge/70 hover:border-edge2")
       }
       style={{ animationDelay: idx * 50 + "ms" }}
     >
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+      {/* Zwei Zeilen statt einer: Name samt Merkmalen oben, Zahlen und
+          Aktionen darunter. In einer Zeile standen Name, bis zu fuenf Badges,
+          drei Kennzahlen, der Fortschritt, die Ordnerwahl und drei Knoepfe
+          nebeneinander -- der Name, wegen dem man die Zeile ueberhaupt
+          liest, bekam davon ein Fuenftel. Auf 390 Pixeln brach das in sieben
+          Zeilen ohne erkennbare Ordnung um. */}
+      <div className="flex items-start gap-3">
         <input
           type="checkbox"
           checked={gewaehlt}
           onClick={stop}
           onChange={onToggle}
           aria-label={S.selectRow}
-          className="h-3.5 w-3.5 shrink-0 accent-sky-600"
+          className="mt-1 h-4 w-4 shrink-0 accent-sky-600"
         />
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2.5">
-            <span className="truncate font-medium text-ink">{s.name}</span>
+            <span className="truncate text-base font-semibold text-ink">{s.name}</span>
             <span
-              className={"rounded-full border px-2 py-0.5 text-[11px] " + searchSourceBadgeClass(s.source)}
+              className={"rounded-full border px-2.5 py-0.5 text-xs font-medium " + searchSourceBadgeClass(s.source)}
             >
               {searchSourceLabel(s.source)}
             </span>
             {folder && (
-              <span className="rounded-full border border-edge2 bg-chip px-2 py-0.5 text-[11px] text-soft">
+              <span className="rounded-full border border-edge2 bg-chip px-2.5 py-0.5 text-xs font-medium text-soft">
                 {folder.name}
               </span>
             )}
@@ -512,13 +532,13 @@ function SearchRow({
             {s.is_search_group && s.child_count > 0 && (
               <span
                 title={S.groupProgress(s.children_done, s.child_count)}
-                className="rounded-full border border-edge2 bg-chip px-2 py-0.5 text-[11px] text-soft"
+                className="rounded-full border border-edge2 bg-chip px-2.5 py-0.5 text-xs font-medium text-soft"
               >
                 {S.groupBadge(s.child_count)}
               </span>
             )}
             {s.schedule !== "none" && (
-              <span className="inline-flex items-center gap-1 rounded-full border border-sky-500/30 bg-sky-500/10 px-2 py-0.5 text-[11px] text-sky-600 dark:text-sky-300">
+              <span className="inline-flex items-center gap-1 rounded-full border border-sky-500/30 bg-sky-500/10 px-2.5 py-0.5 text-xs font-medium text-sky-600 dark:text-sky-300">
                 {S.subscriptionPrefix} ·{" "}
                 {s.schedule === "weekly"
                   ? S.subscriptionWeekly
@@ -531,7 +551,7 @@ function SearchRow({
               <span
                 title={S.instantlyBadgeTitle}
                 className={
-                  "rounded-full border px-2 py-0.5 text-[11px] " +
+                  "rounded-full border px-2.5 py-0.5 text-xs font-medium " +
                   (bounceRate > 3
                     ? "border-red-300 bg-red-50 text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-300"
                     : "border-edge2 bg-chip text-soft")
@@ -541,7 +561,7 @@ function SearchRow({
               </span>
             )}
           </div>
-          <p className="mt-0.5 text-xs text-faint">
+          <p className="mt-1 text-xs text-faint">
             {s.location} ·{" "}
             <LocalTime
               iso={s.created_at}
@@ -550,13 +570,18 @@ function SearchRow({
             />
           </p>
         </div>
+      </div>
+
+      {/* pl-7 setzt diese Zeile auf die Flucht des Namens, nicht auf die des
+          Auswahlkaestchens. */}
+      <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-3 sm:pl-7">
         <Metric value={s.businesses} label={S.metricBusinesses} />
         <Metric value={s.contacts} label={S.metricContacts} />
         <Metric
           value={s.target_email_count ? `${s.with_email}/${s.target_email_count}` : s.with_email}
           label={S.metricWithEmail}
         />
-        <div className="w-32">
+        <div className="w-32 shrink-0">
           {s.status === "failed" ? (
             <span
               className={
@@ -579,7 +604,7 @@ function SearchRow({
             // Zahl, die sich hier sichtbar bewegt.
             s.is_search_group && s.child_count > 0 ? (
               <div title={S.groupProgress(s.children_done, s.child_count)}>
-                <div className="mb-1 flex justify-between text-[11px] text-faint">
+                <div className="mb-1 flex justify-between text-2xs text-faint">
                   <span>{S.searchingBusinesses}</span>
                   <span>
                     {s.children_done}/{s.child_count}
@@ -587,26 +612,26 @@ function SearchRow({
                 </div>
                 <div className="h-1.5 overflow-hidden rounded-full bg-chip">
                   <div
-                    className="h-full rounded-full bg-blue-400 transition-all"
+                    className="h-full rounded-full bg-sky-400 transition-all"
                     style={{ width: Math.round((s.children_done / s.child_count) * 100) + "%" }}
                   />
                 </div>
               </div>
             ) : (
-              <span className="flex items-center gap-1.5 text-xs text-blue-600 dark:text-blue-300">
-                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-blue-400" />
+              <span className="flex items-center gap-1.5 text-xs text-sky-600 dark:text-sky-300">
+                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-sky-400" />
                 {S.searchingBusinesses}
               </span>
             )
           ) : enriching ? (
             <div>
-              <div className="mb-1 flex justify-between text-[11px] text-faint">
+              <div className="mb-1 flex justify-between text-2xs text-faint">
                 <span>{S.enriching}</span>
                 <span>{progress}%</span>
               </div>
               <div className="h-1.5 overflow-hidden rounded-full bg-chip">
                 <div
-                  className="h-full rounded-full bg-gradient-to-r from-sky-500 to-sky-500 transition-all"
+                  className="h-full rounded-full bg-sky-500 transition-all"
                   style={{ width: progress + "%" }}
                 />
               </div>
@@ -618,34 +643,39 @@ function SearchRow({
             </span>
           )}
         </div>
-        <select
-          value={s.folder_id ?? ""}
-          onClick={stop}
-          onChange={(e) => {
-            onMove(e.target.value || null);
-          }}
-          title={S.moveTo}
-          className="max-w-28 rounded-lg border border-edge2 bg-field px-1.5 py-1 text-[11px] text-soft outline-none focus:border-sky-500"
-        >
-          <option value="">{S.folderNone}</option>
-          {folders.map((f) => (
-            <option key={f.id} value={f.id}>
-              {f.name}
-            </option>
-          ))}
-        </select>
-        {(s.status === "pending" || s.status === "running") && <CancelButton searchId={s.id} />}
-        <button
-          onClick={(e) => {
-            stop(e);
-            onArchive();
-          }}
-          title={S.archiveTitle}
-          className="rounded-lg border border-edge2 px-2 py-1 text-[11px] text-soft transition-colors hover:border-edge3 hover:text-ink"
-        >
-          {S.archive}
-        </button>
-        <TrashButton searchId={s.id} />
+        {/* Alle Aktionen als eine Gruppe rechts aussen, in einer Groesse.
+            Vorher hatten Ordnerwahl und Archivieren text-2xs, Abbrechen und
+            Loeschen text-sm -- vier Knoepfe, vier Hoehen. */}
+        <div className="ml-auto flex flex-wrap items-center gap-2">
+          <select
+            value={s.folder_id ?? ""}
+            onClick={stop}
+            onChange={(e) => {
+              onMove(e.target.value || null);
+            }}
+            title={S.moveTo}
+            className="h-10 max-w-32 rounded-lg border border-edge2 bg-field px-2 text-xs text-soft outline-none transition-[border-color,box-shadow] duration-150 focus:border-sky-500 focus:ring-4 focus:ring-sky-500/15 sm:h-9"
+          >
+            <option value="">{S.folderNone}</option>
+            {folders.map((f) => (
+              <option key={f.id} value={f.id}>
+                {f.name}
+              </option>
+            ))}
+          </select>
+          {(s.status === "pending" || s.status === "running") && <CancelButton searchId={s.id} />}
+          <button
+            onClick={(e) => {
+              stop(e);
+              onArchive();
+            }}
+            title={S.archiveTitle}
+            className={rowActionBtnCls}
+          >
+            {S.archive}
+          </button>
+          <TrashButton searchId={s.id} />
+        </div>
       </div>
       {/* Ausgefallene Teilsuchen als Zahl, nicht als roter Kasten: bei sechzig
           Kombinationen ist eine Stadt ohne Treffer der Normalfall, und der
@@ -655,7 +685,7 @@ function SearchRow({
           aus jobs.last_error haengt hinten dran — er stammt von einer der
           ausgefallenen Teilsuchen und erklaert in der Regel alle. */}
       {teilausfall ? (
-        <p className="mt-3 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs leading-relaxed text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
+        <p className="mt-4 rounded-lg border border-amber-300 bg-amber-50 px-3.5 py-2.5 text-xs leading-relaxed text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
           {S.groupFailed(s.children_failed, s.child_count)}
           {error && (
             <>
@@ -666,13 +696,13 @@ function SearchRow({
         </p>
       ) : (
         error && (
-          <p className="mt-3 rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-xs leading-relaxed text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-300">
+          <p className="mt-4 rounded-lg border border-red-300 bg-red-50 px-3.5 py-2.5 text-xs leading-relaxed text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-300">
             <span className="font-medium">{S.failureReason}</span> {error}
           </p>
         )
       )}
       {s.note && !error && (
-        <p className="mt-3 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs leading-relaxed text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
+        <p className="mt-4 rounded-lg border border-amber-300 bg-amber-50 px-3.5 py-2.5 text-xs leading-relaxed text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
           <span className="font-medium">{S.noResultReason}</span> {s.note}
         </p>
       )}
@@ -682,9 +712,9 @@ function SearchRow({
 
 function Metric({ value, label }: { value: number | string; label: string }) {
   return (
-    <div className="w-20 text-center">
-      <p className="text-lg font-semibold text-ink">{value}</p>
-      <p className="text-[11px] text-faint">{label}</p>
+    <div className="w-16 sm:w-20">
+      <p className="text-2xs font-medium uppercase tracking-wider text-mute">{label}</p>
+      <p className="text-lg font-semibold tabular text-ink">{value}</p>
     </div>
   );
 }

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useT } from "../../../language-provider";
 import { useToast } from "../../../toast-provider";
-import { cardCls, secondaryBtnCls, STATUS_BADGE_CLS } from "@/lib/ui";
+import { cardCls, dangerBtnCls, primaryBtnCls, secondaryBtnCls, STATUS_BADGE_CLS } from "@/lib/ui";
 import CampaignLeadsPanel from "./campaign-leads-panel";
 import VariantPanel from "./variant-panel";
 import CampaignForm, { type CampaignFormValue } from "../campaign-form";
@@ -170,29 +170,33 @@ export default function CampaignDetail({ id }: { id: string }) {
 
   if (notFound) {
     return (
-      <div className="max-w-2xl space-y-4">
-        <p className="text-faint">{D.notFound}</p>
-        <button
-          onClick={deleteCampaign}
-          disabled={deleting}
-          className="rounded-lg border border-red-300 px-4 py-2 text-sm text-red-600 transition-colors hover:border-red-500 disabled:opacity-50 dark:border-red-900/60 dark:text-red-400 dark:hover:border-red-500"
-        >
+      <div className="max-w-3xl space-y-4">
+        <p className="py-10 text-center text-sm text-faint">{D.notFound}</p>
+        <button onClick={deleteCampaign} disabled={deleting} className={dangerBtnCls}>
           {C.delete}
         </button>
       </div>
     );
   }
-  if (!data || !formValue) return <p className="text-sm text-faint">{t.common.saving}</p>;
+  // Ladezustand in der Form der Seite: Titel, Kennzahlen, zwei Karten.
+  if (!data || !formValue)
+    return (
+      <div className="max-w-3xl space-y-6" aria-hidden>
+        <div className="skeleton h-9 w-64" />
+        <div className="skeleton h-28" />
+        <div className="skeleton h-40" />
+      </div>
+    );
 
   return (
-    <div className="max-w-2xl space-y-6">
+    <div className="max-w-3xl space-y-6">
       <div>
-        <Link href="/instantly/campaigns" className="text-xs text-faint hover:text-ink">
+        <Link href="/instantly/campaigns" className="text-sm text-faint transition-colors hover:text-ink">
           {D.back}
         </Link>
-        <div className="mt-1 flex flex-wrap items-center gap-2.5">
+        <div className="mt-1.5 flex flex-wrap items-center gap-2.5">
           <h1 className="text-2xl font-semibold tracking-tight text-ink">{data.name}</h1>
-          <span className={"rounded-full border px-2 py-0.5 text-[11px] " + (STATUS_BADGE_CLS[data.status] ?? "")}>
+          <span className={"rounded-full border px-2.5 py-0.5 text-xs font-medium " + (STATUS_BADGE_CLS[data.status] ?? "")}>
             {t.instantly.statusLabels[data.status as keyof typeof t.instantly.statusLabels] ?? data.status}
           </span>
         </div>
@@ -200,7 +204,7 @@ export default function CampaignDetail({ id }: { id: string }) {
             seit Migration 0050 aus mehreren gespeist werden, und wer wissen
             will, wen er da anschreibt, braucht sie vollstaendig. */}
         {(data.searches?.length ? data.searches : data.search ? [data.search] : []).length > 0 && (
-          <p className="text-sm text-faint">
+          <p className="mt-1.5 text-sm text-faint">
             {D.linkedSearch}{" "}
             {(data.searches?.length ? data.searches : [data.search!]).map((s, i) => (
               <span key={s.id}>
@@ -217,11 +221,7 @@ export default function CampaignDetail({ id }: { id: string }) {
       {data.status === "draft" && (
         <div className={cardCls + " border-amber-500/30"}>
           <p className="mb-3 text-sm text-faint">{D.draftHint}</p>
-          <button
-            onClick={activate}
-            disabled={activating}
-            className="w-full rounded-lg bg-sky-600 px-5 py-3 text-sm font-medium text-white shadow-lg shadow-sky-600/25 transition-all hover:bg-sky-500 disabled:opacity-50 sm:w-auto sm:py-2.5"
-          >
+          <button onClick={activate} disabled={activating} className={primaryBtnCls + " w-full sm:w-auto"}>
             {C.activate}
           </button>
         </div>
@@ -242,36 +242,31 @@ export default function CampaignDetail({ id }: { id: string }) {
 
       {data.stats && (
         <div className={cardCls}>
-          <h2 className="mb-4 font-medium text-ink">{D.statsHeading}</h2>
+          <h2 className="mb-4 text-base font-semibold text-ink">{D.statsHeading}</h2>
           {/* grid-cols-2 bleibt auf dem Handy: vier text-2xl-Zahlen
               nebeneinander bekaemen dort je 75 Pixel, und "Bounces" bricht
               darunter in zwei Zeilen um. */}
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-            <div>
-              <p className="text-2xl font-semibold text-ink">{data.stats.emails_sent_count}</p>
-              <p className="text-xs text-faint">{t.instantly.overview.statsSent}</p>
-            </div>
-            <div>
-              <p className="text-2xl font-semibold text-ink">{data.stats.open_count}</p>
-              <p className="text-xs text-faint">{t.instantly.overview.statsOpens}</p>
-            </div>
-            <div>
-              <p className="text-2xl font-semibold text-ink">{data.stats.reply_count_unique}</p>
-              <p className="text-xs text-faint">{t.instantly.overview.statsReplies}</p>
-            </div>
-            <div>
-              <p className="text-2xl font-semibold text-ink">{data.stats.bounced_count}</p>
-              <p className="text-xs text-faint">{t.instantly.overview.statsBounces}</p>
-            </div>
+          <div className="grid grid-cols-2 gap-x-4 gap-y-5 sm:grid-cols-4">
+            {[
+              { label: t.instantly.overview.statsSent, wert: data.stats.emails_sent_count },
+              { label: t.instantly.overview.statsOpens, wert: data.stats.open_count },
+              { label: t.instantly.overview.statsReplies, wert: data.stats.reply_count_unique },
+              { label: t.instantly.overview.statsBounces, wert: data.stats.bounced_count },
+            ].map((k) => (
+              <div key={k.label}>
+                <p className="text-2xl font-semibold tabular-nums tracking-tight text-ink">{k.wert}</p>
+                <p className="mt-0.5 text-2xs font-medium uppercase tracking-wider text-mute">{k.label}</p>
+              </div>
+            ))}
           </div>
         </div>
       )}
 
       <div className={cardCls}>
-        <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
+        <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
           <div>
-            <h2 className="mb-1 font-medium text-ink">{D.leadsHeading}</h2>
-            <p className="text-sm text-faint">{D.leadsAddedOf(data.leadsAdded, data.leadsAvailable)}</p>
+            <h2 className="text-base font-semibold text-ink">{D.leadsHeading}</h2>
+            <p className="mt-1 text-sm text-faint">{D.leadsAddedOf(data.leadsAdded, data.leadsAvailable)}</p>
           </div>
           {/* Drei Knoepfe mit Beschriftungen wie "Lead-Liste anzeigen" und
               "Weitere Leads hinzufuegen": nebeneinander brauchen sie rund 480
@@ -303,7 +298,7 @@ export default function CampaignDetail({ id }: { id: string }) {
       </div>
 
       <div className={cardCls}>
-        <h2 className="mb-4 font-medium text-ink">{D.editHeading}</h2>
+        <h2 className="mb-4 text-base font-semibold text-ink">{D.editHeading}</h2>
         {/* Die Mail-Vorschau gab es bis zum 2026-08-28 NUR beim Anlegen einer
             Kampagne. Wer eine bestehende oeffnete, sah die Textfelder mit
             {{websiteFinding}} als Platzhalter und nirgends, was der Empfaenger
@@ -329,7 +324,7 @@ export default function CampaignDetail({ id }: { id: string }) {
                 : []
           }
         />
-        <div className="mt-6 flex justify-end border-t border-edge/60 pt-4">
+        <div className="mt-6 flex justify-end border-t border-edge/70 pt-4">
           <button
             onClick={deleteCampaign}
             disabled={deleting}

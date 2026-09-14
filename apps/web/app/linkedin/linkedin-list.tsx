@@ -404,55 +404,58 @@ export default function LinkedInList({
   return (
     <div className="space-y-4">
       {/* Kopf: wo bin ich, und wie weit bin ich hier */}
-      <div className="rounded-xl border border-edge/60 bg-panel p-4">
+      <div className="rounded-xl border border-edge/70 bg-panel p-4 shadow-sm sm:p-5">
         <Link
           href="/linkedin"
-          className="text-xs text-faint transition-colors hover:text-ink"
+          className="-ml-1 inline-flex min-h-8 items-center rounded-lg px-1 text-xs font-medium text-faint transition-colors hover:text-ink"
         >
           ← {L.backToLists}
         </Link>
         <div className="mt-2 flex flex-wrap items-start justify-between gap-2">
           <div className="min-w-0">
-            <h2 className="truncate text-lg font-semibold text-ink">{list.name}</h2>
-            <p className="text-xs text-faint">{list.location ?? "—"}</p>
+            <h2 className="truncate text-xl font-semibold tracking-tight text-ink">{list.name}</h2>
+            <p className="mt-0.5 text-sm text-faint">{list.location ?? "—"}</p>
           </div>
           <SourceBadge source={list.source} />
         </div>
-        {list.note && <p className="mt-2 text-xs text-mute">{list.note}</p>}
+        {list.note && <p className="mt-2 text-sm text-mute">{list.note}</p>}
 
-        <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-edge2/60 pt-3 text-xs">
-          <span className="text-soft">{L.progress(doneCount, leads.length)}</span>
+        <div className="-mx-2 mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 border-t border-edge/70 px-2 pt-3 text-xs">
+          <span className="px-1 tabular-nums text-soft">{L.progress(doneCount, leads.length)}</span>
           {/* Der Filter erscheint nur, wenn es etwas zu filtern gibt — eine
               Auswahl, die immer null Treffer hat, ist eine Sackgasse. */}
           {dueCount > 0 && (
-            <label className="flex items-center gap-1.5 font-medium text-amber-600 dark:text-amber-400">
+            <label className="flex min-h-9 cursor-pointer items-center gap-2 rounded-lg px-2 font-medium text-amber-600 transition-colors hover:bg-wash dark:text-amber-400">
               <input
                 type="checkbox"
                 checked={onlyFollowUpsDue}
                 onChange={(e) => setOnlyFollowUpsDue(e.target.checked)}
+                className="h-4 w-4 rounded accent-sky-500"
               />
               {L.filterFollowUpsDue(dueCount)}
             </label>
           )}
-          <label className="flex items-center gap-1.5 text-faint">
+          <label className="flex min-h-9 cursor-pointer items-center gap-2 rounded-lg px-2 text-faint transition-colors hover:bg-wash hover:text-ink">
             <input
               type="checkbox"
               checked={onlyWithoutEmail}
               onChange={(e) => setOnlyWithoutEmail(e.target.checked)}
+              className="h-4 w-4 rounded accent-sky-500"
             />
             {L.filterOnlyWithoutEmail}
           </label>
-          <label className="flex items-center gap-1.5 text-faint">
+          <label className="flex min-h-9 cursor-pointer items-center gap-2 rounded-lg px-2 text-faint transition-colors hover:bg-wash hover:text-ink">
             <input
               type="checkbox"
               checked={hideContacted}
               onChange={(e) => setHideContacted(e.target.checked)}
+              className="h-4 w-4 rounded accent-sky-500"
             />
             {L.filterHideContacted}
           </label>
           <button
             onClick={() => setTemplateOpen((v) => !v)}
-            className="ml-auto text-xs font-medium text-sky-600 hover:text-sky-500 dark:text-sky-400"
+            className="ml-auto min-h-9 rounded-lg px-2 text-xs font-medium text-sky-600 transition-colors hover:bg-sky-500/5 hover:text-sky-500 dark:text-sky-400"
           >
             {templateOpen ? L.templateHide : L.templateShow}
           </button>
@@ -481,7 +484,7 @@ export default function LinkedInList({
       )}
 
       {visible.length === 0 ? (
-        <p className="rounded-xl border border-edge/60 bg-panel px-4 py-8 text-center text-sm text-faint">
+        <p className="rounded-xl border border-edge/70 bg-panel px-4 py-10 text-center text-sm text-faint shadow-sm">
           {leads.length === 0 ? L.emptyState : L.emptyFiltered}
         </p>
       ) : (
@@ -566,7 +569,7 @@ function LeadRow({
   return (
     <div
       className={
-        "rounded-xl border bg-panel p-4 transition-opacity " +
+        "rounded-xl border bg-panel p-4 shadow-sm transition-[opacity,border-color] duration-150 sm:p-5 " +
         // Faellige Erinnerung schlaegt "erledigt": die Zeile ist gerade
         // wieder Arbeit, sie darf nicht ausgegraut zwischen den anderen
         // stehen.
@@ -574,13 +577,13 @@ function LeadRow({
           ? "border-amber-500/50"
           : done
             ? "border-edge/40 opacity-60"
-            : "border-edge/60")
+            : "border-edge/70")
       }
     >
       {followUpAt && (
         <p
           className={
-            "mb-3 flex flex-wrap items-center gap-x-2 text-[11px] " +
+            "mb-3 flex flex-wrap items-center gap-x-2 text-xs " +
             (followUpDue ? "font-medium text-amber-600 dark:text-amber-400" : "text-faint")
           }
         >
@@ -598,35 +601,35 @@ function LeadRow({
       )}
       <div className="mb-3 flex flex-wrap items-start justify-between gap-2">
         <div className="min-w-0">
-          <p className="truncate text-sm font-medium text-ink">
+          <p className="truncate text-base font-semibold text-ink">
             {name}
             {lead.title && <span className="font-normal text-faint"> · {lead.title}</span>}
           </p>
-          <p className="truncate text-xs text-faint">{lead.company_name ?? "—"}</p>
+          <p className="mt-0.5 truncate text-xs text-faint">{lead.company_name ?? "—"}</p>
         </div>
         <div className="flex flex-wrap items-center gap-1.5">
           {!lead.email && (
             <span
-              className="rounded-full bg-sky-500/10 px-2 py-0.5 text-[10px] font-medium text-sky-600 dark:text-sky-300"
+              className="rounded-full bg-sky-500/10 px-2.5 py-0.5 text-xs font-medium text-sky-600 dark:text-sky-300"
               title={L.badgeNoEmailTitle}
             >
               {L.badgeNoEmail}
             </span>
           )}
           {!lead.personalization && (
-            <span className="rounded-full bg-chip px-2 py-0.5 text-[10px] text-mute">
+            <span className="rounded-full bg-chip px-2.5 py-0.5 text-xs font-medium text-mute">
               {L.badgeNoIcebreaker}
             </span>
           )}
           {/* Die Antwort verdraengt "angeschrieben": beides nebeneinander waere
               zwar korrekt, aber die Antwort ist die Auskunft, die zaehlt. */}
           {replied ? (
-            <span className={"rounded-full px-2 py-0.5 text-[10px] font-medium " + REPLY_BADGE[replied]}>
+            <span className={"rounded-full px-2.5 py-0.5 text-xs font-medium " + REPLY_BADGE[replied]}>
               {L.replyBadge[replied]}
             </span>
           ) : (
             done && (
-              <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-medium text-emerald-600 dark:text-emerald-400">
+              <span className="rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-xs font-medium text-emerald-600 dark:text-emerald-400">
                 {L.badgeContacted}
               </span>
             )
@@ -638,13 +641,13 @@ function LeadRow({
         value={message}
         onChange={(e) => setEdited(e.target.value)}
         rows={message.split("\n").length + 1}
-        className="w-full resize-y rounded-lg border border-edge2 bg-field px-3 py-2 text-xs leading-relaxed text-ink outline-none transition-colors focus:border-sky-500"
+        className="w-full resize-y rounded-lg border border-edge2 bg-field px-3 py-2.5 text-sm leading-relaxed text-ink outline-none transition-[border-color,box-shadow] duration-150 focus:border-sky-500 focus:ring-4 focus:ring-sky-500/15"
       />
 
-      <div className="mt-2 flex flex-wrap items-center gap-2">
+      <div className="mt-2.5 flex flex-wrap items-center gap-2">
         <button
           onClick={() => onCopy(message)}
-          className="rounded-lg bg-sky-600 px-3.5 py-1.5 text-xs font-medium text-white transition-all hover:brightness-110 active:scale-[0.98]"
+          className="min-h-9 flex-1 rounded-lg bg-sky-600 px-4 text-sm font-semibold text-white shadow-sm transition-[background-color,transform] duration-150 hover:bg-sky-500 active:scale-[0.98] sm:flex-none"
         >
           {L.copyButton}
         </button>
@@ -652,21 +655,21 @@ function LeadRow({
           href={lead.linkedin}
           target="_blank"
           rel="noopener noreferrer"
-          className="rounded-lg border border-edge2 px-3 py-1.5 text-xs text-soft transition-colors hover:border-edge3 hover:text-ink"
+          className="inline-flex min-h-9 flex-1 items-center justify-center rounded-lg border border-edge2 bg-panel px-3.5 text-sm font-medium text-soft transition-[background-color,transform] duration-150 hover:bg-chip hover:text-ink active:scale-[0.98] sm:flex-none"
         >
           {L.openProfile}
         </a>
         <button
           onClick={() => onLog(lead, message)}
           disabled={busy}
-          className="rounded-lg border border-edge2 px-3 py-1.5 text-xs text-soft transition-colors hover:border-emerald-500/60 hover:text-emerald-600 disabled:opacity-40 dark:hover:text-emerald-400"
+          className="min-h-9 flex-1 rounded-lg border border-edge2 bg-panel px-3.5 text-sm font-medium text-soft transition-[background-color,border-color,transform] duration-150 hover:border-emerald-500/60 hover:bg-emerald-500/5 hover:text-emerald-600 active:scale-[0.98] disabled:opacity-40 sm:flex-none dark:hover:text-emerald-400"
         >
           {busy ? t.common.saving : done ? L.logAgain : L.logSent}
         </button>
         <button
           onClick={() => setReplyOpen((v) => !v)}
           disabled={busy}
-          className="rounded-lg border border-edge2 px-3 py-1.5 text-xs text-soft transition-colors hover:border-sky-500/60 hover:text-sky-600 disabled:opacity-40 dark:hover:text-sky-400"
+          className="min-h-9 flex-1 rounded-lg border border-edge2 bg-panel px-3.5 text-sm font-medium text-soft transition-[background-color,border-color,transform] duration-150 hover:border-sky-500/60 hover:bg-sky-500/5 hover:text-sky-600 active:scale-[0.98] disabled:opacity-40 sm:flex-none dark:hover:text-sky-400"
         >
           {/* Das Zeichen sagt, dass hier etwas aufgeht — ohne es sah der
               Knopf aus, als wuerde er direkt etwas eintragen, und die drei
@@ -676,7 +679,7 @@ function LeadRow({
         {lead.business_id && (
           <Link
             href={`/leads?business=${lead.business_id}`}
-            className="ml-auto text-[11px] text-faint transition-colors hover:text-ink"
+            className="ml-auto inline-flex min-h-9 items-center px-1 text-xs font-medium text-faint transition-colors hover:text-ink"
           >
             {L.openLead}
           </Link>
@@ -684,8 +687,8 @@ function LeadRow({
       </div>
 
       {replyOpen && (
-        <div className="mt-2 rounded-lg border border-edge2/70 bg-chip/40 px-3 py-2.5">
-          <p className="text-[11px] leading-relaxed text-faint">{L.replyPrompt}</p>
+        <div className="pop-in mt-2.5 rounded-xl border border-edge/70 bg-wash px-3 py-3">
+          <p className="text-xs leading-relaxed text-faint">{L.replyPrompt}</p>
           <div className="mt-2 flex flex-wrap gap-1.5">
             {REPLY_OUTCOMES.map((outcome) => (
               <button
@@ -696,7 +699,7 @@ function LeadRow({
                 }}
                 disabled={busy}
                 className={
-                  "rounded-lg border px-2.5 py-1 text-[11px] font-medium transition-colors disabled:opacity-40 " +
+                  "min-h-9 rounded-lg border bg-panel px-3 text-xs font-medium transition-colors duration-150 disabled:opacity-40 " +
                   (replied === outcome
                     ? "border-sky-500/60 text-sky-600 dark:text-sky-400"
                     : "border-edge2 text-soft hover:border-edge3 hover:text-ink")
@@ -706,7 +709,7 @@ function LeadRow({
               </button>
             ))}
           </div>
-          <p className="mt-2 text-[11px] leading-relaxed text-faint">{L.replyEffect}</p>
+          <p className="mt-2.5 text-xs leading-relaxed text-faint">{L.replyEffect}</p>
         </div>
       )}
     </div>

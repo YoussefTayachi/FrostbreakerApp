@@ -49,9 +49,9 @@ export default function VariantPanel({ campaignId }: { campaignId: string }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [campaignId]);
 
-  if (loading) return <p className="py-4 text-center text-sm text-faint">{t.common.saving}</p>;
+  if (loading) return <div className="skeleton h-32" aria-hidden />;
   if (!data || data.steps.length === 0) {
-    return <p className="py-4 text-center text-sm text-faint">{V.empty}</p>;
+    return <p className="py-10 text-center text-sm text-faint">{V.empty}</p>;
   }
 
   return (
@@ -59,12 +59,12 @@ export default function VariantPanel({ campaignId }: { campaignId: string }) {
       {/* Ohne Zaehlpixel ist "0 Oeffnungen" keine Beobachtung, sondern eine
           fehlende Messung. Das muss dabeistehen, sonst liest man die Spalte
           als Aussage ueber die Mail. */}
-      {data.openTracking === false && <p className="text-xs text-mute">{V.openTrackingOff}</p>}
+      {data.openTracking === false && <p className="text-xs text-faint">{V.openTrackingOff}</p>}
 
       {data.steps.map((step) => (
         <div key={step.step} className="space-y-2">
           <div className="flex flex-wrap items-baseline gap-2">
-            <p className="text-sm font-medium text-ink">{V.stepLabel(step.step + 1)}</p>
+            <p className="text-base font-semibold text-ink">{V.stepLabel(step.step + 1)}</p>
             {step.variants.length < 2 ? (
               <span className="text-xs text-mute">{V.singleVariant}</span>
             ) : step.winner === null ? (
@@ -78,10 +78,10 @@ export default function VariantPanel({ campaignId }: { campaignId: string }) {
             )}
           </div>
 
-          <div className="overflow-x-auto rounded-lg border border-edge/60">
+          <div className="overflow-x-auto rounded-xl border border-edge/70">
             <table className="w-full min-w-[30rem] border-collapse text-left text-sm">
               <thead>
-                <tr className="border-b border-edge2/60 bg-panel2 text-[11px] font-medium uppercase tracking-wide text-mute">
+                <tr className="border-b border-edge/70 bg-panel2 text-2xs font-medium uppercase tracking-wider text-mute">
                   <th className="px-3 py-2">{V.colVariant}</th>
                   <th className="px-3 py-2 text-right">{V.colSent}</th>
                   <th className="px-3 py-2 text-right">{V.colOpened}</th>
@@ -91,9 +91,9 @@ export default function VariantPanel({ campaignId }: { campaignId: string }) {
               </thead>
               <tbody>
                 {step.variants.map((v) => (
-                  <tr key={v.variant} className="border-b border-edge2/40 last:border-0">
-                    <td className="px-3 py-2">
-                      <span className={"rounded-md border px-2 py-0.5 text-[11px] font-medium " + VERDICT_CLS[v.verdict]}>
+                  <tr key={v.variant} className="border-b border-edge/70 transition-colors duration-150 last:border-0 hover:bg-wash">
+                    <td className="px-3 py-2.5">
+                      <span className={"rounded-full border px-2.5 py-0.5 text-xs font-medium " + VERDICT_CLS[v.verdict]}>
                         {variantLabel(v.variant)}
                       </span>
                       <span className="ml-2 text-xs text-faint">{V.verdicts[v.verdict]}</span>
@@ -114,7 +114,7 @@ export default function VariantPanel({ campaignId }: { campaignId: string }) {
         </div>
       ))}
 
-      <p className="text-xs text-mute">{V.methodNote}</p>
+      <p className="text-xs text-faint">{V.methodNote}</p>
     </div>
   );
 }

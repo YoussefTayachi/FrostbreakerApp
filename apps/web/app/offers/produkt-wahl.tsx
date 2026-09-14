@@ -74,15 +74,15 @@ export default function ProduktWahl({
     <div className="mt-3">
       {/* Kein fb-label: das ist eine Frage an den Nutzer und kein
           Instrumentenschild. Gesetzt wie die anderen Fragen dieser Seite. */}
-      <p className="text-[13px] text-faint">{texte.heading}</p>
-      <p className="mb-2 mt-0.5 max-w-[54ch] text-[13px] leading-relaxed text-mute">{texte.hint}</p>
+      <p className="text-xs text-faint">{texte.heading}</p>
+      <p className="mb-2 mt-0.5 max-w-[54ch] text-xs leading-relaxed text-faint">{texte.hint}</p>
       <div className="space-y-1.5">
         {produkte.map((p, i) => (
           <label
             key={p.name}
             className={
-              "block cursor-pointer rounded-lg border p-3 text-sm transition-colors " +
-              (index === i ? "" : "border-edge2 hover:border-edge3")
+              "block cursor-pointer rounded-xl border p-3.5 text-sm transition-colors duration-150 " +
+              (index === i ? "" : "border-edge/70 hover:border-edge2")
             }
             style={
               index === i
@@ -99,13 +99,13 @@ export default function ProduktWahl({
                 name={radioName}
                 checked={index === i}
                 onChange={() => onIndex(i)}
-                className="h-3.5 w-3.5"
+                className="h-4 w-4"
                 style={{ accentColor: accent }}
               />
               <span className="font-medium text-ink">{p.name}</span>
             </span>
             {p.description && (
-              <span className="mt-1 block pl-[22px] text-[13px] leading-relaxed text-faint">
+              <span className="mt-1 block pl-[22px] text-xs leading-relaxed text-faint">
                 {p.description}
               </span>
             )}
@@ -113,8 +113,8 @@ export default function ProduktWahl({
         ))}
         <label
           className={
-            "block cursor-pointer rounded-lg border p-3 text-sm transition-colors " +
-            (index === FREITEXT ? "" : "border-edge2 hover:border-edge3")
+            "block cursor-pointer rounded-xl border p-3.5 text-sm transition-colors duration-150 " +
+            (index === FREITEXT ? "" : "border-edge/70 hover:border-edge2")
           }
           style={
             index === FREITEXT
@@ -131,7 +131,7 @@ export default function ProduktWahl({
               name={radioName}
               checked={index === FREITEXT}
               onChange={() => onIndex(FREITEXT)}
-              className="h-3.5 w-3.5"
+              className="h-4 w-4"
               style={{ accentColor: accent }}
             />
             <span className="font-medium text-ink">{texte.other}</span>
@@ -156,7 +156,7 @@ export default function ProduktWahl({
           type="button"
           onClick={onConfirm}
           disabled={index === FREITEXT && !frei.trim()}
-          className="min-h-9 rounded-lg border px-4 text-sm font-medium transition-all hover:brightness-110 disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500"
+          className="min-h-10 rounded-lg border px-4 text-sm font-medium transition-[filter,transform] duration-150 hover:brightness-110 active:scale-[0.98] disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500"
           style={{
             borderColor: `color-mix(in srgb, ${accent} 45%, transparent)`,
             color: accent,
@@ -168,7 +168,7 @@ export default function ProduktWahl({
         <button
           type="button"
           onClick={onCancel}
-          className="min-h-8 rounded text-[13px] text-faint transition-colors hover:text-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500"
+          className="min-h-10 rounded-lg px-2 text-xs font-medium text-faint transition-colors duration-150 hover:text-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500"
         >
           {texte.cancel}
         </button>

@@ -158,34 +158,36 @@ export default function TeamPage() {
   }
 
   return (
-    <div className="fade-up max-w-2xl space-y-6">
+    <div className="fade-up max-w-3xl space-y-6">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight text-ink">{T.title}</h1>
-        <p className="text-sm text-faint">{T.subtitle}</p>
+        <p className="mt-1 text-sm text-faint">{T.subtitle}</p>
       </div>
 
       {isAdmin && (
         <div className={cardCls}>
-          <h2 className="text-sm font-semibold text-ink">{T.inviteTitle}</h2>
-          <p className="mt-1 text-xs leading-relaxed text-faint">{T.inviteHint}</p>
-          <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+          <h2 className="text-base font-semibold text-ink">{T.inviteTitle}</h2>
+          <p className="mt-1 text-sm leading-relaxed text-faint">{T.inviteHint}</p>
+          <div className="mt-5 flex flex-col gap-2.5 sm:flex-row">
             <input
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && invite()}
               placeholder={T.emailPlaceholder}
-              className={inputCls + " flex-1"}
+              aria-label={T.emailPlaceholder}
+              className={inputCls + " w-full sm:flex-1"}
             />
             <select
               value={role}
               onChange={(e) => setRole(e.target.value as "admin" | "member")}
-              className={inputCls + " sm:w-40"}
+              aria-label={T.roleMember}
+              className={inputCls + " w-full sm:w-40"}
             >
               <option value="member">{T.roleMember}</option>
               <option value="admin">{T.roleAdmin}</option>
             </select>
-            <button onClick={invite} disabled={busy} className={primaryBtnCls}>
+            <button onClick={invite} disabled={busy} className={primaryBtnCls + " w-full sm:w-auto"}>
               {T.inviteButton}
             </button>
           </div>
@@ -193,11 +195,18 @@ export default function TeamPage() {
       )}
 
       <div className={cardCls}>
-        <h2 className="text-sm font-semibold text-ink">{T.listTitle}</h2>
+        <h2 className="text-base font-semibold text-ink">{T.listTitle}</h2>
         {loading ? (
-          <p className="mt-4 text-sm text-faint">{T.loading}</p>
+          /* Platzhalter in Zeilenform statt eines Wortes: die Liste steht an
+             derselben Stelle, sie ist nur noch grau. */
+          <div className="mt-4 space-y-2">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="skeleton h-12 rounded-lg" />
+            ))}
+            <span className="sr-only">{T.loading}</span>
+          </div>
         ) : (
-          <ul className="mt-4 divide-y divide-edge/60">
+          <ul className="mt-4 divide-y divide-edge/70">
             {members.map((m) => {
               const isMe = m.user_id === meId;
               // Der letzte Admin bekommt gar keine Knoepfe: die Datenbank
@@ -205,13 +214,15 @@ export default function TeamPage() {
               // Fehlermeldung erzeugt, ist eine Falle.
               const lastAdmin = m.role === "admin" && adminCount === 1;
               return (
-                <li key={m.id} className="flex flex-wrap items-center gap-x-3 gap-y-2 py-3">
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm text-ink">
+                <li className="flex flex-wrap items-center gap-x-3 gap-y-2 py-3" key={m.id}>
+                  <div className="min-w-0 flex-1 basis-full sm:basis-auto">
+                    <p className="truncate text-sm font-medium text-ink">
                       {m.email}
-                      {isMe && <span className="ml-2 text-xs text-faint">{T.you}</span>}
+                      {isMe && <span className="ml-2 text-xs font-normal text-faint">{T.you}</span>}
                     </p>
-                    {!m.accepted_at && <p className="mt-0.5 text-xs text-amber-600 dark:text-amber-400">{T.pending}</p>}
+                    {!m.accepted_at && (
+                      <p className="mt-0.5 text-xs text-amber-600 dark:text-amber-400">{T.pending}</p>
+                    )}
                   </div>
 
                   {isAdmin && !lastAdmin ? (
@@ -219,19 +230,20 @@ export default function TeamPage() {
                       value={m.role}
                       onChange={(e) => changeRole(m, e.target.value as "admin" | "member")}
                       disabled={busy}
-                      className={inputCls + " w-32 py-1 text-xs"}
+                      aria-label={m.email}
+                      className={inputCls + " w-32 px-2.5 py-1.5 text-xs"}
                     >
                       <option value="member">{T.roleMember}</option>
                       <option value="admin">{T.roleAdmin}</option>
                     </select>
                   ) : (
-                    <span className="rounded-full border border-edge2 bg-chip px-2.5 py-1 text-xs text-soft">
+                    <span className="rounded-full bg-chip px-2.5 py-0.5 text-xs font-medium text-soft">
                       {m.role === "admin" ? T.roleAdmin : T.roleMember}
                     </span>
                   )}
 
                   {isAdmin && !lastAdmin && (
-                    <button onClick={() => remove(m)} disabled={busy} className={dangerBtnCls + " py-1 text-xs"}>
+                    <button onClick={() => remove(m)} disabled={busy} className={dangerBtnCls + " px-3 py-1.5 text-xs"}>
                       {T.remove}
                     </button>
                   )}
@@ -241,22 +253,24 @@ export default function TeamPage() {
           </ul>
         )}
 
-        {!isAdmin && !loading && <p className="mt-4 text-xs leading-relaxed text-faint">{T.memberNote}</p>}
+        {!isAdmin && !loading && (
+          <p className="mt-4 text-xs leading-relaxed text-faint">{T.memberNote}</p>
+        )}
         {isAdmin && adminCount === 1 && !loading && (
           <p className="mt-4 text-xs leading-relaxed text-faint">{T.lastAdminNote}</p>
         )}
       </div>
 
       <div className={cardCls}>
-        <h2 className="text-sm font-semibold text-ink">{T.rightsTitle}</h2>
-        <dl className="mt-3 space-y-3 text-xs leading-relaxed">
+        <h2 className="text-base font-semibold text-ink">{T.rightsTitle}</h2>
+        <dl className="mt-4 space-y-4 leading-relaxed">
           <div>
-            <dt className="font-medium text-ink">{T.roleAdmin}</dt>
-            <dd className="text-faint">{T.adminRights}</dd>
+            <dt className="text-sm font-medium text-ink">{T.roleAdmin}</dt>
+            <dd className="mt-0.5 text-sm text-faint">{T.adminRights}</dd>
           </div>
           <div>
-            <dt className="font-medium text-ink">{T.roleMember}</dt>
-            <dd className="text-faint">{T.memberRights}</dd>
+            <dt className="text-sm font-medium text-ink">{T.roleMember}</dt>
+            <dd className="mt-0.5 text-sm text-faint">{T.memberRights}</dd>
           </div>
         </dl>
       </div>

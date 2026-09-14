@@ -12,6 +12,7 @@ import {
 import { useT } from "../language-provider";
 import { useToast } from "../toast-provider";
 import { useWorkspace } from "../workspace-provider";
+import { inputCls, primaryBtnCls } from "@/lib/ui";
 
 /**
  * Eigene Felder anlegen und verwalten.
@@ -111,42 +112,54 @@ export default function CustomFields() {
     load();
   }
 
-  if (loading) return null;
-
-  const inputCls =
-    "rounded-lg border border-edge2 bg-field px-3 py-2 text-sm text-ink placeholder-mute outline-none transition-colors focus:border-sky-500";
+  // Platzhalter in der Form der spaeteren Liste statt eines leeren Lochs:
+  // die Karte darum steht schon da, nur ihr Inhalt fehlt noch.
+  if (loading) {
+    return (
+      <div className="space-y-3">
+        <div className="skeleton h-9 w-64 rounded-lg" />
+        <div className="skeleton h-11 rounded-lg" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">
       {/* Objektart zuerst: ein Feld gehoert zu Kontakt, Firma ODER Deal, und
           diese Wahl bestimmt alles Weitere. */}
-      <div className="flex flex-wrap gap-1.5">
-        {FIELD_ENTITIES.map((e) => (
-          <button
-            key={e}
-            onClick={() => setEntity(e)}
-            className={
-              "rounded-full border px-3 py-1 text-xs font-medium transition-colors " +
-              (entity === e
-                ? "border-sky-500/60 bg-sky-500/10 text-sky-600 dark:text-sky-300"
-                : "border-edge2 bg-chip text-soft hover:border-edge3 hover:text-ink")
-            }
-          >
-            {F.entityLabels[e]}
-            <span className="ml-1.5 tabular-nums text-mute">
-              {defs.filter((d) => d.entity === e).length}
-            </span>
-          </button>
-        ))}
+      <div className="-mx-1 max-w-full overflow-x-auto px-1">
+        <div className="inline-flex rounded-lg bg-chip p-1">
+          {FIELD_ENTITIES.map((e) => (
+            <button
+              key={e}
+              onClick={() => setEntity(e)}
+              aria-pressed={entity === e}
+              className={
+                "whitespace-nowrap rounded-md px-3.5 py-1.5 text-sm font-medium transition-colors duration-150 " +
+                (entity === e
+                  ? "bg-panel text-ink shadow-sm dark:bg-white/[0.08]"
+                  : "text-soft hover:text-ink")
+              }
+            >
+              {F.entityLabels[e]}
+              <span className="ml-1.5 tabular-nums text-mute">
+                {defs.filter((d) => d.entity === e).length}
+              </span>
+            </button>
+          ))}
+        </div>
       </div>
 
       {forEntity.length > 0 && (
-        <div className="divide-y divide-edge2/50 overflow-hidden rounded-lg border border-edge2">
+        <div className="divide-y divide-edge/70 overflow-hidden rounded-xl border border-edge/70">
           {forEntity.map((def) => (
-            <div key={def.id} className="flex items-center gap-3 px-3 py-2">
+            <div
+              key={def.id}
+              className="flex items-center gap-3 px-3.5 py-2.5 transition-colors duration-150 hover:bg-wash"
+            >
               <div className="min-w-0 flex-1">
-                <p className="truncate text-sm text-ink">{def.label}</p>
-                <p className="truncate text-[11px] text-mute">
+                <p className="truncate text-sm font-medium text-ink">{def.label}</p>
+                <p className="mt-0.5 truncate text-xs text-faint">
                   {F.typeLabels[def.field_type]}
                   {def.field_type === "select" && def.options.length > 0 && (
                     <> · {def.options.join(", ")}</>
@@ -157,7 +170,7 @@ export default function CustomFields() {
               </div>
               <button
                 onClick={() => remove(def)}
-                className="shrink-0 text-xs text-red-600 transition-colors hover:text-red-500 dark:text-red-400"
+                className="shrink-0 rounded-lg px-2.5 py-2 text-xs font-medium text-red-600 transition-colors duration-150 hover:bg-red-500/10 dark:text-red-400"
               >
                 {t.common.delete}
               </button>
@@ -166,7 +179,7 @@ export default function CustomFields() {
         </div>
       )}
 
-      <div className="flex flex-wrap items-end gap-2">
+      <div className="flex flex-wrap items-end gap-2.5">
         <input
           value={label}
           onChange={(e) => setLabel(e.target.value)}
@@ -195,13 +208,13 @@ export default function CustomFields() {
         <button
           onClick={add}
           disabled={busy || !label.trim()}
-          className="rounded-lg bg-sky-600 px-4 py-2 text-sm font-medium text-white transition-all hover:brightness-110 active:scale-[0.98] disabled:opacity-40"
+          className={primaryBtnCls + " w-full sm:w-auto"}
         >
           {F.add}
         </button>
       </div>
 
-      <p className="text-[11px] text-mute">{F.footnote}</p>
+      <p className="text-xs leading-relaxed text-faint">{F.footnote}</p>
     </div>
   );
 }

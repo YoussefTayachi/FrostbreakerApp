@@ -2,38 +2,47 @@
 
 @custom-variant dark (&:where(.dark, .dark *));
 
-/* ===== Farb-Tokens — Light-first (warmes Neutral, Attio/Notion-artig) ===== */
+/* ===== Farb-Tokens ======================================================
+   Kuehle Neutraltoene statt des warmen Grau von vorher. Referenz sind die
+   Systemfarben von macOS und iOS (#f5f5f7 Grund, #1d1d1f Schrift, #86868b
+   Nebentext): Weiss bleibt Weiss, Grau bleibt Grau, nichts stichelt ins
+   Gelbe. Die Namen sind unveraendert, damit keine Komponente angefasst
+   werden muss.
+
+   --c-mute ist bewusst dunkler als Apples #86868b: das steht in 12px-
+   Grossbuchstaben ueber jeder Kachel, und #86868b auf Weiss sind 3,5:1.
+   #75757b liegt bei rund 4,5:1, im Dunkeln #808088 auf --c-panel ebenso. */
 :root {
-  --c-surface: #f9f9f8;
+  --c-surface: #f5f5f7;
   --c-panel: #ffffff;
-  --c-panel2: #f5f5f4;
+  --c-panel2: #efeff2;
   --c-field: #ffffff;
-  --c-chip: #f1f0ee;
-  --c-wash: #f5f5f4;
-  --c-edge: #e9e8e6;
-  --c-edge2: #d8d7d4;
-  --c-edge3: #a9a8a2;
-  --c-ink: #1c1b19;
-  --c-soft: #57534e;
-  --c-faint: #79766f;
-  --c-mute: #aaa79f;
+  --c-chip: #e9e9ee;
+  --c-wash: #f5f5f7;
+  --c-edge: #e3e3e8;
+  --c-edge2: #d2d2d8;
+  --c-edge3: #a9a9b1;
+  --c-ink: #1d1d1f;
+  --c-soft: #48484c;
+  --c-faint: #6e6e73;
+  --c-mute: #75757b;
   color-scheme: light;
 }
 
 .dark {
-  --c-surface: #0b0b0c;
-  --c-panel: #131315;
-  --c-panel2: #19191c;
-  --c-field: #121214;
-  --c-chip: #202023;
-  --c-wash: #1b1b1e;
-  --c-edge: #262629;
-  --c-edge2: #343438;
-  --c-edge3: #525256;
-  --c-ink: #f4f4f3;
-  --c-soft: #a3a29e;
-  --c-faint: #757570;
-  --c-mute: #525250;
+  --c-surface: #0a0a0b;
+  --c-panel: #151517;
+  --c-panel2: #0f0f11;
+  --c-field: #111113;
+  --c-chip: #212124;
+  --c-wash: #1a1a1d;
+  --c-edge: #27272b;
+  --c-edge2: #35353b;
+  --c-edge3: #56565e;
+  --c-ink: #f5f5f7;
+  --c-soft: #b0b0b6;
+  --c-faint: #8a8a91;
+  --c-mute: #808088;
   color-scheme: dark;
 }
 
@@ -53,32 +62,112 @@
   --color-mute: var(--c-mute);
 }
 
+/* ===== Schriftskala, Radien, Schatten ===================================
+   Eine Stelle fuer die ganze App. Die Utility-Namen bleiben (text-sm,
+   rounded-lg, shadow-sm), nur ihre Werte aendern sich:
+
+   Schrift    vorher  jetzt   Zeile
+   text-2xs   (neu)   12px    16px   Beschriftungen, kleinste Stufe
+   text-xs    12px    13px    18px   Nebentext
+   text-sm    14px    15px    22px   Fliesstext, Formulare, Tabellen
+   text-base  16px    17px    24px
+   text-lg    18px    19px    26px
+   text-xl    20px    22px    28px
+   text-2xl   24px    28px    34px   Seitentitel
+   text-3xl   30px    34px    40px
+
+   Untergrenzen aus den Vorlieben: Fliesstext nicht unter 14px,
+   Beschriftungen nicht unter 12px. text-2xs ist die einzige Stufe unter 13
+   und ersetzt die frueheren 9-, 10- und 11-Pixel-Arbitraries.
+
+   Radien: 12px fuer Knoepfe und Felder, 16px fuer Karten, 20px fuer
+   Dialoge. Schatten weich und gross statt hart und klein. */
+@theme {
+  --text-2xs: 0.75rem;
+  --text-2xs--line-height: 1rem;
+  --text-xs: 0.8125rem;
+  --text-xs--line-height: 1.125rem;
+  --text-sm: 0.9375rem;
+  --text-sm--line-height: 1.375rem;
+  --text-base: 1.0625rem;
+  --text-base--line-height: 1.5rem;
+  --text-lg: 1.1875rem;
+  --text-lg--line-height: 1.625rem;
+  --text-xl: 1.375rem;
+  --text-xl--line-height: 1.75rem;
+  --text-2xl: 1.75rem;
+  --text-2xl--line-height: 2.125rem;
+  --text-3xl: 2.125rem;
+  --text-3xl--line-height: 2.5rem;
+  --text-4xl: 2.5rem;
+  --text-4xl--line-height: 1.1;
+  --text-5xl: 3rem;
+  --text-5xl--line-height: 1.05;
+
+  --radius-sm: 0.375rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --radius-xl: 1rem;
+  --radius-2xl: 1.25rem;
+  --radius-3xl: 1.75rem;
+
+  --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.04), 0 1px 1px rgb(0 0 0 / 0.02);
+  --shadow-md: 0 4px 12px -2px rgb(0 0 0 / 0.08), 0 1px 2px rgb(0 0 0 / 0.04);
+  --shadow-lg: 0 12px 32px -8px rgb(0 0 0 / 0.16), 0 2px 6px rgb(0 0 0 / 0.04);
+  --shadow-xl: 0 24px 48px -12px rgb(0 0 0 / 0.2), 0 4px 12px rgb(0 0 0 / 0.05);
+  --shadow-2xl: 0 32px 72px -16px rgb(0 0 0 / 0.3), 0 8px 24px rgb(0 0 0 / 0.08);
+}
+
 body {
   background: var(--c-surface);
   color: var(--c-ink);
   font-family: "Inter Variable", Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   -webkit-font-smoothing: antialiased;
-  font-feature-settings: "cv11", "ss01";
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  font-feature-settings: "cv11", "ss01", "cv02", "cv03", "cv04";
+  /* Inter laeuft bei 15px eine Spur zu weit. -0.01em bringt es dorthin, wo
+     SF Pro von Haus aus steht. */
+  letter-spacing: -0.01em;
   transition: background-color 0.25s ease, color 0.25s ease;
 }
 
-::selection { background: rgba(14, 165, 233, 0.18); }
+/* Grosse Schrift will engere Laufweite, kleine will keine. Ueberschriften
+   bekommen ihre Sperrung hier, nicht in jeder Komponente einzeln. */
+h1 { letter-spacing: -0.025em; }
+h2 { letter-spacing: -0.02em; }
+h3 { letter-spacing: -0.015em; }
+.text-2xs, .text-xs { letter-spacing: 0; }
+
+::selection { background: rgba(14, 165, 233, 0.2); }
+
+/* Kein blauer Tap-Blitz auf iOS, kein Cursor-Wechsel auf abgeschalteten
+   Knoepfen. Beides kleine Dinge, die eine Web-App als solche verraten. */
+button, a, [role="button"] { -webkit-tap-highlight-color: transparent; }
+button:not(:disabled) { cursor: pointer; }
+
+/* Tastaturfokus sichtbar, Mausfokus nicht: ein Ring, der bei jedem Klick
+   aufleuchtet, ist Laerm; einer, der bei Tab fehlt, ist eine Sperre. */
+:focus-visible {
+  outline: 2px solid rgb(14 165 233 / 0.7);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+input:focus-visible, select:focus-visible, textarea:focus-visible { outline: none; }
+
+/* Zahlen in Tabellen und Kacheln stehen untereinander nur mit gleich
+   breiten Ziffern auf einer Linie. */
+table, .tabular { font-variant-numeric: tabular-nums; }
 
 /* ── EINGABEFELDER AUF DEM HANDY ──────────────────────────────────────────
    Safari auf iOS zoomt die ganze Seite hinein, sobald ein Feld mit weniger
-   als 16px Schrift den Fokus bekommt. Das ist kein Sonderfall: inputCls in
-   lib/ui.ts setzt text-sm, also 14px, und damit tut es JEDES Feld der App --
-   Kampagnenname, Betreff, Mailtext, Suche, Anmeldung.
+   als 16px Schrift den Fokus bekommt. inputCls in lib/ui.ts setzt text-sm,
+   also 15px, und damit tut es JEDES Feld der App.
 
-   Wie sich das anfuehlt: man tippt ins Betrefffeld, die Seite springt auf
-   etwa 115 % und bleibt dort. Herauszoomen muss man von Hand, und beim
-   naechsten Feld beginnt es von vorn. Zurueck kommt die Seite nie von allein.
-
-   max(16px, 1em) und nicht schlicht 16px: 1em ist hier die Groesse, die das
-   Feld ohnehin geerbt haette. Felder, die absichtlich groesser sind, bleiben
+   max(16px, 1em) und nicht schlicht 16px: 1em ist die Groesse, die das Feld
+   ohnehin geerbt haette. Felder, die absichtlich groesser sind, bleiben
    groesser; nur die zu kleinen werden angehoben. Ab md gilt wieder, was in
-   der Klasse steht -- am Schreibtisch gibt es das Problem nicht, und dort ist
-   14px die gewollte Groesse.
+   der Klasse steht.
 
    Auf einer Medienabfrage und nicht auf einer Utility-Klasse, weil es sonst
    an rund achtzig Stellen einzeln stehen muesste und die erste vergessene
@@ -91,13 +180,20 @@ body {
   }
 }
 
+/* Der scrollende Teil der Seitenleiste: der Balken darf da sein, aber nicht
+   auffallen. Ein Standardbalken neben der Navigation ist das Erste, was
+   jemand sieht, der die App oeffnet. */
+.scroll-quiet { scrollbar-width: thin; scrollbar-color: var(--c-edge2) transparent; }
+.scroll-quiet::-webkit-scrollbar { width: 6px; }
+
 *::-webkit-scrollbar { width: 8px; height: 8px; }
-*::-webkit-scrollbar-thumb { background: var(--c-edge2); border-radius: 8px; }
+*::-webkit-scrollbar-thumb { background: var(--c-edge2); border-radius: 8px; border: 2px solid transparent; background-clip: padding-box; }
+*::-webkit-scrollbar-thumb:hover { background-color: var(--c-edge3); }
 *::-webkit-scrollbar-track { background: transparent; }
 
 /* ===== Animationen (dezent, einmalig) ===== */
 @keyframes shimmer { 0% { opacity: 0.55; } 50% { opacity: 1; } 100% { opacity: 0.55; } }
-.skeleton { animation: shimmer 1.6s ease-in-out infinite; background: var(--c-chip); border-radius: 8px; }
+.skeleton { animation: shimmer 1.6s ease-in-out infinite; background: var(--c-chip); border-radius: 12px; }
 
 @keyframes fadeUp {
   from { opacity: 0; top: 6px; }
@@ -117,6 +213,23 @@ body {
 }
 .bar-rise { transform-origin: bottom; animation: rise 0.5s cubic-bezier(0.2, 0.7, 0.3, 1) both; }
 
+/* ── DIE SCHUBLADE AUF DEM HANDY ──────────────────────────────────────────
+   Kommt von links herein, der Schleier blendet auf. Kein fill-mode: nach dem
+   Lauf steht kein transform mehr auf dem Feld, sonst gilt wieder die Falle
+   mit dem containing block (siehe .fade-up). Die Kurve ist die einer
+   kritisch gedaempften Feder: kein Nachschwingen, aber ein weiches Ende. */
+@keyframes drawerIn { from { transform: translateX(-100%); } }
+@keyframes scrimIn { from { opacity: 0; } }
+.drawer-in { animation: drawerIn 0.32s cubic-bezier(0.2, 0.8, 0.2, 1); }
+.scrim-in { animation: scrimIn 0.25s ease-out; }
+
+/* Dialoge und Menues erscheinen aus ihrer Quelle heraus, nicht aus dem
+   Nichts: ein kleiner Massstab plus Deckkraft, 180ms, keine Feder. */
+@keyframes popIn {
+  from { opacity: 0; transform: scale(0.97) translateY(-2px); }
+}
+.pop-in { animation: popIn 0.18s cubic-bezier(0.2, 0.7, 0.3, 1); }
+
 /* Dezentes Punktraster für Hero-Flächen (Login) */
 .dot-grid {
   background-image: radial-gradient(var(--c-edge2) 1px, transparent 1px);
@@ -127,7 +240,7 @@ body {
   /* .skeleton gehoert dazu: shimmer laeuft endlos, und genau eine endlose
      Schleife ist das, was diese Einstellung abstellen soll. Der Platzhalter
      bleibt sichtbar, er hoert nur auf zu pulsieren. */
-  .fade-up, .bar-rise, .skeleton { animation: none; }
+  .fade-up, .bar-rise, .skeleton, .drawer-in, .scrim-in, .pop-in { animation: none; }
 }
 
 /* ============================================================================
@@ -303,7 +416,7 @@ main:has(> .fb-weit) {
 
 .fb-edge-label {
   font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
-  font-size: 9.5px;
+  font-size: 11px;
   letter-spacing: 0.1em;
   text-transform: uppercase;
   /* Ein Rand in Flächenfarbe UNTER der Schrift: so bleibt die Beschriftung
@@ -390,7 +503,7 @@ main:has(> .fb-weit) {
    die App lädt keine, und ein Ladefehler wäre hier besonders sichtbar. */
 .fb-label {
   font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
-  font-size: 10px;
+  font-size: 12px;
   line-height: 1.2;
   letter-spacing: 0.16em;
   text-transform: uppercase;

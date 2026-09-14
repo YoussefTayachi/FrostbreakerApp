@@ -102,7 +102,7 @@ export default function PipelineView({
 
   if (rows.length === 0) {
     return (
-      <p className="rounded-lg border border-edge/60 bg-panel px-5 py-14 text-center text-sm text-faint">
+      <p className="rounded-xl border border-edge/70 bg-panel px-5 py-14 text-center text-sm text-faint shadow-sm">
         {P.empty}
       </p>
     );
@@ -112,15 +112,18 @@ export default function PipelineView({
 
   return (
     <>
-      <div className="mb-3 flex justify-end">
-        <div className="flex overflow-hidden rounded-lg border border-edge2">
+      {/* Unter sm nimmt der Umschalter die volle Breite und teilt sie zu
+         gleichen Teilen: drei unterschiedlich breite Segmente rechtsbuendig
+         an der Kante sind auf 390 Pixeln ein Ziel von je 40 Pixeln. */}
+      <div className="mb-3 flex sm:justify-end">
+        <div className="inline-flex w-full rounded-lg bg-chip p-1 sm:w-auto">
           {(["list", "board", "deals"] as const).map((mode) => (
             <button
               key={mode}
               onClick={() => chooseView(mode)}
               className={
-                "px-3 py-1.5 text-xs font-medium transition-colors " +
-                (view === mode ? "bg-sky-600 text-white" : "text-soft hover:bg-chip hover:text-ink")
+                "min-h-9 flex-1 rounded-md px-3 text-xs font-medium transition-colors duration-150 sm:flex-none " +
+                (view === mode ? "bg-panel text-ink shadow-sm dark:bg-white/[0.08]" : "text-soft hover:text-ink")
               }
             >
               {mode === "list" ? P.viewList : mode === "board" ? P.viewBoard : P.viewDeals}
@@ -165,11 +168,12 @@ export default function PipelineView({
       {detail && (
         <div className="fixed inset-0 z-40">
           <div
-            className="absolute inset-0 bg-black/40 backdrop-blur-[2px]"
+            className="scrim-in absolute inset-0 bg-black/40 backdrop-blur-[3px]"
             onClick={() => setDetail(null)}
           />
-          <aside className="absolute right-0 top-0 h-full w-full max-w-md overflow-y-auto border-l border-edge/60 bg-panel p-6 shadow-2xl [animation:fadeUp_.25s_ease]">
-            <div className="mb-4 flex items-start justify-between gap-3">
+          {/* Kopf steht, Inhalt rollt: derselbe Aufbau wie im Lead-Drawer. */}
+          <aside className="absolute right-0 top-0 flex h-full w-full max-w-md flex-col border-l border-edge/70 bg-panel shadow-2xl [animation:fadeUp_.25s_ease]">
+            <div className="flex items-start justify-between gap-3 border-b border-edge/70 px-5 py-4">
               <div className="flex min-w-0 items-start gap-2.5">
                 <CompanyLogo
                   name={detail.company_name ?? displayName(detail, "?")}
@@ -187,20 +191,21 @@ export default function PipelineView({
               </div>
               <button
                 onClick={() => setDetail(null)}
-                className="rounded-lg border border-edge/60 px-2.5 py-1 text-sm text-faint transition-colors hover:border-edge2 hover:text-ink"
+                className="-mr-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-base text-faint transition-[background-color,transform,color] duration-150 hover:bg-chip hover:text-ink active:scale-[0.96]"
               >
                 ✕
               </button>
             </div>
 
+            <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5 [padding-bottom:calc(1.25rem+env(safe-area-inset-bottom))]">
             {/* Kontaktwege auch hier, nicht nur in der Liste: wer den Drawer
                 ueber das Board oeffnet, soll nicht schlechter dastehen. */}
             <div className="mb-4">
               <ContactChannels row={detail} />
             </div>
 
-            <div className="mb-5 flex items-center gap-2 rounded-lg border border-edge/60 bg-surface/60 px-3 py-2">
-              <span className="text-xs font-medium text-faint">{P.stageLabel}</span>
+            <div className="mb-5 flex items-center gap-2 rounded-xl border border-edge/70 bg-wash/70 px-3 py-2.5">
+              <span className="text-2xs font-semibold uppercase tracking-wider text-faint">{P.stageLabel}</span>
               <StatusSelect
                 value={detailStage!}
                 onChange={(next) => moveTo(detail, next)}
@@ -221,6 +226,7 @@ export default function PipelineView({
 
             <DealsPanel businessId={detail.business_id} contactId={detail.id} className="mb-5" />
             <ContactTimeline contactId={detail.id} businessId={detail.business_id} />
+            </div>
           </aside>
         </div>
       )}

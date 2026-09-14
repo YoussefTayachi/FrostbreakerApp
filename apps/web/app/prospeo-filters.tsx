@@ -10,6 +10,7 @@ import {
   type ProspeoFilters,
   type ProspeoMatchMode,
 } from "@/lib/prospeo-query";
+import { inputCls, secondaryBtnCls } from "@/lib/ui";
 import { useT } from "./language-provider";
 
 /**
@@ -219,7 +220,7 @@ export default function ProspeoFilterForm({ value, onChange }: Props) {
           erst im 403 der Suche — derselbe Gedanke wie beim Torwart: lieber
           vorher erklaeren als hinterher scheitern. */}
       {plan !== "free" && (
-        <p className="rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-xs text-amber-700 dark:text-amber-500">
+        <p className="rounded-xl border border-amber-500/30 bg-amber-500/5 px-3.5 py-2.5 text-xs leading-relaxed text-amber-700 dark:text-amber-500">
           {P.planNotice(plan === "pro" ? "Pro" : "Starter", fields.length)}
         </p>
       )}
@@ -231,8 +232,11 @@ export default function ProspeoFilterForm({ value, onChange }: Props) {
 
 /* ══════════════════════════════════════════════════════════════════════ */
 
-const INPUT =
-  "w-full rounded-lg border border-edge2 bg-field px-3 py-2 text-sm text-ink outline-none transition-colors focus:border-sky-500";
+/* Dasselbe Feld wie in allen anderen Masken (lib/ui.ts). Vorher hatte diese
+   Datei eine eigene Fassung mit anderem Innenrand und ohne Fokusring --
+   sichtbar genau dort, wo sie direkt unter den Feldern des Suchformulars
+   steht. */
+const INPUT = inputCls + " w-full";
 
 function Group({
   title,
@@ -246,17 +250,17 @@ function Group({
   children: React.ReactNode;
 }) {
   return (
-    <div className="rounded-xl border border-edge2 bg-panel2/40 p-4">
+    <div className="rounded-xl border border-edge/70 bg-panel p-4 shadow-sm sm:p-5">
       <div className="mb-3 flex flex-wrap items-center gap-2">
-        <h4 className="text-sm font-medium text-ink">{title}</h4>
+        <h4 className="text-base font-semibold text-ink">{title}</h4>
         {badge && (
-          <span className="rounded-full border border-amber-500/40 bg-amber-500/10 px-2 py-0.5 text-[10px] font-medium text-amber-700 dark:text-amber-400">
+          <span className="rounded-full border border-amber-500/40 bg-amber-500/10 px-2 py-0.5 text-2xs font-medium text-amber-700 dark:text-amber-400">
             {badge}
           </span>
         )}
       </div>
-      {hint && <p className="mb-3 text-xs text-faint">{hint}</p>}
-      <div className="grid gap-3 sm:grid-cols-2">{children}</div>
+      {hint && <p className="mb-3 text-xs leading-relaxed text-faint">{hint}</p>}
+      <div className="grid gap-4 sm:grid-cols-2">{children}</div>
     </div>
   );
 }
@@ -273,10 +277,10 @@ function Field({
   children: React.ReactNode;
 }) {
   return (
-    <label className={"flex flex-col gap-1 " + (full ? "sm:col-span-2" : "")}>
-      <span className="text-xs font-medium text-soft">{label}</span>
+    <label className={"flex flex-col gap-1.5 " + (full ? "sm:col-span-2" : "")}>
+      <span className="text-sm font-medium text-soft">{label}</span>
       {children}
-      {hint && <span className="text-[11px] leading-snug text-mute">{hint}</span>}
+      {hint && <span className="text-xs leading-snug text-mute">{hint}</span>}
     </label>
   );
 }
@@ -326,10 +330,11 @@ function ChipToggles({
             type="button"
             onClick={() => onChange(on ? selected.filter((s) => s !== o) : [...selected, o])}
             className={
-              "rounded-full border px-2.5 py-1 text-xs transition-colors " +
+              "inline-flex min-h-8 items-center rounded-full border px-3 text-xs font-medium " +
+              "transition-[background-color,border-color,color,transform] duration-150 active:scale-[0.98] " +
               (on
                 ? "border-sky-500/60 bg-sky-500/10 text-sky-700 dark:text-sky-300"
-                : "border-edge2 text-soft hover:border-edge3 hover:text-ink")
+                : "border-edge2 text-soft hover:border-edge3 hover:bg-chip hover:text-ink")
             }
           >
             {o}
@@ -410,13 +415,13 @@ function SuggestPicker({
           {selected.map((s) => (
             <span
               key={s}
-              className="flex items-center gap-1 rounded-full border border-sky-500/40 bg-sky-500/10 px-2 py-0.5 text-xs text-sky-700 dark:text-sky-300"
+              className="inline-flex min-h-7 items-center gap-1 rounded-full border border-sky-500/40 bg-sky-500/10 py-0.5 pl-2.5 pr-1 text-xs font-medium text-sky-700 dark:text-sky-300"
             >
               {s}
               <button
                 type="button"
                 onClick={() => onChange(selected.filter((v) => v !== s))}
-                className="text-sky-600/70 transition-colors hover:text-sky-800 dark:hover:text-sky-100"
+                className="flex h-5 w-5 items-center justify-center rounded-full text-sky-600/70 transition-colors hover:bg-sky-500/20 hover:text-sky-800 dark:hover:text-sky-100"
                 aria-label={t.common.delete}
               >
                 ×
@@ -439,11 +444,11 @@ function SuggestPicker({
       />
 
       {open && query.trim().length >= 2 && (
-        <div className="absolute z-20 mt-1 max-h-56 w-full overflow-y-auto rounded-lg border border-edge2 bg-panel shadow-lg">
+        <div className="pop-in absolute z-20 mt-1.5 max-h-56 w-full overflow-y-auto rounded-xl border border-edge/70 bg-panel p-1 shadow-xl">
           {loading ? (
-            <p className="px-3 py-2 text-xs text-mute">{t.prospeo.counting}</p>
+            <p className="px-3 py-2.5 text-xs text-faint">{t.prospeo.counting}</p>
           ) : items.length === 0 ? (
-            <p className="px-3 py-2 text-xs text-mute">{t.prospeo.noSuggestions}</p>
+            <p className="px-3 py-2.5 text-xs text-faint">{t.prospeo.noSuggestions}</p>
           ) : (
             items
               .filter((i) => !selected.includes(i.value))
@@ -455,10 +460,10 @@ function SuggestPicker({
                     onChange([...selected, i.value]);
                     setQuery("");
                   }}
-                  className="flex w-full items-center justify-between gap-2 px-3 py-1.5 text-left text-sm text-ink transition-colors hover:bg-chip"
+                  className="flex w-full items-center justify-between gap-2 rounded-lg px-3 py-2 text-left text-sm text-ink transition-colors hover:bg-wash"
                 >
                   <span>{i.label}</span>
-                  {i.hint && <span className="text-[11px] text-mute">{i.hint}</span>}
+                  {i.hint && <span className="text-2xs text-mute">{i.hint}</span>}
                 </button>
               ))
           )}
@@ -538,11 +543,11 @@ function CountButton({ filters }: { filters: ProspeoFilters }) {
         type="button"
         onClick={run}
         disabled={!usable || state.kind === "loading"}
-        className="rounded-lg border border-edge2 px-3.5 py-2 text-sm font-medium text-soft transition-colors hover:border-edge3 hover:text-ink disabled:opacity-50"
+        className={secondaryBtnCls}
       >
         {state.kind === "loading" ? P.counting : P.countButton}
       </button>
-      <span className="text-xs text-mute">{P.countCost}</span>
+      <span className="text-xs text-faint">{P.countCost}</span>
 
       {state.kind === "ok" && (
         <span className="text-sm text-ink">

@@ -467,7 +467,7 @@ export default function NewCampaignPage() {
   }
 
   return (
-    <div className="max-w-2xl space-y-6">
+    <div className="max-w-3xl space-y-6">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight text-ink">{t.instantly.campaigns.newPageTitle}</h1>
       </div>
@@ -476,13 +476,13 @@ export default function NewCampaignPage() {
           den Feldern schon etwas steht. Der zweite Satz erscheint nur, wenn
           dabei tatsaechlich ein hier begonnener Entwurf weichen musste. */}
       {mcpDraft?.state === "loaded" && (
-        <div className="rounded-lg border border-sky-500/40 bg-sky-500/5 px-3 py-2 text-xs text-faint">
+        <div className="rounded-xl border border-sky-500/30 bg-sky-500/5 px-4 py-3 text-sm text-soft">
           <p>{F.mcpDraftLoaded}</p>
           {mcpDraft.replacedLocal && <p className="mt-1">{F.mcpDraftReplacedLocal}</p>}
         </div>
       )}
       {mcpDraft?.state === "missing" && (
-        <div className="rounded-lg border border-amber-500/40 bg-amber-500/5 px-3 py-2 text-xs text-faint">
+        <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 px-4 py-3 text-sm text-soft">
           {F.mcpDraftMissing}
         </div>
       )}
@@ -492,13 +492,13 @@ export default function NewCampaignPage() {
           Ueberraschung — und niemand traut Feldern, die sich selbst
           ausfuellen. */}
       {restoreNotice && (
-        <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-2 rounded-lg border border-edge2 bg-field px-3 py-2.5 text-xs text-faint">
+        <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-2 rounded-xl border border-edge/70 bg-panel2 px-4 py-3 text-sm text-faint">
           <span className="min-w-0 flex-1">{F.draftRestored}</span>
           <div className="flex shrink-0 items-center gap-4">
             <button
               type="button"
               onClick={discardDraft}
-              className="py-1 font-medium text-sky-600 hover:text-sky-500 dark:text-sky-400"
+              className="py-1 font-medium text-sky-600 transition-colors hover:text-sky-500 dark:text-sky-400"
             >
               {F.draftDiscard}
             </button>
@@ -508,7 +508,7 @@ export default function NewCampaignPage() {
               type="button"
               onClick={() => setRestoreNotice(false)}
               aria-label={F.draftDismiss}
-              className="flex h-6 w-6 shrink-0 items-center justify-center rounded transition-colors hover:text-ink"
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-colors hover:bg-chip hover:text-ink"
             >
               ×
             </button>
@@ -517,12 +517,12 @@ export default function NewCampaignPage() {
       )}
 
       <div>
-        <p className="mb-1.5 text-xs font-medium text-faint">{F.searchLabel}</p>
-        <p className="mb-2 text-xs text-faint">{F.searchHint}</p>
-        {searches !== null && searches.length === 0 && <p className="text-xs text-faint">{F.noSearches}</p>}
+        <p className="mb-1 text-xs font-medium text-faint">{F.searchLabel}</p>
+        <p className="mb-2.5 text-sm text-faint">{F.searchHint}</p>
+        {searches !== null && searches.length === 0 && <p className="py-10 text-center text-sm text-faint">{F.noSearches}</p>}
         <div
           ref={listenBoxRef}
-          className="max-h-64 space-y-1 overflow-y-auto rounded-lg border border-edge2 bg-field p-2"
+          className="max-h-64 space-y-1 overflow-y-auto rounded-xl border border-edge2 bg-field p-2"
         >
           {listenOptionen.map(({ row: s, searchIds: ids }) => {
             // "Bereits verknuepft" gilt fuer eine Gruppe erst, wenn ALLE ihre
@@ -545,7 +545,7 @@ export default function NewCampaignPage() {
                 // waechst mit (h-4 w-4 sind rund 16 Pixel Ziel) -- getroffen
                 // wird ohnehin das label, das es umschliesst.
                 className={
-                  "flex items-center gap-2.5 rounded-md px-2 py-2.5 text-sm sm:py-1.5 " +
+                  "flex items-center gap-2.5 rounded-lg px-2.5 py-2.5 text-sm transition-colors duration-150 sm:py-2 " +
                   (linked
                     ? "cursor-not-allowed text-mute"
                     : ausgewaehlt
@@ -558,7 +558,7 @@ export default function NewCampaignPage() {
                   checked={ausgewaehlt}
                   disabled={linked}
                   onChange={() => toggleSearch(ids)}
-                  className="h-4 w-4 shrink-0"
+                  className="h-4 w-4 shrink-0 accent-sky-600"
                 />
                 <span className="truncate">
                   {(s.name || s.query) + " · " + s.location}
@@ -569,7 +569,7 @@ export default function NewCampaignPage() {
           })}
         </div>
         {preview && (
-          <p className="mt-2 text-xs text-faint">
+          <p className="mt-2.5 text-sm text-faint">
             {F.previewSendable(preview.sendable)}
             {preview.invalid > 0 && (
               <span className="text-amber-600 dark:text-amber-500"> · {F.previewSkipped(preview.invalid)}</span>
@@ -609,10 +609,10 @@ export default function NewCampaignPage() {
               onResult={handleReadiness}
             />
             {blocked && (
-              <div className="rounded-lg border border-red-500/40 bg-red-500/5 px-4 py-3">
-                <p className="text-xs text-faint">{t.campaignReadiness.overrideHint}</p>
-                <label className="mt-2 flex items-center gap-2 text-sm text-ink">
-                  <input type="checkbox" checked={override} onChange={(e) => setOverride(e.target.checked)} />
+              <div className="rounded-xl border border-red-500/40 bg-red-500/5 px-4 py-3.5">
+                <p className="text-sm text-soft">{t.campaignReadiness.overrideHint}</p>
+                <label className="mt-2.5 flex items-center gap-2.5 text-sm font-medium text-ink">
+                  <input type="checkbox" checked={override} onChange={(e) => setOverride(e.target.checked)} className="h-4 w-4 accent-sky-600" />
                   {t.campaignReadiness.override}
                 </label>
               </div>

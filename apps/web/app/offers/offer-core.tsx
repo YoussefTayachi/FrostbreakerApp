@@ -188,7 +188,7 @@ export default function OfferCore({
             />
           </div>
           <span
-            className="fb-num absolute bottom-[38px] left-1/2 -translate-x-1/2 text-[17px] font-semibold leading-none"
+            className="fb-num absolute bottom-[38px] left-1/2 -translate-x-1/2 text-base font-semibold leading-none"
             style={{ color: ready ? "var(--fb-ready)" : "var(--fb-frost)" }}
           >
             {percent}%
@@ -198,7 +198,7 @@ export default function OfferCore({
 
       {/* Was THAW gerade braucht. Eine Zeile, kein Gespraech — sie sagt
           immer genau das, was als Naechstes zu tun ist. */}
-      <p className="mt-3.5 min-h-9 px-1 text-center text-[12.5px] leading-[1.45] text-soft">{say}</p>
+      <p className="mt-3.5 min-h-9 px-1 text-center text-xs leading-[1.45] text-soft">{say}</p>
 
       {/* Die Legende beantwortet, was der Ring zeigt: welches Segment welches
           Feld ist. Anklickbar, damit der Ring nicht nur meldet, sondern
@@ -235,8 +235,8 @@ export default function OfferCore({
                     auch die laengsten Feldnamen beider Sprachen. */}
                 <span
                   className={
-                    "flex-1 text-[13px] leading-[1.35] transition-colors [display:-webkit-box] [overflow:hidden] [-webkit-box-orient:vertical] [-webkit-line-clamp:2] " +
-                    (an ? "text-soft" : "text-mute group-hover:text-faint")
+                    "flex-1 text-xs leading-[1.35] transition-colors [display:-webkit-box] [overflow:hidden] [-webkit-box-orient:vertical] [-webkit-line-clamp:2] " +
+                    (an ? "text-soft" : "text-faint group-hover:text-soft")
                   }
                 >
                   {labels[field]}

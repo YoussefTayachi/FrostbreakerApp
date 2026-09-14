@@ -249,7 +249,7 @@ export default async function WirkungPage() {
     <div className="fade-up max-w-3xl space-y-6">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight text-ink">{W.title}</h1>
-        <p className="text-sm text-faint">{W.subtitle}</p>
+        <p className="mt-1 text-sm text-faint">{W.subtitle}</p>
       </div>
 
       <Funnel
@@ -261,9 +261,9 @@ export default async function WirkungPage() {
 
       {wins.length > 0 && <Wins wins={wins} labels={W} />}
 
-      <div className="rounded-xl border border-edge2 bg-panel p-5">
-        <h2 className="font-medium text-ink">{W.timelineTitle}</h2>
-        <p className="mt-0.5 text-xs text-faint">{W.timelineHint}</p>
+      <div className="rounded-xl border border-edge/70 bg-panel p-5 shadow-sm sm:p-6">
+        <h2 className="text-base font-semibold text-ink">{W.timelineTitle}</h2>
+        <p className="mt-1 text-sm text-faint">{W.timelineHint}</p>
         <div className="mt-4">
           <TimelineChart
             points={timeline}
@@ -295,7 +295,7 @@ export default async function WirkungPage() {
       <Section title={W.byWeekday} hint={W.byWeekdayHint} buckets={weekdays} empty={W.noData} labels={W} />
       <Section title={W.byHour} hint={W.byHourHint} buckets={hours} empty={W.noData} labels={W} />
 
-      <p className="text-xs text-mute">{W.methodNote(MIN_SAMPLE)}</p>
+      <p className="text-xs text-faint">{W.methodNote(MIN_SAMPLE)}</p>
     </div>
   );
 }
@@ -367,32 +367,41 @@ function Funnel({
     { label: L.meetings, value: meetings, tone: "text-emerald-600 dark:text-emerald-400" },
   ];
   return (
-    <div className="rounded-xl border border-edge2 bg-gradient-to-br from-panel to-panel2/40 p-5">
-      <div className="flex items-stretch gap-2">
+    <div className="rounded-xl border border-edge/70 bg-gradient-to-br from-panel to-panel2/40 p-5 shadow-sm sm:p-6">
+      {/* Unter sm ein Raster mit zwei Spalten statt einer Reihe mit Pfeilen:
+          vier 34-Pixel-Zahlen nebeneinander bekommen auf 390 Pixel je rund 70
+          Pixel, und die Beschriftung darunter ("Angeschrieben") bleibt als
+          "Angesch…" stehen. Die Pfeile verschwinden dabei, weil sie eine
+          waagerechte Kette erzaehlen, die es dort nicht gibt. */}
+      <div className="grid grid-cols-2 gap-x-4 gap-y-5 sm:flex sm:items-stretch sm:gap-2">
         {steps.map((s, i) => (
           <Fragment key={s.label}>
             {i > 0 && (
-              <div className="flex items-center text-mute" aria-hidden>
+              <div className="hidden items-center text-mute sm:flex" aria-hidden>
                 <svg viewBox="0 0 12 24" className="h-5 w-3" fill="none" stroke="currentColor" strokeWidth="1.5">
                   <path d="M3 5l5 7-5 7" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
               </div>
             )}
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-[11px] uppercase tracking-wide text-mute">{s.label}</p>
-              <p className={"mt-0.5 text-3xl font-semibold " + s.tone}>{s.value}</p>
+            <div className="min-w-0 sm:flex-1">
+              <p className="truncate text-2xs font-medium uppercase tracking-wider text-mute">{s.label}</p>
+              <p className={"mt-1 text-2xl font-semibold tabular-nums tracking-tight sm:text-3xl " + s.tone}>
+                {s.value}
+              </p>
             </div>
           </Fragment>
         ))}
-        <div className="hidden min-w-0 flex-1 border-l border-edge2 pl-4 sm:block">
-          <p className="truncate text-[11px] uppercase tracking-wide text-mute">{L.rate}</p>
-          <p className="mt-0.5 text-3xl font-semibold text-soft">
+        {/* Auf dem Handy die fuenfte Kachel statt gar nichts: die Quote ist
+            die eine Zahl, nach der hier gesucht wird. */}
+        <div className="min-w-0 sm:flex-1 sm:border-l sm:border-edge/70 sm:pl-4">
+          <p className="truncate text-2xs font-medium uppercase tracking-wider text-mute">{L.rate}</p>
+          <p className="mt-1 text-2xl font-semibold tabular-nums tracking-tight text-soft sm:text-3xl">
             {total.rate === null ? "—" : `${(total.rate * 100).toFixed(1)} %`}
           </p>
         </div>
       </div>
       {total.rate === null && (
-        <p className="mt-3 text-xs text-amber-600 dark:text-amber-500">{L.tooEarly(total.missing)}</p>
+        <p className="mt-4 text-sm text-amber-600 dark:text-amber-500">{L.tooEarly(total.missing)}</p>
       )}
     </div>
   );
@@ -421,10 +430,10 @@ function Wins({
   };
 }) {
   return (
-    <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/[0.05] p-5">
-      <h2 className="font-medium text-emerald-700 dark:text-emerald-400">{L.successTitle}</h2>
-      <p className="mt-0.5 text-xs text-faint">{L.successHint}</p>
-      <ul className="mt-3 space-y-1.5">
+    <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/[0.05] p-5 sm:p-6">
+      <h2 className="text-base font-semibold text-emerald-700 dark:text-emerald-400">{L.successTitle}</h2>
+      <p className="mt-1 text-sm text-faint">{L.successHint}</p>
+      <ul className="mt-4 space-y-2">
         {wins.map((b) => (
           <li key={b.key} className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 text-sm">
             <span className="font-medium text-emerald-700 dark:text-emerald-400">
@@ -432,12 +441,12 @@ function Wins({
             </span>
             <span className="text-soft">
               {b.campaignName || L.externalCampaign} · {L.step} {b.step + 1}
-              <span className="ml-1.5 rounded bg-chip px-1.5 py-0.5 text-[10px] font-medium text-soft">
+              <span className="ml-1.5 rounded-full bg-chip px-2 py-0.5 text-xs font-medium text-soft">
                 {variantLabel(b.variant)}
               </span>
             </span>
             {b.meetings > 0 && b.interested > 0 && (
-              <span className="text-xs text-mute">+ {L.successInterested(b.interested)}</span>
+              <span className="text-xs text-faint">+ {L.successInterested(b.interested)}</span>
             )}
           </li>
         ))}
@@ -521,16 +530,16 @@ function Recommendations({
   };
 
   return (
-    <div className="rounded-xl border border-edge2 bg-panel p-5">
-      <h2 className="font-medium text-ink">{L.recTitle}</h2>
-      <p className="mt-0.5 text-xs text-faint">{L.recHint}</p>
-      <ul className="mt-3 space-y-3">
+    <div className="rounded-xl border border-edge/70 bg-panel p-5 shadow-sm sm:p-6">
+      <h2 className="text-base font-semibold text-ink">{L.recTitle}</h2>
+      <p className="mt-1 text-sm text-faint">{L.recHint}</p>
+      <ul className="mt-4 space-y-3.5">
         {rendered.map((r) => (
-          <li key={r.key} className="flex gap-2.5">
-            <span className={"mt-1.5 h-2 w-2 shrink-0 rounded-full " + dot[r.tone]} aria-hidden />
+          <li key={r.key} className="flex gap-3">
+            <span className={"mt-2 h-2 w-2 shrink-0 rounded-full " + dot[r.tone]} aria-hidden />
             <div>
               <p className="text-sm font-medium text-ink">{r.title}</p>
-              <p className="text-xs text-faint">{r.why}</p>
+              <p className="mt-0.5 text-xs text-faint">{r.why}</p>
             </div>
           </li>
         ))}
@@ -544,13 +553,13 @@ function Recommendations({
 function Count({ n, label, tone }: { n: number; label: string; tone: string }) {
   if (n === 0) {
     return (
-      <span className="whitespace-nowrap text-[11px] text-mute">
+      <span className="whitespace-nowrap text-xs text-mute">
         — {label}
       </span>
     );
   }
   return (
-    <span className={"whitespace-nowrap text-[11px] font-medium " + tone}>
+    <span className={"whitespace-nowrap text-xs font-medium " + tone}>
       {n} {label}
     </span>
   );
@@ -625,15 +634,15 @@ function CopySection({
   const archivedGroups = groupByCampaign(archived);
 
   return (
-    <div className="rounded-xl border border-edge2 bg-panel p-5">
-      <h2 className="font-medium text-ink">{L.byCopy}</h2>
-      <p className="mt-0.5 text-xs text-faint">{L.byCopyHint}</p>
+    <div className="rounded-xl border border-edge/70 bg-panel p-5 shadow-sm sm:p-6">
+      <h2 className="text-base font-semibold text-ink">{L.byCopy}</h2>
+      <p className="mt-1 text-sm text-faint">{L.byCopyHint}</p>
 
       {active.length === 0 && archived.length === 0 ? (
-        <p className="mt-3 text-sm text-faint">{L.noAttribution}</p>
+        <p className="py-10 text-center text-sm text-faint">{L.noAttribution}</p>
       ) : (
         <>
-          <p className="mt-3 flex gap-2 rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-xs text-amber-700 dark:text-amber-500">
+          <p className="mt-4 flex gap-2 rounded-lg border border-amber-500/30 bg-amber-500/5 px-3.5 py-2.5 text-xs text-amber-700 dark:text-amber-500">
             <span aria-hidden>⚠</span>
             <span>{L.copyWarning}</span>
           </p>
@@ -646,10 +655,10 @@ function CopySection({
 
           {archivedGroups.length > 0 && (
             <details className="mt-4">
-              <summary className="cursor-pointer text-xs font-medium text-faint transition-colors hover:text-soft">
+              <summary className="cursor-pointer py-1 text-sm font-medium text-faint transition-colors hover:text-ink">
                 {L.archivedSection(archivedGroups.length)}
               </summary>
-              <p className="mt-1 text-xs text-mute">{L.archivedHint}</p>
+              <p className="mt-1 text-xs text-faint">{L.archivedHint}</p>
               <div className="mt-3 space-y-4 opacity-70">
                 {archivedGroups.map((g) => (
                   <CampaignCard key={g.id} group={g} archived labels={L} />
@@ -660,7 +669,7 @@ function CopySection({
 
           {/* Was NICHT in der Auswertung steht, steht wenigstens darunter. */}
           {(orphaned > 0 || unattributed > 0) && (
-            <p className="mt-3 space-x-2 text-[11px] text-mute">
+            <p className="mt-4 space-x-2 text-xs text-faint">
               {orphaned > 0 && <span>{L.orphaned(orphaned)}</span>}
               {unattributed > 0 && <span className="text-amber-600 dark:text-amber-500">{L.unattributed(unattributed)}</span>}
             </p>
@@ -683,11 +692,11 @@ function CampaignCard({
   const best = bestBucket(group.list);
   const totalContacts = group.list.reduce((n, b) => Math.max(n, b.contacts), 0);
   return (
-    <div className="overflow-hidden rounded-lg border border-edge2/70">
-      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-edge2/70 bg-panel2/50 px-3 py-2">
-        <h3 className="text-sm font-medium text-ink">{group.name || L.externalCampaign}</h3>
+    <div className="overflow-hidden rounded-xl border border-edge/70">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-edge/70 bg-panel2 px-3.5 py-2.5">
+        <h3 className="text-sm font-semibold text-ink">{group.name || L.externalCampaign}</h3>
         <span className="flex items-center gap-3">
-          <span className="text-[11px] tabular-nums text-mute">
+          <span className="text-xs tabular-nums text-faint">
             {totalContacts} {L.contacts}
           </span>
           {/* Ausblenden ist eine Anzeige-Entscheidung, kein Loeschen; deshalb
@@ -697,7 +706,7 @@ function CampaignCard({
             <input type="hidden" name="archive" value={archived ? "0" : "1"} />
             <button
               type="submit"
-              className="text-[11px] text-mute transition-colors hover:text-ink"
+              className="py-1 text-xs text-faint transition-colors hover:text-ink"
             >
               {archived ? L.restoreCampaign : L.hideCampaign}
             </button>
@@ -705,7 +714,7 @@ function CampaignCard({
         </span>
       </div>
 
-      <div className="divide-y divide-edge2/50">
+      <div className="divide-y divide-edge/70">
         {group.list.map((b) => {
           const hasVariants = group.list.some((o) => o.step === b.step && o.variant !== b.variant);
           // bestBucket liefert nur noch etwas, wenn es einen echten Erfolg gab
@@ -717,21 +726,25 @@ function CampaignCard({
             <div
               key={b.key}
               className={
-                "px-3 py-2.5 transition-colors " +
+                "px-3.5 py-3 transition-colors duration-150 " +
                 (isBest ? "bg-emerald-500/[0.06]" : "hover:bg-wash")
               }
             >
               <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
-                <span className="flex w-28 shrink-0 items-center gap-1.5 text-sm text-ink">
+                {/* Unter sm steht die Stufe allein in der ersten Zeile:
+                    Beschriftung, zwei Zahlen, Balken und Pille zusammen
+                    brauchen rund 400 Pixel, und der Balken war der erste, der
+                    dabei auf null zusammenfiel. */}
+                <span className="flex w-full shrink-0 items-center gap-1.5 text-sm font-medium text-ink sm:w-28">
                   {L.step} {b.step + 1}
                   {hasVariants && (
-                    <span className="rounded bg-chip px-1.5 py-0.5 text-[10px] font-medium text-soft">
+                    <span className="rounded-full bg-chip px-2 py-0.5 text-xs font-medium text-soft">
                       {variantLabel(b.variant)}
                     </span>
                   )}
                 </span>
 
-                <span className="w-16 shrink-0 text-right text-xs tabular-nums text-mute">
+                <span className="w-14 shrink-0 text-right text-xs tabular-nums text-faint sm:w-16">
                   {b.contacts}
                 </span>
 
@@ -761,21 +774,21 @@ function CampaignCard({
                     das Einzige, was gefuellt farbig ist. */}
                 <span className="w-16 shrink-0 text-right">
                   {b.meetings > 0 ? (
-                    <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[11px] font-semibold text-emerald-700 dark:text-emerald-400">
+                    <span className="rounded-full bg-emerald-500/15 px-2.5 py-0.5 text-xs font-semibold text-emerald-700 dark:text-emerald-400">
                       {b.meetings} ★
                     </span>
                   ) : (
-                    <span className="text-[11px] text-mute">—</span>
+                    <span className="text-xs text-mute">—</span>
                   )}
                 </span>
               </div>
 
-              <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 pl-28">
+              <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 sm:pl-28">
                 <Count n={b.interested} label={L.interested} tone="text-emerald-600 dark:text-emerald-400" />
                 <Count n={b.notInterested} label={L.notInterested} tone="text-red-600 dark:text-red-400" />
                 <Count n={b.autoReplies} label={L.autoReplies} tone="text-mute" />
                 {isBest && (
-                  <span className="ml-auto text-[10px] uppercase tracking-wide text-emerald-600 dark:text-emerald-500">
+                  <span className="ml-auto text-2xs font-medium uppercase tracking-wider text-emerald-600 dark:text-emerald-500">
                     {L.bestStep}
                   </span>
                 )}
@@ -811,21 +824,21 @@ function Section({
   const best = buckets.reduce<number>((m, b) => (b.rate !== null && b.rate > m ? b.rate : m), 0);
 
   return (
-    <div className="rounded-xl border border-edge2 bg-panel p-5">
-      <h2 className="font-medium text-ink">{title}</h2>
-      <p className="mt-0.5 text-xs text-faint">{hint}</p>
+    <div className="rounded-xl border border-edge/70 bg-panel p-5 shadow-sm sm:p-6">
+      <h2 className="text-base font-semibold text-ink">{title}</h2>
+      <p className="mt-1 text-sm text-faint">{hint}</p>
 
       {buckets.length === 0 ? (
-        <p className="mt-3 text-sm text-faint">{empty}</p>
+        <p className="py-10 text-center text-sm text-faint">{empty}</p>
       ) : (
-        <div className="mt-3 space-y-1">
+        <div className="mt-4 space-y-1">
           {buckets.map((b) => {
             const leads = b.rate !== null && b.rate === best && best > 0;
             return (
-              <div key={b.key} className="flex items-center gap-3 rounded-md px-1 py-1 transition-colors hover:bg-wash">
+              <div key={b.key} className="flex items-center gap-3 rounded-lg px-2 py-1.5 transition-colors duration-150 hover:bg-wash">
                 <span
                   className={
-                    "w-40 shrink-0 truncate text-sm " + (leads ? "font-medium text-ink" : "text-soft")
+                    "w-28 shrink-0 truncate text-sm sm:w-40 " + (leads ? "font-medium text-ink" : "text-soft")
                   }
                 >
                   {b.label}
@@ -844,7 +857,7 @@ function Section({
                     />
                   )}
                 </div>
-                <span className="w-28 shrink-0 text-right text-xs tabular-nums text-soft">
+                <span className="w-24 shrink-0 text-right text-xs tabular-nums text-soft sm:w-28">
                   {b.rate === null ? (
                     <span className="text-mute">{labels.thin(b.contacts)}</span>
                   ) : (

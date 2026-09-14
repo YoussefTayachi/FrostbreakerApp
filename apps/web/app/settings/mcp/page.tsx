@@ -247,12 +247,14 @@ export default function McpPage() {
   };
 
   return (
-    <div className="fade-up max-w-2xl space-y-6">
+    <div className="fade-up max-w-3xl space-y-6">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight text-ink">{T.title}</h1>
         <p className="mt-1 text-sm leading-relaxed text-faint">{T.intro}</p>
-        <p className="mt-3 text-xs font-medium text-ink">{T.examplesLabel}</p>
-        <ul className="mt-1.5 list-disc space-y-1 pl-4 text-sm leading-relaxed text-soft">
+        <p className="mt-4 text-2xs font-medium uppercase tracking-wider text-mute">
+          {T.examplesLabel}
+        </p>
+        <ul className="mt-2 list-disc space-y-1 pl-4 text-sm leading-relaxed text-soft">
           {T.examples.map((example) => (
             <li key={example}>&ldquo;{example}&rdquo;</li>
           ))}
@@ -263,12 +265,14 @@ export default function McpPage() {
       {/* Der einmalige Moment. Steht ueber dem Formular, weil er alles andere
           verdraengt, solange er offen ist. */}
       {created && (
-        <div className="rounded-lg border border-sky-500/40 bg-panel p-6">
-          <h2 className="text-sm font-semibold text-ink">{T.tokenOnceTitle}</h2>
-          <p className="mt-1 text-xs leading-relaxed text-faint">{T.tokenOnceBody}</p>
+        <div className="rounded-xl border border-sky-500/40 bg-panel p-4 shadow-sm ring-1 ring-sky-500/10 sm:p-6">
+          <h2 className="text-base font-semibold text-ink">{T.tokenOnceTitle}</h2>
+          <p className="mt-1 text-sm leading-relaxed text-faint">{T.tokenOnceBody}</p>
 
-          <div className="mt-4 flex flex-wrap items-center gap-2">
-            <code className="min-w-0 flex-1 overflow-x-auto rounded-md bg-panel2 px-3 py-2 font-mono text-xs text-ink">
+          {/* break-all statt seitlichem Scrollen: den Token soll man ganz
+              sehen, bevor man ihn wegklickt. Er kommt nie wieder. */}
+          <div className="mt-4 flex flex-wrap items-center gap-2.5">
+            <code className="min-w-0 flex-1 break-all rounded-lg bg-chip px-3 py-2 font-mono text-xs text-ink">
               {created}
             </code>
             <button onClick={() => copy(created)} className={secondaryBtnCls}>
@@ -276,7 +280,7 @@ export default function McpPage() {
             </button>
           </div>
 
-          <button onClick={() => setCreated(null)} className={primaryBtnCls + " mt-5"}>
+          <button onClick={() => setCreated(null)} className={primaryBtnCls + " mt-5 w-full sm:w-auto"}>
             {T.doneButton}
           </button>
         </div>
@@ -292,13 +296,13 @@ export default function McpPage() {
           Anmeldung passiert unter /oauth/authorize mit der Sitzung, die dieser
           Mensch ohnehin schon hat. */}
       <div className={cardCls}>
-        <h2 className="text-sm font-semibold text-ink">{T.connectorHeading}</h2>
-        <p className="mt-1 text-xs leading-relaxed text-faint">{T.connectorIntro}</p>
+        <h2 className="text-base font-semibold text-ink">{T.connectorHeading}</h2>
+        <p className="mt-1 text-sm leading-relaxed text-faint">{T.connectorIntro}</p>
 
-        <div className="mt-4">
-          <p className="text-xs font-medium text-ink">{T.connectorUrlLabel}</p>
-          <div className="mt-1.5 flex flex-wrap items-center gap-2">
-            <code className="min-w-0 flex-1 overflow-x-auto rounded-md bg-panel2 px-3 py-2 font-mono text-xs text-ink">
+        <div className="mt-5">
+          <p className="text-xs font-medium text-soft">{T.connectorUrlLabel}</p>
+          <div className="mt-1.5 flex flex-wrap items-center gap-2.5">
+            <code className="min-w-0 flex-1 break-all rounded-lg bg-chip px-3 py-2 font-mono text-xs text-ink">
               {connectorUrl}
             </code>
             <button onClick={() => copy(connectorUrl)} className={secondaryBtnCls}>
@@ -307,21 +311,21 @@ export default function McpPage() {
           </div>
         </div>
 
-        <ol className="mt-4 list-decimal space-y-1.5 pl-4 text-xs leading-relaxed text-soft">
+        <ol className="mt-5 list-decimal space-y-2 pl-4 text-sm leading-relaxed text-soft">
           {T.connectorSteps.map((schritt) => (
             <li key={schritt}>{schritt}</li>
           ))}
         </ol>
 
-        <p className="mt-3 text-xs leading-relaxed text-faint">{T.connectorNote}</p>
+        <p className="mt-4 text-xs leading-relaxed text-faint">{T.connectorNote}</p>
       </div>
 
       <div className={cardCls}>
-        <h2 className="text-sm font-semibold text-ink">{T.createButton}</h2>
+        <h2 className="text-base font-semibold text-ink">{T.createButton}</h2>
 
-        <div className="mt-4 space-y-4">
+        <div className="mt-5 space-y-4">
           <div>
-            <label className="block text-xs font-medium text-ink">{T.nameLabel}</label>
+            <label className="block text-xs font-medium text-soft">{T.nameLabel}</label>
             <input
               value={name}
               onChange={(e) => setName(e.target.value)}
@@ -334,7 +338,7 @@ export default function McpPage() {
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-ink">{T.scopeLabel}</label>
+            <label className="block text-xs font-medium text-soft">{T.scopeLabel}</label>
             <select
               value={scope}
               onChange={(e) => setScope(e.target.value as "read" | "read_write")}
@@ -347,7 +351,7 @@ export default function McpPage() {
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-ink">{T.workspaceLabel}</label>
+            <label className="block text-xs font-medium text-soft">{T.workspaceLabel}</label>
             <select
               value={limitToWorkspace ? "one" : "all"}
               onChange={(e) => setLimitToWorkspace(e.target.value === "one")}
@@ -360,7 +364,7 @@ export default function McpPage() {
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-ink">{T.expiryLabel}</label>
+            <label className="block text-xs font-medium text-soft">{T.expiryLabel}</label>
             <select
               value={expiry}
               onChange={(e) => setExpiry(e.target.value as (typeof EXPIRY_CHOICES)[number])}
@@ -373,9 +377,11 @@ export default function McpPage() {
             </select>
           </div>
 
-          <button onClick={create} disabled={busy} className={primaryBtnCls}>
-            {T.createButton}
-          </button>
+          <div className="flex justify-end pt-1">
+            <button onClick={create} disabled={busy} className={primaryBtnCls + " w-full sm:w-auto"}>
+              {T.createButton}
+            </button>
+          </div>
         </div>
       </div>
 
@@ -391,15 +397,18 @@ export default function McpPage() {
           Token, und der ist hier ein Platzhalter, solange keiner frisch
           erzeugt wurde (siehe snippetToken oben). */}
       <div className={cardCls}>
-        <h2 className="text-sm font-semibold text-ink">{T.setupHeading}</h2>
+        <h2 className="text-base font-semibold text-ink">{T.setupHeading}</h2>
         {!created && (
-          <p className="mt-1 text-xs leading-relaxed text-faint">{T.setupTokenPlaceholderHint}</p>
+          <p className="mt-1 text-sm leading-relaxed text-faint">{T.setupTokenPlaceholderHint}</p>
         )}
 
-        <div className="mt-4">
-          <p className="text-xs font-medium text-ink">{T.setupClaudeCodeLabel}</p>
-          <p className="mt-0.5 text-xs leading-relaxed text-faint">{T.setupClaudeCodeHint}</p>
-          <pre className="mt-2 overflow-x-auto rounded-md bg-panel2 px-3 py-2 font-mono text-[11px] leading-relaxed text-ink">
+        <div className="mt-5">
+          <p className="text-sm font-medium text-ink">{T.setupClaudeCodeLabel}</p>
+          <p className="mt-1 text-xs leading-relaxed text-faint">{T.setupClaudeCodeHint}</p>
+          {/* Der Schnipsel darf umbrechen statt die Karte zu sprengen: auf
+              390 Pixeln ist eine Zeile mit Adresse und Token dreimal so
+              breit wie der Bildschirm. */}
+          <pre className="mt-2.5 whitespace-pre-wrap break-all rounded-lg bg-chip px-3 py-2.5 font-mono text-xs leading-relaxed text-ink">
             {claudeCodeSnippet}
           </pre>
           <button onClick={() => copy(claudeCodeSnippet)} className={secondaryBtnCls + " mt-2"}>
@@ -407,9 +416,9 @@ export default function McpPage() {
           </button>
         </div>
 
-        <div className="mt-5">
-          <p className="text-xs font-medium text-ink">{T.setupClaudeDesktopLabel}</p>
-          <p className="mt-0.5 text-xs leading-relaxed text-faint">{T.setupClaudeDesktopHint}</p>
+        <div className="mt-6">
+          <p className="text-sm font-medium text-ink">{T.setupClaudeDesktopLabel}</p>
+          <p className="mt-1 text-xs leading-relaxed text-faint">{T.setupClaudeDesktopHint}</p>
           {/* Nummerierte Schritte statt eines Fliesstextes: der Weg hat vier
               Stationen, und an zweien davon ist der Nutzer beim ersten
               Einrichten am 2026-08-22 tatsaechlich haengengeblieben -- er
@@ -417,15 +426,15 @@ export default function McpPage() {
               Store-Fassung legt sie woanders ab) und schloss danach nur das
               Fenster, waehrend die alte Instanz mit der alten Konfiguration
               weiterlief. Beides steht deshalb ausdruecklich hier. */}
-          <ol className="mt-2 list-decimal space-y-1.5 pl-4 text-xs leading-relaxed text-soft">
+          <ol className="mt-2.5 list-decimal space-y-2 pl-4 text-sm leading-relaxed text-soft">
             {T.setupClaudeDesktopSteps.map((schritt) => (
               <li key={schritt}>{schritt}</li>
             ))}
           </ol>
-          <p className="mt-2 rounded-md border border-amber-500/30 bg-amber-500/5 px-2.5 py-1.5 text-[11px] leading-relaxed text-amber-700 dark:text-amber-500">
+          <p className="mt-3 rounded-lg border-l-2 border-amber-500/60 bg-amber-500/5 px-3 py-2.5 text-xs leading-relaxed text-amber-800 dark:text-amber-400">
             {T.setupClaudeDesktopQuitWarning}
           </p>
-          <pre className="mt-2 overflow-x-auto rounded-md bg-panel2 px-3 py-2 font-mono text-[11px] leading-relaxed text-ink">
+          <pre className="mt-3 overflow-x-auto rounded-lg bg-chip px-3 py-2.5 font-mono text-xs leading-relaxed text-ink">
             {claudeDesktopSnippet}
           </pre>
           <button onClick={() => copy(claudeDesktopSnippet)} className={secondaryBtnCls + " mt-2"}>
@@ -433,14 +442,14 @@ export default function McpPage() {
           </button>
         </div>
 
-        <p className="mt-5 text-xs leading-relaxed text-faint">{T.setupWebNote}</p>
+        <p className="mt-6 text-xs leading-relaxed text-faint">{T.setupWebNote}</p>
       </div>
 
       <div className={cardCls}>
         {loading ? (
           <div className="space-y-3">
-            <div className="h-4 w-40 animate-pulse rounded bg-chip" />
-            <div className="h-4 w-64 animate-pulse rounded bg-chip" />
+            <div className="skeleton h-4 w-40" />
+            <div className="skeleton h-4 w-64" />
           </div>
         ) : loadError ? (
           // Ohne angewandte Migration 0099 antwortet die Route mit dem
@@ -452,12 +461,12 @@ export default function McpPage() {
             {loadError}
           </p>
         ) : tokens.length === 0 ? (
-          <div>
+          <div className="py-6 text-center">
             <p className="text-sm font-medium text-ink">{T.emptyTitle}</p>
-            <p className="mt-1 text-xs leading-relaxed text-faint">{T.emptyBody}</p>
+            <p className="mx-auto mt-1 max-w-md text-sm leading-relaxed text-faint">{T.emptyBody}</p>
           </div>
         ) : (
-          <ul className="divide-y divide-edge/60">
+          <ul className="divide-y divide-edge/70">
             {tokens.map((token) => {
               const status = statusOf(token);
               const wsName = token.workspace_id
@@ -470,7 +479,7 @@ export default function McpPage() {
                 >
                   <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm text-ink">
+                      <p className="truncate text-sm font-medium text-ink">
                         {token.name}
                         {/* Der Name eines Konnektors kommt aus seiner
                             Registrierung ("Claude") und sieht damit aus wie
@@ -478,16 +487,18 @@ export default function McpPage() {
                             der beiden Wege dahintersteht -- was zaehlt, wenn
                             jemand entscheidet, was er widerruft. */}
                         {token.kind === "oauth" && (
-                          <span className="ml-2 rounded border border-edge2 bg-chip px-1.5 py-0.5 align-middle text-[11px] text-faint">
+                          <span className="ml-2 rounded-full bg-chip px-2 py-0.5 align-middle text-2xs font-medium text-faint">
                             {T.kindConnector}
                           </span>
                         )}
                       </p>
-                      <code className="font-mono text-[11px] text-mute">{token.token_prefix}…</code>
+                      <code className="mt-0.5 block font-mono text-2xs text-faint">
+                        {token.token_prefix}…
+                      </code>
                     </div>
                     <span
                       className={
-                        "rounded-full border px-2.5 py-1 text-xs " + statusCls[status]
+                        "rounded-full border px-2.5 py-0.5 text-xs font-medium " + statusCls[status]
                       }
                     >
                       {statusLabel[status]}
@@ -496,35 +507,47 @@ export default function McpPage() {
                       <button
                         onClick={() => revoke(token)}
                         disabled={busy}
-                        className={dangerBtnCls + " py-1 text-xs"}
+                        className={dangerBtnCls + " px-3 py-1.5 text-xs"}
                       >
                         {T.revokeButton}
                       </button>
                     )}
                   </div>
 
-                  <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs sm:grid-cols-3">
+                  <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-3">
                     <div>
-                      <dt className="text-faint">{T.colScope}</dt>
-                      <dd className="text-soft">{scopeLabel[token.scope]}</dd>
+                      <dt className="text-2xs font-medium uppercase tracking-wider text-mute">
+                        {T.colScope}
+                      </dt>
+                      <dd className="mt-0.5 text-sm text-soft">{scopeLabel[token.scope]}</dd>
                     </div>
                     <div>
-                      <dt className="text-faint">{T.colWorkspace}</dt>
-                      <dd className="truncate text-soft">{wsName}</dd>
+                      <dt className="text-2xs font-medium uppercase tracking-wider text-mute">
+                        {T.colWorkspace}
+                      </dt>
+                      <dd className="mt-0.5 truncate text-sm text-soft">{wsName}</dd>
                     </div>
                     <div>
-                      <dt className="text-faint">{T.colCreated}</dt>
-                      <dd className="text-soft">{formatDateTime(token.created_at, lang)}</dd>
+                      <dt className="text-2xs font-medium uppercase tracking-wider text-mute">
+                        {T.colCreated}
+                      </dt>
+                      <dd className="mt-0.5 text-sm text-soft">
+                        {formatDateTime(token.created_at, lang)}
+                      </dd>
                     </div>
                     <div>
-                      <dt className="text-faint">{T.colLastUsed}</dt>
-                      <dd className="text-soft">
+                      <dt className="text-2xs font-medium uppercase tracking-wider text-mute">
+                        {T.colLastUsed}
+                      </dt>
+                      <dd className="mt-0.5 text-sm text-soft">
                         {token.last_used_at ? formatDateTime(token.last_used_at, lang) : T.neverUsed}
                       </dd>
                     </div>
                     <div>
-                      <dt className="text-faint">{T.colExpires}</dt>
-                      <dd className="text-soft">
+                      <dt className="text-2xs font-medium uppercase tracking-wider text-mute">
+                        {T.colExpires}
+                      </dt>
+                      <dd className="mt-0.5 text-sm text-soft">
                         {/* Dieselbe Fallunterscheidung wie in statusOf: beim
                             Konnektor ist die Frist die des Refresh-Tokens,
                             nicht die des Zugriffstokens. */}

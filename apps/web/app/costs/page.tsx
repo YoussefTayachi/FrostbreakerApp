@@ -142,53 +142,62 @@ export default async function CostsPage({
     <div className="fade-up space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold text-strong">{C.title}</h1>
-          <p className="text-sm text-faint">{C.subtitle}</p>
+          <h1 className="text-2xl font-semibold tracking-tight text-ink">{C.title}</h1>
+          <p className="mt-1 text-sm text-faint">{C.subtitle}</p>
         </div>
-        <div className="flex gap-1.5">
-          {RANGE_DAYS.map((d) => (
-            <Link
-              key={d}
-              href={d === DEFAULT_RANGE ? "/costs" : `/costs?range=${d}`}
-              className={
-                "rounded-lg border px-2.5 py-1 text-xs transition-colors " +
-                (d === rangeDays
-                  ? "border-sky-500/60 bg-sky-500/10 text-sky-600 dark:text-sky-300"
-                  : "border-edge2 text-faint hover:text-soft")
-              }
-            >
-              {C.rangeLabel(d)}
-            </Link>
-          ))}
+        {/* Segment-Umschalter statt vier Einzelknoepfen: die vier Zeitraeume
+            sind eine Wahl, kein Vorrat an Aktionen. */}
+        <div className="-mx-1 max-w-full overflow-x-auto px-1 sm:mx-0 sm:px-0">
+          <div className="inline-flex rounded-lg bg-chip p-1">
+            {RANGE_DAYS.map((d) => (
+              <Link
+                key={d}
+                href={d === DEFAULT_RANGE ? "/costs" : `/costs?range=${d}`}
+                aria-current={d === rangeDays ? "page" : undefined}
+                className={
+                  "whitespace-nowrap rounded-md px-3.5 py-1.5 text-sm font-medium transition-colors duration-150 " +
+                  (d === rangeDays
+                    ? "bg-panel text-ink shadow-sm dark:bg-white/[0.08]"
+                    : "text-soft hover:text-ink")
+                }
+              >
+                {C.rangeLabel(d)}
+              </Link>
+            ))}
+          </div>
         </div>
       </div>
 
-      <div className="rounded-lg border border-edge/60 bg-panel p-5">
-        <div className="text-xs uppercase tracking-wide text-faint">{C.totalLabel}</div>
-        <div className="mt-1 text-3xl font-semibold text-strong">
+      <div className="rounded-xl border border-edge/70 bg-panel p-5 shadow-sm sm:p-6">
+        <div className="text-2xs font-medium uppercase tracking-wider text-mute">
+          {C.totalLabel}
+        </div>
+        <div className="mt-1.5 text-3xl font-semibold tracking-tight text-ink tabular">
           ${(summary.total_usd + subsInRange).toFixed(2)}
         </div>
         {/* Die Summe getrennt ausweisen, nicht nur addieren: das eine ist
             gemessen, das andere eingetragen. Wer sie nicht auseinanderhalten
             kann, weiss nicht, welchem Teil er trauen darf. */}
-        <p className="mt-1 text-xs text-soft">
-          {C.splitUsage} <span className="tabular-nums text-strong">${summary.total_usd.toFixed(2)}</span>
+        <p className="mt-2 text-sm text-soft">
+          {C.splitUsage}{" "}
+          <span className="font-medium tabular-nums text-ink">${summary.total_usd.toFixed(2)}</span>
           {" · "}
-          {C.splitPlans} <span className="tabular-nums text-strong">${subsInRange.toFixed(2)}</span>
+          {C.splitPlans}{" "}
+          <span className="font-medium tabular-nums text-ink">${subsInRange.toFixed(2)}</span>
           {subsMonthly > 0 && (
-            <span className="text-mute">
+            <span className="text-faint">
               {" "}
               ({C.splitProRated(subsMonthly, Math.round(abrechnungsTage))})
             </span>
           )}
         </p>
-        <p className="mt-2 text-xs leading-relaxed text-mute">{C.totalHint}</p>
+        <p className="mt-2 text-xs leading-relaxed text-faint">{C.totalHint}</p>
       </div>
 
       <Subscriptions initial={subs} />
 
       {summary.providers.length === 0 ? (
-        <div className="rounded-lg border border-edge/60 bg-panel p-10 text-center text-faint">
+        <div className="rounded-xl border border-edge/70 bg-panel px-6 py-10 text-center text-sm text-faint shadow-sm">
           {C.empty}
         </div>
       ) : (
@@ -199,25 +208,29 @@ export default async function CostsPage({
             aufruft. Zusammen mit dem kleineren Innenrand darunter passt die
             Tabelle jetzt in aller Regel ohne Scrollen; wo nicht, scrollt sie
             in ihrem eigenen Kasten statt abgeschnitten zu werden. */
-        <div className="overflow-x-auto rounded-lg border border-edge/60 bg-panel">
+        <div className="overflow-x-auto rounded-xl border border-edge/70 bg-panel shadow-sm">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-edge/60 text-left text-xs uppercase tracking-wide text-faint">
-                <th className="px-3 py-3 sm:px-5 font-medium">{C.colProvider}</th>
-                <th className="px-3 py-3 sm:px-5 font-medium">{C.colUnits}</th>
-                <th className="px-3 py-3 sm:px-5 font-medium">{C.colCalls}</th>
-                <th className="px-3 py-3 sm:px-5 text-right font-medium">{C.colCost}</th>
+              <tr className="border-b border-edge/70 text-left text-xs font-medium text-faint">
+                <th className="whitespace-nowrap px-3 py-3 font-medium sm:px-5">{C.colProvider}</th>
+                <th className="whitespace-nowrap px-3 py-3 font-medium sm:px-5">{C.colUnits}</th>
+                <th className="whitespace-nowrap px-3 py-3 font-medium sm:px-5">{C.colCalls}</th>
+                <th className="whitespace-nowrap px-3 py-3 text-right font-medium sm:px-5">
+                  {C.colCost}
+                </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-edge/60">
+            <tbody className="divide-y divide-edge/70">
               {summary.providers.map((p) => (
-                <tr key={p.provider}>
-                  <td className="px-3 py-3 sm:px-5 text-strong">
+                <tr key={p.provider} className="transition-colors duration-150 hover:bg-wash">
+                  <td className="whitespace-nowrap px-3 py-3 font-medium text-ink sm:px-5">
                     {PROVIDER_LABEL[p.provider] ?? p.provider}
                   </td>
-                  <td className="px-3 py-3 sm:px-5 text-soft">{formatUnits(p.units)}</td>
-                  <td className="px-3 py-3 sm:px-5 text-mute">{p.calls}</td>
-                  <td className="px-3 py-3 sm:px-5 text-right text-strong">
+                  <td className="whitespace-nowrap px-3 py-3 text-soft sm:px-5">
+                    {formatUnits(p.units)}
+                  </td>
+                  <td className="px-3 py-3 text-faint tabular sm:px-5">{p.calls}</td>
+                  <td className="whitespace-nowrap px-3 py-3 text-right font-medium text-ink tabular sm:px-5">
                     {p.cost_usd > 0 ? (
                       "$" + Number(p.cost_usd).toFixed(2)
                     ) : subs[p.provider] != null ? (
@@ -226,14 +239,14 @@ export default async function CostsPage({
                          "tarifabhaengig", obwohl 65 $/Monat eingetragen waren
                          — der Betrag lag nur oben in der Gesamtsumme. Das
                          las sich wie "deine Eingabe ist nicht angekommen". */
-                      <span className="text-xs text-soft">
+                      <span className="text-xs font-normal text-soft">
                         {C.planShare("$" + (subs[p.provider] * anteilFaktor).toFixed(2))}
                       </span>
                     ) : (
                       // Kein Betrag heisst nicht "kostenlos", sondern "haengt
                       // am Tarif": das muss dastehen, sonst liest sich eine
                       // leere Zelle wie eine Null.
-                      <span className="text-xs text-mute">{C.tariffDependent}</span>
+                      <span className="text-xs font-normal text-mute">{C.tariffDependent}</span>
                     )}
                   </td>
                 </tr>
@@ -244,7 +257,7 @@ export default async function CostsPage({
       )}
 
       {creditsInRange > 0 && (leadsInRange ?? 0) > 0 && (
-        <p className="rounded-lg border border-edge/60 bg-panel px-4 py-3 text-xs leading-relaxed text-soft">
+        <p className="rounded-xl border border-edge/70 bg-panel px-4 py-3.5 text-sm leading-relaxed text-soft shadow-sm sm:px-5">
           {C.creditsPerLead(
             Math.round(creditsInRange).toLocaleString(lang === "de" ? "de-DE" : "en-US"),
             leadsInRange ?? 0,
@@ -253,7 +266,7 @@ export default async function CostsPage({
         </p>
       )}
 
-      <p className="text-xs leading-relaxed text-mute">{C.methodNote}</p>
+      <p className="max-w-3xl text-xs leading-relaxed text-faint">{C.methodNote}</p>
     </div>
   );
 }

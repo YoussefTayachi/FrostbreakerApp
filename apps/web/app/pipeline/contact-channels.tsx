@@ -31,14 +31,21 @@ export default function ContactChannels({
   const { t } = useT();
   const P = t.pipeline;
 
+  // 36 statt 28 Pixel: das sind die drei Knoepfe, mit denen in dieser Ansicht
+  // ueberhaupt gearbeitet wird, und auf dem Handy war jeder zweite Treffer
+  // daneben. Drei davon plus Abstand bleiben mit 116 Pixeln in der 128 Pixel
+  // breiten Spalte der Liste.
   const base =
-    "inline-flex h-7 w-7 items-center justify-center rounded-lg border transition-colors";
+    "inline-flex h-9 w-9 items-center justify-center rounded-lg border " +
+    "transition-[background-color,border-color,color,transform] duration-150";
   const active =
-    base + " border-edge2 text-soft hover:border-sky-500/60 hover:text-sky-600 dark:hover:text-sky-400";
+    base +
+    " border-edge2 text-soft hover:border-sky-500/60 hover:bg-sky-500/5 hover:text-sky-600 " +
+    "active:scale-[0.96] dark:hover:text-sky-400";
   const disabled = base + " cursor-not-allowed border-edge2/50 text-mute/40";
 
   return (
-    <div className="flex items-center gap-1">
+    <div className="flex items-center gap-1.5">
       {row.email ? (
         <a
           href={`mailto:${row.email}`}
@@ -49,11 +56,11 @@ export default function ContactChannels({
           title={row.email}
           className={active}
         >
-          <IconMail className="h-3.5 w-3.5" />
+          <IconMail className="h-4 w-4" />
         </a>
       ) : (
         <span className={disabled} title={P.noEmail}>
-          <IconMail className="h-3.5 w-3.5" />
+          <IconMail className="h-4 w-4" />
         </span>
       )}
 
@@ -73,11 +80,11 @@ export default function ContactChannels({
             active + (row.phone_is_company ? " border-dashed" : "")
           }
         >
-          <IconPhone className="h-3.5 w-3.5" />
+          <IconPhone className="h-4 w-4" />
         </a>
       ) : (
         <span className={disabled} title={P.noPhone}>
-          <IconPhone className="h-3.5 w-3.5" />
+          <IconPhone className="h-4 w-4" />
         </span>
       )}
 
@@ -93,11 +100,11 @@ export default function ContactChannels({
           title={P.openLinkedIn}
           className={active}
         >
-          <IconLinkedIn className="h-3.5 w-3.5" />
+          <IconLinkedIn className="h-4 w-4" />
         </a>
       ) : (
         <span className={disabled} title={P.noLinkedIn}>
-          <IconLinkedIn className="h-3.5 w-3.5" />
+          <IconLinkedIn className="h-4 w-4" />
         </span>
       )}
     </div>

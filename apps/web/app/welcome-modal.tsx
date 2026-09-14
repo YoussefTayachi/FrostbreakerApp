@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { primaryBtnCls, secondaryBtnCls } from "@/lib/ui";
 import { useT } from "./language-provider";
 
 const DISMISS_KEY = "fb_welcome_modal_dismissed";
@@ -36,20 +37,20 @@ export default function WelcomeModal({ openSteps }: { openSteps: string[] }) {
       role="dialog"
       aria-modal="true"
       aria-label={t.welcome.heading}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 p-4 backdrop-blur-sm"
+      className="scrim-in fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-[3px]"
       onClick={dismiss}
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="fade-up w-full max-w-md rounded-xl border border-edge/60 bg-panel p-6 shadow-2xl"
+        className="pop-in w-full max-w-md rounded-2xl border border-edge/70 bg-panel p-5 shadow-2xl sm:p-6"
       >
-        <h2 className="text-lg font-semibold text-ink">{t.welcome.heading}</h2>
+        <h2 className="text-xl font-semibold tracking-tight text-ink">{t.welcome.heading}</h2>
         <p className="mt-1.5 text-sm leading-relaxed text-faint">{t.welcome.body}</p>
 
         <ol className="mt-5 space-y-2.5">
           {openSteps.map((step, i) => (
             <li key={step} className="flex items-start gap-3 text-sm text-soft">
-              <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-sky-500/15 text-[11px] font-semibold text-sky-600 dark:text-sky-300">
+              <span className="mt-px flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-sky-500/15 text-2xs font-semibold text-sky-600 dark:text-sky-300">
                 {i + 1}
               </span>
               {step}
@@ -57,24 +58,16 @@ export default function WelcomeModal({ openSteps }: { openSteps: string[] }) {
           ))}
         </ol>
 
-        <div className="mt-6 flex items-center gap-3">
-          <Link
-            href="/settings"
-            onClick={dismiss}
-            className="rounded-lg bg-ink px-4 py-2.5 text-sm font-medium text-surface transition-all hover:opacity-85 active:scale-[0.99]"
-          >
+        <div className="mt-6 flex flex-wrap items-center gap-2">
+          <Link href="/settings" onClick={dismiss} className={primaryBtnCls}>
             {t.welcome.primaryCta}
           </Link>
-          <Link
-            href="/guide"
-            onClick={dismiss}
-            className="rounded-lg border border-edge2 px-4 py-2.5 text-sm font-medium text-soft transition-colors hover:border-edge3 hover:text-ink"
-          >
+          <Link href="/guide" onClick={dismiss} className={secondaryBtnCls}>
             {t.welcome.guideCta}
           </Link>
           <button
             onClick={dismiss}
-            className="rounded-lg px-3 py-2.5 text-sm text-faint transition-colors hover:text-ink"
+            className="ml-auto rounded-lg px-3 py-2.5 text-sm text-faint transition-colors hover:text-ink"
           >
             {t.welcome.dismiss}
           </button>

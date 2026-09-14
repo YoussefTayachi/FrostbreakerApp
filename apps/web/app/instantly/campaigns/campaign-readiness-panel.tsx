@@ -114,9 +114,9 @@ export default function CampaignReadinessPanel({
   const passed = result?.checks.filter((c) => c.severity === "ok") ?? [];
 
   return (
-    <div className="space-y-2 rounded-xl border border-edge2 bg-panel2 p-4">
-      <div className="flex items-center justify-between">
-        <p className="text-sm font-medium text-ink">{G.title}</p>
+    <div className="space-y-3 rounded-xl border border-edge/70 bg-panel2 p-4 sm:p-5">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-base font-semibold text-ink">{G.title}</p>
         {loading && <span className="text-xs text-faint">{G.checking}</span>}
       </div>
 
@@ -126,7 +126,7 @@ export default function CampaignReadinessPanel({
         <p className="text-sm font-medium text-red-600 dark:text-red-400">{G.blockedTitle(result.blockers)}</p>
       )}
 
-      <div className="space-y-1.5">
+      <div className="space-y-2">
         {failing.map((check) => (
           <CheckRow key={check.id} check={check} />
         ))}
@@ -136,12 +136,12 @@ export default function CampaignReadinessPanel({
         <>
           <button
             onClick={() => setShowPassed(!showPassed)}
-            className="text-xs text-faint transition-colors hover:text-ink"
+            className="text-sm font-medium text-faint transition-colors hover:text-ink"
           >
             {showPassed ? G.hidePassed : G.showPassed(passed.length)}
           </button>
           {showPassed && (
-            <div className="space-y-1.5">
+            <div className="pop-in space-y-2">
               {passed.map((check) => (
                 <CheckRow key={check.id} check={check} />
               ))}
@@ -160,19 +160,19 @@ function CheckRow({ check }: { check: ReadinessCheck }) {
   const label = describe(check, G.checks);
 
   return (
-    <div className={"rounded-lg border px-3 py-2 " + style.box}>
-      <div className="flex items-start gap-2">
-        <span className={"mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full " + style.dot} />
+    <div className={"rounded-lg border px-3.5 py-2.5 " + style.box}>
+      <div className="flex items-start gap-2.5">
+        <span className={"mt-2 h-1.5 w-1.5 shrink-0 rounded-full " + style.dot} />
         <div className="min-w-0">
           <p className={"text-sm " + (check.severity === "ok" ? "text-soft" : "text-ink")}>{label.text}</p>
           {/* Die Begruendung nur dort, wo etwas nicht stimmt: bei einer
               bestandenen Pruefung ist sie Fuellmaterial, das die drei
               wichtigen Zeilen optisch untergehen laesst. */}
-          {check.severity !== "ok" && label.why && <p className="mt-0.5 text-xs text-faint">{label.why}</p>}
+          {check.severity !== "ok" && label.why && <p className="mt-1 text-xs text-faint">{label.why}</p>}
           {check.severity !== "ok" && label.href && label.action && (
             <Link
               href={label.href}
-              className="mt-1 inline-block text-xs font-medium text-sky-600 hover:underline dark:text-sky-400"
+              className="mt-1.5 inline-block text-sm font-medium text-sky-600 transition-colors hover:text-sky-500 hover:underline dark:text-sky-400"
             >
               {label.action}
             </Link>

@@ -123,19 +123,22 @@ export default function ActivityComposer({
     return (
       <button
         onClick={() => setOpen(true)}
-        className="w-full rounded-lg border border-dashed border-edge3 px-3 py-2 text-xs font-medium text-faint transition-colors hover:border-sky-500/60 hover:text-sky-600 dark:hover:text-sky-400"
+        className="w-full rounded-xl border border-dashed border-edge2 px-3 py-3 text-sm font-medium text-faint transition-colors hover:border-sky-500/60 hover:bg-sky-500/5 hover:text-sky-600 dark:hover:text-sky-400"
       >
         + {C.activityHeading}
       </button>
     );
   }
 
+  // text-sm: ein Eingabefeld ist Fliesstext, keine Beschriftung.
   const fieldCls =
-    "rounded-lg border border-edge2 bg-field px-2.5 py-1.5 text-xs text-ink placeholder-mute outline-none transition-colors focus:border-sky-500";
+    "rounded-lg border border-edge2 bg-field px-3 py-2 text-sm text-ink placeholder-mute " +
+    "outline-none transition-[border-color,box-shadow] duration-150 focus:border-sky-500 " +
+    "focus:ring-4 focus:ring-sky-500/15";
 
   return (
-    <div className="rounded-lg border border-edge/60 bg-panel p-3">
-      <p className="mb-2 text-xs font-medium text-ink">{C.activityHeading}</p>
+    <div className="pop-in rounded-xl border border-edge/70 bg-panel p-3 shadow-sm">
+      <p className="mb-2 text-2xs font-semibold uppercase tracking-wider text-faint">{C.activityHeading}</p>
 
       <div className="mb-2 flex flex-wrap gap-1.5">
         {ACTIVITY_TYPES.map((option) => (
@@ -143,7 +146,7 @@ export default function ActivityComposer({
             key={option}
             onClick={() => changeType(option)}
             className={
-              "rounded-full border px-2.5 py-0.5 text-[11px] font-medium transition-colors " +
+              "flex min-h-8 items-center rounded-full border px-3 text-xs font-medium transition-colors duration-150 " +
               (type === option
                 ? "border-sky-500/60 bg-sky-500/10 text-sky-600 dark:text-sky-300"
                 : "border-edge2 bg-chip text-soft hover:border-edge3 hover:text-ink")
@@ -158,12 +161,12 @@ export default function ActivityComposer({
           Angabe, die spaeter in der Timeline und in Auswertungen zeigt, ueber
           welchen Weg der Kontakt entstanden ist. */}
       <div className="mb-2">
-        <p className="mb-1 text-[10px] font-medium text-faint">{C.activityChannelLabel}</p>
+        <p className="mb-1.5 text-2xs font-medium uppercase tracking-wider text-mute">{C.activityChannelLabel}</p>
         <div className="flex flex-wrap gap-1.5">
           <button
             onClick={() => setChannel(null)}
             className={
-              "rounded-full border px-2.5 py-0.5 text-[11px] transition-colors " +
+              "flex min-h-8 items-center rounded-full border px-3 text-xs transition-colors duration-150 " +
               (channel === null
                 ? "border-sky-500/60 bg-sky-500/10 text-sky-600 dark:text-sky-300"
                 : "border-edge2 bg-chip text-soft hover:border-edge3 hover:text-ink")
@@ -176,7 +179,7 @@ export default function ActivityComposer({
               key={option}
               onClick={() => setChannel(option)}
               className={
-                "rounded-full border px-2.5 py-0.5 text-[11px] transition-colors " +
+                "flex min-h-8 items-center rounded-full border px-3 text-xs transition-colors duration-150 " +
                 (channel === option
                   ? "border-sky-500/60 bg-sky-500/10 text-sky-600 dark:text-sky-300"
                   : "border-edge2 bg-chip text-soft hover:border-edge3 hover:text-ink")
@@ -204,7 +207,7 @@ export default function ActivityComposer({
 
       <div className="grid gap-2 sm:grid-cols-3">
         {supportsOutcome(type) && (
-          <label className="text-[10px] font-medium text-faint">
+          <label className="text-2xs font-medium text-faint">
             {C.activityOutcomeLabel}
             <select
               value={outcome}
@@ -221,7 +224,7 @@ export default function ActivityComposer({
           </label>
         )}
         {supportsDuration(type) && (
-          <label className="text-[10px] font-medium text-faint">
+          <label className="text-2xs font-medium text-faint">
             {C.activityDurationLabel}
             <input
               type="number"
@@ -232,7 +235,7 @@ export default function ActivityComposer({
             />
           </label>
         )}
-        <label className="text-[10px] font-medium text-faint" title={C.activityDueHint}>
+        <label className="text-2xs font-medium text-faint" title={C.activityDueHint}>
           {C.activityDueLabel}
           <input
             type="date"
@@ -243,7 +246,7 @@ export default function ActivityComposer({
         </label>
       </div>
 
-      <p className="mt-1.5 text-[10px] text-mute">{C.activityDueHint}</p>
+      <p className="mt-1.5 text-2xs text-mute">{C.activityDueHint}</p>
 
       <div className="mt-2 flex justify-end gap-2">
         <button
@@ -251,14 +254,14 @@ export default function ActivityComposer({
             reset();
             setOpen(false);
           }}
-          className="rounded-lg border border-edge2 px-3 py-1.5 text-xs text-soft transition-colors hover:text-ink"
+          className="rounded-lg border border-edge2 bg-panel px-3.5 py-2 text-sm font-medium text-soft transition-[background-color,transform] duration-150 hover:bg-chip hover:text-ink active:scale-[0.98]"
         >
           {C.dealCancel}
         </button>
         <button
           onClick={save}
           disabled={saving}
-          className="rounded-lg bg-sky-600 px-3.5 py-1.5 text-xs font-medium text-white transition-all hover:brightness-110 active:scale-[0.98] disabled:opacity-40"
+          className="rounded-lg bg-sky-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-[background-color,transform] duration-150 hover:bg-sky-500 active:scale-[0.98] disabled:opacity-40 disabled:active:scale-100"
         >
           {saving ? C.activitySaving : C.activitySave}
         </button>

@@ -126,8 +126,12 @@ export default function ContactTimeline({
   return (
     <div className={className}>
       <div className="mb-2 flex items-center justify-between gap-2">
-        <p className="text-xs font-medium uppercase tracking-wider text-faint">{C.timelineHeading}</p>
-        <div className="flex overflow-hidden rounded-md border border-edge2 text-[10px]">
+        <p className="text-2xs font-semibold uppercase tracking-wider text-faint">{C.timelineHeading}</p>
+        {/* Segment-Umschalter wie ueberall sonst in der App: die aktive Seite
+            liegt als helle Flaeche auf der Rille, statt in Vollblau zu
+            leuchten. Ein blauer Block neben einer Ueberschrift zieht mehr
+            Aufmerksamkeit auf sich als der Verlauf darunter. */}
+        <div className="inline-flex shrink-0 rounded-lg bg-chip p-1">
           {[
             { on: false, label: C.filterAll },
             { on: true, label: C.filterConversation },
@@ -136,10 +140,10 @@ export default function ContactTimeline({
               key={option.label}
               onClick={() => setConversationOnly(option.on)}
               className={
-                "px-2 py-0.5 font-medium transition-colors " +
+                "rounded-md px-2.5 py-1 text-xs font-medium transition-colors duration-150 " +
                 (conversationOnly === option.on
-                  ? "bg-sky-600 text-white"
-                  : "text-soft hover:bg-chip hover:text-ink")
+                  ? "bg-panel text-ink shadow-sm dark:bg-white/[0.08]"
+                  : "text-soft hover:text-ink")
               }
             >
               {option.label}
@@ -150,11 +154,11 @@ export default function ContactTimeline({
 
       <div className="space-y-2">
         {loading ? (
-          <p className="rounded-lg border border-edge/60 bg-surface/60 px-3 py-6 text-center text-xs text-faint">
+          <p className="rounded-xl border border-edge/70 bg-wash/70 px-3 py-8 text-center text-sm text-faint">
             {C.timelineLoading}
           </p>
         ) : visible.length === 0 ? (
-          <p className="rounded-lg border border-edge/60 bg-surface/60 px-3 py-6 text-center text-xs text-faint">
+          <p className="rounded-xl border border-edge/70 bg-wash/70 px-3 py-10 text-center text-sm text-faint">
             {C.timelineEmpty}
           </p>
         ) : (
@@ -218,7 +222,7 @@ function TimelineRow({
           }
         >
           {event.body && (
-            <p className="whitespace-pre-wrap text-xs leading-relaxed text-soft">{event.body}</p>
+            <p className="whitespace-pre-wrap text-sm leading-relaxed text-soft">{event.body}</p>
           )}
         </EventShell>
       );
@@ -234,17 +238,17 @@ function TimelineRow({
           title={event.meta.author_email ?? C.authorUnknown}
           extra={
             <div className="flex items-center gap-2">
-              {event.meta.edited && <span className="text-[10px] text-mute">{C.edited}</span>}
+              {event.meta.edited && <span className="text-2xs text-mute">{C.edited}</span>}
               <button
                 onClick={() => onDeleteNote(event.id)}
-                className="text-[10px] text-mute transition-colors hover:text-red-500"
+                className="text-xs font-medium text-mute transition-colors hover:text-red-600 dark:hover:text-red-400"
               >
                 {C.noteDelete}
               </button>
             </div>
           }
         >
-          <p className="whitespace-pre-wrap text-xs leading-relaxed text-ink">{event.body}</p>
+          <p className="whitespace-pre-wrap text-sm leading-relaxed text-ink">{event.body}</p>
         </EventShell>
       );
 
@@ -260,7 +264,7 @@ function TimelineRow({
           title={from ? C.eventStatusChange(from, to) : C.eventStatusInitial(to)}
           extra={
             event.meta.automatic ? (
-              <span className="text-[10px] text-mute">{C.eventStatusAutomatic}</span>
+              <span className="text-2xs text-mute">{C.eventStatusAutomatic}</span>
             ) : null
           }
         />
@@ -288,15 +292,15 @@ function TimelineRow({
           extra={
             <div className="flex items-center gap-2">
               {event.meta.outcome && (
-                <span className="rounded-full bg-chip px-1.5 py-0.5 text-[10px] text-soft">
+                <span className="rounded-full bg-chip px-1.5 py-0.5 text-2xs text-soft">
                   {C.activityOutcomeLabels[event.meta.outcome] ?? event.meta.outcome}
                 </span>
               )}
-              {minutes !== null && <span className="text-[10px] text-mute">{C.activityDuration(minutes)}</span>}
+              {minutes !== null && <span className="text-2xs text-mute">{C.activityDuration(minutes)}</span>}
               <button
                 onClick={() => onToggleActivity(event)}
                 className={
-                  "text-[10px] font-medium transition-colors " +
+                  "text-xs font-medium transition-colors " +
                   (done ? "text-mute hover:text-ink" : "text-sky-600 hover:text-sky-500 dark:text-sky-400")
                 }
               >
@@ -306,14 +310,14 @@ function TimelineRow({
           }
         >
           {event.body && (
-            <p className="whitespace-pre-wrap text-xs leading-relaxed text-soft">{event.body}</p>
+            <p className="whitespace-pre-wrap text-sm leading-relaxed text-soft">{event.body}</p>
           )}
           {event.meta.due_at && !done && (
-            <p className={"mt-1 text-[10px] " + (overdue ? "text-red-500" : "text-faint")}>
+            <p className={"mt-1 text-xs " + (overdue ? "font-medium text-red-600 dark:text-red-400" : "text-faint")}>
               {overdue ? C.activityOverdue : C.activityDue}: {formatDateTime(event.meta.due_at, lang)}
             </p>
           )}
-          {done && <p className="mt-1 text-[10px] text-emerald-600 dark:text-emerald-400">{C.activityCompleted}</p>}
+          {done && <p className="mt-1 text-xs text-emerald-600 dark:text-emerald-400">{C.activityCompleted}</p>}
         </EventShell>
       );
     }
@@ -327,13 +331,13 @@ function TimelineRow({
           tone={event.meta.status === "won" ? "emerald" : event.meta.status === "lost" ? "red" : "sky"}
           title={event.title ?? ""}
           extra={
-            <span className="text-[10px] font-medium text-soft">
+            <span className="text-2xs font-medium text-soft">
               {C.dealStageLabels[event.meta.stage] ?? event.meta.stage} ·{" "}
               {C.dealStatusLabels[event.meta.status] ?? event.meta.status}
             </span>
           }
         >
-          {event.body && <p className="text-xs text-faint">{event.body}</p>}
+          {event.body && <p className="text-sm text-faint">{event.body}</p>}
         </EventShell>
       );
   }
@@ -366,19 +370,19 @@ function EventShell({
   children?: React.ReactNode;
 }) {
   return (
-    <div className="rounded-lg border border-edge/60 bg-surface/60 px-3 py-2.5">
+    <div className="rounded-xl border border-edge/70 bg-wash/70 px-3 py-2.5 transition-colors duration-150 hover:border-edge2">
       <div className="mb-1 flex flex-wrap items-center gap-1.5">
         <span
           className={
-            "shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-wide " +
+            "shrink-0 rounded-full px-1.5 py-0.5 text-2xs font-medium uppercase tracking-wide " +
             TONE_CLS[tone]
           }
         >
           {badge}
         </span>
-        <span className="min-w-0 flex-1 truncate text-xs font-medium text-ink">{title}</span>
+        <span className="min-w-0 flex-1 truncate text-sm font-medium text-ink">{title}</span>
         {extra}
-        <span className="shrink-0 text-[10px] text-mute" title={formatDateTime(at, lang)}>
+        <span className="shrink-0 text-2xs text-mute" title={formatDateTime(at, lang)}>
           {formatRelative(at, lang)}
         </span>
       </div>
@@ -395,7 +399,7 @@ function InterestBadge({ value, labels }: { value: string; labels: Record<string
       ? "bg-red-500/10 text-red-600 dark:text-red-300"
       : "bg-amber-500/10 text-amber-700 dark:text-amber-300";
   return (
-    <span className={"shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium " + cls}>
+    <span className={"shrink-0 rounded-full px-2 py-0.5 text-2xs font-medium " + cls}>
       {labels[value] ?? value}
     </span>
   );

@@ -104,16 +104,16 @@ export default async function RootLayout({ children }: { children: React.ReactNo
                   gescrollt werden. min-h-0 ist dabei der Punkt, an dem es sonst
                   scheitert: ohne das weigert sich ein Flex-Kind, kleiner als
                   sein Inhalt zu werden, und der Fuss wandert wieder hinaus. */}
-              <aside className="fixed inset-y-0 left-0 z-20 hidden w-64 flex-col overflow-hidden border-r border-edge/60 bg-panel2 px-4 py-4 md:flex">
-                <div className="mb-3 flex shrink-0 items-center gap-2 px-2">
-                  <span className="text-3xl font-extrabold tracking-tighter text-[#0EA5E9]">frostbreaker</span>
+              <aside className="fixed inset-y-0 left-0 z-20 hidden w-[17rem] flex-col overflow-hidden border-r border-edge/70 bg-panel2 px-3 py-4 md:flex">
+                <div className="mb-4 flex shrink-0 items-center gap-2 px-2 pt-1">
+                  <span className="text-[26px] font-bold leading-none tracking-[-0.04em] text-[#0EA5E9]">frostbreaker</span>
                 </div>
                 <WorkspaceSwitcher className="mb-3 shrink-0" />
                 <CommandPaletteTrigger />
-                <div className="-mr-1 min-h-0 flex-1 overflow-y-auto pr-1">
+                <div className="scroll-quiet -mr-1 min-h-0 flex-1 overflow-y-auto pr-1">
                   <Nav />
                 </div>
-                <div className="mt-3 shrink-0 border-t border-edge/60 pt-3">
+                <div className="mt-3 shrink-0 border-t border-edge/70 pt-3">
                   {/* Konto und Abmelden untereinander statt nebeneinander:
                       der Knopf hat jetzt einen Rahmen und braucht die ganze
                       Breite, sonst quetscht ihn eine lange Adresse. */}
@@ -133,7 +133,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
                   </div>
                 </div>
               </aside>
-              <div className="min-w-0 flex-1 md:pl-64">
+              <div className="min-w-0 flex-1 md:pl-[17rem]">
                 {/* Der mobile Kopf.
 
                     Der Workspace-Waehler ist aus ihm herausgewandert und steht
@@ -150,9 +150,9 @@ export default async function RootLayout({ children }: { children: React.ReactNo
 
                     px-4 statt px-6: der Kopf muss mit dem Inhalt darunter
                     fluchten, und der steht mobil auf px-4. */}
-                <header className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b border-edge/60 bg-surface/80 px-4 backdrop-blur md:hidden">
+                <header className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b border-edge/70 bg-surface/75 px-4 backdrop-blur-xl backdrop-saturate-150 md:hidden">
                   <MobileNav email={user.email ?? ""} />
-                  <span className="min-w-0 flex-1 truncate text-3xl font-extrabold tracking-tighter text-[#0EA5E9]">
+                  <span className="min-w-0 flex-1 truncate text-[24px] font-bold leading-none tracking-[-0.04em] text-[#0EA5E9]">
                     frostbreaker
                   </span>
                 </header>
@@ -165,7 +165,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
 
                     pb mit safe-area: sonst endet die letzte Zeile jeder Seite
                     unter dem Wischbalken des iPhones. */}
-                <main className="mx-auto max-w-7xl px-4 py-5 sm:px-6 md:px-8 md:py-7 [padding-bottom:calc(1.25rem+env(safe-area-inset-bottom))] md:[padding-bottom:1.75rem]">
+                <main className="mx-auto max-w-7xl px-4 py-5 sm:px-6 md:px-8 md:py-8 [padding-bottom:calc(1.5rem+env(safe-area-inset-bottom))] md:[padding-bottom:2.5rem]">
                   {children}
                 </main>
               </div>

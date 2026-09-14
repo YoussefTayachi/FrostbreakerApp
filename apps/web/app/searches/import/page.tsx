@@ -24,11 +24,14 @@ export default function ImportPage() {
   return (
     <div className="fade-up max-w-2xl space-y-6">
       <div>
-        <Link href="/searches" className="text-xs text-faint transition-colors hover:text-ink">
+        <Link
+          href="/searches"
+          className="-ml-1.5 inline-flex min-h-8 items-center rounded-md px-1.5 text-xs text-faint transition-colors hover:text-ink"
+        >
           ← {t.searches.title}
         </Link>
         <h1 className="mt-1 text-2xl font-semibold tracking-tight text-ink">{t.importCsv.heading}</h1>
-        <p className="text-sm text-faint">{t.importCsv.description}</p>
+        <p className="mt-1 text-sm text-faint">{t.importCsv.description}</p>
       </div>
 
       <div className={cardCls}>

@@ -372,7 +372,7 @@ export default function OfferMap({
           <div key={ecke.id} className="flex min-w-0 flex-col gap-2.5">
             <div className="fb-fade flex items-baseline gap-2" style={{ animationDelay: `${ei * 80}ms` }}>
               <span
-                className="fb-num flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-semibold"
+                className="fb-num flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-2xs font-semibold"
                 style={{
                   background: "color-mix(in srgb, var(--fb-frost) 12%, transparent)",
                   color: "var(--fb-frost)",
@@ -423,11 +423,11 @@ export default function OfferMap({
                     aria-expanded={offenHier}
                     className="flex w-full items-start gap-2.5 px-4 py-3 text-left"
                   >
-                    <span className="fb-num mt-0.5 shrink-0 text-[10px] text-mute">
+                    <span className="fb-num mt-0.5 shrink-0 text-2xs text-mute">
                       {String(fieldNumber(feld)).padStart(2, "0")}
                     </span>
                     <span className="min-w-0 flex-1">
-                      <span className="block text-[14px] font-medium leading-snug text-ink">
+                      <span className="block text-sm font-medium leading-snug text-ink">
                         {texte.fields[feld].label}
                       </span>
                       {/* KEIN "block" davor: Tailwinds display:block gewinnt je
@@ -436,7 +436,7 @@ export default function OfferMap({
                           gesehen — ein Knoten war zehn Zeilen hoch. */}
                       <span
                         className={
-                          "fb-clamp mt-1 text-[12.5px] leading-[1.45] " + (wert ? "text-soft" : "text-mute")
+                          "fb-clamp mt-1 text-xs leading-[1.45] " + (wert ? "text-soft" : "text-mute")
                         }
                       >
                         {wert || (pflicht ? texte.neededForGeneration : texte.optional)}
@@ -466,7 +466,7 @@ export default function OfferMap({
                     {!wert && pflicht && <span className="fb-dot mt-1.5 shrink-0" aria-hidden />}
                     <span
                       aria-hidden
-                      className="mt-0.5 shrink-0 text-mute transition-transform duration-200"
+                      className="mt-0.5 shrink-0 text-faint transition-transform duration-200"
                       style={{ transform: offenHier ? "rotate(90deg)" : "none" }}
                     >
                       ›
@@ -474,8 +474,8 @@ export default function OfferMap({
                   </button>
 
                   {offenHier && (
-                    <div className="fb-open border-t border-edge/60 px-4 pb-4 pt-3">
-                      <p className="mb-2 text-[12.5px] leading-relaxed text-faint">
+                    <div className="fb-open border-t border-edge/70 px-4 pb-4 pt-3">
+                      <p className="mb-2 text-xs leading-relaxed text-faint">
                         {texte.fields[feld].hint}
                       </p>
                       <textarea
@@ -484,11 +484,13 @@ export default function OfferMap({
                         value={werte[feld]}
                         onChange={(e) => onChange(feld, e.target.value)}
                         rows={4}
-                        className="w-full resize-y rounded-lg border border-edge2 bg-field px-3 py-2.5 text-[14px] leading-[1.6] text-ink outline-none transition-colors focus:border-sky-500"
+                        /* Derselbe Fokus wie an jedem anderen Feld der App
+                           (inputCls in lib/ui.ts): Rahmen plus weicher Ring. */
+                        className="w-full resize-y rounded-lg border border-edge2 bg-field px-3 py-2.5 text-sm leading-[1.6] text-ink outline-none transition-[border-color,box-shadow] duration-150 focus:border-sky-500 focus:ring-4 focus:ring-sky-500/15"
                       />
 
                       {messbar && (
-                        <p className="fb-open mt-2 rounded-lg border-l-2 border-amber-500/50 bg-amber-500/5 px-3 py-1.5 text-[12.5px] leading-relaxed text-soft">
+                        <p className="fb-open mt-2 rounded-lg border-l-2 border-amber-500/50 bg-amber-500/5 px-3 py-1.5 text-xs leading-relaxed text-soft">
                           {messbar}
                         </p>
                       )}
@@ -512,10 +514,10 @@ export default function OfferMap({
                           }}
                         >
                           <Herkunft farbe={texte.suggestion.farbe} label={texte.suggestion.label} />
-                          <p className="text-[14px] leading-relaxed text-ink">
+                          <p className="text-sm leading-relaxed text-ink">
                             {vorschlaege[feld]}
                           </p>
-                          <div className="mt-2.5 flex items-center gap-4 text-[13px]">
+                          <div className="mt-2.5 flex items-center gap-4 text-xs">
                             <button
                               type="button"
                               onClick={() => onApplySuggestion(feld)}
@@ -546,13 +548,13 @@ export default function OfferMap({
                           <p className="fb-label mb-1" style={{ color: "var(--fb-warn)" }}>
                             {texte.coach.verdictLabel}
                           </p>
-                          <p className="text-[12.5px] leading-relaxed text-soft">{c.verdict}</p>
+                          <p className="text-xs leading-relaxed text-soft">{c.verdict}</p>
                           {c.relatedField && (
-                            <p className="mt-1 text-[12px] text-faint">
+                            <p className="mt-1 text-2xs text-faint">
                               {texte.coach.related(texte.fields[c.relatedField].label)}
                             </p>
                           )}
-                          <p className="mt-2 rounded-md bg-panel px-2.5 py-2 text-[13px] leading-relaxed text-ink">
+                          <p className="mt-2 rounded-md bg-panel px-2.5 py-2 text-xs leading-relaxed text-ink">
                             {c.proposal}
                           </p>
                           <div className="mt-2 flex gap-3 text-xs">

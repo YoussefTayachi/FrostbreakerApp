@@ -73,8 +73,8 @@ export default function EmailQualityPanel({
   // gefunden, der die Funktion noch nicht kennt.
   if (!hasAnalyzableContent(content)) {
     return (
-      <div className="mt-2 rounded-lg border border-edge/60 bg-panel2/60 px-3 py-2">
-        <span className="text-[11px] text-faint">{Q.emptyHint}</span>
+      <div className="mt-3 rounded-lg border border-edge/70 bg-panel2 px-3.5 py-2.5">
+        <span className="text-xs text-faint">{Q.emptyHint}</span>
       </div>
     );
   }
@@ -85,7 +85,7 @@ export default function EmailQualityPanel({
   const aiLines = toIssueLines(aiSounding.issues, Q.issues);
 
   const badge = (tone: Tone, label: string) => (
-    <span className={"flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[11px] " + TONE_BADGE[tone]}>
+    <span className={"flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium " + TONE_BADGE[tone]}>
       <span className={"h-1.5 w-1.5 rounded-full " + TONE_DOT[tone]} />
       {label}
     </span>
@@ -94,18 +94,18 @@ export default function EmailQualityPanel({
   const section = (heading: string, tone: Tone, label: string, stats: string | null, lines: IssueLine[]) => (
     <div>
       <div className="flex flex-wrap items-center gap-2">
-        <span className="text-xs font-medium text-soft">{heading}</span>
+        <span className="text-sm font-semibold text-ink">{heading}</span>
         {badge(tone, label)}
-        {stats && <span className="text-[11px] text-faint">{stats}</span>}
+        {stats && <span className="text-xs text-faint">{stats}</span>}
       </div>
-      <ul className="mt-1.5 space-y-1">
-        {lines.length === 0 && <li className="text-[11px] text-faint">{Q.noIssues}</li>}
+      <ul className="mt-2 space-y-1.5">
+        {lines.length === 0 && <li className="text-xs text-faint">{Q.noIssues}</li>}
         {lines.slice(0, MAX_VISIBLE_ISSUES).map((line, i) => (
-          <li key={i} className="flex items-start gap-2 text-[11px] text-soft">
+          <li key={i} className="flex items-start gap-2 text-xs text-soft">
             <span className={"mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full " + SEVERITY_DOT[line.severity]} />
             <span>
               {line.field === "subject" && (
-                <span className="mr-1.5 rounded border border-edge2 px-1 py-px text-[10px] text-faint">
+                <span className="mr-1.5 rounded border border-edge2 px-1.5 py-px text-2xs font-medium text-faint">
                   {Q.fieldSubject}
                 </span>
               )}
@@ -115,16 +115,16 @@ export default function EmailQualityPanel({
           </li>
         ))}
         {lines.length > MAX_VISIBLE_ISSUES && (
-          <li className="text-[11px] text-faint">{Q.moreIssues(lines.length - MAX_VISIBLE_ISSUES)}</li>
+          <li className="text-xs text-faint">{Q.moreIssues(lines.length - MAX_VISIBLE_ISSUES)}</li>
         )}
       </ul>
     </div>
   );
 
   return (
-    <div className="mt-2 rounded-lg border border-edge/60 bg-panel2/60 px-3 py-2">
+    <div className="mt-3 rounded-lg border border-edge/70 bg-panel2 px-3.5 py-3">
       <div className="flex flex-wrap items-center gap-2">
-        <span className="text-[11px] font-medium text-faint">{Q.heading}</span>
+        <span className="text-xs font-medium text-faint">{Q.heading}</span>
         {readability.wordCount > 0 &&
           badge(READABILITY_TONE[readability.band], Q.readability.bands[readability.band])}
         {badge(RISK_TONE[spam.riskLevel], `${Q.spam.heading}: ${Q.spam.levels[spam.riskLevel]}`)}
@@ -135,23 +135,23 @@ export default function EmailQualityPanel({
           // py-1 und ein eigener Radius: der Knopf ist ohne beides 13 Pixel
           // hoch und sitzt in einer Reihe voller Abzeichen, die genauso
           // aussehen wie er.
-          className="ml-auto rounded py-1 text-[11px] font-medium text-sky-600 hover:text-sky-500 dark:text-sky-400"
+          className="ml-auto rounded-md py-1 text-xs font-medium text-sky-600 transition-colors hover:text-sky-500 dark:text-sky-400"
         >
           {expanded ? Q.hideDetails : Q.showDetails}
         </button>
       </div>
 
       {expanded && (
-        <div className="mt-3 space-y-3 border-t border-edge/60 pt-3">
+        <div className="pop-in mt-3 space-y-4 border-t border-edge/70 pt-3">
           <div className="flex items-center gap-1.5">
-            <span className="text-[11px] text-faint">{Q.contentLangLabel}</span>
+            <span className="text-xs text-faint">{Q.contentLangLabel}</span>
             {(["de", "en"] as const).map((l) => (
               <button
                 key={l}
                 type="button"
                 onClick={() => setContentLang(l)}
                 className={
-                  "rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase transition-colors " +
+                  "rounded-full border px-2.5 py-1 text-2xs font-semibold uppercase transition-colors duration-150 " +
                   (contentLang === l
                     ? "border-sky-500 bg-sky-500/10 text-sky-600 dark:text-sky-300"
                     : "border-edge2 text-faint hover:border-sky-500/50")
@@ -196,7 +196,7 @@ export default function EmailQualityPanel({
                 diesen Hinweis wuerde als Beweis gelesen, den sie nicht liefert.
                 Deshalb auch text-soft statt text-mute — der Hinweis muss im
                 Dark Mode lesbar bleiben, nicht nur formal dastehen. */}
-            <p className="mt-1.5 text-[11px] leading-relaxed text-soft">{Q.aiSounding.disclaimer}</p>
+            <p className="mt-2 text-xs leading-relaxed text-soft">{Q.aiSounding.disclaimer}</p>
           </div>
         </div>
       )}

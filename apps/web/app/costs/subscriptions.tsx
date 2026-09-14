@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useT } from "../language-provider";
 import { useToast } from "../toast-provider";
 import { useWorkspace } from "../workspace-provider";
+import { inputCls, primaryBtnCls } from "@/lib/ui";
 
 /**
  * Was der Kunde monatlich fuer seine Tarife zahlt.
@@ -111,26 +112,31 @@ export default function Subscriptions({
   }
 
   return (
-    <div className="rounded-lg border border-edge/60 bg-panel p-5">
-      <h2 className="font-medium text-strong">{C.subsTitle}</h2>
-      <p className="mt-0.5 text-xs leading-relaxed text-mute">{C.subsHint}</p>
+    <div className="rounded-xl border border-edge/70 bg-panel p-5 shadow-sm sm:p-6">
+      <h2 className="text-base font-semibold text-ink">{C.subsTitle}</h2>
+      <p className="mt-1 text-sm leading-relaxed text-faint">{C.subsHint}</p>
 
-      <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {PROVIDERS.map((p) => (
-          <label key={p.key} className="flex flex-col gap-1">
-            <span className="flex items-center gap-1.5 text-xs text-soft">
+          <label key={p.key} className="flex flex-col gap-1.5">
+            <span className="flex items-center gap-1.5 text-xs font-medium text-soft">
               {p.label}
               {p.measured && (
                 <span
                   title={C.subsMeasuredWarning}
-                  className="rounded border border-amber-500/40 bg-amber-500/10 px-1 py-px text-[10px] font-medium text-amber-700 dark:text-amber-400"
+                  className="rounded-full border border-amber-500/40 bg-amber-500/10 px-2 py-0.5 text-2xs font-medium text-amber-700 dark:text-amber-400"
                 >
                   {C.subsMeasuredBadge}
                 </span>
               )}
             </span>
-            <div className="flex items-center gap-1.5">
-              <span className="text-xs text-mute">$</span>
+            {/* Waehrungszeichen und Einheit stehen im Feld statt daneben: so
+                bleibt das Eingabefeld auf 390 Pixeln auf voller Breite und die
+                sieben Felder stehen alle in derselben Spur. */}
+            <div className="relative">
+              <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-sm text-mute">
+                $
+              </span>
               <input
                 type="number"
                 min="0"
@@ -139,9 +145,11 @@ export default function Subscriptions({
                 value={values[p.key]}
                 placeholder={p.hint}
                 onChange={(e) => setValues((v) => ({ ...v, [p.key]: e.target.value }))}
-                className="w-full rounded-md border border-edge2 bg-panel2 px-2 py-1.5 text-sm text-ink outline-none focus:border-sky-500"
+                className={inputCls + " w-full pl-7 pr-16 tabular"}
               />
-              <span className="whitespace-nowrap text-[11px] text-mute">{C.subsPerMonth}</span>
+              <span className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 whitespace-nowrap text-xs text-mute">
+                {C.subsPerMonth}
+              </span>
             </div>
           </label>
         ))}
@@ -151,19 +159,21 @@ export default function Subscriptions({
           dann ist die Doppelzaehlung bereits passiert und muss benannt
           werden, nicht bloss angedeutet. */}
       {doppelt.length > 0 && (
-        <p className="mt-3 rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs leading-relaxed text-amber-800 dark:text-amber-300">
+        <p className="mt-4 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3.5 py-3 text-sm leading-relaxed text-amber-800 dark:text-amber-300">
           {C.subsMeasuredWarning} ({doppelt.join(", ")})
         </p>
       )}
 
-      <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+      <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-edge/70 pt-5">
         <p className="text-sm text-soft">
-          {C.subsTotal} <span className="font-semibold text-strong">${total.toFixed(2)}</span> {C.subsPerMonth}
+          {C.subsTotal}{" "}
+          <span className="font-semibold tabular-nums text-ink">${total.toFixed(2)}</span>{" "}
+          {C.subsPerMonth}
         </p>
         <button
           onClick={save}
           disabled={saving}
-          className="rounded-lg bg-sky-600 px-3.5 py-1.5 text-sm font-medium text-white transition-colors hover:bg-sky-700 disabled:opacity-60"
+          className={primaryBtnCls + " w-full sm:w-auto"}
         >
           {saving ? t.common.saving : t.common.save}
         </button>

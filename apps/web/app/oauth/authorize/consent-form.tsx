@@ -74,10 +74,10 @@ export function ConsentForm({
         className="fade-up w-full max-w-md"
       >
         <div className="mb-6">
-          <span className="text-3xl font-extrabold tracking-tighter text-[#0EA5E9]">frostbreaker</span>
+          <span className="text-[26px] font-bold leading-none tracking-[-0.04em] text-[#0EA5E9]">frostbreaker</span>
         </div>
 
-        <div className="rounded-lg border border-edge/60 bg-panel p-6 shadow-sm">
+        <div className="rounded-2xl border border-edge/70 bg-panel p-6 shadow-lg sm:p-7">
           <h1 className="text-lg font-semibold tracking-tight text-ink">{T.consentTitle(clientName)}</h1>
           <p className="mt-1.5 text-sm leading-relaxed text-faint">{T.consentAs(userEmail, ziel)}</p>
 
