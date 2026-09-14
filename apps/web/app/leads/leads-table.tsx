@@ -205,9 +205,9 @@ const filterToggleCls =
 /** Nebenaktion in der Werkzeugleiste. Folgt secondaryBtnCls, nimmt aber unter
  *  sm die halbe Reihe ein, damit zwei Knoepfe nebeneinander passen. */
 const toolBtnCls =
-  "min-w-0 flex-1 rounded-lg border border-edge2 bg-panel px-4 py-2.5 text-sm font-medium text-soft " +
+  "min-w-0 whitespace-nowrap rounded-lg border border-edge2 bg-panel px-4 py-2.5 text-sm font-medium text-soft " +
   "shadow-sm transition-[background-color,border-color,transform] duration-150 hover:bg-chip " +
-  "hover:text-ink active:scale-[0.98] disabled:opacity-40 disabled:active:scale-100 sm:flex-none";
+  "hover:text-ink active:scale-[0.98] disabled:opacity-40 disabled:active:scale-100";
 
 function normName(name: string | null): string | null {
   if (!name) return null;
@@ -994,7 +994,7 @@ export default function LeadsTable({
               {L.countSummary(filtered.length, shownContacts, totalContacts)}
             </span>
             {verifyStatus && <span className="text-xs text-faint">{verifyStatus}</span>}
-            <div className="flex w-full flex-wrap items-center gap-2 sm:ml-auto sm:w-auto">
+            <div className="grid w-full grid-cols-2 gap-2 sm:ml-auto sm:flex sm:w-auto sm:flex-wrap sm:items-center">
               <button
                 onClick={() => verifyEmails(filtered)}
                 disabled={unverifiedCount === 0}
@@ -1003,7 +1003,7 @@ export default function LeadsTable({
               >
                 {L.verifyEmails}{unverifiedCount > 0 ? ` (${unverifiedCount})` : ""}
               </button>
-              <div className="relative min-w-0 flex-1 sm:flex-none" ref={colsRef}>
+              <div className="relative min-w-0" ref={colsRef}>
                 <button
                   onClick={() => setColsOpen(!colsOpen)}
                   className={toolBtnCls + " w-full sm:w-auto"}
@@ -1040,7 +1040,7 @@ export default function LeadsTable({
                 onClick={() => download(toInstantlyCsv(withoutInvalidEmails(filtered, excludeInvalid)), "-instantly.csv")}
                 disabled={shownContacts === 0}
                 title={L.exportInstantlyTitle}
-                className="min-w-0 flex-1 rounded-lg bg-sky-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-[background-color,transform] duration-150 hover:bg-sky-500 active:scale-[0.98] disabled:opacity-40 disabled:active:scale-100 sm:flex-none"
+                className="col-span-2 min-w-0 whitespace-nowrap rounded-lg bg-sky-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-[background-color,transform] duration-150 hover:bg-sky-500 active:scale-[0.98] disabled:opacity-40 disabled:active:scale-100 sm:col-span-1"
               >
                 {L.exportInstantly}
               </button>
