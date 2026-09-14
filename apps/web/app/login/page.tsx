@@ -4,6 +4,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useT } from "../language-provider";
 import { useToast } from "../toast-provider";
+import { inputCls, primaryBtnCls } from "@/lib/ui";
 
 /**
  * Wohin nach der Anmeldung, wenn die Middleware ein Ziel mitgegeben hat.
@@ -49,37 +50,41 @@ function LoginForm() {
   }
 
   return (
-    <div className="dot-grid flex min-h-screen items-center justify-center px-4">
-      <div className="fade-up w-full max-w-sm">
-        <div className="mb-7">
-          <span className="text-4xl font-bold tracking-[-0.045em] text-[#0EA5E9]">frostbreaker</span>
-          <p className="mt-2 text-sm text-faint">{t.login.tagline}</p>
+    <div className="auth-bg flex min-h-screen items-center justify-center px-4 py-10">
+      <div className="fade-up w-full max-w-[26rem]">
+        <div className="mb-8 text-center">
+          <span className="text-[40px] font-bold leading-none tracking-[-0.045em] text-[#0EA5E9]">frostbreaker</span>
+          <p className="mt-3 text-sm text-faint">{t.login.tagline}</p>
         </div>
 
-        <div className="rounded-2xl border border-edge/70 bg-panel p-6 shadow-lg sm:p-7">
-          <h2 className="mb-5 text-lg font-semibold text-ink">{t.login.heading}</h2>
-          <form onSubmit={onSubmit} className="space-y-3">
-            <input
-              type="email" required placeholder={t.login.emailPlaceholder} value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full rounded-lg border border-edge2 bg-field px-3.5 py-3 text-sm text-ink placeholder-mute outline-none transition-[border-color,box-shadow] focus:border-sky-500 focus:ring-4 focus:ring-sky-500/15"
-            />
-            <input
-              type="password" required placeholder={t.login.passwordPlaceholder} value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full rounded-lg border border-edge2 bg-field px-3.5 py-3 text-sm text-ink placeholder-mute outline-none transition-[border-color,box-shadow] focus:border-sky-500 focus:ring-4 focus:ring-sky-500/15"
-            />
-            <button
-              disabled={loading}
-              className="w-full rounded-lg bg-ink py-3 text-sm font-semibold text-surface shadow-sm transition-[opacity,transform] hover:opacity-85 active:scale-[0.98] disabled:opacity-50"
-            >
+        <div className="rounded-2xl bg-panel p-6 shadow-xl ring-1 ring-edge/70 sm:p-8">
+          <h1 className="text-xl font-semibold tracking-tight text-ink">{t.login.heading}</h1>
+          <form onSubmit={onSubmit} className="mt-6 space-y-4">
+            <label className="block">
+              <span className="mb-1.5 block text-xs font-medium text-soft">{t.login.emailPlaceholder}</span>
+              <input
+                type="email" required autoComplete="email" value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className={inputCls + " h-11 w-full"}
+              />
+            </label>
+            <label className="block">
+              <span className="mb-1.5 block text-xs font-medium text-soft">{t.login.passwordPlaceholder}</span>
+              <input
+                type="password" required autoComplete="current-password" value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className={inputCls + " h-11 w-full"}
+              />
+            </label>
+            <button disabled={loading} className={primaryBtnCls + " mt-2 h-11 w-full"}>
               {loading ? t.login.submitting : t.login.submit}
             </button>
           </form>
         </div>
-        <p className="mt-5 text-center text-xs text-mute">
+
+        <p className="mt-6 text-center text-sm text-faint">
           {t.login.noAccount}{" "}
-          <a href="/signup" className="font-medium text-ink underline underline-offset-2">
+          <a href="/signup" className="font-medium text-sky-600 transition-colors hover:text-sky-500 dark:text-sky-400">
             {t.login.signupLink}
           </a>
         </p>

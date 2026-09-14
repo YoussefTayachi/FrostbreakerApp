@@ -66,7 +66,7 @@ export function ConsentForm({
   }
 
   return (
-    <div className="dot-grid flex min-h-screen items-center justify-center px-4 py-10">
+    <div className="auth-bg flex min-h-screen items-center justify-center px-4 py-10">
       <form
         method="post"
         action="/api/oauth/authorize"

@@ -134,7 +134,7 @@ export default async function AuthorizePage({ searchParams }: { searchParams: Pr
  *  worden. */
 function Abbruch({ titel, grund, hinweis }: { titel: string; grund: string; hinweis: string }) {
   return (
-    <div className="dot-grid flex min-h-screen items-center justify-center px-4">
+    <div className="auth-bg flex min-h-screen items-center justify-center px-4">
       <div className="fade-up w-full max-w-md rounded-lg border border-red-500/30 bg-panel p-6">
         <h1 className="text-base font-semibold text-ink">{titel}</h1>
         <p className="mt-2 text-sm leading-relaxed text-soft">{grund}</p>

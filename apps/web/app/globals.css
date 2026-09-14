@@ -230,6 +230,38 @@ table, .tabular { font-variant-numeric: tabular-nums; }
 }
 .pop-in { animation: popIn 0.18s cubic-bezier(0.2, 0.7, 0.3, 1); }
 
+/* ── ANMELDESEITEN ────────────────────────────────────────────────────────
+   Zwei weiche Lichtflecken in Frostblau auf dem Seitengrund, oben links und
+   unten rechts. Kein Raster, kein Bild: die Karte in der Mitte soll das
+   einzige Scharfe auf der Seite sein. Im Dunkeln etwas kraeftiger, dort ist
+   Licht der Kontrast. */
+.auth-bg {
+  background:
+    radial-gradient(60rem 40rem at 12% -12%, rgb(14 165 233 / 0.16), transparent 62%),
+    radial-gradient(52rem 36rem at 108% 112%, rgb(14 165 233 / 0.12), transparent 62%),
+    var(--c-surface);
+}
+.dark .auth-bg {
+  background:
+    radial-gradient(60rem 40rem at 12% -12%, rgb(14 165 233 / 0.22), transparent 62%),
+    radial-gradient(52rem 36rem at 108% 112%, rgb(14 165 233 / 0.14), transparent 62%),
+    var(--c-surface);
+}
+
+/* Chromes Autofill malt ein hellblaues Feld mit eigener Schriftfarbe, und
+   das sitzt ueber jedem Token. Am Live-Stand gesehen (2026-09-14): das
+   Passwortfeld der Anmeldung stand als einziges in Babyblau. Der innere
+   Schatten deckt die Farbe mit der Feldfarbe ab, die lange Transition haelt
+   Chrome davon ab, sie wieder einzublenden. */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus {
+  -webkit-text-fill-color: var(--c-ink);
+  -webkit-box-shadow: 0 0 0 1000px var(--c-field) inset;
+  caret-color: var(--c-ink);
+  transition: background-color 9999s ease-out;
+}
+
 /* Dezentes Punktraster für Hero-Flächen (Login) */
 .dot-grid {
   background-image: radial-gradient(var(--c-edge2) 1px, transparent 1px);
