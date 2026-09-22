@@ -625,3 +625,35 @@ def test_none_nur_bei_status_null(monkeypatch):
     monkeypatch.setattr(pf, "enqueue_many", lambda *a, **k: None)
     pf.run(job({"business_id": "b-1"}))
     assert rows[0]["person_finding_status"] == "pending"
+
+
+def test_ablehnungsgrund_je_fund():
+    alt = finding(age_months=24)
+    fremd = finding(
+        source_url="https://www.linkedin.com/posts/someone-else_x_y", identity_evidence=""
+    )
+    pod = finding(
+        source_kind="podcast", source_url="https://www.linkedin.com/posts/kate-prince-5aa8283b_x_y"
+    )
+    assert pf.why_unusable(alt, contact()) == "age"
+    assert pf.why_unusable(fremd, contact()) == "anchor"
+    assert pf.why_unusable(pod, contact()) == "host_matrix"
+    assert pf.why_unusable(finding(), contact()) is None
+
+
+def test_abgelehnte_funde_landen_in_der_provenienz(monkeypatch, cfg):
+    db = _Db({"businesses": [business()], "contacts": [contact()]})
+    _run_contact(monkeypatch, db, [finding(age_months=30)])
+    pf.run(job({"contact_id": "c-1"}))
+    src = db.tables["contacts"][0]["person_finding_source"]
+    assert src["findings_returned"] == 1
+    assert src["rejected"][0]["reason"] == "age"
+
+
+def test_gewaehlter_fund_steht_nicht_bei_den_abgelehnten(monkeypatch, cfg):
+    db = _Db({"businesses": [business()], "contacts": [contact()]})
+    _run_contact(monkeypatch, db, [finding(), finding(age_months=30, claim="alt")])
+    pf.run(job({"contact_id": "c-1"}))
+    src = db.tables["contacts"][0]["person_finding_source"]
+    assert len(src["rejected"]) == 1
+    assert src["rejected"][0]["claim"] == "alt"
