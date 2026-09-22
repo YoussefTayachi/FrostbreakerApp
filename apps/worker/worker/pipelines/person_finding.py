@@ -400,10 +400,26 @@ ANGLE_BLOCK_DE = {
 }
 
 
-def write_prompt(language: str, angle: str) -> str:
+NO_OFFER_EN = (
+    "There is no <offer> block. Write ONLY part 1: the source label and what the "
+    "person said or did. No meaning, no number, no mechanism. One or two lines."
+)
+NO_OFFER_DE = (
+    "Es gibt keinen <offer>-Block. Schreib NUR Teil 1: das Quellenlabel und was die "
+    "Person gesagt oder getan hat. Keine Deutung, keine Zahl, kein Mechanismus. Ein "
+    "oder zwei Zeilen."
+)
+
+
+def write_prompt(language: str, angle: str, has_offer: bool = True) -> str:
+    """Gemeinsamer Teil, Block je Typ, und ohne Angebot die Kurzfassung:
+    dann gibt es nichts, worauf Teil 2 bis 4 hinauslaufen koennten."""
     base = WRITE_BASE_EN if language == "en" else WRITE_BASE_DE
     blocks = ANGLE_BLOCK_EN if language == "en" else ANGLE_BLOCK_DE
-    return base + "\n\n" + blocks.get(angle, blocks["statement"])
+    teile = [base, blocks.get(angle, blocks["statement"])]
+    if not has_offer:
+        teile.append(NO_OFFER_EN if language == "en" else NO_OFFER_DE)
+    return "\n\n".join(teile)
 
 
 # ── Verbotsliste dieses Textes ─────────────────────────────────────────────
@@ -753,8 +769,9 @@ def source_label(finding: dict, language: str) -> str:
     kind = finding.get("source_kind") or "article"
     host = source_host(finding.get("source_url")) or ""
     host = host.removeprefix("www.")
-    if kind == "article" and is_linkedin_host(host):
-        return labels["own_post"]
+    # Kein Sonderfall fuer LinkedIn-Artikel: ein 'article' kann nur ueber
+    # company_and_role gebunden sein, und "On LinkedIn you wrote" waere dann
+    # eine behauptete Autorschaft (Codex-Review nach dem Bau).
     return labels.get(kind, labels["article"]).format(host=host)
 
 
@@ -904,8 +921,10 @@ def _faechere_auf(ws: str, biz: dict) -> None:
     mit_anker = [r["id"] for r in rows if r.get("email") and canonical_linkedin(r.get("linkedin"))]
     ohne_anker = [r["id"] for r in rows if r["id"] not in set(mit_anker)]
     if ohne_anker:
-        sb().table("contacts").update({"person_finding_status": "none"}).in_(
-            "id", ohne_anker
+        # Bedingt auf Status null: ein gleichzeitiger Firmen-Job oder ein
+        # Mensch koennte den Kontakt inzwischen anders gesetzt haben.
+        sb().table("contacts").update({"person_finding_status": "none"}).in_("id", ohne_anker).is_(
+            "person_finding_status", "null"
         ).execute()
     if not mit_anker:
         return
@@ -981,6 +1000,13 @@ def run(job: dict) -> None:
         return
     contact = rows[0]
     if (contact.get("person_finding") or "").strip():
+        # Jemand hat von Hand geschrieben, nachdem der Job eingereiht war.
+        # Der Text gilt; der Status darf nicht auf 'pending' stehen bleiben,
+        # sonst zaehlt er dauerhaft gegen den Deckel und der Torwart meldet
+        # "in Arbeit" fuer etwas, das fertig ist.
+        sb().table("contacts").update({"person_finding_status": "found"}).eq("id", contact_id).in_(
+            "person_finding_status", ["pending", "running"]
+        ).execute()
         return
 
     biz = _lade_business(contact["business_id"])
@@ -1026,10 +1052,13 @@ def run(job: dict) -> None:
 
         cfg = personalize.load_agent_config(ws)
         banned = person_banned_words(cfg["banned_words"], cfg["language"])
-        system_prompt = write_prompt(cfg["language"], fund["angle"]) + personalize.constraint_block(
+        offer = load_offer(ws)
+        system_prompt = write_prompt(
+            cfg["language"], fund["angle"], has_offer=bool(offer_block(offer))
+        ) + personalize.constraint_block(
             PERSON_FINDING_MAX_WORDS, banned, cfg["language"], subject="paragraph"
         )
-        context = person_context(contact, biz, fund, load_offer(ws), cfg["language"])
+        context = person_context(contact, biz, fund, offer, cfg["language"])
 
         def write(correction: str | None = None) -> str:
             # Ohne examples: die hinterlegten Beispiele sind handgeschriebene
@@ -1087,6 +1116,12 @@ def run(job: dict) -> None:
         ).eq("id", contact_id).is_("person_finding", "null").eq(
             "person_finding_status", "running"
         ).execute()
+        # Traf der bedingte Update keine Zeile, hat inzwischen jemand von Hand
+        # geschrieben. Dann gilt dessen Text, und der Status folgt ihm statt
+        # auf 'running' stehen zu bleiben.
+        sb().table("contacts").update({"person_finding_status": "found"}).eq("id", contact_id).eq(
+            "person_finding_status", "running"
+        ).not_.is_("person_finding", "null").execute()
 
     except Exception:
         # Zustandsautomat: zurueck auf 'pending', solange die Queue noch

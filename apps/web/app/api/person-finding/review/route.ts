@@ -26,7 +26,7 @@ const MAX_ROWS = 500;
 
 const SELECT =
   "id, full_name, title, email, person_finding, person_finding_needs_review, person_finding_source, " +
-  "businesses!inner(name, searches(deleted_at))";
+  "businesses!inner(name, searches!inner(deleted_at))";
 
 type RawRow = PersonReviewRow & {
   businesses: { name: string | null; searches: { deleted_at: string | null } | { deleted_at: string | null }[] | null } | null;
@@ -49,6 +49,10 @@ export async function GET() {
     .eq("workspace_id", ws.workspace.id)
     .eq("person_finding_needs_review", true)
     .not("person_finding", "is", null)
+    // Im SQL und nicht erst danach: sonst koennte das Limit von 500 mit
+    // Papierkorb-Zeilen vollaufen und aktive Zeilen dahinter verstecken
+    // (Codex-Review nach dem Bau).
+    .is("businesses.searches.deleted_at", null)
     .order("created_at", { ascending: false })
     .limit(MAX_ROWS);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
@@ -91,6 +95,11 @@ export async function PATCH(req: Request) {
       .select("id, person_finding_source")
       .eq("id", id)
       .eq("workspace_id", ws.workspace.id)
+      // Nur, was wirklich in der Pruefung steht: sonst koennte ein
+      // gebastelter Aufruf einen freigegebenen Absatz verwerfen oder einen
+      // beliebigen Kontakt beschreiben (Codex-Review nach dem Bau).
+      .eq("person_finding_needs_review", true)
+      .not("person_finding", "is", null)
       .maybeSingle(),
     supabase
       .from("workspaces")
@@ -109,11 +118,19 @@ export async function PATCH(req: Request) {
     problems
   );
 
-  const { error } = await supabase
+  const { data: updated, error } = await supabase
     .from("contacts")
     .update(patch)
     .eq("id", id)
-    .eq("workspace_id", ws.workspace.id);
+    .eq("workspace_id", ws.workspace.id)
+    .eq("person_finding_needs_review", true)
+    .not("person_finding", "is", null)
+    .select("id");
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  // Keine Zeile getroffen: jemand anderes war schneller (freigegeben oder
+  // verworfen). Das ist kein Fehler des Aufrufers, aber auch kein Erfolg.
+  if (!updated || updated.length === 0) {
+    return NextResponse.json({ error: "schon bearbeitet" }, { status: 409 });
+  }
   return NextResponse.json({ ok: true, problems });
 }

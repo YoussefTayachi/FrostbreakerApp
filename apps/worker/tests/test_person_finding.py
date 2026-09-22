@@ -45,6 +45,11 @@ class _Query:
         self.filters.append(("is", col, val))
         return self
 
+    @property
+    def not_(self):
+        # supabase-py: .not_.is_("spalte", "null") heisst "ist nicht null".
+        return _Not(self)
+
     def in_(self, col, vals):
         self.filters.append(("in", col, list(vals)))
         return self
@@ -63,6 +68,8 @@ class _Query:
                 return False
             if kind == "is" and val in ("null", None) and v is not None:
                 return False
+            if kind == "not_is" and val in ("null", None) and v is None:
+                return False
             if kind == "in" and v not in val:
                 return False
         return True
@@ -76,6 +83,15 @@ class _Query:
         if self._limit is not None:
             rows = rows[: self._limit]
         return _Row(rows)
+
+
+class _Not:
+    def __init__(self, query):
+        self._q = query
+
+    def is_(self, col, val):
+        self._q.filters.append(("not_is", col, val))
+        return self._q
 
 
 class _Rpc:
@@ -566,7 +582,8 @@ def test_finaler_schreibzugriff_ueberschreibt_keinen_fremden_text(monkeypatch, c
     monkeypatch.setattr(personalize, "generate", generate_und_mensch_schreibt)
     pf.run(job({"contact_id": "c-1"}))
     assert row["person_finding"] == "von Hand"
-    assert row["person_finding_status"] == "running"  # der bedingte Update traf keine Zeile
+    # Der bedingte Update traf keine Zeile; der Status folgt dem Text von Hand.
+    assert row["person_finding_status"] == "found"
 
 
 def test_die_harten_vorgaben_reden_vom_absatz():
@@ -575,3 +592,36 @@ def test_die_harten_vorgaben_reden_vom_absatz():
     )
     assert f"Maximum {pf.PERSON_FINDING_MAX_WORDS} words" in block
     assert "icebreaker" not in block
+
+
+# ── Nach dem Codex-Review des Diffs ────────────────────────────────────────
+
+
+def test_linkedin_artikel_wird_nicht_als_eigener_beitrag_ausgegeben():
+    art = finding(source_kind="article", source_url="https://www.linkedin.com/pulse/some-title")
+    assert pf.source_label(art, "en") == "In your piece on linkedin.com"
+
+
+def test_ohne_angebot_nur_teil_eins():
+    p = pf.write_prompt("en", "statement", has_offer=False)
+    assert "Write ONLY part 1" in p
+    assert "Write ONLY part 1" not in pf.write_prompt("en", "statement", has_offer=True)
+
+
+def test_vorhandener_text_setzt_status_auf_found(monkeypatch, cfg):
+    row = contact(person_finding="von Hand", person_finding_status="pending")
+    db = _Db({"businesses": [business()], "contacts": [row]})
+    _run_contact(monkeypatch, db, [finding()])
+    pf.run(job({"contact_id": "c-1"}))
+    assert row["person_finding_status"] == "found"
+
+
+def test_none_nur_bei_status_null(monkeypatch):
+    """Der Kontakt stand schon auf pending (anderer Job); die Vorauswahl dieses
+    Jobs sieht nur Status-null-Zeilen, also bleibt er unberuehrt."""
+    rows = [contact(id="c-2", person_finding_status="pending", linkedin=None)]
+    db = _Db({"businesses": [business()], "contacts": rows}, rpc=lambda p: [])
+    monkeypatch.setattr(pf, "sb", lambda: db)
+    monkeypatch.setattr(pf, "enqueue_many", lambda *a, **k: None)
+    pf.run(job({"business_id": "b-1"}))
+    assert rows[0]["person_finding_status"] == "pending"
