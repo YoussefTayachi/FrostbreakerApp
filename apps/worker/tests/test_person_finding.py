@@ -495,7 +495,9 @@ def test_verlorener_claim_kostet_nichts(monkeypatch, cfg):
 
 
 def test_leerer_fund_ist_ein_ergebnis_ohne_zweiten_aufruf(monkeypatch, cfg):
-    db = _Db({"businesses": [business()], "contacts": [contact()]})
+    """Nur noch, wenn auch die Firma nichts hergibt: kein Name, keine
+    Beschreibung. Sonst greift der Rueckfall (siehe unten)."""
+    db = _Db({"businesses": [business(name="", company_summary=None)], "contacts": [contact()]})
     aufrufe = _run_contact(monkeypatch, db, [])
     pf.run(job({"contact_id": "c-1"}))
     row = db.tables["contacts"][0]
@@ -744,3 +746,37 @@ def test_erfundene_zahl_loest_korrekturrunde_aus(monkeypatch, cfg):
     row = db.tables["contacts"][0]
     assert aufrufe["generate"] == 2
     assert row["person_finding_needs_review"] is True
+
+
+# ── Nie leer (Regel vom 2026-09-22) ────────────────────────────────────────
+
+
+def test_ohne_fund_schreibt_der_shop_den_absatz(monkeypatch, cfg):
+    db = _Db(
+        {
+            "businesses": [
+                business(
+                    company_summary="Ancient + Brave sells collagen powders direct to consumer."
+                )
+            ],
+            "contacts": [contact()],
+        }
+    )
+    aufrufe = _run_contact(monkeypatch, db, [], text="On your site you sell collagen powders.")
+    pf.run(job({"contact_id": "c-1"}))
+    row = db.tables["contacts"][0]
+    assert aufrufe == {"research": 1, "generate": 1}
+    assert row["person_finding_status"] == "found"
+    assert row["person_finding_needs_review"] is False
+    assert row["person_finding_source"]["angle"] == "company"
+    assert row["person_finding_source"]["source_label"] == "On your site"
+
+
+def test_rueckfall_braucht_wenigstens_einen_namen():
+    assert pf.company_fallback({"name": "", "company_summary": None}) is None
+    f = pf.company_fallback({"name": "Firma", "company_summary": None, "website": "https://f.de"})
+    assert f["angle"] == "company" and f["claim"] == "Firma"
+
+
+def test_rueckfall_verliert_gegen_jeden_echten_fund():
+    assert pf.ANGLE_RANK["company"] > pf.ANGLE_RANK["role_vs_size"]

@@ -90,11 +90,13 @@ ist eine Akte, kein Aufhaenger; ein Werdegang verfaellt nicht), Quellengrenze
 Die drei Regeln stehen im Code UND im Prompt, weil ein Modell eine
 Altersgrenze zuverlaessig ueberliest, sobald der Fund interessant ist.
 
-LEER IST EIN ERGEBNIS. Findet die Recherche nichts, das den Regeln
-standhaelt, bleibt person_finding leer (Status 'none'), ohne Rueckfallabsatz.
-Dass daraus keine Mail mit einem Loch wird, loest die Stufe danach: benutzt
-die Sequenz {{personFinding}}, haelt lib/instantly/create-campaign.ts die
-Leads ohne Absatz zurueck, und der Torwart sagt die Zahl vorher an.
+NIE LEER (seit 2026-09-22). Findet die Recherche nichts, das den Regeln
+standhaelt, entsteht der Absatz aus dem, was die Firma selbst ueber sich
+sagt (Typ 'company', Quelle die eigene Website). Das ist die Regel von
+Youssef: lieber etwas, das der Empfaenger korrigieren kann, als ein Loch in
+der Mail. Sicher formuliert, auch wenn das Material duenn ist; unsicher darf
+der Inhalt sein, nicht der Ton. Status 'none' gibt es nur noch, wenn auch die
+Firma nichts hergibt (kein Name, keine Beschreibung, keine Website).
 """
 
 import json
@@ -166,7 +168,10 @@ ANGLES = (
 # Rang: was die Person selbst gesagt hat, schlaegt alles; dann das Muster
 # ueber mehrere Beitraege; dann der frische Wechsel (neue Leute aendern
 # Dinge); dann die Typen aus dem gepflegten Profil.
-ANGLE_RANK = {angle: i for i, angle in enumerate(ANGLES)}
+# Der Rueckfall, den das Modell nicht zurueckgeben darf (nicht im Schema),
+# den der Code aber setzt, wenn kein Fund traegt: die Firma selbst.
+FALLBACK_ANGLE = "company"
+ANGLE_RANK = {angle: i for i, angle in enumerate((*ANGLES, FALLBACK_ANGLE))}
 
 # Altersgrenze in Monaten je Typ. None = zeitlos. Eine Aussage von vor
 # einem Jahr ist noch ein Thema; eine von vor drei Jahren ist eine Akte.
@@ -180,6 +185,7 @@ MAX_AGE_MONTHS_BY_ANGLE = {
     "side_switch": None,
     "background": None,
     "role_vs_size": None,
+    "company": None,
 }
 
 # Wie frisch Apollos Kopie des Profils sein muss, damit "seit vier Monaten
@@ -203,6 +209,8 @@ SOURCE_KINDS = (
 # verwirft die Kombination, statt sie mit einem Label glaubwuerdiger zu machen.
 LINKEDIN_ONLY = {"own_post", "company_post_quote", "profile"}
 NOT_LINKEDIN = {"interview", "podcast", "talk"}
+# Nur vom Code gesetzt, nie vom Modell: die Website der Firma.
+COMPANY_SITE = "company_site"
 
 SCHEMA = {
     "type": "object",
@@ -403,6 +411,12 @@ ANGLE_BLOCK_EN = {
         "Angle: the role against the size. Part 1 names the responsibilities as listed. "
         "Part 2: what that means for who decides, in one sentence."
     ),
+    "company": (
+        "Angle: the shop itself. Nothing public from the person was found, so part 1 "
+        "opens with the label and ONE concrete thing the shop sells or does, taken from "
+        "the company summary in <known_facts>. State it plainly and confidently; the "
+        "reader can correct you. Then parts 2 and 4 as usual."
+    ),
 }
 
 ANGLE_BLOCK_DE = {
@@ -431,6 +445,12 @@ ANGLE_BLOCK_DE = {
     "role_vs_size": (
         "Aufhaenger: die Rolle gegen die Groesse. Teil 1 nennt die Zustaendigkeiten wie "
         "aufgelistet. Teil 2: was das dafuer heisst, wer entscheidet, in einem Satz."
+    ),
+    "company": (
+        "Aufhaenger: der Shop selbst. Zur Person wurde nichts Oeffentliches gefunden, "
+        "also beginnt Teil 1 mit dem Label und EINER konkreten Sache, die der Shop "
+        "verkauft oder tut, aus der Firmenbeschreibung in <known_facts>. Schlicht und "
+        "sicher formuliert; der Leser darf korrigieren. Dann Teil 2 und 4 wie sonst."
     ),
 }
 
@@ -632,7 +652,7 @@ def source_allowed(kind: str, url: str | None) -> bool:
         return is_linkedin_host(host)
     if kind in NOT_LINKEDIN:
         return not is_linkedin_host(host)
-    return True  # article: beliebig
+    return True  # article, company_site: beliebig
 
 
 # ── Auswahl ────────────────────────────────────────────────────────────────
@@ -886,6 +906,7 @@ def offer_block(offer: dict | None) -> str:
 
 
 SOURCE_LABEL_EN = {
+    "company_site": "On your site",
     "profile": "On your LinkedIn profile",
     "own_post": "On LinkedIn you wrote",
     "company_post_quote": "In a post on your company's LinkedIn page you said",
@@ -896,6 +917,7 @@ SOURCE_LABEL_EN = {
 }
 
 SOURCE_LABEL_DE = {
+    "company_site": "Auf eurer Seite",
     "profile": "Auf deinem LinkedIn-Profil",
     "own_post": "Auf LinkedIn hast du geschrieben",
     "company_post_quote": "In einem Beitrag auf der LinkedIn-Seite eurer Firma hast du gesagt",
@@ -978,6 +1000,7 @@ def person_context(
         "<known_facts>",
         known_facts(contact),
         f"company: {_cap(business.get('name'))}",
+        f"company summary: {_cap(business.get('company_summary'), 600)}",
         "</known_facts>",
     ]
     angebot = offer_block(offer)
@@ -1034,6 +1057,32 @@ def research(
     data = json.loads(resp.output_text)
     findings = data.get("findings") or []
     return [f for f in findings if isinstance(f, dict)]
+
+
+def company_fallback(business: dict) -> dict | None:
+    """Der Fund, wenn es keinen gibt: die Firma selbst.
+
+    Aus company_summary (Apollo oder Websuche) und der Website. None nur,
+    wenn auch das fehlt; dann bleibt der Kontakt ehrlich auf 'none'.
+    """
+    summary = (business.get("company_summary") or "").strip()
+    name = (business.get("name") or "").strip()
+    website = (business.get("website") or "").strip()
+    if not (summary or name):
+        return None
+    return {
+        "angle": FALLBACK_ANGLE,
+        "claim": _cap(summary or name, 400),
+        "source_kind": COMPANY_SITE,
+        "source_url": website or "",
+        "age_months": -1,
+        "verbatim": "",
+        "identity_anchor": COMPANY_SITE,
+        "identity_evidence": "",
+        "anchor": COMPANY_SITE,
+        "review_reason": None,
+        "_index": -1,
+    }
 
 
 def load_offer(ws: str) -> dict | None:
@@ -1211,6 +1260,11 @@ def run(job: dict) -> None:
         findings = research(contact, biz, api_key, workspace_id=ws, search_id=search_id)
         fund = best_finding(findings, contact)
         rejected = rejected_findings(findings, fund, contact)
+        if fund is None:
+            # Nie leer: der Shop selbst traegt den Absatz. Die abgelehnten
+            # Funde bleiben in der Provenienz, damit sichtbar ist, dass die
+            # Person nichts Brauchbares hatte.
+            fund = company_fallback(biz)
         if fund is None:
             # Recherchiert, nichts Brauchbares. Kein zweiter Aufruf, kein
             # Rueckfallabsatz. 'none' unterscheidet das von "nie angefragt".

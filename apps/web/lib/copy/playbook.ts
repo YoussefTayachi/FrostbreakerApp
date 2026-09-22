@@ -91,6 +91,29 @@ export const SUBJECT_IDEAL_WORDS = 4;
  * Kleingeschrieben verglichen, Wortgrenzen beachtet.
  */
 export const BANNED_PHRASES: readonly string[] = [
+  // Abschwaecher. Regel von Youssef (2026-09-22): keine Konjunktive, kein
+  // "ich denke". "the points that would lift revenue" stand so in einer
+  // Sequenz; "that lift revenue" sagt dasselbe und steht dazu. Einzelne
+  // Woerter werden an Wortgrenzen geprueft (bannedPhrasesIn), "would"
+  // trifft also nicht "wouldn't" mitten im Wort, wohl aber als Wort.
+  "would",
+  "could",
+  "might",
+  "maybe",
+  "perhaps",
+  "probably",
+  "i think",
+  "i believe",
+  "i guess",
+  "vielleicht",
+  "eventuell",
+  "wahrscheinlich",
+  "ich denke",
+  "ich glaube",
+  "koennte",
+  "könnte",
+  "wuerde",
+  "würde",
   // Floskeln ohne Aussage
   "i hope this email finds you well",
   "i hope you are doing well",

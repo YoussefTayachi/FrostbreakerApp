@@ -57,6 +57,12 @@ function toPreviewLead(row: CampaignContactRow): MergeTagSource {
     email: row.email,
     first_name: row.first_name,
     last_name: row.last_name,
+    // Am 2026-09-22 fehlten diese zwei Zeilen: die Vorschau zeigte fuer
+    // Sally Mueller ein Loch, obwohl ihr Absatz fertig und freigegeben in der
+    // Datenbank stand. Die Zuordnung in mergeTagValues war richtig, nur kam
+    // das Feld hier nie an.
+    person_finding: row.person_finding ?? null,
+    person_finding_needs_review: row.person_finding_needs_review ?? null,
     businesses: {
       name: row.businesses?.name ?? null,
       personalization: row.businesses?.personalization ?? null,
