@@ -32,6 +32,7 @@
  */
 import { wordCount } from "./personalization-defaults";
 import { FINDING_MAX_WORDS } from "./website-finding-defaults";
+import { PERSON_FINDING_MAX_WORDS } from "./person-finding-defaults";
 
 export type Severity = "blocker" | "warning" | "ok";
 
@@ -45,6 +46,7 @@ export type CheckId =
   | "icebreakerMissing"
   | "icebreakerFailing"
   | "websiteFindingMissing"
+  | "personFindingMissing"
   | "sequence"
   | "firstMailLength"
   | "firstMailLink";
@@ -85,6 +87,20 @@ export type ReadinessFacts = {
    * hochgeht (siehe splitByWebsiteFinding in lib/instantly/create-campaign.ts).
    */
   leadsWithoutWebsiteFinding: number;
+  /**
+   * Dasselbe fuer {{personFinding}} (Migration 0118), plus die Zustaende
+   * dahinter: der Torwart soll sagen koennen, ob Recherche fehlt, laeuft,
+   * nichts fand, scheiterte, am Deckel haengt oder auf Freigabe wartet.
+   * Optional, weil aeltere Aufrufer und Tests die Felder nicht kennen;
+   * fehlend heisst 0.
+   */
+  sequenceUsesPersonFinding?: boolean;
+  leadsWithoutPersonFinding?: number;
+  personFindingNeedsReview?: number;
+  personFindingPending?: number;
+  personFindingNone?: number;
+  personFindingFailed?: number;
+  personFindingSkippedLimit?: number;
   domains: DomainAuth[];
   /** Versand und Bounces des Workspaces ueber alle bisherigen Kampagnen. */
   sentSoFar: number;
@@ -155,6 +171,8 @@ const PERSONALIZATION_PLACEHOLDER = "personalization";
  * gegen die website-finding-defaults.test.ts den Worker-Quelltext einliest.
  */
 const WEBSITE_FINDING_PLACEHOLDER = "websitefinding";
+// Und der Personen-Absatz, mit seiner eigenen Grenze aus dem Worker-Spiegel.
+const PERSON_FINDING_PLACEHOLDER = "personfinding";
 
 /** Platzhalter der Form {{name}}. */
 const PLACEHOLDER = /\{\{\s*([\w.]+)\s*\}\}/g;
@@ -171,6 +189,7 @@ export function estimateWords(body: string, personalizationWords: number): numbe
     const key = name.toLowerCase();
     if (key === PERSONALIZATION_PLACEHOLDER) return "x ".repeat(personalizationWords);
     if (key === WEBSITE_FINDING_PLACEHOLDER) return "x ".repeat(FINDING_MAX_WORDS);
+    if (key === PERSON_FINDING_PLACEHOLDER) return "x ".repeat(PERSON_FINDING_MAX_WORDS);
     return "x";
   });
   return wordCount(filled);
@@ -332,6 +351,24 @@ export function assessCampaign(facts: ReadinessFacts): Readiness {
     values: {
       count: facts.leadsWithoutWebsiteFinding,
       total: leads + facts.leadsWithoutWebsiteFinding,
+    },
+  });
+
+  // Der Personen-Absatz, nach demselben Muster und aus denselben Gruenden
+  // eine Warnung. Die Zustaende dahinter gehen als Zahlen mit, damit die
+  // Oberflaeche sagen kann, WARUM ein Lead fehlt.
+  const ohnePerson = facts.leadsWithoutPersonFinding ?? 0;
+  checks.push({
+    id: "personFindingMissing",
+    severity: facts.sequenceUsesPersonFinding && ohnePerson > 0 ? "warning" : "ok",
+    values: {
+      count: ohnePerson,
+      total: leads + ohnePerson,
+      needsReview: facts.personFindingNeedsReview ?? 0,
+      pending: facts.personFindingPending ?? 0,
+      none: facts.personFindingNone ?? 0,
+      failed: facts.personFindingFailed ?? 0,
+      skippedLimit: facts.personFindingSkippedLimit ?? 0,
     },
   });
 

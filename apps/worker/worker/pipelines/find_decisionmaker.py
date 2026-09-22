@@ -3,6 +3,7 @@
 OpenAI Responses API mit web_search-Tool + Structured Output (JSON Schema).
 Ersetzt das '```json'-Prompt-Parsing und die Switch/Stop-and-Error-Logik aus n8n.
 """
+
 import json
 import re
 
@@ -86,7 +87,14 @@ SCHEMA = {
                     "facebook": {"type": "string"},
                 },
                 "required": [
-                    "name", "title", "email", "phone", "linkedin", "instagram", "twitter", "facebook",
+                    "name",
+                    "title",
+                    "email",
+                    "phone",
+                    "linkedin",
+                    "instagram",
+                    "twitter",
+                    "facebook",
                 ],
             },
         },
@@ -240,7 +248,15 @@ def research(
 def run(job: dict) -> None:
     ws = job["workspace_id"]
     business_id = job["payload"]["business_id"]
-    biz = sb().table("businesses").select(BUSINESS_WITH_SEARCH).eq("id", business_id).single().execute().data
+    biz = (
+        sb()
+        .table("businesses")
+        .select(BUSINESS_WITH_SEARCH)
+        .eq("id", business_id)
+        .single()
+        .execute()
+        .data
+    )
     if search_is_deleted(biz):
         return  # Suche im Papierkorb, keine OpenAI-Kosten fuer unsichtbare Leads
 
@@ -304,6 +320,12 @@ def run(job: dict) -> None:
         if contacts:
             sb().table("contacts").insert(contacts).execute()
             set_status("found")
+            # Erst jetzt gibt es Kontakte, die ein Personen-Befund treffen
+            # koennte. Lokaler Import, damit die Pipelines sich nicht im
+            # Kreis importieren.
+            from worker.pipelines import person_finding
+
+            person_finding.reihe_ein(ws, biz)
         else:
             set_status("not_found")
     except Exception:

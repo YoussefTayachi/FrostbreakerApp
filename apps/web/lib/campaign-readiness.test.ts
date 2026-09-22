@@ -51,7 +51,8 @@ describe("assessCampaign — der saubere Fall", () => {
   // beantwortet nicht, ob ueberhaupt hingeschaut wurde.
   it("gibt jede Pruefung zurueck, auch die bestandenen", () => {
     const r = assessCampaign(facts());
-    expect(r.checks.length).toBe(12);
+    // 13 seit dem Personen-Befund (personFindingMissing, Migration 0118).
+    expect(r.checks.length).toBe(13);
     expect(r.checks.every((c) => c.severity === "ok")).toBe(true);
   });
 });
@@ -239,5 +240,44 @@ describe("stepFacts", () => {
       words: 1 + 5 + 4,
       hasLink: true,
     });
+  });
+});
+
+describe("personFindingMissing", () => {
+  it("schweigt, wenn die Sequenz die Variable nicht benutzt", () => {
+    const r = assessCampaign({ ...facts(), sequenceUsesPersonFinding: false, leadsWithoutPersonFinding: 7 });
+    expect(r.checks.find((c) => c.id === "personFindingMissing")?.severity).toBe("ok");
+  });
+
+  it("warnt mit den Zustaenden dahinter, wenn Leads zurueckgehalten werden", () => {
+    const r = assessCampaign({
+      ...facts(),
+      sequenceUsesPersonFinding: true,
+      leadsWithoutPersonFinding: 3,
+      personFindingNeedsReview: 1,
+      personFindingPending: 2,
+      personFindingSkippedLimit: 0,
+    });
+    const check = r.checks.find((c) => c.id === "personFindingMissing");
+    expect(check?.severity).toBe("warning");
+    expect(check?.values.count).toBe(3);
+    expect(check?.values.needsReview).toBe(1);
+    expect(check?.values.pending).toBe(2);
+  });
+
+  // Fehlende Felder heissen 0, damit aeltere Aufrufer nicht brechen.
+  it("rechnet fehlende Felder als 0", () => {
+    const r = assessCampaign(facts());
+    const check = r.checks.find((c) => c.id === "personFindingMissing");
+    expect(check?.severity).toBe("ok");
+    expect(check?.values.count).toBe(0);
+  });
+});
+
+describe("estimateWords mit personFinding", () => {
+  it("zaehlt den Platzhalter mit seiner Hoechstlaenge", () => {
+    const ohne = estimateWords("Hi {{firstName}}, kurz.", 10);
+    const mit = estimateWords("Hi {{firstName}}, {{personFinding}} kurz.", 10);
+    expect(mit - ohne).toBe(45);
   });
 });

@@ -87,6 +87,9 @@ export type PresetConfig = {
    * weil aeltere Vorlagen den Schluessel nicht kennen; fehlend heisst aus.
    */
   websiteFindings?: boolean;
+  /** Personen-Befund je Kontakt (Migration 0118). Opt-in, jede Person ist
+   *  eine bezahlte Websuche. */
+  personFindings?: boolean;
   industry: string;
   city: string;
   state?: string;

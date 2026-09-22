@@ -15,7 +15,7 @@ const de = {
   nav: {
     dashboard: "Dashboard", searches: "Suchen", leads: "Alle Leads",
     pipeline: "Pipeline", calls: "Anrufliste", linkedin: "LinkedIn", inbox: "Posteingang",
-    aiAgent: "AI Agent", offers: "Angebot", icebreaker: "Aufhänger", effectiveness: "Wirkung", commission: "Provision",
+    aiAgent: "AI Agent", offers: "Angebot", icebreaker: "Aufhänger", effectiveness: "Wirkung", commission: "Provision", personFinding: "Personen-Befund",
     apiKeys: "API-Schlüssel", automations: "Automatisierungen", branding: "Branding", team: "Team", instantly: "Instantly", blocklist: "Blockliste", costs: "API-Kosten", settings: "Einstellungen", guide: "Anleitung",
     mcp: "Claude-Zugang",
     // Nur auf dem Handy sichtbar (siehe mobile-nav.tsx).
@@ -577,6 +577,9 @@ const de = {
     websiteFindingsToggle: "Website-Schwächen analysieren",
     websiteFindingsToggleHint:
       "Prüft jede gefundene Website und schreibt den Befund für {{websiteFinding}}. Verlängert die Suche; nur einschalten, wenn die Kampagne den Befund nutzt. Der Icebreaker entsteht unabhängig davon.",
+    personFindingsToggle: "Person recherchieren",
+    personFindingsToggleHint:
+      "Sucht je Kontakt, was die Person selbst veröffentlicht hat (LinkedIn-Beiträge, Interviews, Werdegang) und schreibt daraus den Absatz {{personFinding}}. Jede Person ist eine Websuche, ein bis drei Cent. Nur mit LinkedIn-Profil.",
     coverageCountry: "Land",
     coverageCountryNone: "Land wählen",
     coverageTarget: "Ziel: Leads insgesamt",
@@ -1723,6 +1726,7 @@ const de = {
         variableEmail: "E-Mail",
         variablePersonalization: "Icebreaker",
         variableWebsiteFinding: "Website-Befund",
+        variablePersonFinding: "Personen-Befund",
         variableOptOut: "Abmelde-Link",
         previewToggle: "Vorschau: Absätze und Zeilenumbrüche",
         scheduleLabel: "Sende-Fenster",
@@ -2563,6 +2567,13 @@ const de = {
         why: "Deine Sequenz benutzt {{websiteFinding}}. Leads ohne Befund (keine Website, Seite nicht erreichbar, nichts gefunden) werden zurückgehalten, damit keine Mail mit einer leeren Zeile rausgeht.",
         action: "Leads mit Befund ansehen",
       },
+      personFindingMissing: {
+        ok: "Jeder Lead hat einen Personen-Befund",
+        bad: (count: number, total: number) =>
+          `${count} von ${total} Leads haben keinen Personen-Befund und gehen nicht mit`,
+        why: "Deine Sequenz benutzt {{personFinding}}. Leads ohne Absatz (kein LinkedIn-Profil, nichts Öffentliches gefunden, noch in Arbeit, oder in der Prüfung) werden zurückgehalten, damit keine Mail mit einer leeren Zeile rausgeht.",
+        action: "Prüfliste öffnen",
+      },
       sequence: {
         ok: (steps: number) => `${steps} Schritte in der Sequenz`,
         bad: "Die Sequenz hat nur einen Schritt",
@@ -2603,6 +2614,28 @@ const de = {
     unclassified: "nicht eingestuft",
     noReplies: "Noch keine Antwort.",
     csv: "Als CSV laden",
+  },
+  personFindingReview: {
+    title: "Personen-Befund prüfen",
+    subtitle:
+      "Absätze, die ein Mensch sehen soll, bevor sie rausgehen: weil die Quelle nicht eindeutig an die Person gebunden ist, oder weil der Text gegen die Regeln verstößt.",
+    empty: "Nichts zu prüfen.",
+    reasonAnchor: "Quelle nicht eindeutig an die Person gebunden",
+    reasonRules: "Verstößt gegen Wortgrenze oder Verbotsliste",
+    source: "Quelle",
+    evidence: "Beleg",
+    age: (months: number) => `vor etwa ${months} Monaten`,
+    angle: "Aufhänger",
+    approve: "Freigeben",
+    discard: "Verwerfen",
+    save: "Text speichern",
+    edit: "Bearbeiten",
+    cancel: "Abbrechen",
+    approved: "Freigegeben",
+    discarded: "Verworfen",
+    saved: "Gespeichert",
+    problems: (n: number) => (n === 1 ? "1 Verstoß" : `${n} Verstöße`),
+    count: (n: number) => (n === 1 ? "1 Absatz" : `${n} Absätze`),
   },
   effectiveness: {
     title: "Wirkung",
@@ -2861,7 +2894,7 @@ const en: Dictionary = {
   nav: {
     dashboard: "Dashboard", searches: "Searches", leads: "All Leads",
     pipeline: "Pipeline", calls: "Call list", linkedin: "LinkedIn", inbox: "Inbox",
-    aiAgent: "AI Agent", offers: "Offer", icebreaker: "Icebreakers", effectiveness: "Effect", commission: "Commission",
+    aiAgent: "AI Agent", offers: "Offer", icebreaker: "Icebreakers", effectiveness: "Effect", commission: "Commission", personFinding: "Person finding",
     apiKeys: "API keys", automations: "Automations", branding: "Branding", team: "Team", instantly: "Instantly", blocklist: "Blocklist", costs: "API costs", settings: "Settings", guide: "Guide",
     mcp: "Claude access",
     menu: "Menu",
@@ -3389,6 +3422,9 @@ const en: Dictionary = {
     websiteFindingsToggle: "Analyze website weaknesses",
     websiteFindingsToggleHint:
       "Checks every website found and writes the finding for {{websiteFinding}}. Makes the search take longer; only enable it if your campaign uses the finding. The icebreaker is generated either way.",
+    personFindingsToggle: "Research the person",
+    personFindingsToggleHint:
+      "For each contact, looks up what the person published themselves (LinkedIn posts, interviews, career) and writes the {{personFinding}} paragraph from it. Every person is one web search, one to three cents. LinkedIn profile required.",
     coverageCountry: "Country",
     coverageCountryNone: "Pick a country",
     coverageTarget: "Target: leads in total",
@@ -4492,6 +4528,7 @@ const en: Dictionary = {
         variableEmail: "Email",
         variablePersonalization: "Icebreaker",
         variableWebsiteFinding: "Website finding",
+        variablePersonFinding: "Person finding",
         variableOptOut: "Opt-out link",
         previewToggle: "Preview: paragraphs and line breaks",
         scheduleLabel: "Sending window",
@@ -5285,6 +5322,13 @@ const en: Dictionary = {
         why: "Your sequence uses {{websiteFinding}}. Leads without a finding (no website, site unreachable, nothing found) are held back so no mail goes out with an empty line in it.",
         action: "Show leads with a finding",
       },
+      personFindingMissing: {
+        ok: "Every lead has a person finding",
+        bad: (count: number, total: number) =>
+          `${count} of ${total} leads have no person finding and will be held back`,
+        why: "Your sequence uses {{personFinding}}. Leads without a paragraph (no LinkedIn profile, nothing public found, still running, or awaiting review) are held back so no email goes out with an empty line.",
+        action: "Open review list",
+      },
       sequence: {
         ok: (steps: number) => `${steps} steps in the sequence`,
         bad: "The sequence has only one step",
@@ -5325,6 +5369,28 @@ const en: Dictionary = {
     unclassified: "not classified",
     noReplies: "No replies yet.",
     csv: "Download CSV",
+  },
+  personFindingReview: {
+    title: "Review person findings",
+    subtitle:
+      "Paragraphs a human should see before they go out: because the source is not tied to the person beyond doubt, or because the text breaks the rules.",
+    empty: "Nothing to review.",
+    reasonAnchor: "Source not tied to the person beyond doubt",
+    reasonRules: "Breaks the word limit or the banned list",
+    source: "Source",
+    evidence: "Evidence",
+    age: (months: number) => `about ${months} months ago`,
+    angle: "Angle",
+    approve: "Approve",
+    discard: "Discard",
+    save: "Save text",
+    edit: "Edit",
+    cancel: "Cancel",
+    approved: "Approved",
+    discarded: "Discarded",
+    saved: "Saved",
+    problems: (n: number) => (n === 1 ? "1 violation" : `${n} violations`),
+    count: (n: number) => (n === 1 ? "1 paragraph" : `${n} paragraphs`),
   },
   effectiveness: {
     title: "Effect",

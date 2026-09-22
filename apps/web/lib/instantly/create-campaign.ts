@@ -32,7 +32,9 @@ import {
   buildInstantlyLead,
   primaryVariant,
   toLocalStatus,
+  usesPersonFinding,
   usesWebsiteFinding,
+  PERSON_FINDING_FIELD,
   WEBSITE_FINDING_FIELD,
   type InstantlyCampaign,
   type SequenceStep,
@@ -56,6 +58,10 @@ export type CampaignContactRow = {
   is_primary: boolean;
   outreach_status: string;
   email_verification_status: string | null;
+  /** Der Absatz ueber den Menschen (Migration 0118), am Kontakt. Optional,
+   *  weil aeltere Abfragen die Spalten nicht laden. */
+  person_finding?: string | null;
+  person_finding_needs_review?: boolean | null;
   businesses: {
     name: string | null;
     website: string | null;
@@ -71,7 +77,7 @@ export type CampaignContactRow = {
  *  und muss deshalb durch dieselbe Abfrage und dieselben Filter
  *  (planCampaignLeads) gehen wie der Versand. */
 export const CONTACT_COLUMNS =
-  "id, email, first_name, last_name, title, business_id, is_primary, outreach_status, email_verification_status, businesses!inner(name, website, personalization, website_finding, search_id)";
+  "id, email, first_name, last_name, title, business_id, is_primary, outreach_status, email_verification_status, person_finding, person_finding_needs_review, businesses!inner(name, website, personalization, website_finding, search_id)";
 
 /**
  * Leads ohne Website-Befund von einer Sequenz trennen, die ihn benutzt.
@@ -116,6 +122,54 @@ export function splitByWebsiteFinding(
   return { rows: rows.filter((c) => !ohneIds.has(c.id)), withoutFinding };
 }
 
+/** Hat dieser Kontakt einen versendbaren Personen-Absatz: Text da und
+ *  nicht in der Pruefung? */
+export function hasPersonFinding(c: {
+  person_finding?: string | null;
+  person_finding_needs_review?: boolean | null;
+}): boolean {
+  return !!(c.person_finding ?? "").trim() && !c.person_finding_needs_review;
+}
+
+/**
+ * Eine Person je Firma, und zwar die richtige, wenn die Sequenz
+ * {{personFinding}} benutzt.
+ *
+ * DER FEHLER, DEN DAS BEHEBT (Codex-Review, 2026-09-22): bisher wurde erst
+ * der Primaerkontakt je Firma gewaehlt und danach nach Befund gefiltert.
+ * Beim Website-Befund ist das egal, er haengt an der Firma. Der
+ * Personen-Absatz haengt am Kontakt: waehlt man erst die Primaerperson und
+ * filtert dann, faellt eine Firma raus, obwohl ihre ZWEITE Person einen
+ * Absatz hat. Also andersherum: erst die Kontakte mit Absatz, dann je
+ * Firma die beste davon.
+ *
+ * needs_review zaehlt als "kein Absatz": ein Text, den ein Mensch noch
+ * nicht gesehen hat, geht nicht raus. Er wird getrennt gezaehlt, damit die
+ * Zahl im Torwart sagt, ob Recherche fehlt oder Freigabe.
+ *
+ * Gemeinsam fuer den Upload (planCampaignLeads) und den Torwart
+ * (api/campaigns/readiness): eine Vorschau, die anders zaehlt als der
+ * Versand, ist keine Vorschau.
+ */
+export function pickLeadsForSend<T extends CampaignContactRow>(
+  sendable: T[],
+  requirePersonFinding: boolean
+): { rows: T[]; withoutPersonFinding: T[]; personFindingNeedsReview: number } {
+  if (!requirePersonFinding) {
+    return { rows: pickPrimaryContactPerBusiness(sendable), withoutPersonFinding: [], personFindingNeedsReview: 0 };
+  }
+  const rows = pickPrimaryContactPerBusiness(sendable.filter(hasPersonFinding));
+  const versorgt = new Set(rows.map((c) => c.business_id));
+  const rest = sendable.filter((c) => !versorgt.has(c.business_id));
+  // Je Firma EIN Vertreter, sonst zaehlt eine Firma mit vier Kontakten
+  // viermal als "fehlt".
+  const withoutPersonFinding = pickPrimaryContactPerBusiness(rest);
+  const inPruefung = new Set(
+    rest.filter((c) => !!(c.person_finding ?? "").trim() && c.person_finding_needs_review).map((c) => c.business_id)
+  );
+  return { rows, withoutPersonFinding, personFindingNeedsReview: inPruefung.size };
+}
+
 /**
  * Wer aus den Lead-Listen tatsaechlich angeschrieben wird.
  *
@@ -139,12 +193,15 @@ export function splitByWebsiteFinding(
 export function planCampaignLeads(
   contacts: CampaignContactRow[],
   suppression: { email: string | null; domain: string | null }[],
-  archivedEmails: (string | null)[]
+  archivedEmails: (string | null)[],
+  options: { requirePersonFinding?: boolean } = {}
 ): {
   rows: CampaignContactRow[];
   engaged: CampaignContactRow[];
   suppressed: CampaignContactRow[];
   unsendable: CampaignContactRow[];
+  withoutPersonFinding: CampaignContactRow[];
+  personFindingNeedsReview: number;
 } {
   const withEmail = contacts.filter((c) => !!c.email);
   const { contactable: notDeclined, engaged } = splitByEngagement(withEmail);
@@ -159,7 +216,11 @@ export function planCampaignLeads(
   const erlaubteIds = new Set(erlaubt.map((c) => c.id));
   const suppressed = notDeclined.filter((c) => !erlaubteIds.has(c.id));
   const { sendable, unsendable } = splitBySendability(erlaubt);
-  return { rows: pickPrimaryContactPerBusiness(sendable), engaged, suppressed, unsendable };
+  const { rows, withoutPersonFinding, personFindingNeedsReview } = pickLeadsForSend(
+    sendable,
+    options.requirePersonFinding === true
+  );
+  return { rows, engaged, suppressed, unsendable, withoutPersonFinding, personFindingNeedsReview };
 }
 
 export type CreateCampaignInput = {
@@ -227,6 +288,10 @@ export type CreateCampaignReport = {
   /** Zurueckgehalten, weil die Sequenz {{websiteFinding}} benutzt und diese
    *  Leads keinen Befund haben. Immer 0, wenn die Sequenz ihn nicht benutzt. */
   skippedWithoutFinding: number;
+  /** Firmen ohne freigegebenen Personen-Absatz, nur wenn die Sequenz
+   *  {{personFinding}} benutzt. Davon in der Pruefung: das zweite Feld. */
+  skippedWithoutPersonFinding: number;
+  skippedPersonFindingReview: number;
   searchIds: string[];
 };
 
@@ -437,11 +502,34 @@ export async function createInstantlyCampaign(
   // Sicherheitsnetz gegen versehentliches erneutes Anschreiben. Die Regeln
   // stehen vollstaendig in planCampaignLeads, damit beide Wege in diese
   // Kampagne (Formular und MCP) durch dieselben vier Filter gehen.
-  const { rows: erlaubte, engaged, suppressed, unsendable } = planCampaignLeads(
+  const nutztPerson = usesPersonFinding(allVariants(steps));
+  const {
+    rows: erlaubte,
+    engaged,
+    suppressed,
+    unsendable,
+    withoutPersonFinding,
+    personFindingNeedsReview,
+  } = planCampaignLeads(
     (contacts ?? []) as unknown as CampaignContactRow[],
     (suppression ?? []) as { email: string | null; domain: string | null }[],
-    ((archived ?? []) as { email: string | null }[]).map((a) => a.email)
+    ((archived ?? []) as { email: string | null }[]).map((a) => a.email),
+    { requirePersonFinding: nutztPerson }
   );
+
+  if (erlaubte.length === 0 && withoutPersonFinding.length > 0) {
+    return {
+      ok: false,
+      status: 400,
+      reason: "no_sendable_leads",
+      error:
+        `Keine versendbaren Leads: die Sequenz benutzt {{${PERSON_FINDING_FIELD}}}, aber ` +
+        `keiner der ${withoutPersonFinding.length} Leads hat einen freigegebenen Personen-Befund` +
+        (personFindingNeedsReview > 0 ? ` (${personFindingNeedsReview} warten auf Pruefung)` : "") +
+        ". Entweder die Variable aus der Sequenz nehmen, die Pruefliste abarbeiten oder die " +
+        "Recherche fuer diese Liste anhaken.",
+    };
+  }
 
   // NACH den vier CAN-SPAM-Filtern und bewusst nicht in planCampaignLeads:
   // das hier ist kein Recht des Empfaengers, sondern eine Frage der
@@ -497,6 +585,8 @@ export async function createInstantlyCampaign(
     skippedSuppressed: suppressed.length,
     skippedEngaged: engaged.length,
     skippedWithoutFinding: withoutFinding.length,
+    skippedWithoutPersonFinding: withoutPersonFinding.length,
+    skippedPersonFindingReview: personFindingNeedsReview,
     searchIds,
   };
 

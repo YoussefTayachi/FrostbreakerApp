@@ -8,6 +8,7 @@ wenn ihn jemand lokal startet, und fuer einen "alle 5 Minuten nachschauen"-Trigg
 ist das der falsche Mechanismus. Die verbleibenden Pipelines hier (Leadsuche)
 brauchen weiterhin einen laufenden Worker, das ist unveraendert.
 """
+
 import logging
 import os
 import threading
@@ -23,6 +24,7 @@ from worker.pipelines import (
     find_decisionmaker,
     get_businesses,
     hunt_persons,
+    person_finding,
     personalize,
     sync_sent,
     website_finding,
@@ -108,6 +110,11 @@ HANDLERS = {
     # Icebreaker-Zusatzsignals von personalize.py nach website_finding.py
     # gewandert, weil nur noch dieser Job auf den Befund angewiesen ist.
     "write_website_finding": website_finding.run,
+    # Der Befund ueber den Menschen (Migrationen 0118, 0119). Zwei Nutzlasten,
+    # ein Typ: mit business_id faechert er je Kontakt auf, mit contact_id
+    # recherchiert er. Opt-in je Suche (filters.person_findings), jede
+    # Person ist eine bezahlte Websuche.
+    "write_person_finding": person_finding.run,
     # Der Gesendet-Ordner eines Postfachs per IMAP. Einziger Job hier, der
     # nicht zur Leadsuche gehoert, und der einzige, den pg_cron einreiht
     # (Migration 0114) statt eines vorangegangenen Jobs.
@@ -168,6 +175,7 @@ HEARTBEAT_INTERVAL_S = 30
 PROVIDER_BY_JOB_TYPE = {
     "find_decisionmaker": "openai",
     "personalize": "openai",
+    "write_person_finding": "openai",
     "hunt_persons": "hunter",
 }
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { planCampaignLeads, splitByWebsiteFinding, type CampaignContactRow } from "./create-campaign";
+import { pickLeadsForSend, planCampaignLeads, splitByWebsiteFinding, type CampaignContactRow } from "./create-campaign";
 
 /**
  * Wer beim Anlegen einer Kampagne tatsaechlich hochgeladen wird.
@@ -165,5 +165,52 @@ describe("splitByWebsiteFinding", () => {
     const split = splitByWebsiteFinding([mitBefund, ohneBefund], false);
     expect(split.rows).toHaveLength(2);
     expect(split.withoutFinding).toHaveLength(0);
+  });
+});
+
+describe("pickLeadsForSend: der Personen-Absatz haengt am Kontakt", () => {
+  const basis = {
+    email: "x@y.z",
+    first_name: null,
+    last_name: null,
+    title: null,
+    is_primary: false,
+    outreach_status: "new",
+    email_verification_status: "valid",
+    businesses: { name: "Firma", website: null, personalization: null, website_finding: null, search_id: "s" },
+  };
+  const c = (id: string, business_id: string, over: Partial<CampaignContactRow> = {}): CampaignContactRow =>
+    ({ ...basis, id, business_id, ...over }) as CampaignContactRow;
+
+  it("waehlt die zweite Person, wenn nur sie einen Absatz hat", () => {
+    const rows = [
+      c("a", "b1", { is_primary: true }),
+      c("b", "b1", { person_finding: "Absatz", person_finding_needs_review: false }),
+    ];
+    const r = pickLeadsForSend(rows, true);
+    expect(r.rows.map((x) => x.id)).toEqual(["b"]);
+    expect(r.withoutPersonFinding).toEqual([]);
+  });
+
+  it("zaehlt eine Firma ohne Absatz einmal, nicht je Kontakt", () => {
+    const rows = [c("a", "b1"), c("b", "b1"), c("d", "b2", { person_finding: "Absatz" })];
+    const r = pickLeadsForSend(rows, true);
+    expect(r.rows.map((x) => x.id)).toEqual(["d"]);
+    expect(r.withoutPersonFinding.length).toBe(1);
+  });
+
+  it("haelt einen Absatz in der Pruefung zurueck und zaehlt ihn getrennt", () => {
+    const rows = [c("a", "b1", { person_finding: "Absatz", person_finding_needs_review: true })];
+    const r = pickLeadsForSend(rows, true);
+    expect(r.rows).toEqual([]);
+    expect(r.withoutPersonFinding.length).toBe(1);
+    expect(r.personFindingNeedsReview).toBe(1);
+  });
+
+  it("aendert ohne die Variable nichts an der bisherigen Auswahl", () => {
+    const rows = [c("a", "b1", { is_primary: true }), c("b", "b1", { person_finding: "Absatz" })];
+    const r = pickLeadsForSend(rows, false);
+    expect(r.rows.map((x) => x.id)).toEqual(["a"]);
+    expect(r.personFindingNeedsReview).toBe(0);
   });
 });

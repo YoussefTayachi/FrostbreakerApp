@@ -17,6 +17,7 @@ Drei Quellen, die sich in Schritt 1-3 unterscheiden und in Schritt 4 fast:
 
 Die beiden Personen-Wege teilen sich den Schreibpfad in _store_people_pairs.
 """
+
 from collections.abc import Callable
 from datetime import datetime, timedelta, timezone
 
@@ -283,7 +284,9 @@ def _surviving_pairs(ws: str, pairs: list[dict]) -> tuple[dict[str, dict], dict[
             continue
         if d in blocked_domains:
             continue
-        if contact.get("email") and is_suppressed(sup_emails, blocked_domains, email=contact["email"]):
+        if contact.get("email") and is_suppressed(
+            sup_emails, blocked_domains, email=contact["email"]
+        ):
             continue
         by_website.setdefault(website, biz)
         contacts_by_website.setdefault(website, []).append(contact)
@@ -444,9 +447,7 @@ def run_apollo(search: dict, ws: str) -> None:
     # Domain kommt erst mit dem bezahlten Datensatz. Die Abwaegung dazu steht
     # in apollo.collect_people.
     known_companies = {
-        apollo.normalize_company(b.get("name"))
-        for b in businesses_to_skip(ws)
-        if b.get("name")
+        apollo.normalize_company(b.get("name")) for b in businesses_to_skip(ws) if b.get("name")
     }
     known_companies.discard("")
 
@@ -470,7 +471,9 @@ def run_apollo(search: dict, ws: str) -> None:
     # und es wegzuwerfen waere die zweite Verschwendung nach der ersten.
     if search_is_cancelled(search["id"]):
         _store_people_pairs(
-            search, ws, pairs,
+            search,
+            ws,
+            pairs,
             transport_field="apollo_id",
             summary_of=lambda _w: None,
         )
@@ -710,9 +713,7 @@ def run(job: dict) -> None:
                 known.add(parsed["place_id"])
                 rows.append(parsed | {"workspace_id": ws, "search_id": search_id})
             if rows:
-                sb().table("businesses").upsert(
-                    rows, on_conflict="workspace_id,place_id"
-                ).execute()
+                sb().table("businesses").upsert(rows, on_conflict="workspace_id,place_id").execute()
                 collected += len(rows)
             token = data.get("nextPageToken") or ""
             if not token:
@@ -835,6 +836,13 @@ def _finish(search_id: str, ws: str, auto_enrich: bool, source: str) -> None:
             _queue_website_audits(ws, rows)
         if not skip_personalize:
             enqueue_many(ws, "personalize", [{"business_id": b["id"]} for b in rows])
+        # Der Personen-Befund, nur auf Wunsch (Haken im Suchformular, jede
+        # Person ist eine bezahlte Websuche). Hier je Firma, weil die Kontakte
+        # bei Apollo und Prospeo schon da sind. Bei Maps und Corporate
+        # entstehen sie erst spaeter; dort reihen find_decisionmaker und
+        # hunt_persons nach dem Kontakt-Insert ein (person_finding.reihe_ein).
+        if filters.get("person_findings"):
+            enqueue_many(ws, "write_person_finding", [{"business_id": b["id"]} for b in rows])
         return
     # Genau EINE Adressquelle pro Suchweg. Vorher liefen bei Maps beide
     # (KI-Websuche UND Hunter), was denselben Kontakt zweimal bezahlte: einmal

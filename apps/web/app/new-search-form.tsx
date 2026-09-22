@@ -660,6 +660,7 @@ export default function NewSearchForm({
   // Suche dadurch spuerbar laenger lief. Standard aus; der Icebreaker
   // entsteht unabhaengig davon (seit Migration 0103).
   const [websiteFindings, setWebsiteFindings] = useState(false);
+  const [personFindings, setPersonFindings] = useState(false);
   const [selectedPlaybook, setSelectedPlaybook] = useState("");
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [presets, setPresets] = useState<Preset[]>([]);
@@ -800,6 +801,7 @@ export default function NewSearchForm({
     // Maps in painPointFilters mit (Zeilen UND Gruppen-Huelle), bei den drei
     // anderen Wegen wird er unten je Zweig angehaengt.
     if (websiteFindings) painPointFilters.website_findings = true;
+    if (personFindings) painPointFilters.person_findings = true;
     const rawResults = estimateRawResults(targetEmails);
 
     let rows: Record<string, unknown>[];
@@ -929,7 +931,7 @@ export default function NewSearchForm({
           // angezeigte Zahl gilt damit fuer genau diese Suche. Der
           // website_findings-Schalter kommt erst hier dazu: er aendert nichts
           // an Apollos Treffern, nur am Ablauf danach.
-          filters: { ...apolloFilters, ...(websiteFindings ? { website_findings: true } : {}) },
+          filters: { ...apolloFilters, ...(websiteFindings ? { website_findings: true } : {}), ...(personFindings ? { person_findings: true } : {}) },
         },
       ];
     } else if (mode === "prospeo") {
@@ -962,7 +964,7 @@ export default function NewSearchForm({
           max_results: apolloTarget, target_email_count: apolloTarget,
           // Genau das Objekt, das der Trefferzaehler gezaehlt hat, plus der
           // Ablaufschalter, der an Prospeos Treffern nichts aendert.
-          filters: { ...prospeoFilters, ...(websiteFindings ? { website_findings: true } : {}) },
+          filters: { ...prospeoFilters, ...(websiteFindings ? { website_findings: true } : {}), ...(personFindings ? { person_findings: true } : {}) },
         },
       ];
     } else {
@@ -986,7 +988,7 @@ export default function NewSearchForm({
             // Siehe Apollo-Zweig: leeres Array wuerde den Discover-Offset-
             // Abgleich gegen aeltere Suchen brechen.
             ...(hunterTech.length > 0 ? { technologies: hunterTech } : {}),
-            ...(websiteFindings ? { website_findings: true } : {}),
+            ...(websiteFindings ? { website_findings: true } : {}), ...(personFindings ? { person_findings: true } : {}),
           },
         },
       ];
@@ -1055,6 +1057,7 @@ export default function NewSearchForm({
     // und ein stehengebliebenes Haekchen der zuvor angesehenen Vorlage waere
     // genau die Analyse, die niemand bestellt hat.
     setWebsiteFindings(preset.websiteFindings ?? false);
+    setPersonFindings(preset.personFindings ?? false);
     setIndustry(preset.industry);
     setCity(preset.city);
     setUsState(preset.state ?? "");
@@ -1143,7 +1146,7 @@ export default function NewSearchForm({
       radius,
       targetEmails,
       noWebsite: painPointNoWebsite, maxRating: painPointMaxRating,
-      websiteFindings,
+      websiteFindings, personFindings,
       industry, city, state: usState, country, headcount, keywords,
       personTitles, apolloCountries, apolloSeniorities, technologies, marketSegments,
       // Bis zum 2026-08-10 fehlte diese Zeile. Eine Prospeo-Vorlage speicherte
@@ -1305,6 +1308,21 @@ export default function NewSearchForm({
         <span>
           {t.newSearchForm.websiteFindingsToggle}
           <span className="block text-xs text-faint">{t.newSearchForm.websiteFindingsToggleHint}</span>
+        </span>
+      </label>
+      {/* Opt-in, Standard aus: jede Person ist eine bezahlte Websuche, und
+          bei Google-Maps-Listen haben 7 Prozent der Kontakte ueberhaupt ein
+          LinkedIn-Profil (gemessen 2026-09-22). Wer es will, hakt es an. */}
+      <label className="flex cursor-pointer items-start gap-2.5 py-0.5 text-sm text-soft">
+        <input
+          type="checkbox"
+          checked={personFindings}
+          onChange={(e) => setPersonFindings(e.target.checked)}
+          className="mt-0.5 h-4 w-4 shrink-0 rounded accent-sky-600"
+        />
+        <span>
+          {t.newSearchForm.personFindingsToggle}
+          <span className="block text-xs text-faint">{t.newSearchForm.personFindingsToggleHint}</span>
         </span>
       </label>
       {/* Der Umschalter steht VOR den Feldern, weil er bestimmt, welche Felder

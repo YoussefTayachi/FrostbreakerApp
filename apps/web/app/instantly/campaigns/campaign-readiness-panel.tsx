@@ -242,6 +242,15 @@ function describe(check: ReadinessCheck, L: Labels): { text: string; why?: strin
         href: "/leads",
         action: L.websiteFindingMissing.action,
       };
+    case "personFindingMissing":
+      return {
+        text: ok
+          ? L.personFindingMissing.ok
+          : L.personFindingMissing.bad(Number(v.count), Number(v.total)),
+        why: L.personFindingMissing.why,
+        href: "/person-finding",
+        action: L.personFindingMissing.action,
+      };
     case "sequence":
       return { text: ok ? L.sequence.ok(Number(v.steps)) : L.sequence.bad, why: L.sequence.why };
     case "firstMailLength":

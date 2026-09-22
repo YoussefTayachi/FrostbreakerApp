@@ -3,6 +3,7 @@
 Hunter Domain-Search (executive/management, limit 5).
 Verbesserung ggü. n8n: E-Mails mit verification.status == 'invalid' werden verworfen.
 """
+
 from urllib.parse import urlparse
 
 import httpx
@@ -77,7 +78,15 @@ def domain_search(domain: str, api_key: str) -> dict:
 def run(job: dict) -> None:
     ws = job["workspace_id"]
     business_id = job["payload"]["business_id"]
-    biz = sb().table("businesses").select(BUSINESS_WITH_SEARCH).eq("id", business_id).single().execute().data
+    biz = (
+        sb()
+        .table("businesses")
+        .select(BUSINESS_WITH_SEARCH)
+        .eq("id", business_id)
+        .single()
+        .execute()
+        .data
+    )
     if search_is_deleted(biz):
         return  # Suche im Papierkorb, keine Hunter-Credits fuer unsichtbare Leads
 
@@ -102,9 +111,7 @@ def run(job: dict) -> None:
         # Adressen dabei herauskommen; deshalb hier zaehlen und nicht erst
         # nach der Sperrlisten-Filterung. Der Eurowert eines Credits haengt am
         # Tarif und bleibt offen (siehe worker/usage.py).
-        usage.record(
-            ws, "hunter", "domain_search", 1, "credits", search_id=biz.get("search_id")
-        )
+        usage.record(ws, "hunter", "domain_search", 1, "credits", search_id=biz.get("search_id"))
         emails, domains = load_suppression(ws)
         contacts = [
             c | {"workspace_id": ws, "business_id": business_id}
@@ -114,6 +121,11 @@ def run(job: dict) -> None:
         if contacts:
             sb().table("contacts").insert(contacts).execute()
             set_status("found")
+            # Siehe find_decisionmaker: der Personen-Befund braucht Kontakte,
+            # und die gibt es bei Corporate erst hier.
+            from worker.pipelines import person_finding
+
+            person_finding.reihe_ein(ws, biz)
         else:
             set_status("not_found")
     except Exception:

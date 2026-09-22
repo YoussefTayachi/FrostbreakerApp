@@ -1,201 +1,136 @@
-# Plan Review Log: Website-Befunde massenhaft, gemessen im echten Browser
+# Plan Review Log: Person-Finding
+Phases 0-1 (recon + interrogation) complete — plan locked with the user. MAX_ROUNDS=5. inspect=on.
 
-Phasen 0 bis 1 (Recon + Befragung) abgeschlossen, Plan mit Youssef gelockt.
-MAX_ROUNDS=5, PLAN_FILE=PLAN.md, inspect=on.
+## Mechanik-Hinweis (Runde 1)
+Codex' Read-only-Sandbox auf Windows blockt PowerShell ("blocked by policy"), damit kann der Reviewer keine Datei lesen. Plan, Migration, Entwurf und die relevanten Code-Ausschnitte wurden deshalb in den Prompt inliniert (REVIEW_PROMPT_R1). Sandbox bleibt read-only. Reviewer-Modell laut Codex-Ausgabe: gpt-5.6-terra (CLI-Standard, nichts gepinnt).
 
-Recon: Graph-Abfrage ueber den Wissensgraphen, dann website_audit.py,
-website_finding.py, check_website.py, main.py und pyproject.toml gelesen.
-Der Katalog wurde gegen 38 echte Leads laufen gelassen und mit einer
-Playwright-Messung derselben Seiten verglichen.
+## Round 1 — Codex (thread 01a0c9f9-45b9-7e12-866e-9ee9957ad00b)
+- **Race/Doppelkosten:** Fan-out und `run()` setzen Status unconditionally; zwei Jobs können denselben Kontakt gleichzeitig recherchieren. **Fix:** Status atomar per `UPDATE … WHERE status IS NULL/PENDING RETURNING id` claimen und nur der Gewinner darf enqueuen bzw. suchen.
 
-Befragung: Q1 (ersetzen oder ergaenzen) -> ergaenzen, zweite Stufe.
-Q2 (wo laeuft es) loeste sich im Code auf: der Worker laeuft lokal.
-Q3 (Befundtiefe) -> Youssefs eigene Antwort: ein Mangel, 2 bis 3 Saetze mit
-Begruendung, ruhiger respektvoller Ton.
-Kosmetik als Batch, ohne Widerspruch.
+- **Verlorene Jobs:** Status wird vor `enqueue_many` auf `pending` gesetzt; schlägt das Enqueue fehl, bleiben Kontakte dauerhaft hängen. **Fix:** Statuswechsel und Outbox/Job-Erzeugung in einer DB-Transaktion bzw. RPC kapseln.
 
-## Runde 1 - Codex
+- **Papierkorb wird ignoriert:** Anders als `website_finding` prüft die neue Pipeline nicht `search_is_deleted`; Jobs nach Schritt 7d können weiter Web-Suchen bezahlen. **Fix:** Vor jedem Statuswechsel und Modellaufruf Suche auf `deleted_at` prüfen und abbrechen.
 
-Sandbox-Befund vorab: die read-only Sandbox von Codex blockiert unter Windows
-PowerShell komplett ("rejected: blocked by policy"), Codex konnte also keine
-Datei lesen. Der Plan und die Codeauszuege gehen seitdem ueber stdin in den
-Prompt. Der erste Verdict (REVISE mangels Lesbarkeit) zaehlt nicht.
+- **Filter ist nur beim Enqueue wirksam:** Wird `person_findings` nach dem Start deaktiviert, bereits eingereihte Jobs laufen trotzdem weiter. **Fix:** Im Kontaktjob den aktuellen Search-Filter prüfen und bei deaktiviertem Flag ohne Recherche beenden.
 
-- `write_website_finding` wartet laut Code nur auf `check_website`; es kann daher vor `browser_check` formulieren und wird wegen Idempotenz später nicht aktualisiert. — Fix: einen expliziten Audit-Fertigkeitsstatus beider Stufen einführen und den Finding-Job erst danach einmalig freigeben.
+- **Corporate-Leads werden übersehen:** `_finish()` fannt für Corporate aus, bevor `hunt_persons` Kontakte einfügt; der Plan hängt nur `find_decisionmaker` nach Insert ein. **Fix:** Person-Finding zentral nach jedem Kontakt-Insert auslösen, insbesondere auch in `hunt_persons`.
 
-- „Nach `check_website` eingereiht“ ist keine Abhängigkeit: Queue-Reihenfolge garantiert weder Start noch Abschluss, insbesondere bei Retries. — Fix: `browser_check` erst atomar nach erfolgreichem/terminalem HTML-Check erzeugen und Abhängigkeiten datenbankseitig prüfen.
+- **Kontakt-Level wird beim Versand gebrochen:** Readiness wählt erst einen Primärkontakt je Firma und filtert danach nach Finding; ein zweiter Kontakt mit Finding wird dadurch verworfen. **Fix:** Zuerst nach benötigtem `person_finding` filtern und danach den besten verbleibenden Kontakt pro Firma wählen.
 
-- Zwei Jobs schreiben gleichzeitig in dieselbe JSONB-Spalte; ein vollständiges Update kann das Ergebnis der anderen Quelle verlieren. — Fix: atomisches `jsonb_set`/Merge oder getrennte, versionierte Felder (`website_audit_html`, `website_audit_browser`) verwenden.
+- **Apollo-Kontext fehlt in der tatsächlichen Abfrage:** Der Draft lädt keinen `custom`-Wert, obwohl der Plan Apollo-Daten dort speichern und verwenden will. **Fix:** `contacts.custom` gezielt selektieren, validieren und als klar abgegrenzten Apollo-Kontext übergeben.
 
-- `source` allein definiert weder das JSON-Schema noch, wie alte flache Audits und zwei Befundkataloge zu einem Gewinner kombiniert werden. — Fix: ein versioniertes Envelope-Schema samt deterministischer `top_finding()`-Regel über beide Quellen spezifizieren und migrieren.
+- **“Nur suchen, was Apollo nicht weiß” ist nicht implementiert:** `research()` aktiviert immer `web_search`; auch vollständige Apollo-Werdegänge lösen eine bezahlte Suche aus. **Fix:** Eine tool-lose Apollo-First-Stufe oder einen harten Search-Gate einführen.
 
-- `render_blocked` ist nicht zwingend ein Mangel: Client Rendering kann beabsichtigt sein, während Nutzer die Seite vollständig sehen; der Roh-HTTP-Abruf ist kein Kundenbrowser. — Fix: nie als pauschalen Mailbefund verwenden; höchstens bei belegtem SEO-/Crawler-Symptom und präziser, überprüfbarer Formulierung.
+- **Maps-Kostenfalle:** Die Fan-out-Abfrage recherchiert jeden Kontakt mit E-Mail, obwohl laut Plan nur 7 % der Maps-Kontakte ein LinkedIn-Profil haben. **Fix:** Für v1 nur Kontakte mit verifizierter LinkedIn-URL bzw. ausreichendem Identitätsanker zulassen.
 
-- `slow_load` ist undefiniert („bis interaktiv“), stark abhängig von Standort, Cache, CPU, Consent-Bannern und Bot-Abwehr und erzeugt leicht falsche Geschäftsfolgen. — Fix: eine klar definierte Metrik unter dokumentierten Testbedingungen mehrfach messen und nur die beobachtete Verzögerung, nicht Umsatzverlust, behaupten.
+- **Retry-Multiplikator:** Tenacity, OpenAI-Client-Retries und Queue-Retries können denselben fehlgeschlagenen Web-Call vielfach abrechnen; Fehlschläge erscheinen womöglich nicht in `api_usage`. **Fix:** Einen globalen Versuchszähler nutzen, fehlgeschlagene Aufrufe erfassen und pro Kontakt ein Kostenlimit setzen.
 
-- `mobile_overflow` kann von absichtlichen Carousels, Off-canvas-Elementen oder Messartefakten stammen und beweist nicht, dass Nutzer horizontal scrollen müssen. — Fix: nur sichtbaren, nicht-interaktiven Überlauf im Hauptinhalt nachweisen und Screenshot/DOM-Beleg am konkreten Element speichern.
+- **Keine Budget- oder Fairness-Grenze:** Tausende 120-Sekunden-Websuchen können zwei Worker-Repliken stundenlang blockieren und andere Workspaces verdrängen. **Fix:** Workspace-Quota, niedrige dedizierte Parallelität und Batch-/Tageslimit für Person-Finding einführen.
 
-- `empty_section` verwechselt Tabs, Akkordeons, Cookie-Zustände, Animationen und Lazy Loading mit defektem Inhalt; der Ausschluss nur von Menü/Dialog reicht nicht. — Fix: interaktive/absichtlich eingeklappte Komponenten erkennen, nach stabiler Wartezeit messen und den Befund nur bei sichtbarer, unzugänglicher Hauptinhalt-Region zulassen.
+- **Namensverwechslung bleibt technisch unkontrolliert:** Ein Modell darf `source_kind` und Firmenbindung behaupten; eine URL allein beweist nicht, dass Dean Smith bei genau dieser Firma gemeint ist. **Fix:** Identität deterministisch gegen LinkedIn-URL oder Quelle mit Firmen-/Rollenbeleg validieren, sonst `none`.
 
-- Drei Konsolenfehler sind häufig Third-Party-Analytics-, CORS-, Consent- oder Bot-spezifisch und sagen nichts darüber aus, ob die Website für Kunden kaputt ist. — Fix: nur first-party, ungefangene Fehler mit nachweisbarer sichtbarer Funktionsstörung als Mailbefund zulassen.
+- **Career-Findings widersprechen dem Sicherheitsprinzip:** `background`, `side_switch` usw. aus Apollo-Profilen sind keine öffentliche Äußerung und kollidieren mit „wer nichts Öffentliches hat, bekommt keinen Absatz“. **Fix:** Karriere-only-Findings aus v1 entfernen oder ausdrücklich als separaten, strengeren und sichtbaren Modus definieren.
 
-- CSS unter 12px und Ziele unter 44px sind keine universellen Fehler; Fußnoten, dicht platzierte Controls und ausreichender Abstand können legitim sein. — Fix: auf relevante sichtbare Hauptinhalte bzw. tatsächlich nicht bedienbare Controls begrenzen und neutral als Beobachtung statt als Schaden formulieren.
+- **Ungeprüfte Provenienz:** DDL speichert nur Text, Status und Review-Flag, nicht Claim, URL, Datum oder Fundtyp; später kann niemand eine Mail prüfen oder korrigieren. **Fix:** Strukturierte Provenienz je Finding persistent speichern, inklusive URL, Abrufzeit, Identitätsanker und ausgewähltem Typ.
 
-- Die geforderte Folge „kostet das Unternehmen Geld“ ist bei fast allen Codes eine unbelegte Kausalbehauptung und in einer Kaltmail falsifizierbar bzw. unfalsifizierbar. — Fix: Prompt und `CONSEQUENCE_DE` auf konditionale, konkrete Nutzerauswirkungen beschränken („kann auf kleinen Displays schwer lesbar sein“), ohne Umsatz-, Conversion- oder Kundenverlust zu behaupten.
+- **Prompt-Injection-Grenze fehlt:** Web-Funde, `verbatim` und rohe Apollo-Felder werden dem Schreibmodell als Instruktions-naher Text übergeben. **Fix:** Untrusted-Daten klar delimitieren, als Daten statt Anweisungen behandeln und vor Übergabe Längen-/Zeichenlimits anwenden.
 
-- Das Prompt-Verbot, auf die eigene Prüfung hinzuweisen, entfernt den nötigen Kontext für zeitabhängige Browserbeobachtungen; ein Seiten-Deploy kann die Aussage sofort falsch machen. — Fix: eine knappe, datierte Beobachtungsform erlauben und nur Befunde versenden, deren Beleg-URL, Viewport und Zeit gespeichert sind.
+- **„Eigene Verbotsliste“ ist unklar umgesetzt:** Der Draft übergibt `cfg["banned_words"]`, nicht die im Plan definierte Person-Finding-Liste; außerdem decken englische Wörter deutsche Texte kaum ab. **Fix:** Eine eigene, sprachspezifische, normalisierte Liste explizit bauen und in beiden Validierungsdurchläufen verwenden.
 
-- Screenshots als „Beleg“ haben keinen Speicher-, Zugriffs-, Retentions- oder Datenschutzplan und können Kontakt-, Cookie- oder personenbezogene Inhalte enthalten. — Fix: Speicherung und Zugriff explizit definieren, sensible Bereiche minimieren/redigieren und eine kurze Retention festlegen.
+- **Prompt verlangt erfundene Haltung:** „Where you stand“ fordert eine persönliche Position, liefert aber keine belastbare Senderposition außer dem Angebot. **Fix:** Nur explizit hinterlegte POV-Sätze erlauben oder diesen Teil streichen.
 
-- Das Laden beliebiger Lead-URLs im vollwertigen Browser erweitert SSRF erheblich, inklusive Redirects, DNS-Rebinding und interner Ressourcen. — Fix: für Initial- und jeden Redirect-Zielhost private/link-local/reservierte IPs blockieren, DNS erneut prüfen und Browser-Egress begrenzen.
+- **Quellenbenennung kann halluzinieren:** Das Modell kann „auf LinkedIn“ schreiben, obwohl `source_url` eine andere oder tote Quelle ist. **Fix:** Quellenlabel serverseitig aus validiertem URL-Host und `source_kind` ableiten.
 
-- Es fehlen Timeouts, Navigation-/Resource-Limits, Download-Blockierung und Browser-Prozess-Lebenszyklus; eine bösartige Seite kann Worker und RAM blockieren. — Fix: Context pro Job isolieren, harte Navigation/Gesamtzeit-/Speichergrenzen setzen, Downloads deaktivieren und Prozesse zuverlässig schließen.
+- **`needs_review` blockiert keinen Upload:** Ein fehlerhafter Person-Absatz kann trotz gesetztem Flag als Merge-Variable versendet werden. **Fix:** Kontakte mit `person_finding_needs_review=true` bei verwendeter Variable genauso zurückhalten und separat ausweisen.
 
-- Consent-Walls, Login-Walls, Geoblocking und Bot-Challenges können Messwerte und Screenshots verfälschen, werden aber nicht als eigener neutraler Zustand modelliert. — Fix: diese Zustände erkennen, als `inconclusive` speichern und daraus keinen negativen Mailbefund erzeugen.
+- **Status-Observability ist zu schwach:** `none`, `failed`, `pending` und laufende Suchen werden im Kampagnen-Torwart alle nur als „missing“ sichtbar. **Fix:** Readiness und UI um Statuszählungen, Fehlerraten, Alter laufender Jobs und Kosten pro Ergebnis erweitern.
 
-- Vier parallele Jobs reichen rechnerisch nur im Ideal: 4.365 × 1,8 s / 4 sind bereits rund 33 Minuten ohne Browserstart, zweites Viewport, Screenshots, Retries, Timeouts oder andere Queue-Arbeit. — Fix: vor dem Backfill Lasttest mit realem Worker durchführen und eine dedizierte, begrenzte Browser-Worker-Kapazität samt Durchsatz-SLO festlegen.
-
-- Der Plan belegt nicht, dass die gemeinsame Queue 4.365 zusätzliche lange Jobs tragen kann; Browser-Jobs können reguläre Lead-, Personalisierungs- und Sendejobs verhungern lassen. — Fix: Job-Typ-spezifische Queues oder Reservierungen, Prioritäten und eine Backfill-Rate mit Fairness gegenüber Live-Jobs einführen.
-
-- Ein Konsolen-Fortschritt ist nicht resumierbar und macht Abbruch, Doppel-Einreihung und exakte Backfill-Abdeckung unsichtbar. — Fix: persistierten Backfill-Run mit Cursor, idempotentem Enqueue-Key, Zählern und terminalen Fehlerzuständen anlegen.
-
-- Mehrere Leads können dieselbe Domain haben; der Backfill erzeugt unnötige identische Browseraufrufe und erhöht Blockierungsrisiko. — Fix: nach kanonisierter finaler URL/Domain deduplizieren und Ergebnisse kontrolliert auf berechtigte Leads fan-outen.
-
-- Der Browserweg ist nur mit HTML-Schnipseln und einer lokalen Seite getestet; die kritischen Fehler liegen in Queue-Reihenfolge, JSONB-Rennen, Redirect/SSRF, Lazy Loading, Bot-/Consent-Zuständen und Backfill-Resume. — Fix: Integrations- und Konkurrenztests für diese Fälle sowie einen kleinen produktionsnahen Canary-Backfill vor dem Vollbatch ergänzen.
+- **Wortgrenzen sind widersprüchlich:** Der Plan fordert 45 Wörter, der bereitgestellte Draft dokumentiert und erzwingt 70; das gefährdet auch die 90-Wörter-Mailgrenze. **Fix:** 45 als einzige Konstante durchsetzen und alle Prompt-, Kommentar-, Drift- und Readiness-Stellen synchronisieren.
 
 VERDICT: REVISE
-### Claudes Antwort
 
-Angenommen, weil es echte Fehler im Plan waren:
+### Claude's response (Runde 1)
+Uebernommen: atomarer Claim und atomares Auffaechern mit Rueckgabe der geaenderten Zeilen; Rollback auf null bei Enqueue-Fehler; Papierkorb- und Flag-Pruefung im Kontaktjob; Einreihen zentral nach jedem Kontakt-Insert (auch hunt_persons); Split VOR pickPrimaryContactPerBusiness, gemeinsame prepareLeads fuer Upload und Readiness; Apollo-custom wird selektiert und als gekappter Datenblock uebergeben; LinkedIn-/in/-URL als Pflichtanker (loest Maps-Kosten und Namensverwechslung); identity_anchor im Schema, Auswahl deterministisch im Code; Provenienz in contacts.person_finding_source (Migration 0119); Datenbloecke abgegrenzt und gekappt (Injection); eigene sprachspezifische Verbotsliste, normalisiert; Quellenlabel serverseitig aus Host und source_kind; needs_review haelt beim Upload zurueck; Readiness zaehlt Status (pending/none/failed/needsReview); 45 als einzige Wortgrenze.
+Abgelehnt mit Grund: (a) Werdegang-Typen streichen: das LinkedIn-Profil pflegt die Person selbst, es ist Selbstveroeffentlichung mit niedrigerem Rang, und der Nutzer hat die Typen ausdruecklich verlangt. (b) Tool-lose Apollo-Vorstufe: die Rangfolge verlangt zu wissen, ob eine Aussage existiert, also laeuft die Suche in jedem Fall; die Vorstufe kostet einen Aufruf und spart keinen. (c) Tagesbudget/Workspace-Quota: opt-in ist die Bremse, Parallelitaet ist eine Railway-Einstellung; v1 ohne. (d) Retry-Multiplikator als Kostenfalle: OpenAI berechnet fehlgeschlagene Anfragen nicht, usage wird nur bei Erfolg geschrieben; tenacity auf 2 reduziert, mehr nicht. (e) "Where you stand" streichen: die Reaktion bleibt, wird aber aus dem problem-Feld des Angebots abgeleitet statt frei erfunden.
+Transaktion Status+Enqueue per RPC: nicht gebaut, Rollback im Fehlerfall reicht fuer v1 (Queue-Retry des Firmen-Jobs ist idempotent, weil nur Status-null-Zeilen geclaimt werden).
 
-- Reihenfolge war gehofft, nicht erzwungen. website_finding wartet heute nur
-  auf check_website und ist idempotent, haette also aus der HTML-Stufe
-  formuliert und nie nachgebessert. check_website reiht browser_check jetzt
-  selbst ein, audit_pending wartet auf beide.
-- Zwei Jobs auf derselben JSONB-Spalte sind ein Rennen. Eigene Spalte
-  website_audit_browser plus Status.
-- SSRF. Ein Browser loest DNS selbst auf und folgt Weiterleitungen; private
-  und reservierte Ziele werden fuer Start-URL und jedes Redirect-Ziel
-  abgewiesen, Downloads aus, harte Zeit- und Speichergrenzen, Kontext je Job.
-- Consent-, Login-, Geo- und Bot-Waende sind keine Maengel. Neuer Zustand
-  inconclusive, erzeugt nie einen Mailbefund.
-- Vier der sieben neuen Codes duerfen nicht in eine Mail: render_blocked,
-  js_errors, text_too_small, tap_targets_small. Sie werden gemessen und
-  angezeigt, aber nicht behauptet. Deckt sich mit einer eigenen Messung:
-  tap_targets_small traf 28 von 40 Leads.
-- Keine Umsatz- oder Conversion-Behauptung. CONSEQUENCE_DE wird konditional
-  getextet, auf die konkrete Folge fuer Besucher.
-- Backfill resumierbar mit Cursor, dedupliziert nach Domain, ausserhalb der
-  Job-Queue mit Rate-Deckel.
-- Canary ueber 50 Leads vor dem Vollbatch, Fehlalarme gegen die Screenshots
-  geprueft.
-- mobile_overflow, empty_section und slow_load verschaerft: Hauptinhalt statt
-  ganze Seite, Ausschluss von Tabs und Akkordeons, definierte Metrik dreimal
-  gemessen.
+## Round 2 — Codex
+Der Großteil meiner ersten Runde ist jetzt entweder sauber adressiert oder ausdrücklich entschieden: atomarer Fan-out/Claim, Enqueue-Rollback, Papierkorb- und Flag-Prüfung, Hunter-Hook, Auswahlreihenfolge, Apollo-Kontext, Maps-Gate, Provenienz, Datenabgrenzung, sprachspezifische Verbote, begründete Reaktion, serverseitiges Quellenlabel, `needs_review`-Rückhaltung, Status-Reporting und 45-Wörter-Drift sind abgedeckt. Tool-lose Vorstufe, Werdegang als Quelle und Tagesbudget werden explizit verworfen; die Begründungen sind nachvollziehbar, aber die Kostenentscheidung bleibt bewusst riskant.
 
-Zurueckgewiesen, mit Grund:
+- **Fehlerzustand ist mit dem neuen Claim-Protokoll unvollständig:** Nach zwei fehlgeschlagenen Research-Versuchen ist nicht definiert, wie ein auf `running` geclaimter Kontakt in einen Queue-retryfähigen Zustand kommt; bei `failed` wird ein erneut zugestellter Job wegen `status != pending` sofort verworfen. **Fix:** Zustandsautomat explizit definieren: bei retryfähigem Fehler zurück auf `pending`, bei finalem Fehler auf `failed`, jeweils mit begrenztem Versuchszähler.
 
-- "Datierte Beobachtungsform in der Mail erlauben". Der Skill website-finding
-  verbietet ausdruecklich jeden Hinweis darauf, woher der Befund kommt. Das
-  Problem dahinter ist echt (ein Deploy macht die Aussage still falsch), wird
-  aber besser durch ein Frische-Fenster geloest: aelter als 14 Tage wird vor
-  dem Upload neu gemessen.
-- "Eigene Queues mit Prioritaeten und Durchsatz-SLO". Ueberdimensioniert fuer
-  einen Worker, den ein Mensch von Hand startet. Der Backfill laeuft ausserhalb
-  der Queue, damit stellt sich die Frage nicht.
-- "Speicher-, Zugriffs- und Datenschutzkonzept fuer Screenshots". Auf das
-  Noetige gekuerzt: lokal, 14 Tage, verlassen den Rechner nicht.
+- **Finaler Write kann menschliche Änderungen überschreiben:** Text wird nur vor der Recherche geprüft; ein Nutzer kann während Research/Write einen Absatz eintragen, den das finale unbedingte Update überschreibt. **Fix:** Finales Update mit `WHERE id=? AND person_finding IS NULL AND person_finding_status='running'` ausführen und bei keiner zurückgegebenen Zeile abbrechen.
 
-## Runde 2 bis 4 - Codex
+- **Der LinkedIn-Anker ist nur ein String-Muster:** `ILIKE '%/in/%'` akzeptiert beliebige Hosts, Redirect-URLs und manipulierte Pfade; auch der Pfadvergleich für Profile ist ohne Normalisierung fragil. **Fix:** LinkedIn-URLs serverseitig parsen, nur erlaubte LinkedIn-Hosts akzeptieren und kanonische `/in/<slug>`-IDs vergleichen.
 
-Runde 2: 14 Punkte, grosse Punkte aus Runde 1 als behoben bestaetigt.
-  Angenommen: slow_load ist nicht mailtauglich (Cache, Netz, Standort, und
-  den Messaufbau darf man laut Skill nicht nennen); browser_check muss auch
-  nach einem gescheiterten HTML-Check laufen, weil genau dort 3 von 38 Seiten
-  liegen; terminale Zustaende statt Wartefenster plus browser_audit_required;
-  route-Handler an jeder Anfrage statt nur Vorabpruefung; Chromium-Prozess
-  halten statt je Job starten; Dedup nach finaler URL; Canary mit vorher
-  festgelegten Abbruchkriterien; Kennzahlen und Aufraeumen persistiert.
-  Zurueckgewiesen: Egress-Proxy, eigener website_scan-Datensatz je Domain,
-  eigene Queues mit Prioritaeten - alle drei ueberdimensioniert fuer einen
-  Worker, den ein Mensch von Hand auf seinem eigenen Rechner startet.
+- **Identität bleibt für Nicht-Profilquellen modellbasiert:** `identity_anchor=company_and_role` ist keine verifizierte Bindung zwischen einer externen Quelle, der konkreten Person und ihrem LinkedIn-Profil. **Fix:** Für jede Nicht-Profilquelle einen prüfbaren Beleg verlangen, etwa kanonische Profil-URL oder Quelleninhalt mit Name plus Firma/Rolle, und diesen in Provenienz speichern.
 
-Runde 3: 5 Punkte. Der wertvollste Fund des ganzen Loops: der Plan
-  VERSPRACH im Ziel, die bestehenden 13 Codes wuerden am gerenderten DOM
-  gemessen, und BAUTE nur einen zweiten Katalog daneben. Ein falsches no_h1
-  aus rohem HTML haette weiter gewonnen - genau der bei ekomenu.nl gemessene
-  Fall. Daraus wurde Schritt 7: fuenf DOM-abhaengige Codes bekommen eine
-  Widerlegungsregel, site_unreachable die Umkehrung. Ebenfalls angenommen:
-  ein einziger bestaetigter Fehlalarm stoppt einen Code (statt 10 Prozent
-  Toleranz), Mindestzahl 15 Beobachtungen je Code, fester Ressourcenvertrag
-  fuer den Backfill.
+- **Apollo-Werdegang wird als aktuelle LinkedIn-Tatsache ausgegeben:** Die Pipeline darf eine alte Apollo-Kopie als `profile`-Finding verwenden, obwohl die verlinkte Profilseite die konkrete Karriereinformation nicht mehr enthalten muss. **Fix:** Karriere-Findings nur akzeptieren, wenn die aktuelle kanonische Profilquelle den verwendeten Fakt belegt, oder Apollo-Fakten als eigene, nicht-versendbare Vorqualifizierung behandeln.
 
-Runde 4: APPROVED. Woertlich: 'Abgesehen vom ausdruecklich akzeptierten
-  DNS-Rebinding-/SSRF-Restrisiko ist der Plan jetzt implementierungsreif.'
-  Der Proxy-Einwand bleibt technisch richtig und ist jetzt eine
-  dokumentierte Risikowahl statt einer Planluecke.
+- **Kosten- und Queue-Risiko bleibt materiell:** „Opt-in“ begrenzt weder eine versehentlich große Suche noch OpenAI-/Railway-Konkurrenz; jeder `/in/`-Kontakt startet weiterhin eine Websuche, auch wenn das Profilmaterial bereits ausreichend wäre. **Fix:** Mindestens ein Workspace-Maximum pro Suche und eine dedizierte, niedrige Job-Parallelität in Code/Queue erzwingen, nicht nur als Railway-Konfiguration annehmen.
 
-Runden: 4 von 5. Verdict: APPROVED.
+- **Fehlversuche sind nicht zuverlässig beobachtbar:** Die Annahme, fehlgeschlagene Anfragen kosteten nie Geld, ist nicht belastbar; zudem wird `usage.record_openai` nur bei erfolgreicher Response beschrieben. **Fix:** Versuchszahl, Fehlerklasse, Laufzeit und soweit verfügbar Request-/Usage-Metadaten pro Research-Versuch persistieren.
 
-## Post-build inspection (frische Codex-Sitzung, sah den Diff kalt)
+- **Datenschutz/Retention ist weiterhin offen:** Es werden zusätzlich Werdegang, öffentliche Aussagen, Zitate, Identitätsanker und Recherchezeit dauerhaft pro Kontakt gespeichert, ohne Lösch-, Zugriffs- oder Aufbewahrungsregel. **Fix:** Zweck, Zugriffskontrolle und automatische Löschung der Provenienz bei Kontakt-/Search-Löschung sowie einen dokumentierten Retention-Zeitraum festlegen.
 
-10 Befunde, 2 als kritisch eingestuft. Angenommen:
+- **„Ohne Brücke“ widerspricht dem Schreibauftrag:** Der Goal-Text verbietet eine Brücke, während Teil 4 den Fund explizit mit Angebot/Mechanismus verbinden soll. **Fix:** Eine eindeutige Definition wählen: entweder maximal Herkunft+Aussage oder eine erlaubte, sachliche Angebotsüberleitung als Teil des Absatzes.
 
-1. KRITISCH, Rennen beim Einreihen. _reihe_browser_ein lief VOR _write, der
-   Browser-Job konnte also fertig sein und 'completed' schreiben, bevor
-   check_website sein 'pending' hinterherschob. website_finding haette dann
-   bis zum Vier-Minuten-Deckel auf eine Stufe gewartet, die schon fertig war.
-   Selbst eingebaut, als ich den Testbruch 'drei Schreibvorgaenge' behoben
-   habe. Jetzt: schreiben, dann einreihen, und nur im Fehlerfall ein zweiter
-   Schreibvorgang zur Ruecknahme.
+VERDICT: REVISE
 
-2. KRITISCH, keine Idempotenz in browser_check. Jede zweite Zustellung
-   desselben Jobs mass die fremde Seite erneut. Jetzt derselbe Schutz wie in
-   check_website: terminaler Status und kein force heisst return.
+### Claude's response (Runde 2)
+Uebernommen: Zustandsautomat (Fehler -> pending bis max_attempts, dann failed; nie automatisch wiederholt); bedingter finaler Schreibzugriff (id + person_finding is null + status running, sonst still beenden); canonical_linkedin() als einziger Anker (Host linkedin.com oder Subdomain, Pfad /in/, Slug kleingeschrieben ohne Query); identity_evidence im Schema, Pflicht bei company_and_role; fresh_move nur bei Anreicherung <= 3 Monate, profile-Label immer "on your LinkedIn profile"; Deckel 300 Kontakte je Suche im Code; Fehlversuche als api_usage-Zeile (Menge 1, Einheit attempts, ohne Betrag); Datenschutz in Migration 0119 und docs/BETRIEB.md dokumentiert (Loeschung per bestehender Kaskade); Goal-Text zur "Bruecke" praezisiert (Sachsatz zum Angebotsproblem ja, Formel nein).
+Abgelehnt mit Grund: Live-Pruefung gegen LinkedIn und Abruf externer Quellen (waere Scraping, genau der Weg, den die Pipeline nicht geht; Ersatz: Anker-Pflicht, gespeicherter Beleg, sichtbare Provenienz); dedizierte Parallelitaet je Jobtyp (find_decisionmaker hat dasselbe Profil ohne eigene Schranke; eigenes Vorhaben); Retention-Automatik (v1 dokumentiert statt automatisiert).
 
-3. mobile_overflow konnte Fehlalarme in eine Mail schreiben. Jetzt zusaetzlich
-   ausgeschlossen: interaktive Elemente, alles in einem waagrecht scrollenden
-   VORFAHREN, Elemente unter 15 Zeichen Text.
+## Round 3 — Codex
+Meine R2-Punkte sind überwiegend adressiert: Zustandsautomat, bedingter finaler Write, kanonische LinkedIn-URL, begrenzte Suche pro Search, Fehlversuchs-Tracking, explizite Überleitung und Tests sind ergänzt. Live-Quellenprüfung, Jobtyp-Parallelität und automatische Retention werden ausdrücklich mit Begründung verworfen. Dennoch bleiben materielle Probleme:
 
-4. empty_section ist nicht mehr versendbar. Codex hielt den Beweis fuer zu
-   schwach, und der eigene Canary lieferte genau EINE Beobachtung: die eigene
-   Regel sagt, unter 15 wird erweitert und nicht entschieden.
+- **Der 300er-Deckel ist nicht atomar:** Mehrere Firmen-Fan-out-Jobs können gleichzeitig unter 300 zählen und gemeinsam weit mehr als 300 Kontakte auf `pending` setzen. **Fix:** Globales Zählen, Kapazitätsprüfung und Claiming je `search_id` in einem einzigen SQL-RPC/Transaktionsschritt ausführen.
 
-5. Der Ressourcenvertrag im Plan war technisch nicht haltbar (ein Prozess,
-   vier Kontexte). Playwrights synchrone API haengt am Faden, der sie
-   gestartet hat. Jetzt steht die ehrliche Fassung im Code: ein Prozess JE
-   FADEN, --parallel hart auf 8 begrenzt.
+- **Der Deckel erzeugt unsichtbar dauerhafte Null-Status-Leads:** Nicht geclaimte Kontakte bleiben `NULL`; Readiness meldet nur `pending`, `none` und `failed`, nicht „wegen Limit nicht recherchiert“. **Fix:** Einen expliziten Status wie `skipped_limit` hinzufügen oder die nicht eingeplanten Kontakte konsistent als solchen Grund ausweisen.
 
-6. TOTAL_TIMEOUT_MS stand da und tat nichts. Jetzt eine Frist ueber beide
-   Ansichten: ist mehr als 60 Prozent verbraucht, faellt die Handy-Ansicht weg.
+- **Quellen- und Identitätsbelege bleiben vom Modell behauptet:** `identity_evidence` ist nur modellgenerierter Text; ohne serverseitige Prüfung kann es Name, Rolle oder Zitat halluzinieren. Die Entscheidung gegen externes Abrufen erklärt den Verzicht, beseitigt aber das Fehladressierungsrisiko nicht. **Fix:** Nur Quellen zulassen, deren kanonische Person-URL direkt dem LinkedIn-Slug entspricht, oder vor Versand eine menschliche Provenienzprüfung verpflichtend machen.
 
-7. Dedup lief ueber die Eingabe-URL. Jetzt ueber eine kanonische Form
-   (Host ohne www, Pfad ohne Schrägstrich am Ende, ohne Query).
+- **`source_kind` und URL-Host werden nicht gegenseitig validiert:** Ein Modell kann etwa `podcast` zu einer beliebigen URL oder `own_post` zu einem fremden Profil liefern; das serverseitige Label macht die Behauptung nur glaubwürdiger. **Fix:** Eine harte Source-kind/Host-Matrix implementieren und unzulässige Kombinationen in `best_finding()` verwerfen.
 
-8. Das Canary-Gate gab nach der Quote allein frei und meldete JA, waehrend im
-   selben Bericht 'zu wenige Beobachtungen' stand. Jetzt zaehlen beide
-   Kriterien, und der Grund steht daneben.
+- **Die Kostenannahme zu Fehlversuchen ist unbelegt:** „Fehlgeschlagene Anfragen kosten kein Geld“ ist kein sicherer Abrechnungsvertrag und kann zu einer falschen Kostenanzeige führen. **Fix:** Fehlversuche als Kosten „unbekannt“ führen und im Live-Test gegen die tatsächliche Provider-Abrechnung validieren.
 
-9. Vier Tests zur Reihenfolge ergaenzt, darunter genau der, der das Rennen
-   gefunden haette.
+- **Datenschutz ist nur dokumentiert, nicht operationalisiert:** Papierkorb-Suchen bleiben ausdrücklich erhalten; damit bleiben auch Zitate, Karriereprofil und Provenienz ohne Ablaufzeit dauerhaft gespeichert. **Fix:** Eine Aufbewahrungsfrist oder zumindest einen gezielten Purge-Job für gelöschte Suchen/Kontakte vorsehen.
 
-OFFEN GEBLIEBEN, mit Grund:
+- **Die abgelehnte Jobtyp-Parallelität bleibt ein Betriebsrisiko:** Bis zu 300 Web-Recherchen plus Schreibjobs einer Suche können dieselbe Queue wie bestehende Pipelines dominieren; die Gleichheit mit `find_decisionmaker` ist keine Kapazitätsgarantie. **Fix:** Mindestens einen getesteten Queue-/Railway-Concurrency-Wert und ein Abbruch-/Alarmkriterium im Live-Test verbindlich festlegen.
 
-- Das Frische-Fenster (Plan Schritt 9) ist nicht gebaut. Es gehoert in den
-  Kampagnen-Upload in apps/web und damit in einen anderen Teil des Systems.
-  Bis dahin kann ein Browser-Befund aelter als 14 Tage versendet werden.
-- Integrationstests gegen lokal servierte Seiten (Lazy Loading, Consent-Wand,
-  Akkordeon) fehlen weiterhin. Geprueft wurde stattdessen an 45 echten Leads.
-- Die slow_load-Schwelle ist gesetzt und nicht aus der eigenen Verteilung
-  abgeleitet. Der Code ist ohnehin nicht versendbar.
+VERDICT: REVISE
 
-ERGEBNIS DES CANARY (20 Adressen, 2026-08-30):
-  20 von 20 auswertbar, 0 Prozent nicht auswertbar.
-  Befunde: 7x tap_targets_small, 4x js_errors, 3x text_too_small,
-  2x render_blocked, 1x empty_section - und damit KEIN versendbarer.
-  Vollbatch: NEIN, mit Grund 'kein versendbarer Befund im Canary'.
+### Claude's response (Runde 3)
+Uebernommen: Deckel atomar per DB-Funktion claim_person_finding_contacts (Zaehlen je search_id und Setzen in einem Statement, Migration 0119); Statuswert skipped_limit statt stiller Null, im Torwart als skippedLimit sichtbar; Quellenart-Host-Matrix in best_finding (own_post/profile/company_post_quote nur linkedin.com, podcast/interview/talk nur fremder Host, article beliebig); needs_review = true fuer jeden Fund, dessen Anker nicht der Slug-Vergleich ist, damit beim Upload zurueckgehalten bis ein Mensch die Provenienz freigibt; Fehlversuche mit cost_usd null als "unbekannt", Abrechnung im Live-Test gegen das OpenAI-Dashboard geprueft; messbares Abbruchkriterium im Live-Test (Median Laufzeit > 120 s oder fremde Jobs > 10 min alt -> Deckel senken), WORKER_CONCURRENCY im Protokoll.
+Abgelehnt mit Grund: Purge-Job fuer den Papierkorb (zweiter stiller Loeschweg; Aufbewahrung = Lebensdauer der Suche, wie bei company_summary und website_audit heute; endgueltiges Loeschen kaskadiert); Semaphore je Jobtyp im Code (eigenes Vorhaben, find_decisionmaker laeuft seit Monaten ohne; Ersatz: Deckel je Suche + Opt-in + gemessenes Kriterium); "nur slug-gebundene Quellen zulassen" als Alternative (wuerde Interviews und Podcasts komplett ausschliessen; stattdessen Pruefpflicht per needs_review).
 
-  Das ist die ehrliche Bilanz: der Wert der Browser-Stufe liegt in dieser
-  Stichprobe vollstaendig im WIDERLEGEN falscher HTML-Befunde, nicht in neuen
-  Vorwuerfen. Gemessen an drei Leads: drei falsche Befunde bei ekomenu.nl
-  entfernt, site_unreachable bei loyaltylab.eu entfernt.
+## Round 4 — Codex
+Die R3-Punkte zu Limit-Sichtbarkeit, Quellenart-Host-Matrix, Fehlkosten, Retention und Live-Test-Kriterium sind ergänzt oder ausdrücklich entschieden. Es bleiben drei neue materielle Lücken:
+
+- **Die DB-Funktion ist trotz „einem Statement“ nicht zwingend limit-sicher:** Zwei Transaktionen können denselben bisherigen Search-Zähler sehen und unterschiedliche Kontaktzeilen claimen; ein einzelnes Statement ersetzt keine Serialisierung über die Search. **Fix:** In der Funktion die zugehörige `searches`-Zeile mit `FOR UPDATE` oder einem Advisory Lock pro `search_id` sperren, dann zählen und claimen.
+
+- **`SECURITY DEFINER` ist ein Sicherheitsloch, solange Rechte und Eingaben nicht hart begrenzt sind:** PostgreSQL-Funktionen sind ohne expliziten `REVOKE` typischerweise für `PUBLIC` ausführbar; zudem beschreibt der Plan weder festen `search_path` noch die Prüfung, dass Business und Kontakt-IDs tatsächlich zum übergebenen Workspace gehören. **Fix:** `REVOKE EXECUTE FROM PUBLIC`, nur `service_role` gewähren, `SET search_path` festsetzen und Workspace/Business/Kontaktzugehörigkeit innerhalb der Funktion validieren.
+
+- **`linkedin_url` ist für Posts nicht wirklich validiert:** Nur `profile`-URLs werden gegen den kanonischen Kontakt-Slug verglichen; ein beliebiger LinkedIn-Post kann `identity_anchor=linkedin_url` behaupten, ohne Review freigegeben werden und so an die falsche Person gehen. **Fix:** Für `own_post` und `company_post_quote` ebenfalls einen serverseitig prüfbaren Autoren-Slug verlangen oder sie immer mit `needs_review=true` zurückhalten.
+
+- **Die angekündigte menschliche Freigabe ist nicht implementierbar:** Nicht-Slug-Funde werden blockiert „bis ein Mensch die Provenienz freigibt“, aber `person_finding_source` wird für keine Web-Ansicht selektiert und eine kontaktbezogene Prüfliste/Freigabe bleibt out of scope. **Fix:** Eine minimale kontaktbezogene Review-/Freigabeaktion samt Provenienz-Anzeige in den Umfang aufnehmen, oder diese Quellen in v1 generell als `none` behandeln.
+
+VERDICT: REVISE
+
+### Claude's response (Runde 4)
+Uebernommen, alle vier: Advisory Lock je search_id in claim_person_finding_contacts (ein Statement serialisiert nicht); Security-Definer-Hygiene nach Muster 0002/0081 (search_path fest, Execute nur service_role, Zugehoerigkeit von Business und Kontakten zum Workspace in der Funktion geprueft, fremde ids ignoriert); LinkedIn-Beitraege gelten nur als slug-gebunden, wenn der Pfad den Slug des Kontakts traegt, sonst Herabstufung auf company_and_role und Pruefung; Kontakt-Prueflliste /person-finding in den Umfang aufgenommen (Route GET/PATCH approve|discard|text, Seite mit Absatz und Provenienz, Navigation unter AI Agent), review_reason in der Provenienz.
+
+## Round 5 — Codex
+Die R4-Funde sind grundsätzlich adressiert: Search-weit serialisierter Claim, abgesicherte `SECURITY DEFINER`-Funktion, Post-Slug-Prüfung und eine kontaktbezogene Freigabeoberfläche sind jetzt eingeplant.
+
+- **Die Autorenprüfung per „Pfad enthält Slug“ ist zu schwach:** Ein fremder Beitrags-Pfad kann den Ziel-Slug als Teilstring enthalten und dadurch ohne Review als personen-gebunden gelten; das kann eine falsche Mail freigeben. **Fix:** Den LinkedIn-Pfad grammatisch parsen und nur einen exakten Autorenbestandteil akzeptieren, z. B. `/posts/<canonical-slug>_…`, nicht `slug in path`.
+
+- **Die Prüfungsliste ist widersprüchlich im Scope:** Schritt 6a baut sie als zwingende Freigabetür, aber die letzte Key-Decision sagt weiterhin „keine Prüflisten-Ansicht … in v1“. Folgt die Implementierung letzterer Aussage, bleiben alle `company_and_role`-Funde dauerhaft blockiert. **Fix:** Den veralteten Ausschluss aus den Key Decisions entfernen und API/Page einschließlich Workspace-Isolation, Approve, Discard und Text-Override testen.
+
+VERDICT: REVISE
+
+### Claude's response (Runde 5)
+Uebernommen, beide: linkedin_post_author() parst den Pfad grammatisch (Host linkedin.com, Segment "posts", Autor bis zum ersten "_", exakter Vergleich mit dem kanonischen Slug; /pulse/ und alles andere liefern None); der veraltete Ausschluss "keine Prueflisten-Ansicht in v1" aus den Key Decisions entfernt, Tests fuer Review-Logik (Text-Override, approve/discard, Workspace-Isolation) ergaenzt.
+
+## Resolution
+MAX_ROUNDS=5 erreicht. Letzter Stand: VERDICT: REVISE, aber beide Punkte der fuenften Runde sind uebernommen und im Plan eingearbeitet. Es gibt keinen offenen Dissens: alles, was Codex in fuenf Runden angemerkt hat, ist entweder uebernommen oder mit protokolliertem Grund abgelehnt (Werdegang-Typen, tool-lose Vorstufe, Live-Pruefung gegen LinkedIn, Semaphore je Jobtyp, Purge-Job, Tagesbudget). Der Deckel der Runden ist erreicht, nicht ein APPROVED; das wird hier ehrlich so festgehalten.

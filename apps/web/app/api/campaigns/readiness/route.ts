@@ -2,11 +2,11 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentWorkspace } from "@/lib/workspace/server";
 import { runDeliverabilityCheck } from "@/lib/deliverability";
-import { pickPrimaryContactPerBusiness, splitByEngagement, splitBySendability } from "@/lib/contacts";
+import { splitByEngagement, splitBySendability } from "@/lib/contacts";
 import { filterSuppressed } from "@/lib/suppression";
 import { assessCampaign, stepFacts, type DomainAuth, type ReadinessFacts } from "@/lib/campaign-readiness";
-import { usesWebsiteFinding } from "@/lib/instantly/campaigns";
-import { splitByWebsiteFinding, type CampaignContactRow } from "@/lib/instantly/create-campaign";
+import { usesPersonFinding, usesWebsiteFinding } from "@/lib/instantly/campaigns";
+import { pickLeadsForSend, splitByWebsiteFinding, type CampaignContactRow } from "@/lib/instantly/create-campaign";
 import { reviewIcebreaker, reviewSettingsFromWorkspace } from "@/lib/personalization/review";
 
 /**
@@ -91,6 +91,7 @@ export async function POST(req: Request) {
         .from("contacts")
         .select(
           "id, email, title, business_id, is_primary, outreach_status, email_verification_status, " +
+            "person_finding, person_finding_needs_review, person_finding_status, " +
             "businesses!inner(search_id, website, personalization, personalization_needs_review, " +
             "website_finding, name, id)"
         )
@@ -107,6 +108,9 @@ export async function POST(req: Request) {
     is_primary: boolean;
     outreach_status: string;
     email_verification_status: string | null;
+    person_finding: string | null;
+    person_finding_needs_review: boolean | null;
+    person_finding_status: string | null;
     businesses: {
       id: string;
       name: string | null;
@@ -122,7 +126,26 @@ export async function POST(req: Request) {
   // Vorschau, die mehr zaehlt als spaeter rausgeht, ist keine Vorschau.
   const { contactable: notDeclined } = splitByEngagement(rows);
   const { sendable } = splitBySendability(filterSuppressed(notDeclined, suppression ?? []));
-  const finalLeads = pickPrimaryContactPerBusiness(sendable) as unknown as Row[];
+  // Dieselbe Reihenfolge wie beim Anlegen (pickLeadsForSend): benutzt die
+  // Sequenz {{personFinding}}, kommt der Split VOR der Auswahl je Firma.
+  const nutztPerson = usesPersonFinding(
+    steps.flatMap((s) => s.variants ?? [{ subject: s.subject, body: s.body }])
+  );
+  const gewaehlt = pickLeadsForSend(sendable as unknown as CampaignContactRow[], nutztPerson);
+  const finalLeads = gewaehlt.rows as unknown as Row[];
+  // Zustaende des Personen-Befunds ueber alle sendbaren Kontakte, damit der
+  // Torwart sagen kann, warum ein Lead fehlt.
+  const personStatus = (sendable as unknown as Row[]).reduce(
+    (acc, c) => {
+      const st = c.person_finding_status;
+      if (st === "pending" || st === "running") acc.pending++;
+      else if (st === "none") acc.none++;
+      else if (st === "failed") acc.failed++;
+      else if (st === "skipped_limit") acc.skippedLimit++;
+      return acc;
+    },
+    { pending: 0, none: 0, failed: 0, skippedLimit: 0 }
+  );
 
   /**
    * Dieselbe Trennung wie beim tatsaechlichen Anlegen: benutzt die Sequenz
@@ -201,6 +224,13 @@ export async function POST(req: Request) {
     leadsWithFailingIcebreaker,
     sequenceUsesWebsiteFinding: nutztBefund,
     leadsWithoutWebsiteFinding: withoutFinding.length,
+    sequenceUsesPersonFinding: nutztPerson,
+    leadsWithoutPersonFinding: gewaehlt.withoutPersonFinding.length,
+    personFindingNeedsReview: gewaehlt.personFindingNeedsReview,
+    personFindingPending: personStatus.pending,
+    personFindingNone: personStatus.none,
+    personFindingFailed: personStatus.failed,
+    personFindingSkippedLimit: personStatus.skippedLimit,
     domains: domainAuth,
     sentSoFar: (stats ?? []).reduce((sum, s) => sum + (s.emails_sent_count ?? 0), 0),
     bouncedSoFar: (stats ?? []).reduce((sum, s) => sum + (s.bounced_count ?? 0), 0),

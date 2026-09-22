@@ -31,6 +31,7 @@ abgelesen, Stand 2026-08):
 
 Docs: https://docs.apollo.io/reference/people-api-search
 """
+
 import logging
 import re
 import time
@@ -153,8 +154,17 @@ def _valid_seniorities(raw: object) -> list[str]:
 # dort keine Option). Muss mit APOLLO_EMPLOYEE_RANGES in
 # apps/web/app/new-search-form.tsx uebereinstimmen.
 APOLLO_EMPLOYEE_RANGES = [
-    "1-10", "11-20", "21-50", "51-100", "101-200", "201-500",
-    "501-1000", "1001-2000", "2001-5000", "5001-10000", "10001+",
+    "1-10",
+    "11-20",
+    "21-50",
+    "51-100",
+    "101-200",
+    "201-500",
+    "501-1000",
+    "1001-2000",
+    "2001-5000",
+    "5001-10000",
+    "10001+",
 ]
 
 
@@ -196,8 +206,17 @@ def _employee_range(headcount: str | None) -> str | None:
 # Unterstrich. Muss mit APOLLO_MARKET_SEGMENTS in apps/web/lib/apollo-query.ts
 # uebereinstimmen.
 APOLLO_MARKET_SEGMENTS = [
-    "b2b", "b2c", "b2b2c", "ecommerce", "fintech", "d2c",
-    "non_profit", "saas", "consulting", "services", "retail",
+    "b2b",
+    "b2c",
+    "b2b2c",
+    "ecommerce",
+    "fintech",
+    "d2c",
+    "non_profit",
+    "saas",
+    "consulting",
+    "services",
+    "retail",
 ]
 
 
@@ -298,7 +317,9 @@ def build_people_search_body(filters: dict, page: int, per_page: int = PER_PAGE)
     segments = _market_segments(filters.get("market_segments"))
     if segments:
         body["market_segments"] = segments
-    if not (titles or locations or keywords or employee_range or domains or technologies or segments):
+    if not (
+        titles or locations or keywords or employee_range or domains or technologies or segments
+    ):
         raise ValueError("Apollo-Suche braucht mindestens einen Filter")
     return body
 
@@ -311,6 +332,61 @@ def is_masked_email(email: str | None) -> bool:
     if not email:
         return True
     return "email_not_unlocked" in email.lower() or "not_unlocked" in email.lower()
+
+
+# Kappung fuer alles, was aus Apollo in eine Datenbankzeile und spaeter in
+# einen Prompt geht. Ein Werdegang mit 40 Stationen ist kein Datensatz mehr,
+# sondern ein Roman, und eine Ueberschrift von 2000 Zeichen ist keine.
+PROFILE_MAX_ENTRIES = 10
+PROFILE_MAX_CHARS = 300
+
+
+def _kurz(wert: object, limit: int = PROFILE_MAX_CHARS) -> str | None:
+    if wert is None:
+        return None
+    s = str(wert).strip()
+    if not s:
+        return None
+    return s if len(s) <= limit else s[: limit - 1] + "…"
+
+
+def apollo_profile_fields(person: dict) -> dict:
+    """Was people/bulk_match ueber die Person weiss und was bis zum
+    2026-09-22 verworfen wurde: Ueberschrift, Werdegang, Ort, Funktionen.
+
+    Roh und gekappt, nicht umgeschrieben. Es ist das Material fuer den
+    Personen-Befund (pipelines/person_finding.py), und zwar ohne einen
+    weiteren Aufruf: Apollo liefert es im schon bezahlten Anreichern mit.
+    Laut Doku (developer.apollo.io, geprueft 2026-09-22) heissen die Felder
+    headline, employment_history, city, state, country, functions,
+    subdepartments.
+    """
+    history = []
+    for eintrag in (person.get("employment_history") or [])[:PROFILE_MAX_ENTRIES]:
+        if not isinstance(eintrag, dict):
+            continue
+        history.append(
+            {
+                "organization_name": _kurz(eintrag.get("organization_name")),
+                "title": _kurz(eintrag.get("title")),
+                "start_date": _kurz(eintrag.get("start_date"), 20),
+                "end_date": _kurz(eintrag.get("end_date"), 20),
+                "current": bool(eintrag.get("current")),
+            }
+        )
+    listen = {}
+    for key in ("functions", "subdepartments"):
+        werte = person.get(key)
+        if isinstance(werte, list):
+            listen[key] = [str(v)[:PROFILE_MAX_CHARS] for v in werte[:PROFILE_MAX_ENTRIES] if v]
+    return {
+        "headline": _kurz(person.get("headline")),
+        "employment_history": history,
+        "city": _kurz(person.get("city"), 100),
+        "state": _kurz(person.get("state"), 100),
+        "country": _kurz(person.get("country"), 100),
+        **listen,
+    }
 
 
 def parse_apollo_person(person: dict) -> dict | None:
@@ -367,6 +443,9 @@ def parse_apollo_person(person: dict) -> dict | None:
         "twitter": person.get("twitter_url"),
         "facebook": person.get("facebook_url"),
         "source": "apollo",
+        # Migration 0067 hat die Spalte angelegt, gefuellt wurde sie bei
+        # Apollo-Zeilen bis zum 2026-09-22 nie (gemessen: in keinem Datensatz).
+        "custom": {"apollo": apollo_profile_fields(person)},
     }
     return {"business": business, "contact": contact}
 
@@ -405,9 +484,7 @@ def build_company_summary(org: dict) -> str | None:
     reraise=True,
 )
 def _bulk_enrich_chunk(domains: list[str], api_key: str) -> dict[str, dict]:
-    r = httpx.post(
-        BULK_ORG_URL, json={"domains": domains}, headers=_headers(api_key), timeout=60
-    )
+    r = httpx.post(BULK_ORG_URL, json={"domains": domains}, headers=_headers(api_key), timeout=60)
     try:
         raise_for_status_safe(r)
     except httpx.HTTPStatusError as exc:
@@ -443,21 +520,56 @@ def _bulk_enrich_chunk(domains: list[str], api_key: str) -> dict[str, dict]:
 #
 # Deshalb wird fuer solche Domains gar nicht erst gefragt: das spart zugleich
 # einen Credit je Abruf (1 Credit pro Firma, siehe BULK_ORG_URL).
-PLATFORM_DOMAINS = frozenset({
-    # Soziale Netzwerke
-    "facebook.com", "fb.com", "instagram.com", "linkedin.com", "twitter.com",
-    "x.com", "tiktok.com", "youtube.com", "pinterest.com", "threads.net",
-    "wa.me", "t.me", "linktr.ee",
-    # Baukaesten und Hoster, bei denen die Firma auf einer Unterseite sitzt
-    "wix.com", "wixsite.com", "wordpress.com", "blogspot.com", "weebly.com",
-    "squarespace.com", "jimdo.com", "jimdosite.com", "webnode.com",
-    "business.site", "sites.google.com", "google.com", "shopify.com",
-    "myshopify.com", "godaddysites.com", "strikingly.com", "carrd.co",
-    # Marktplaetze und Verzeichnisse
-    "etsy.com", "amazon.com", "amazon.de", "ebay.com", "ebay.de",
-    "yelp.com", "yelp.de", "tripadvisor.com", "tripadvisor.de",
-    "booking.com", "opentable.com", "lieferando.de", "ubereats.com",
-})
+PLATFORM_DOMAINS = frozenset(
+    {
+        # Soziale Netzwerke
+        "facebook.com",
+        "fb.com",
+        "instagram.com",
+        "linkedin.com",
+        "twitter.com",
+        "x.com",
+        "tiktok.com",
+        "youtube.com",
+        "pinterest.com",
+        "threads.net",
+        "wa.me",
+        "t.me",
+        "linktr.ee",
+        # Baukaesten und Hoster, bei denen die Firma auf einer Unterseite sitzt
+        "wix.com",
+        "wixsite.com",
+        "wordpress.com",
+        "blogspot.com",
+        "weebly.com",
+        "squarespace.com",
+        "jimdo.com",
+        "jimdosite.com",
+        "webnode.com",
+        "business.site",
+        "sites.google.com",
+        "google.com",
+        "shopify.com",
+        "myshopify.com",
+        "godaddysites.com",
+        "strikingly.com",
+        "carrd.co",
+        # Marktplaetze und Verzeichnisse
+        "etsy.com",
+        "amazon.com",
+        "amazon.de",
+        "ebay.com",
+        "ebay.de",
+        "yelp.com",
+        "yelp.de",
+        "tripadvisor.com",
+        "tripadvisor.de",
+        "booking.com",
+        "opentable.com",
+        "lieferando.de",
+        "ubereats.com",
+    }
+)
 
 
 def is_platform_domain(domain: str | None) -> bool:
@@ -527,11 +639,7 @@ def fetch_company_facts(
     # Plattform-Domains fliegen VOR dem Aufruf raus: Apollo wuerde sonst die
     # Daten von Facebook oder Instagram zurueckgeben, und der Abruf kostet
     # zusaetzlich einen Credit fuer eine Antwort, die niemand brauchen kann.
-    clean = [
-        d.strip().lower()
-        for d in domains
-        if d and d.strip() and not is_platform_domain(d)
-    ]
+    clean = [d.strip().lower() for d in domains if d and d.strip() and not is_platform_domain(d)]
     # Firmendaten kosten dasselbe wie Personendaten: 1 Credit je Firma. Ohne
     # diesen Griff waere nur die Haelfte der Rechnung geloest.
     cached_orgs = apollo_cache.get_many(api_key, "organization", clean)
@@ -650,9 +758,37 @@ def candidate_ids(people: list[dict]) -> list[str]:
 # Ohne Punkte notiert: die werden vorher ersatzlos entfernt, damit "B.V." und
 # "BV" auf demselben Wort landen (siehe normalize_company).
 _LEGAL_FORMS = {
-    "bv", "nv", "gmbh", "mbh", "ag", "kg", "kgaa", "ug", "og", "eg", "ev",
-    "ltd", "limited", "llc", "inc", "corp", "co", "plc", "sa", "srl", "sarl",
-    "oy", "ab", "as", "aps", "spa", "bvba", "sprl", "sl", "gbr", "ohg",
+    "bv",
+    "nv",
+    "gmbh",
+    "mbh",
+    "ag",
+    "kg",
+    "kgaa",
+    "ug",
+    "og",
+    "eg",
+    "ev",
+    "ltd",
+    "limited",
+    "llc",
+    "inc",
+    "corp",
+    "co",
+    "plc",
+    "sa",
+    "srl",
+    "sarl",
+    "oy",
+    "ab",
+    "as",
+    "aps",
+    "spa",
+    "bvba",
+    "sprl",
+    "sl",
+    "gbr",
+    "ohg",
 }
 
 
@@ -760,7 +896,8 @@ def enrich_people(
                 out.append(hit)
         log.info(
             "Apollo: %s von %s Personen aus dem Cache (keine Credits).",
-            len(out), len(apollo_ids),
+            len(out),
+            len(apollo_ids),
         )
     # Nur der Rest kostet noch etwas.
     apollo_ids = [pid for pid in apollo_ids if pid not in cached]
@@ -910,7 +1047,9 @@ def collect_people(
         log.info(
             "Apollo: %s Kandidaten uebersprungen, weil ihre Firma schon im Bestand ist "
             "(vor dem Anreichern, also ohne Credits). %s neue Kandidaten auf %s Seiten.",
-            skipped_known, len(ids), page,
+            skipped_known,
+            len(ids),
+            page,
         )
 
     if not ids:
@@ -920,7 +1059,8 @@ def collect_people(
         if skipped_known:
             log.warning(
                 "Apollo: alle %s Treffer mit Adresse gehoeren zu Firmen, die bereits im "
-                "Bestand sind. Keine Credits verbraucht.", skipped_known,
+                "Bestand sind. Keine Credits verbraucht.",
+                skipped_known,
             )
         else:
             log.warning(

@@ -532,3 +532,44 @@ bleibt die Sende-Infrastruktur, siehe Kommentar in `worker/main.py`.
 | Antworten kommen nicht in der App an | Vercel-Logs der Route `api/cron/instantly-sync`; danach Instantlys Rate-Limit (20/Min) |
 | Antwort-Benachrichtigung kommt nicht | Einstellungen → „Testmail senden". Der Knopf zeigt Resends Originalfehler |
 | Kampagnenliste leer | Nicht mehr stillschweigend möglich: die Route meldet DB-Fehler jetzt explizit (Session 3) |
+
+## Personen-Befund (`write_person_finding`, Migrationen 0118 und 0119)
+
+Der dritte personalisierte Text neben Aufhaenger und Website-Befund: ein
+Absatz ueber den Entscheidungstraeger selbst, aus dem, was er oeffentlich
+veroeffentlicht hat (LinkedIn-Beitraege, Interviews, Podcasts, das von ihm
+gepflegte Profil, das Apollo als `employment_history` mitliefert). Geht als
+`{{personFinding}}` ueber `custom_variables` an Instantly. Code:
+`apps/worker/worker/pipelines/person_finding.py`.
+
+**Kosten.** Jede Person ist eine OpenAI-Websuche (`gpt-4.1-mini` mit
+`web_search`), 50 bis 60 Sekunden, ein bis drei Cent, plus ein
+Schreibaufruf. Deshalb drei Bremsen: Opt-in je Suche (Haken „Person
+recherchieren", `filters.person_findings`), Deckel 300 Kontakte je Suche
+(atomar in `claim_person_finding_contacts`, Rest bekommt Status
+`skipped_limit`), und ohne LinkedIn-Personenprofil (`/in/`) keine Suche.
+Fehlversuche stehen in `api_usage` als `person_finding_research_failed`
+ohne Betrag; ob OpenAI abgebrochene Websuchen berechnet, ist nicht belegt.
+
+**Zustaende** (`contacts.person_finding_status`): `null` nie angefragt,
+`pending` eingereiht, `running` in Arbeit, `found` Absatz da, `none`
+recherchiert und nichts Brauchbares (wird nie automatisch wiederholt),
+`failed` nach `max_attempts`, `skipped_limit` vom Deckel abgeschnitten.
+Haengt etwas auf `running`, ist der Worker mitten im Job gestorben;
+`claim_job` holt den Job nach 15 Minuten zurueck, und der Job setzt den
+Status dann selbst weiter.
+
+**Pruefung.** Absaetze mit `person_finding_needs_review = true` gehen nicht
+raus (der Upload haelt sie zurueck) und stehen unter `/person-finding` zur
+Freigabe. Zwei Gruende: die Quelle ist nicht eindeutig an die Person
+gebunden (`review_reason = unverified_anchor`, das Modell behauptet, der
+Mensch bestaetigt), oder der Text verstoesst gegen Wortgrenze (45) und
+Verbotsliste (`review_reason = rules`).
+
+**Datenschutz.** `contacts.person_finding_source` speichert nur oeffentlich
+Veroeffentlichtes mit URL, kein Privates (der Prompt schliesst Familie,
+Gesundheit, Politik, Religion, Hobbys aus). Die Zeile haengt am Kontakt und
+verschwindet mit ihm (Kaskade contacts -> businesses -> searches). Aufbewahrung:
+so lange die Suche existiert, auch im Papierkorb; endgueltiges Loeschen
+raeumt auf. Keine automatische Verfallszeit. Es wird keine LinkedIn-Seite
+abgerufen, sondern eine Suchmaschine gefragt.

@@ -1,4 +1,5 @@
 """Unit-Tests fuer die reinen Apollo-Funktionen (kein Netz, keine DB)."""
+
 import pytest
 
 from worker.pipelines.apollo import (
@@ -84,7 +85,7 @@ def test_build_body_maps_technologies():
 
 
 def test_technologies_alone_are_a_sufficient_filter():
-    """"Alle Shopify-Shops" ist eine vollwertige Zielgruppe; ohne diesen
+    """ "Alle Shopify-Shops" ist eine vollwertige Zielgruppe; ohne diesen
     Zweig haette build_body sie als filterlos abgelehnt."""
     body = build_people_search_body({"technologies": ["shopify"]}, page=1)
     assert body["currently_using_any_of_technology_uids"] == ["shopify"]
@@ -118,7 +119,7 @@ def test_market_segments_are_passed_through_in_apollos_own_spelling():
 
 
 def test_market_segments_alone_are_a_sufficient_filter():
-    """"Alle SaaS-Firmen in den USA" ist eine vollwertige Zielgruppe."""
+    """ "Alle SaaS-Firmen in den USA" ist eine vollwertige Zielgruppe."""
     body = build_people_search_body({"market_segments": ["saas"]}, page=1)
     assert body["market_segments"] == ["saas"]
 
@@ -152,7 +153,7 @@ def test_employee_range_translation():
 
 
 def test_employee_range_rejects_stufen_die_apollo_nicht_kennt():
-    """"11-50" war unsere eigene Erfindung. Apollo akzeptiert sie technisch,
+    """ "11-50" war unsere eigene Erfindung. Apollo akzeptiert sie technisch,
     zeigt sie in der Oberflaeche aber nicht an. Eine stille Abweichung von dem,
     was der Kunde dort sieht, ist schlechter als kein Filter."""
     assert _employee_range("11-50") is None
@@ -225,6 +226,7 @@ def test_enrich_stops_at_the_requested_number(monkeypatch):
 def test_enrich_refills_when_a_match_is_unusable(monkeypatch):
     """Ein Treffer ohne Firmendomain ist kein Lead; dann muss nachgeladen
     werden, sonst liefert die Suche weniger als bestellt."""
+
     def fake_chunk(ids, api_key):
         return [
             _match(i) if i != "id-0" else {"id": "id-0", "name": "X", "organization": {}}
@@ -333,9 +335,7 @@ def test_partner_is_a_valid_seniority():
     Kanzleien und Beratungen ist es die wichtigste Stufe ueberhaupt."""
     assert "partner" in APOLLO_SENIORITIES
     assert "partner" in DECISIONMAKER_SENIORITIES
-    body = build_people_search_body(
-        {"keywords": "law", "apollo_seniorities": ["partner"]}, page=1
-    )
+    body = build_people_search_body({"keywords": "law", "apollo_seniorities": ["partner"]}, page=1)
     assert body["person_seniorities"] == ["partner"]
 
 
@@ -362,6 +362,7 @@ def test_seniorities_fall_back_when_selection_is_empty_or_invalid():
 # fest, dass sie stattdessen benennt, WORAN es lag, ohne dabei je selbst zur
 # Fehlerquelle zu werden.
 
+
 def _stub_search(monkeypatch, handler):
     """post_search durch eine Attrappe ersetzen; zaehlt die Aufrufe mit."""
     calls: list[dict] = []
@@ -378,6 +379,7 @@ def _stub_search(monkeypatch, handler):
 def test_explain_names_the_filter_that_costs_the_hits(monkeypatch):
     """Der Fall vom 2026-08-02: ein Technologie-Slug, den Apollo nicht kennt.
     Ohne diesen Filter gibt es Treffer, und genau das muss die Meldung sagen."""
+
     def handler(body):
         if "currently_using_any_of_technology_uids" in body:
             return {"people": [], "total_entries": 0}
@@ -431,6 +433,7 @@ def test_explain_says_so_when_no_single_filter_is_to_blame(monkeypatch):
 def test_explain_never_raises_and_never_costs_the_search(monkeypatch):
     """Die Diagnose ist eine Zusatzauskunft. Faellt sie aus, darf die Suche
     nicht nachtraeglich zum Fehler werden."""
+
     def boom(body, api_key):
         raise RuntimeError("Apollo weg")
 
@@ -442,6 +445,7 @@ def test_explain_never_raises_and_never_costs_the_search(monkeypatch):
 def test_explain_passes_a_plan_error_through(monkeypatch):
     """Ein gesperrter Plan ist keine "zu enge Suche", und diese Unterscheidung
     darf die Diagnose nicht verschlucken."""
+
     def blocked(body, api_key):
         raise ApolloPlanError("Free-Plan")
 
@@ -468,14 +472,17 @@ def test_body_accepts_a_smaller_page_size_for_counting():
 # personalize auf den Website-Text zurueck, und den blocken die meisten
 # Shops (gemessen: 12 von 12 Seiten mit HTTP 429).
 
+
 def test_summary_combines_description_keywords_and_industry():
     """Beschreibung UND Stichwoerter: die eine liefert den Selbstanspruch,
     die anderen die konkreten Aufhaenger fuer eine Eroeffnungszeile."""
-    text = build_company_summary({
-        "short_description": "We make clean sports nutrition for athletes who read labels." * 2,
-        "keywords": ["dietary supplements", "d2c", "collagen peptides"],
-        "industry": "health, wellness & fitness",
-    })
+    text = build_company_summary(
+        {
+            "short_description": "We make clean sports nutrition for athletes who read labels." * 2,
+            "keywords": ["dietary supplements", "d2c", "collagen peptides"],
+            "industry": "health, wellness & fitness",
+        }
+    )
     assert "clean sports nutrition" in text
     assert "collagen peptides" in text
     assert "health, wellness & fitness" in text
@@ -674,8 +681,11 @@ def test_collect_people_blaettert_weiter_statt_bei_dubletten_aufzugeben(monkeypa
     monkeypatch.setattr(apollo, "search_people", _fake_search(pages, calls))
     enriched: list[list[str]] = []
     monkeypatch.setattr(
-        apollo, "enrich_people",
-        lambda ids, key, capped, on_charge=None, should_stop=None: enriched.append(list(ids)) or [{"x": 1}],
+        apollo,
+        "enrich_people",
+        lambda ids, key, capped, on_charge=None, should_stop=None: (
+            enriched.append(list(ids)) or [{"x": 1}]
+        ),
     )
     monkeypatch.setattr(apollo.time, "sleep", lambda _s: None)
 
@@ -712,8 +722,11 @@ def test_collect_people_ohne_bestand_verhaelt_sich_wie_bisher(monkeypatch):
     monkeypatch.setattr(apollo, "search_people", _fake_search(pages, []))
     enriched: list[list[str]] = []
     monkeypatch.setattr(
-        apollo, "enrich_people",
-        lambda ids, key, capped, on_charge=None, should_stop=None: enriched.append(list(ids)) or [{"x": 1}],
+        apollo,
+        "enrich_people",
+        lambda ids, key, capped, on_charge=None, should_stop=None: (
+            enriched.append(list(ids)) or [{"x": 1}]
+        ),
     )
     monkeypatch.setattr(apollo.time, "sleep", lambda _s: None)
 
@@ -747,9 +760,7 @@ def test_abbruch_stoppt_vor_dem_naechsten_bezahlten_paket(monkeypatch):
     monkeypatch.setattr("worker.pipelines.apollo._bulk_match_chunk", fake_chunk)
     monkeypatch.setattr("worker.pipelines.apollo.time.sleep", lambda _s: None)
 
-    out = enrich_people(
-        [f"p{i}" for i in range(100)], "key", 100, should_stop=lambda: stop["now"]
-    )
+    out = enrich_people([f"p{i}" for i in range(100)], "key", 100, should_stop=lambda: stop["now"])
     assert billed == [10], f"nur das laufende Paket darf bezahlt werden, war: {billed}"
     assert len(out) == 10, "was bezahlt wurde, wird auch behalten"
 
@@ -801,7 +812,8 @@ def _cache_stub(monkeypatch, vorhanden: dict[str, dict]):
 
     abgelegt: dict[str, dict] = {}
     monkeypatch.setattr(
-        apollo_cache, "get_many",
+        apollo_cache,
+        "get_many",
         lambda key, kind, ids: {i: vorhanden[i] for i in ids if i in vorhanden},
     )
     monkeypatch.setattr(apollo_cache, "put_many", lambda key, kind, items: abgelegt.update(items))
@@ -896,3 +908,47 @@ def test_veralteter_eintrag_gilt_nicht_mehr():
     assert _fresh_enough(alt.isoformat()) is False
     assert _fresh_enough(None) is False
     assert _fresh_enough("kein datum") is False
+
+
+def test_parse_person_keeps_profile_fields_capped():
+    """Werdegang, Ueberschrift und Ort kommen im bezahlten bulk_match mit und
+    wurden bis zum 2026-09-22 verworfen. Jetzt landen sie gekappt in
+    contacts.custom.apollo, dem Material fuer den Personen-Befund."""
+    lang = "x" * 1000
+    parsed = parse_apollo_person(
+        {
+            "id": "apollo-3",
+            "name": "Kate Prince",
+            "email": "kate@example.com",
+            "headline": lang,
+            "city": "Lewes",
+            "state": "East Sussex",
+            "country": "United Kingdom",
+            "functions": ["entrepreneurship"],
+            "subdepartments": ["founder"],
+            "employment_history": [
+                {
+                    "organization_name": "Ancient + Brave",
+                    "title": "Founder",
+                    "start_date": "2018-01-01",
+                    "current": True,
+                },
+                {
+                    "organization_name": "Endemol",
+                    "title": lang,
+                    "start_date": "2010",
+                    "end_date": "2017",
+                },
+            ]
+            + [{"organization_name": f"Org {i}", "title": "x"} for i in range(30)],
+            "organization": {"name": "Ancient + Brave", "primary_domain": "ancientandbrave.earth"},
+        }
+    )
+    apollo = parsed["contact"]["custom"]["apollo"]
+    assert apollo["headline"].endswith("…") and len(apollo["headline"]) <= 300
+    assert apollo["city"] == "Lewes" and apollo["country"] == "United Kingdom"
+    assert apollo["functions"] == ["entrepreneurship"]
+    assert len(apollo["employment_history"]) == 10
+    assert apollo["employment_history"][0]["current"] is True
+    assert apollo["employment_history"][0]["organization_name"] == "Ancient + Brave"
+    assert len(apollo["employment_history"][1]["title"]) <= 300

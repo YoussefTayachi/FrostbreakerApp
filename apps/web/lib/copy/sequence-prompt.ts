@@ -79,6 +79,9 @@ export const EMAIL_MERGE_TAGS = [
   // meldet: eine handgeschriebene Sequenz, die es benutzt, waere sonst
   // dauerhaft rot.
   "websiteFinding",
+  // Der Absatz ueber den Menschen (PERSON_FINDING_FIELD, Migration 0118).
+  // Gleiche Begruendung wie websiteFinding: eigenes Feld, kein Instantly-Tag.
+  "personFinding",
 ] as const;
 export type EmailMergeTag = (typeof EMAIL_MERGE_TAGS)[number];
 

@@ -42,6 +42,37 @@ export type SequenceStep = { variants: StepVariant[]; delayDays?: number };
 export const WEBSITE_FINDING_FIELD = "websiteFinding";
 
 /**
+ * Der Name, unter dem der Personen-Befund als Instantly-Variable ankommt.
+ *
+ * Dieselbe Bauart wie websiteFinding: kein vordefiniertes Tag, sondern ein
+ * eigenes Feld in custom_variables. Anders als die beiden anderen Texte lebt
+ * er am KONTAKT (contacts.person_finding, Migration 0118), nicht an der
+ * Firma: 15,5 Prozent der Firmen haben mehr als einen Kontakt, und ein Absatz
+ * ueber einen Menschen kann nicht fuer zwei gelten.
+ */
+export const PERSON_FINDING_FIELD = "personFinding";
+
+/**
+ * Benutzt diese Sequenz eine eigene Variable?
+ *
+ * Geprueft werden ALLE Fassungen und auch die Betreffzeilen: eine Variable,
+ * die nur in Fassung B steht, wird trotzdem an die Haelfte versendet.
+ */
+export function usesMergeTag(
+  variants: { subject?: string | null; body?: string | null }[],
+  field: string
+): boolean {
+  const alles = variants.flatMap((v) => [v.subject ?? "", v.body ?? ""]).join("\n");
+  return new RegExp(`\\{\\{\\s*${field}\\s*\\}\\}`).test(alles);
+}
+
+export function usesPersonFinding(
+  variants: { subject?: string | null; body?: string | null }[]
+): boolean {
+  return usesMergeTag(variants, PERSON_FINDING_FIELD);
+}
+
+/**
  * Benutzt diese Sequenz den Website-Befund?
  *
  * Davon haengt ab, ob Leads OHNE Befund mitgehen duerfen. Steht die Variable
@@ -55,8 +86,7 @@ export const WEBSITE_FINDING_FIELD = "websiteFinding";
 export function usesWebsiteFinding(
   variants: { subject?: string | null; body?: string | null }[]
 ): boolean {
-  const alles = variants.flatMap((v) => [v.subject ?? "", v.body ?? ""]).join("\n");
-  return new RegExp(`\\{\\{\\s*${WEBSITE_FINDING_FIELD}\\s*\\}\\}`).test(alles);
+  return usesMergeTag(variants, WEBSITE_FINDING_FIELD);
 }
 
 /**
@@ -72,6 +102,12 @@ export type MergeTagSource = {
   email: string | null;
   first_name: string | null;
   last_name: string | null;
+  /** Am Kontakt, nicht an der Firma (Migration 0118). Optional, weil
+   *  aeltere Aufrufer die Spalte nicht laden; leer bleibt leer. */
+  person_finding?: string | null;
+  /** Haelt beim Upload zurueck, bis ein Mensch die Provenienz gesehen hat
+   *  (splitByPersonFinding in create-campaign.ts). */
+  person_finding_needs_review?: boolean | null;
   businesses: {
     name: string | null;
     personalization: string | null;
@@ -119,6 +155,7 @@ export function mergeTagValues(lead: MergeTagSource): MergeTagValues {
     email: lead.email ?? "",
     personalization: lead.businesses?.personalization ?? "",
     [WEBSITE_FINDING_FIELD]: lead.businesses?.website_finding ?? "",
+    [PERSON_FINDING_FIELD]: lead.person_finding ?? "",
   };
 }
 
@@ -155,7 +192,11 @@ export function mergeTagValues(lead: MergeTagSource): MergeTagValues {
  */
 export function buildInstantlyLead(lead: MergeTagSource) {
   const v = mergeTagValues(lead);
-  const befund = v[WEBSITE_FINDING_FIELD] || undefined;
+  // Beide eigenen Felder in EIN custom_variables-Objekt; leere fallen weg,
+  // damit Instantly nie einen leeren String als gesetzten Wert speichert.
+  const eigene: Record<string, string> = {};
+  if (v[WEBSITE_FINDING_FIELD]) eigene[WEBSITE_FINDING_FIELD] = v[WEBSITE_FINDING_FIELD];
+  if (v[PERSON_FINDING_FIELD]) eigene[PERSON_FINDING_FIELD] = v[PERSON_FINDING_FIELD];
   return {
     email: v.email,
     first_name: v.firstName || undefined,
@@ -169,7 +210,7 @@ export function buildInstantlyLead(lead: MergeTagSource) {
     // Der Schluessel INNERHALB von custom_variables ist der Name der
     // Merge-Variable in Instantly. Er muss deshalb zeichengenau zu
     // WEBSITE_FINDING_FIELD passen, so wie er im Sequenztext steht.
-    custom_variables: befund ? { [WEBSITE_FINDING_FIELD]: befund } : undefined,
+    custom_variables: Object.keys(eigene).length ? eigene : undefined,
   };
 }
 

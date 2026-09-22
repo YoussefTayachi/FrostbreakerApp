@@ -123,6 +123,9 @@ export default function Nav() {
       children: [
         { href: "/offers", label: t.nav.offers, icon: IconOffer },
         { href: "/icebreaker", label: t.nav.icebreaker, icon: IconSparkle },
+        // Die Prueflliste des Personen-Befunds. Eigene Seite, weil der Text am
+        // Kontakt lebt und die Aufhaenger-Liste aus businesses liest.
+        { href: "/person-finding", label: t.nav.personFinding, icon: IconUsers },
       ],
     },
     {
