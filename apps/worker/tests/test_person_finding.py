@@ -721,3 +721,26 @@ def test_beleg_ohne_firma_belegt_nichts():
     )
     best = pf.best_finding([mit_firma], contact(_business_name="COCON"))
     assert best["anchor"] == "company_and_role"
+
+
+# ── Nach Lauf 6 (zehn echte US-Leads) ──────────────────────────────────────
+
+
+def test_erfundene_zahlen_werden_erkannt():
+    material = "Founded in 2008. Open rates are 20 to 30 percent."
+    assert pf.invented_numbers("Many brands miss 30% revenue.", material) == []
+    assert pf.invented_numbers("Many brands miss 40% revenue.", material) == ["40%"]
+    assert pf.invented_numbers("Since 2008 you run it.", material) == []
+    assert pf.invented_numbers("Since 2011 you run it.", material) == ["2011"]
+    assert pf.invented_numbers("No numbers here.", material) == []
+
+
+def test_erfundene_zahl_loest_korrekturrunde_aus(monkeypatch, cfg):
+    db = _Db({"businesses": [business()], "contacts": [contact()]})
+    aufrufe = _run_contact(
+        monkeypatch, db, [finding()], text="You lose 30% of revenue every month."
+    )
+    pf.run(job({"contact_id": "c-1"}))
+    row = db.tables["contacts"][0]
+    assert aufrufe["generate"] == 2
+    assert row["person_finding_needs_review"] is True

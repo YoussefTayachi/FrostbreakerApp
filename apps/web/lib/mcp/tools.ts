@@ -3804,6 +3804,9 @@ export const TOOLS: Record<ToolName, McpTool> = {
             // gehen Leads ohne Website-Befund nicht mit, statt eine Mail mit
             // einer leeren Zeile zu bekommen.
             no_website_finding: ergebnis.skippedWithoutFinding,
+            // Migration 0118: nur wenn die Sequenz {{personFinding}} benutzt.
+            no_person_finding: ergebnis.skippedWithoutPersonFinding,
+            person_finding_in_review: ergebnis.skippedPersonFindingReview,
           },
           mailboxes: gewaehlt,
           available_mailboxes: postfaecher.emails,
@@ -3834,6 +3837,9 @@ export const TOOLS: Record<ToolName, McpTool> = {
           already_replied_or_declined: ergebnis.skippedEngaged,
           invalid_address: ergebnis.skippedUnverified,
           no_website_finding: ergebnis.skippedWithoutFinding,
+            // Migration 0118: nur wenn die Sequenz {{personFinding}} benutzt.
+            no_person_finding: ergebnis.skippedWithoutPersonFinding,
+            person_finding_in_review: ergebnis.skippedPersonFindingReview,
         },
         mailboxes: gewaehlt,
         discarded_drafts: ergebnis.discardedDrafts,

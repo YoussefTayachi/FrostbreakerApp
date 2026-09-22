@@ -918,6 +918,37 @@ def source_label(finding: dict, language: str) -> str:
     return labels.get(kind, labels["article"]).format(host=host)
 
 
+_NUMBER = re.compile(
+    r"(?<![\w.])(?:\$|€|£)?\d[\d.,]*\s*(?:%|percent|prozent|k|m|million|mio)?", re.IGNORECASE
+)
+
+
+def invented_numbers(text: str, *sources: str) -> list[str]:
+    """Zahlen im Absatz, die in keiner Quelle stehen.
+
+    Lauf 6 am 2026-09-22 (zehn echte US-Leads): "Many brands miss 30% revenue
+    from Klaviyo underuse". Die 30 stand weder im Fund noch im Angebot; das
+    Modell hat sie erfunden, obwohl der Prompt es verbietet. Eine erfundene
+    Zahl ist in einer Kaltmail eine falsche Tatsachenbehauptung, deshalb
+    prueft der Code sie nach: jede Ziffernfolge im Absatz muss woertlich in
+    Fund oder Angebot vorkommen, sonst Korrekturrunde und Pruefflag.
+
+    Jahreszahlen zaehlen mit: "since 2008" darf nur stehen, wenn 2008 im
+    Material steht.
+    """
+    material = " ".join(sources).lower()
+    out = []
+    for m in _NUMBER.finditer(text or ""):
+        roh = m.group(0).strip()
+        ziffern = re.sub(r"[^\d]", "", roh)
+        if not ziffern:
+            continue
+        if ziffern in re.sub(r"[^\d ]", " ", material).split() or ziffern in material:
+            continue
+        out.append(roh)
+    return out
+
+
 def person_context(
     contact: dict, business: dict, finding: dict, offer: dict | None, language: str
 ) -> str:
@@ -1226,13 +1257,29 @@ def run(job: dict) -> None:
                 operation="person_finding",
             )
 
+        material = [
+            str(fund.get("claim") or ""),
+            str(fund.get("verbatim") or ""),
+            known_facts(contact),
+            offer_block(offer),
+        ]
+
+        def pruefe(text: str) -> list[str]:
+            probleme = personalize.validate(text, PERSON_FINDING_MAX_WORDS, banned)
+            erfunden = invented_numbers(text, *material)
+            if erfunden:
+                probleme.append(
+                    "contains numbers that are not in the material: " + ", ".join(erfunden)
+                )
+            return probleme
+
         absatz = write()
-        problems = personalize.validate(absatz, PERSON_FINDING_MAX_WORDS, banned)
+        problems = pruefe(absatz)
         needs_review = False
         if problems:
             absatz = write(correction="; ".join(problems))
             absatz = personalize.sanitize_banned_punctuation(absatz, banned)
-            needs_review = bool(personalize.validate(absatz, PERSON_FINDING_MAX_WORDS, banned))
+            needs_review = bool(pruefe(absatz))
         # Unbestaetigte Bindung geht in die Pruefung, unabhaengig von den
         # Schreibregeln: das Modell behauptet, der Mensch bestaetigt.
         if fund.get("review_reason"):
