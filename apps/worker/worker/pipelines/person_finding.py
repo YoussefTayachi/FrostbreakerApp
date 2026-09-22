@@ -353,6 +353,9 @@ WRITE_BASE_EN = (
     "sentence, skip part 2.\n"
     "- Every sentence says the thing. None hints at it. If a sentence works as a riddle, "
     "rewrite it as a statement.\n"
+    "- Never write about other brands or teams: no 'many brands', 'most teams', 'almost "
+    "every ecommerce brand', 'brands in your space'. Every sentence is about them. A "
+    "sentence that applies to everyone says nothing to them.\n"
     "- Short words, short sentences, easy to read on a phone. Contractions are fine.\n"
     "- Every sentence earns its place: it is about them, names a real pain point, or "
     "gives them something useful. Cut any sentence that does none of the three. Length "
@@ -395,6 +398,9 @@ WRITE_BASE_DE = (
     "Bezug nicht in einem schlichten Satz, lass Teil 2 weg.\n"
     "- Jeder Satz sagt die Sache. Keiner deutet sie an. Funktioniert ein Satz als "
     "Raetsel, schreib ihn als Aussage.\n"
+    "- Nie ueber andere Marken oder Teams schreiben: kein 'viele Marken', 'die meisten "
+    "Teams', 'fast jeder Shop'. Jeder Satz handelt von dieser Person. Ein Satz, der auf "
+    "alle passt, sagt ihr nichts.\n"
     "- Kurze Woerter, kurze Saetze, am Telefon gut lesbar.\n"
     "- Jeder Satz verdient seinen Platz: er handelt von der Person, nennt einen echten "
     "Schmerzpunkt oder gibt ihr etwas Brauchbares. Streich jeden Satz, der keins von "
@@ -567,6 +573,25 @@ PERSON_BANNED_DE = [
     "deswegen melde ich",
     "deshalb melde ich",
 ]
+
+
+def banned_words_block(banned: list[str]) -> str:
+    """Die Verbotsliste noch einmal als Woerter, nicht als Zeichen.
+
+    constraint_block nennt alles unter "Never use these characters", was fuer
+    Striche stimmt und fuer "likely" oder "may not" nicht: in Lauf 4 am
+    2026-09-22 standen diese Woerter in vier von zehn Absaetzen, auch nach
+    der Korrekturrunde. Hier stehen die Woerter als Woerter, mit dem Grund.
+    """
+    words = [w for w in banned if w.strip() and not personalize._is_punctuation_only(w.strip())]
+    if not words:
+        return ""
+    return (
+        "\n- Never use these words or phrases, in any form: "
+        + ", ".join(sorted(set(words)))
+        + ". Most of them hedge; you state things. 'Your flows likely stay on default "
+        "templates' becomes 'Your flows stay on default templates'."
+    )
 
 
 def person_banned_words(workspace_banned: list[str], language: str) -> list[str]:
@@ -760,6 +785,67 @@ def resolve_anchor(
     return "none"
 
 
+# Themen, die in keine Kaltmail gehoeren, auch wenn die Person sie selbst
+# oeffentlich gemacht hat. Die Recherche verbietet sie im Prompt; Lauf 4 am
+# 2026-09-22 brachte trotzdem "born from a vital desire to reinvent
+# everything after your breast cancer experience" als Aufhaenger. Ein
+# zweites Netz im Code, grob und absichtlich weit: lieber ein guter Fund zu
+# viel verworfen als ein Krankheitsverlauf in der ersten Zeile.
+PRIVATE_WORDS = (
+    "cancer",
+    "tumor",
+    "tumour",
+    "chemo",
+    "diagnos",
+    "illness",
+    "disease",
+    "surgery",
+    "hospital",
+    "depression",
+    "burnout",
+    "burn-out",
+    "miscarriage",
+    "pregnan",
+    "divorce",
+    "passed away",
+    "death of",
+    "died",
+    "funeral",
+    "laid off",
+    "role was eliminated",
+    "position was eliminated",
+    "let go",
+    "krebs",
+    "krankheit",
+    "diagnose",
+    "operation",
+    "krankenhaus",
+    "schwanger",
+    "fehlgeburt",
+    "scheidung",
+    "verstorben",
+    "gestorben",
+    "beerdigung",
+    "gekuendigt",
+    "entlassen",
+)
+
+
+def touches_private(finding: dict) -> bool:
+    """Beruehrt der Fund Gesundheit, Familie, Tod oder einen Jobverlust?
+
+    "laid off" und "role was eliminated" stehen mit drin, aus einem anderen
+    Grund: wer das gerade gepostet hat, arbeitet meist nicht mehr bei der
+    Firma, die Apollo nennt (Lauf 4: Austin Woodward, laut Apollo VP
+    Marketing, laut eigenem Beitrag nach Umbau ohne Stelle). Solche Kontakte
+    gehoeren in die Pruefung, nicht in die Kampagne.
+    """
+    text = " ".join(
+        str(finding.get(k) or "") for k in ("claim", "verbatim", "identity_evidence")
+    ).lower()
+    return any(w in text for w in PRIVATE_WORDS)
+
+
 def why_unusable(finding: dict, contact: dict, now: datetime | None = None) -> str | None:
     """Der erste Grund, aus dem ein Fund durchfaellt, oder None.
 
@@ -774,6 +860,8 @@ def why_unusable(finding: dict, contact: dict, now: datetime | None = None) -> s
         return "angle"
     if not (finding.get("claim") or "").strip():
         return "claim_empty"
+    if touches_private(finding):
+        return "private"
     kind = finding.get("source_kind")
     if kind not in SOURCE_KINDS:
         return "source_kind"
@@ -1342,10 +1430,12 @@ def run(job: dict) -> None:
         # der Person. Beides loest die Korrekturrunde aus wie jeder andere
         # Verstoss und bleibt danach als Pruefflag stehen.
         banned = banned + own_brand_words(offer) + person_name_words(contact)
-        system_prompt = write_prompt(
-            cfg["language"], fund["angle"], has_offer=bool(offer_block(offer))
-        ) + personalize.constraint_block(
-            PERSON_FINDING_MAX_WORDS, banned, cfg["language"], subject="paragraph"
+        system_prompt = (
+            write_prompt(cfg["language"], fund["angle"], has_offer=bool(offer_block(offer)))
+            + personalize.constraint_block(
+                PERSON_FINDING_MAX_WORDS, banned, cfg["language"], subject="paragraph"
+            )
+            + banned_words_block(banned)
         )
         context = person_context(contact, biz, fund, offer, cfg["language"])
 

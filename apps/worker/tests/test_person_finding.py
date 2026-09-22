@@ -801,3 +801,22 @@ def test_suchaufrufe_werden_gezaehlt():
     assert pf.search_calls(_R()) == 2
     assert pf.search_calls(type("_Leer", (), {"output": [_O("message")]})()) == 0
     assert pf.search_calls(type("_Nichts", (), {})()) == 0
+
+
+# ── Nach Lauf 4 (erzwungene Suche, 2026-09-22) ─────────────────────────────
+
+
+def test_private_themen_fallen_durch():
+    krank = finding(claim="Odacite was born after her breast cancer experience.")
+    assert pf.why_unusable(krank, contact()) == "private"
+    weg = finding(claim="He shared that his role was eliminated in a restructuring.")
+    assert pf.why_unusable(weg, contact()) == "private"
+    assert pf.why_unusable(finding(), contact()) is None
+
+
+def test_verbotsliste_steht_als_woerter_im_prompt():
+    block = pf.banned_words_block(["—", "likely", "may not", "—"])
+    assert "Never use these words" in block
+    assert "likely, may not" in block
+    assert "—" not in block.split(":", 1)[1]
+    assert pf.banned_words_block(["—"]) == ""
