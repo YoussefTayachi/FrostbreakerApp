@@ -633,6 +633,41 @@ export async function createInstantlyCampaign(
     .in("id", searchIds)
     .eq("workspace_id", workspaceId);
 
+  /**
+   * Jede hier veroeffentlichte Kampagne ist eine eigene.
+   *
+   * Der Unterschied, den Migration 0117 belegbar machen soll, ist genau
+   * dieser: was durch Frostbreaker gegangen ist, hat jemand in DIESEM
+   * Workspace gebaut. Was ueber den Sync hereinkommt, ohne je hier gewesen
+   * zu sein, gehoert jemand anderem, auch wenn beides aus demselben
+   * Instantly-Konto sendet.
+   *
+   * Deshalb wird die Markierung hier gesetzt und nicht in einem Haken im
+   * Formular: sie waere sonst eine Behauptung, die man vergessen oder
+   * nachtraeglich setzen kann. Hier ist sie ein Nebenprodukt der Handlung,
+   * die sie belegt.
+   *
+   * onConflict ignoriert: eine erneut veroeffentlichte Kampagne behaelt ihre
+   * urspruengliche Beschriftung und ihr urspruengliches Datum. Das Datum
+   * wird zum Beleg, sobald jemand nach Ergebnis bezahlt wird.
+   *
+   * Fehler werden geschluckt. Die Kampagne existiert an dieser Stelle bei
+   * Instantly und lokal; sie wegen einer fehlenden Markierung scheitern zu
+   * lassen waere die teurere Reihenfolge. Die Markierung laesst sich
+   * nachtragen, ein halb veroeffentlichter Versand nicht.
+   */
+  const { error: provisionError } = await supabase.from("commission_campaigns").upsert(
+    {
+      workspace_id: workspaceId,
+      instantly_campaign_id: instantlyCampaign.id,
+      label: name,
+    },
+    { onConflict: "workspace_id,instantly_campaign_id", ignoreDuplicates: true }
+  );
+  if (provisionError) {
+    console.warn("Kampagne nicht als eigene markiert:", provisionError.message);
+  }
+
   // Weitere Entwuerfe derselben Listen wegraeumen. Sie koennten ab jetzt nie
   // mehr eine Kampagne werden (die Suchen sind verknuepft) und wuerden in der
   // Kampagnenliste als Zeile stehen bleiben, die nichts mehr tun kann.

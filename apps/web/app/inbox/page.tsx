@@ -27,6 +27,11 @@ type Msg = {
   created_at: string;
   read_at: string | null;
   instantly_email_id: string | null;
+  /** Instantlys Kampagnen-UUID. Traegt JEDE synchronisierte Mail, auch die
+   *  aus Kampagnen, die nie durch Frostbreaker gelaufen sind. Genau deshalb
+   *  haengt die Provisionszuordnung daran und nicht an campaign_id, die in
+   *  diesem Fall leer bleibt (siehe Migration 0117). */
+  instantly_campaign_id: string | null;
   contacts: {
     id: string;
     full_name: string | null;
@@ -65,9 +70,19 @@ type Conversation = {
   replyTarget: Msg | null;
   /** Steht auf der Blockliste: meist, weil jemand "stop" geantwortet hat. */
   suppressed: boolean;
+  /** Beschriftung der markierten Kampagne, wenn diese Unterhaltung aus einer
+   *  stammt. null heisst: gehoert nicht zu einer eigenen Kampagne. */
+  commission: string | null;
 };
 
-type Filter = "all" | "unread" | "interested" | "question" | "out_of_office" | "not_interested";
+type Filter =
+  | "all"
+  | "unread"
+  | "commission"
+  | "interested"
+  | "question"
+  | "out_of_office"
+  | "not_interested";
 
 const REFRESH_INTERVAL_MS = 30_000;
 
@@ -75,7 +90,24 @@ function when(msg: Msg): string {
   return msg.sent_at ?? msg.created_at;
 }
 
-function toConversations(messages: Msg[]): Conversation[] {
+/**
+ * Gehoert diese Unterhaltung zu einer markierten Kampagne?
+ *
+ * Geprueft wird ueber ALLE Nachrichten des Threads, nicht nur ueber die
+ * letzte. Eine Antwort traegt dieselbe instantly_campaign_id wie die Mail,
+ * die sie ausgeloest hat; ein spaeteres Hin und Her im selben Thread muss
+ * aber nicht jede Zeile damit fuellen. Der Beleg ist, dass IRGENDEINE Mail
+ * dieses Gespraechs aus der eigenen Kampagne kam.
+ */
+function commissionLabel(messages: Msg[], marked: Map<string, string>): string | null {
+  for (const m of messages) {
+    const label = m.instantly_campaign_id ? marked.get(m.instantly_campaign_id) : undefined;
+    if (label) return label;
+  }
+  return null;
+}
+
+function toConversations(messages: Msg[], marked: Map<string, string>): Conversation[] {
   const byKey = new Map<string, Conversation>();
   for (const m of messages) {
     // Ohne Kontakt gruppiert die rohe Absenderadresse (from_email) statt einer
@@ -99,6 +131,7 @@ function toConversations(messages: Msg[]): Conversation[] {
         aiInterest: null,
         replyTarget: null,
         suppressed: false,
+        commission: null,
       };
       byKey.set(key, c);
     }
@@ -117,6 +150,7 @@ function toConversations(messages: Msg[]): Conversation[] {
     // Nachrichten ohne instantly_email_id (z.B. lokal gespiegelte Ausgaenge)
     // taugen dafuer nicht.
     c.replyTarget = [...inbound].reverse().find((m) => m.instantly_email_id) ?? null;
+    c.commission = commissionLabel(c.messages, marked);
   }
   conversations.sort((a, b) => (b.lastAt ?? "").localeCompare(a.lastAt ?? ""));
   return conversations;
@@ -130,6 +164,9 @@ export default function InboxPage() {
 
   const [messages, setMessages] = useState<Msg[]>([]);
   const [suppression, setSuppression] = useState<{ email: string | null; domain: string | null }[]>([]);
+  /** instantly_campaign_id -> Beschriftung. Leer, solange niemand eine
+   *  Kampagne markiert hat; dann verschwindet auch der Reiter. */
+  const [marked, setMarked] = useState<Map<string, string>>(new Map());
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<Filter>("all");
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -151,8 +188,9 @@ export default function InboxPage() {
     const supabase = createClient();
     const spalten =
       "id, contact_id, from_email, eaccount, direction, subject, body, ai_interest, sent_at, created_at, read_at, instantly_email_id, " +
+      "instantly_campaign_id, " +
       "contacts(id, full_name, email, title, outreach_status, business_id, businesses(name, website))";
-    const [msgRes, ungelesenRes, supRes] = await Promise.all([
+    const [msgRes, ungelesenRes, supRes, provRes] = await Promise.all([
       supabase
         .from("messages")
         .select(spalten)
@@ -178,6 +216,10 @@ export default function InboxPage() {
         .order("sent_at", { ascending: false })
         .limit(200),
       supabase.from("suppression_list").select("email,domain").eq("workspace_id", workspaceId),
+      supabase
+        .from("commission_campaigns")
+        .select("instantly_campaign_id,label")
+        .eq("workspace_id", workspaceId),
     ]);
     const zusammen = new Map<string, Msg>();
     for (const m of [...(msgRes.data ?? []), ...(ungelesenRes.data ?? [])] as unknown as Msg[]) {
@@ -185,6 +227,9 @@ export default function InboxPage() {
     }
     setMessages([...zusammen.values()]);
     setSuppression(supRes.data ?? []);
+    setMarked(
+      new Map((provRes.data ?? []).map((r) => [r.instantly_campaign_id as string, r.label as string]))
+    );
     setLoading(false);
   }, [workspaceId]);
 
@@ -217,10 +262,10 @@ export default function InboxPage() {
    * sie soll auffindbar sein, aber das Badge nicht hochzaehlen.
    */
   const conversations = useMemo(() => {
-    const list = toConversations(messages);
+    const list = toConversations(messages, marked);
     for (const c of list) c.suppressed = isSuppressed(c, suppression);
     return list;
-  }, [messages, suppression]);
+  }, [messages, suppression, marked]);
 
   const unreadTotal = useMemo(
     () => conversations.reduce((n, c) => n + c.unread, 0),
@@ -230,6 +275,7 @@ export default function InboxPage() {
   const visible = useMemo(() => {
     if (filter === "all") return conversations;
     if (filter === "unread") return conversations.filter((c) => c.unread > 0);
+    if (filter === "commission") return conversations.filter((c) => c.commission !== null);
     return conversations.filter((c) => c.aiInterest === filter);
   }, [conversations, filter]);
 
@@ -364,9 +410,24 @@ export default function InboxPage() {
     }
   }
 
+  /**
+   * Wie viele Unterhaltungen aus einer markierten Kampagne stammen.
+   *
+   * Der Reiter erscheint nur, wenn es ueberhaupt eine markierte Kampagne
+   * gibt. Ein Filter, der in jedem zweiten Workspace dauerhaft leer bliebe,
+   * waere ein toter Knopf in der Reihe, und die Reihe hat schon sechs.
+   */
+  const commissionTotal = useMemo(
+    () => conversations.filter((c) => c.commission !== null).length,
+    [conversations]
+  );
+
   const filters: { id: Filter; label: string }[] = [
     { id: "all", label: L.filterAll },
     { id: "unread", label: unreadTotal > 0 ? `${L.filterUnread} (${unreadTotal})` : L.filterUnread },
+    ...(marked.size > 0
+      ? [{ id: "commission" as Filter, label: `${L.filterCommission} (${commissionTotal})` }]
+      : []),
     { id: "interested", label: L.aiInterestLabels.interested },
     { id: "question", label: L.aiInterestLabels.question },
     // Vor "kein Interesse": eine Abwesenheitsnotiz ist keine Absage, sondern
@@ -472,12 +533,18 @@ export default function InboxPage() {
                           Das KI-Badge bleibt davon unabhaengig sichtbar. */}
                       {((c.name ?? c.email) && (c.name ?? c.email) !== title) ||
                       c.aiInterest ||
+                      c.commission ||
                       c.suppressed ? (
                         <span className="mt-1 flex flex-wrap items-center gap-1.5">
                           {(c.name ?? c.email) && (c.name ?? c.email) !== title && (
                             <span className="truncate text-xs text-soft">{c.name ?? c.email}</span>
                           )}
                           {c.aiInterest && <InterestBadge value={c.aiInterest} labels={L.aiInterestLabels} />}
+                          {/* Vor der Abmeldung und nach der Einstufung: die
+                              Zuordnung ist das, was man in diesem Posteingang
+                              zuerst sucht, wenn man nach Ergebnis bezahlt
+                              wird. */}
+                          {c.commission && <CommissionBadge label={c.commission} />}
                           {c.suppressed && <UnsubscribedBadge label={L.unsubscribedBadge} />}
                         </span>
                       ) : null}
@@ -520,6 +587,7 @@ export default function InboxPage() {
                       <span className="truncate">
                         {selected.businesses?.name ?? selected.name ?? selected.email ?? L.unknownContact}
                       </span>
+                      {selected.commission && <CommissionBadge label={selected.commission} />}
                       {selected.suppressed && <UnsubscribedBadge label={L.unsubscribedBadge} />}
                     </p>
                     <p className="mt-0.5 truncate text-sm text-faint">
@@ -694,6 +762,24 @@ function PlainMessageList({
 function UnsubscribedBadge({ label }: { label: string }) {
   return (
     <span className="shrink-0 rounded-full bg-amber-500/10 px-2.5 py-0.5 text-xs font-medium text-amber-700 dark:text-amber-300">
+      {label}
+    </span>
+  );
+}
+
+/** Der Vermerk "aus meiner Kampagne".
+ *
+ *  Violett, weil keine der drei bestehenden Farben frei ist: gruen, rot und
+ *  bernstein sind in dieser Zeile schon mit Einstufung und Abmeldung belegt,
+ *  und eine vierte Bedeutung in einer bereits benutzten Farbe waere in einer
+ *  Liste aus Badges nicht mehr auseinanderzuhalten.
+ *
+ *  Der Text ist die Beschriftung der Kampagne, nicht "Provision": wer zwei
+ *  eigene Kampagnen markiert, will in der Liste sehen WELCHE, sonst ist der
+ *  Vermerk fuer die Abrechnung wertlos. */
+function CommissionBadge({ label }: { label: string }) {
+  return (
+    <span className="shrink-0 rounded-full bg-violet-500/10 px-2.5 py-0.5 text-xs font-medium text-violet-700 dark:text-violet-300">
       {label}
     </span>
   );

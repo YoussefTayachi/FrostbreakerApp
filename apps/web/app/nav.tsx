@@ -130,6 +130,10 @@ export default function Nav() {
       children: [
         { href: "/inbox", label: t.nav.inbox, icon: IconInbox, badge: unread },
         { href: "/wirkung", label: t.nav.effectiveness, icon: IconChart },
+        // Unter der Wirkung und nicht darueber: die Wirkung beantwortet "was
+        // funktioniert", die Provision "was davon war meins". Die zweite
+        // Frage stellt sich nur, wer fuer ein fremdes Konto sendet.
+        { href: "/provision", label: t.nav.commission, icon: IconChart },
       ],
     },
     {
