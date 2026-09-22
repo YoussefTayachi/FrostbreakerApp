@@ -136,14 +136,19 @@ RESEARCH_MODEL = "gpt-4.1"
 # FINDING_MAX_WORDS in website_finding.py: die Laenge haengt an der Form des
 # Textes, nicht am Geschmack des Workspaces.
 #
-# 60 seit dem Abend des 2026-09-22. Vorher 45: die Vorlagen lagen zwischen 38
-# und 46 Woertern. Dann kamen die Labels in der Ich-Form ("I just read on your
-# LinkedIn profile that", neun Woerter statt vier) und Teil 2 mit zwei Saetzen;
-# im ersten Lauf danach lagen acht von zehn Absaetzen bei 48 bis 57 Woertern
-# und landeten alle wegen der Grenze in der Pruefung, mit gequetschten Saetzen
-# ("no time or expertise fully to leverage"). Der Torwart rechnet die erste
-# Mail auf 90 Woerter; 60 laesst Anrede und Bitte noch Platz.
-PERSON_FINDING_MAX_WORDS = 60
+# 120 seit dem Abend des 2026-09-22, und zwar als Deckel gegen Absurdes, nicht
+# als Ziel. Regel von Youssef: die Wortzahl hat keine Prioritaet, solange der
+# Absatz nicht laecherlich lang wird (150 und mehr). Was zaehlt: gut lesbar,
+# relevant fuer die Person, trifft echte Schmerzpunkte, bringt dem Leser etwas.
+# Wenn es Sinn ergibt, mehr zu schreiben, ist mehr richtig.
+#
+# Die Geschichte davor: 45 nach den Vorlagen (38 bis 46 Woerter), dann 60,
+# weil die Labels in der Ich-Form neun Woerter kosten und acht von zehn
+# Absaetzen bei 48 bis 57 Woertern in der Pruefung landeten, mit gequetschten
+# Saetzen ("no time or expertise fully to leverage"). Die enge Grenze hat den
+# Text schlechter gemacht, nicht besser. Der Torwart rechnet die erste Mail
+# mit diesem Absatz auf 150 statt 90 Woerter (campaign-readiness.ts).
+PERSON_FINDING_MAX_WORDS = 120
 
 # Deckel je Suche. Eine versehentlich grosse Liste kostet damit hoechstens
 # 300 Websuchen. Was darueber liegt, bekommt Status 'skipped_limit' und ist
@@ -321,14 +326,15 @@ RESEARCH_PROMPT = (
 
 WRITE_BASE_EN = (
     "You write the opening paragraph of a cold email to one person. Not a subject line, "
-    "not a greeting, not a sign off, not a PS. Only the paragraph, as three or four short "
-    "lines.\n\n"
+    "not a greeting, not a sign off, not a PS. Only the paragraph. As long as it needs "
+    "to be to be worth reading, usually four to six sentences: nothing padded, nothing "
+    "left out that they need.\n\n"
     "Four parts, in this order:\n"
     "1. WHERE AND WHAT. Start with the source label you are given, word for word, and "
     "continue the sentence with what the person said or did. The label already says 'I "
     "just read ... that' or '... where you', so what follows completes it. Concrete "
     "enough that they recognise it. This is a person who just looked, not a database.\n"
-    "2. WHAT IT MEANS. One or two short sentences, direct and confident: tell them "
+    "2. WHAT IT MEANS. Two or three sentences, direct and confident: tell them "
     "plainly what they are leaving on the table, using the problem under <offer>. Say "
     "that their flows can do more than they do today and that average templates cost "
     "them revenue in a channel where the template decides the number. Respectful, never "
@@ -347,7 +353,10 @@ WRITE_BASE_EN = (
     "sentence, skip part 2.\n"
     "- Every sentence says the thing. None hints at it. If a sentence works as a riddle, "
     "rewrite it as a statement.\n"
-    "- Short words, short sentences. Talk to them as 'you'. Contractions are fine.\n"
+    "- Short words, short sentences, easy to read on a phone. Contractions are fine.\n"
+    "- Every sentence earns its place: it is about them, names a real pain point, or "
+    "gives them something useful. Cut any sentence that does none of the three. Length "
+    "is not the goal, being worth reading is.\n"
     "- No hedging, no softening, no opinions about yourself. State things.\n"
     "- Never compliment, never congratulate, never say you are a fan or follow them.\n"
     "- Never claim what their statement proves about their revenue, customers or team.\n"
@@ -360,15 +369,16 @@ WRITE_BASE_EN = (
 
 WRITE_BASE_DE = (
     "Du schreibst den Eroeffnungsabsatz einer Kaltmail an eine Person. Keinen Betreff, "
-    "keine Anrede, keinen Gruss, kein PS. Nur den Absatz, als drei oder vier kurze "
-    "Zeilen.\n\n"
+    "keine Anrede, keinen Gruss, kein PS. Nur den Absatz. So lang, wie er sein muss, "
+    "um das Lesen wert zu sein, meist vier bis sechs Saetze: nichts aufgefuellt, nichts "
+    "weggelassen, was die Person braucht.\n\n"
     "Vier Teile, in dieser Reihenfolge:\n"
     "1. WO UND WAS. Beginne mit dem Quellenlabel, das du bekommst, Wort fuer Wort, und "
     "fuehre den Satz mit dem fort, was die Person gesagt oder getan hat. Das Label sagt "
     "schon 'Ich habe gerade ... gelesen, dass' oder '... in dem du'; was folgt, "
     "vervollstaendigt es. Konkret genug, dass sie es wiedererkennt. Hier hat ein Mensch "
     "gerade hingesehen, keine Datenbank.\n"
-    "2. WAS ES HEISST. Ein oder zwei kurze Saetze, direkt und selbstsicher: sag klar, "
+    "2. WAS ES HEISST. Zwei oder drei Saetze, direkt und selbstsicher: sag klar, "
     "was liegen bleibt, mit dem Problem unter <offer>. Sag, dass die Flows mehr koennen "
     "als heute und dass mittelmaessige Vorlagen Umsatz kosten, in einem Kanal, in dem "
     "die Vorlage die Zahl entscheidet. Respektvoll, nie beleidigend, keine Abschwaecher. "
@@ -385,7 +395,10 @@ WRITE_BASE_DE = (
     "Bezug nicht in einem schlichten Satz, lass Teil 2 weg.\n"
     "- Jeder Satz sagt die Sache. Keiner deutet sie an. Funktioniert ein Satz als "
     "Raetsel, schreib ihn als Aussage.\n"
-    "- Kurze Woerter, kurze Saetze. Sprich die Person mit Du an.\n"
+    "- Kurze Woerter, kurze Saetze, am Telefon gut lesbar.\n"
+    "- Jeder Satz verdient seinen Platz: er handelt von der Person, nennt einen echten "
+    "Schmerzpunkt oder gibt ihr etwas Brauchbares. Streich jeden Satz, der keins von "
+    "den dreien tut. Laenge ist nicht das Ziel, lesenswert ist es.\n"
     "- Keine Abschwaecher, keine Meinungen ueber dich selbst. Sag es.\n"
     "- Nie loben, nie gratulieren, nie behaupten, du seist Fan oder folgst ihr.\n"
     "- Nie behaupten, was ihre Aussage ueber Umsatz, Kunden oder Team beweist.\n"

@@ -152,6 +152,14 @@ describe("Warnungen", () => {
     expect(severityOf(facts({ steps: [{ words: 90, hasLink: false }] }), "firstMailLength")).toBe("ok");
   });
 
+  // Mit dem Personen-Absatz gilt 150 statt 90 (Regel vom 2026-09-22: die
+  // Wortzahl hat keine Prioritaet, solange sie nicht laecherlich wird).
+  it("laesst der ersten Mail mit Personen-Absatz 150 Woerter", () => {
+    const mit = { words: 140, hasLink: false, usesPersonFinding: true };
+    expect(severityOf(facts({ steps: [mit] }), "firstMailLength")).toBe("ok");
+    expect(severityOf(facts({ steps: [{ ...mit, words: 151 }] }), "firstMailLength")).toBe("warning");
+  });
+
   // Nur der erste Schritt: in Folge-Mails ist ein Link unproblematisch, und
   // im sauberen Fall oben hat Schritt 2 bewusst einen.
   it("bei einem Link in der ersten Mail, aber nicht in spaeteren", () => {
@@ -239,7 +247,9 @@ describe("stepFacts", () => {
     expect(stepFacts("Hi {{personalization}} — mehr auf https://acme.de", 5)).toEqual({
       words: 1 + 5 + 4,
       hasLink: true,
+      usesPersonFinding: false,
     });
+    expect(stepFacts("{{personFinding}} Can I send it?", 5).usesPersonFinding).toBe(true);
   });
 });
 
@@ -278,6 +288,6 @@ describe("estimateWords mit personFinding", () => {
   it("zaehlt den Platzhalter mit seiner Hoechstlaenge", () => {
     const ohne = estimateWords("Hi {{firstName}}, kurz.", 10);
     const mit = estimateWords("Hi {{firstName}}, {{personFinding}} kurz.", 10);
-    expect(mit - ohne).toBe(60);
+    expect(mit - ohne).toBe(120);
   });
 });

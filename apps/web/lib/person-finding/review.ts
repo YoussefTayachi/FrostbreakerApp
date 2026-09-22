@@ -51,7 +51,7 @@ export function reviewReason(source: PersonFindingSource | null | undefined): "u
 
 /**
  * Ein von Hand geschriebener Absatz gegen dieselben Regeln wie beim
- * Erzeugen: 60 Woerter, Striche aus der Workspace-Liste, die eigene
+ * Erzeugen: 120 Woerter als Deckel, Striche aus der Workspace-Liste, die eigene
  * Liste je Sprache. Herkunftsnennung bleibt erlaubt.
  */
 export function validatePersonFindingText(

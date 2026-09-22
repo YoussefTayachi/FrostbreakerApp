@@ -563,7 +563,7 @@ Status dann selbst weiter.
 raus (der Upload haelt sie zurueck) und stehen unter `/person-finding` zur
 Freigabe. Zwei Gruende: die Quelle ist nicht eindeutig an die Person
 gebunden (`review_reason = unverified_anchor`, das Modell behauptet, der
-Mensch bestaetigt), oder der Text verstoesst gegen Wortgrenze (60) und
+Mensch bestaetigt), oder der Text verstoesst gegen den Deckel (120 Woerter) und
 Verbotsliste (`review_reason = rules`).
 
 **Datenschutz.** `contacts.person_finding_source` speichert nur oeffentlich

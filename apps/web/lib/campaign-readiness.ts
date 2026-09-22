@@ -61,7 +61,7 @@ export type ReadinessCheck = {
 /** Zustellungs-Nachweise einer Absender-Domain, wie lib/deliverability.ts sie liefert. */
 export type DomainAuth = { domain: string; spf: boolean; dkim: boolean; dmarc: boolean };
 
-export type StepFacts = { words: number; hasLink: boolean };
+export type StepFacts = { words: number; hasLink: boolean; usesPersonFinding?: boolean };
 
 export type ReadinessFacts = {
   /** Nach denselben Filtern wie beim tatsaechlichen Anlegen (ungueltig, gesperrt, kein Interesse). */
@@ -142,6 +142,17 @@ export const ICEBREAKER_WARN_SHARE = 0.2;
 export const FIRST_MAIL_MAX_WORDS = 90;
 
 /**
+ * Dieselbe Grenze, wenn die erste Mail den Personen-Absatz traegt.
+ *
+ * Regel von Youssef (2026-09-22): bei diesem Absatz hat die Wortzahl keine
+ * Prioritaet, solange er nicht laecherlich lang wird, und laecherlich beginnt
+ * bei 150. Der Absatz darf bis 120 Woerter haben (PERSON_FINDING_MAX_WORDS),
+ * und mit 90 als Grenze wuerde jede solche Sequenz dauerhaft warnen, was
+ * niemand mehr liest. Also 150: der Absatz plus Anrede und Bitte.
+ */
+export const FIRST_MAIL_MAX_WORDS_WITH_PERSON_FINDING = 150;
+
+/**
  * Was ein Platzhalter beim Zaehlen wiegt.
  *
  * {{personalization}} wird zum Aufhaenger und ist damit so lang, wie die
@@ -212,7 +223,10 @@ export function hasLink(body: string): boolean {
 }
 
 export function stepFacts(body: string, personalizationWords: number): StepFacts {
-  return { words: estimateWords(body, personalizationWords), hasLink: hasLink(body) };
+  const usesPersonFinding = Array.from(body.matchAll(PLACEHOLDER)).some(
+    (m) => m[1].toLowerCase() === PERSON_FINDING_PLACEHOLDER,
+  );
+  return { words: estimateWords(body, personalizationWords), hasLink: hasLink(body), usesPersonFinding };
 }
 
 export type Readiness = {
@@ -381,10 +395,13 @@ export function assessCampaign(facts: ReadinessFacts): Readiness {
   });
 
   const first = facts.steps[0];
+  const firstMax = first?.usesPersonFinding
+    ? FIRST_MAIL_MAX_WORDS_WITH_PERSON_FINDING
+    : FIRST_MAIL_MAX_WORDS;
   checks.push({
     id: "firstMailLength",
-    severity: first && first.words > FIRST_MAIL_MAX_WORDS ? "warning" : "ok",
-    values: { words: first?.words ?? 0, max: FIRST_MAIL_MAX_WORDS },
+    severity: first && first.words > firstMax ? "warning" : "ok",
+    values: { words: first?.words ?? 0, max: firstMax },
   });
   checks.push({
     id: "firstMailLink",

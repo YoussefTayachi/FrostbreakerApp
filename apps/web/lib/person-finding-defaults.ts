@@ -13,13 +13,14 @@
 /**
  * Die Wortgrenze des Absatzes.
  *
- * Gegenstueck zu PERSON_FINDING_MAX_WORDS im Worker. 60 seit dem 2026-09-22,
- * vorher 45: die Labels in der Ich-Form kosten neun Woerter statt vier, und
- * Teil 2 hat zwei Saetze. Acht von zehn Absaetzen lagen danach bei 48 bis 57
- * Woertern und fielen alle in die Pruefung. Der Torwart rechnet die erste
- * Mail auf 90 Woerter; 60 laesst Anrede und Bitte noch Platz.
+ * Gegenstueck zu PERSON_FINDING_MAX_WORDS im Worker. 120 seit dem 2026-09-22
+ * als Deckel gegen Absurdes, nicht als Ziel: Regel von Youssef, die Wortzahl
+ * hat keine Prioritaet, solange der Absatz nicht laecherlich lang wird (150
+ * und mehr). Lesbar, relevant, echte Schmerzpunkte, Wert fuer den Leser.
+ * Die erste Mail mit diesem Absatz darf deshalb 150 Woerter haben
+ * (FIRST_MAIL_MAX_WORDS_WITH_PERSON_FINDING in campaign-readiness.ts).
  */
-export const PERSON_FINDING_MAX_WORDS = 60;
+export const PERSON_FINDING_MAX_WORDS = 120;
 
 /**
  * Die eigene Verbotsliste dieses Textes, je Sprache.
