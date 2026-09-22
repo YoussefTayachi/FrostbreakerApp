@@ -657,3 +657,37 @@ def test_gewaehlter_fund_steht_nicht_bei_den_abgelehnten(monkeypatch, cfg):
     src = db.tables["contacts"][0]["person_finding_source"]
     assert len(src["rejected"]) == 1
     assert src["rejected"][0]["claim"] == "alt"
+
+
+# ── Nach Lauf 2 ────────────────────────────────────────────────────────────
+
+
+def test_profil_typen_brauchen_profil_daten():
+    f = finding(
+        angle="role_vs_size",
+        source_kind="profile",
+        source_url="https://www.linkedin.com/in/kate-prince-5aa8283b",
+        age_months=-1,
+    )
+    ohne = contact(custom=None)
+    mit = contact(custom={"apollo": {"headline": "Founder & CEO at Ancient + Brave"}})
+    assert pf.why_unusable(f, ohne) == "no_known_facts"
+    assert pf.why_unusable(f, mit) is None
+
+
+def test_eigener_markenname_und_personenname_sind_verboten():
+    assert pf.own_brand_words({"website": "https://www.retaiyn.com/"}) == ["retaiyn"]
+    assert pf.own_brand_words({"website": ""}) == []
+    assert pf.person_name_words(contact(last_name="Prince")) == ["Kate Prince", "Prince"]
+    assert pf.person_name_words(contact(full_name="Kate", last_name="")) == []
+
+
+def test_dritte_person_loest_korrekturrunde_aus(monkeypatch, cfg):
+    db = _Db({"businesses": [business()], "contacts": [contact(last_name="Prince")]})
+    aufrufe = _run_contact(
+        monkeypatch, db, [finding()], text="Kate Prince wrote that trust matters."
+    )
+    pf.run(job({"contact_id": "c-1"}))
+    row = db.tables["contacts"][0]
+    assert aufrufe["generate"] == 2
+    assert row["person_finding_needs_review"] is True

@@ -324,6 +324,12 @@ WRITE_BASE_EN = (
     "4. THE MECHANISM. One plain sentence on how the offer handles it. No pitch, no "
     "feature list.\n\n"
     "How to write:\n"
+    "- Address the person as 'you' in every sentence. Never write their name, never "
+    "'he', 'she' or 'they' for them. Never name your own company; say 'we'.\n"
+    "- Part 2 uses only the problem as it is written under <offer>, applied to them. Do "
+    "not invent consequences, approval chains, market dynamics or anything the material "
+    "does not say. If you cannot connect the finding to that problem in one plain "
+    "sentence, skip part 2.\n"
     "- Every sentence says the thing. None hints at it. If a sentence works as a riddle, "
     "rewrite it as a statement.\n"
     "- Short words, short sentences. Talk to them as 'you'. Contractions are fine.\n"
@@ -353,6 +359,11 @@ WRITE_BASE_DE = (
     "4. DER MECHANISMUS. Ein schlichter Satz, wie das Angebot das loest. Kein "
     "Verkaufstext, keine Aufzaehlung.\n\n"
     "Wie du schreibst:\n"
+    "- Sprich die Person in jedem Satz mit Du an. Nie ihr Name, nie 'er', 'sie'. Nie "
+    "der Name deiner eigenen Firma; sag 'wir'.\n"
+    "- Teil 2 benutzt nur das Problem, wie es unter <offer> steht, auf die Person "
+    "bezogen. Erfinde keine Folgen, Entscheidungswege oder Marktdynamik. Geht der "
+    "Bezug nicht in einem schlichten Satz, lass Teil 2 weg.\n"
     "- Jeder Satz sagt die Sache. Keiner deutet sie an. Funktioniert ein Satz als "
     "Raetsel, schreib ihn als Aussage.\n"
     "- Kurze Woerter, kurze Saetze. Sprich die Person mit Du an.\n"
@@ -516,6 +527,33 @@ def person_banned_words(workspace_banned: list[str], language: str) -> list[str]
     return striche + list(eigene)
 
 
+def own_brand_words(offer: dict | None) -> list[str]:
+    """Der eigene Markenname, aus der Website des Angebots ("retaiyn.com" ->
+    "retaiyn"). Als Verbot: Lauf 2 am 2026-09-22 endeten fuenf von neun
+    Absaetzen mit "Retaiyn sends ...", also dem Pitch, den der Absatz nicht
+    tragen soll."""
+    if not offer:
+        return []
+    site = (offer.get("website") or "").strip().lower()
+    site = re.sub(r"^https?://", "", site).split("/")[0]
+    site = site.removeprefix("www.")
+    label = site.split(".")[0] if site else ""
+    return [label] if len(label) >= 3 else []
+
+
+def person_name_words(contact: dict) -> list[str]:
+    """Nachname und voller Name der Person: im Absatz ein Verstoss, weil er
+    dann in der dritten Person steht ("Dean Smith manages ...")."""
+    out = []
+    full = (contact.get("full_name") or "").strip()
+    last = (contact.get("last_name") or "").strip()
+    if full and " " in full:
+        out.append(full)
+    if last and len(last) >= 3:
+        out.append(last)
+    return out
+
+
 # ── LinkedIn-URLs: der einzige Identitaetsanker ────────────────────────────
 
 _LINKEDIN_HOST = re.compile(r"^(?:[a-z0-9-]+\.)*linkedin\.com$")
@@ -669,6 +707,11 @@ def why_unusable(finding: dict, contact: dict, now: datetime | None = None) -> s
         return "age"
     if angle == "fresh_move" and kind == "profile" and not _enrichment_fresh(contact, now):
         return "enrichment_stale"
+    if kind == "profile" and not has_known_facts(contact):
+        # Lauf 2 am 2026-09-22: acht von neun Absaetzen waren "role_vs_size"
+        # oder "background" aus dem blossen Titel, weil die Testkontakte keine
+        # Apollo-Daten trugen. "Du bist CEO" ist kein Aufhaenger.
+        return "no_known_facts"
     if resolve_anchor(finding, canonical_linkedin(contact.get("linkedin"))) == "none":
         return "anchor"
     return None
@@ -738,6 +781,18 @@ def best_finding(findings: list[dict], contact: dict, now: datetime | None = Non
 def _cap(text: object, limit: int = MAX_FIELD_CHARS) -> str:
     s = str(text or "").strip()
     return s if len(s) <= limit else s[: limit - 1] + "…"
+
+
+def has_known_facts(contact: dict) -> bool:
+    """Gibt es Profil-Daten jenseits des Titels: Headline oder Werdegang?"""
+    custom = contact.get("custom") or {}
+    apollo = custom.get("apollo") if isinstance(custom, dict) else None
+    if not isinstance(apollo, dict):
+        return False
+    history = apollo.get("employment_history")
+    return bool((apollo.get("headline") or "").strip()) or (
+        isinstance(history, list) and len(history) > 0
+    )
 
 
 def known_facts(contact: dict) -> str:
@@ -922,7 +977,7 @@ def load_offer(ws: str) -> dict | None:
     rows = (
         sb()
         .table("offers")
-        .select("offering, problem, mechanism, icp")
+        .select("offering, problem, mechanism, icp, website")
         .eq("workspace_id", ws)
         .eq("is_default", True)
         .limit(1)
@@ -949,8 +1004,8 @@ def reihe_ein(ws: str, biz: dict) -> None:
 
 
 CONTACT_COLUMNS = (
-    "id, business_id, full_name, first_name, title, seniority, department, linkedin, email, "
-    "custom, created_at, person_finding, person_finding_status"
+    "id, business_id, full_name, first_name, last_name, title, seniority, department, linkedin, "
+    "email, custom, created_at, person_finding, person_finding_status"
 )
 
 
@@ -1111,6 +1166,10 @@ def run(job: dict) -> None:
         cfg = personalize.load_agent_config(ws)
         banned = person_banned_words(cfg["banned_words"], cfg["language"])
         offer = load_offer(ws)
+        # Zwei Verbote nur fuer diesen Lauf: der eigene Markenname und der Name
+        # der Person. Beides loest die Korrekturrunde aus wie jeder andere
+        # Verstoss und bleibt danach als Pruefflag stehen.
+        banned = banned + own_brand_words(offer) + person_name_words(contact)
         system_prompt = write_prompt(
             cfg["language"], fund["angle"], has_offer=bool(offer_block(offer))
         ) + personalize.constraint_block(
