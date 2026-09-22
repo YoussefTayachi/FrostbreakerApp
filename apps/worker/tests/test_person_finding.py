@@ -811,12 +811,24 @@ def test_private_themen_fallen_durch():
     assert pf.why_unusable(krank, contact()) == "private"
     weg = finding(claim="He shared that his role was eliminated in a restructuring.")
     assert pf.why_unusable(weg, contact()) == "private"
+    sohn = finding(claim="He said his son did not care about the problem he was dealing with.")
+    assert pf.why_unusable(sohn, contact()) == "private"
+    # Wortgrenzen: "person" und "Johnson" enthalten "son", sind aber kein Grund.
+    ok = finding(claim="The person Johnson said the analytics dashboard ships next week.")
+    assert pf.why_unusable(ok, contact()) is None
     assert pf.why_unusable(finding(), contact()) is None
 
 
-def test_verbotsliste_steht_als_woerter_im_prompt():
-    block = pf.banned_words_block(["—", "likely", "may not", "—"])
-    assert "Never use these words" in block
-    assert "likely, may not" in block
-    assert "—" not in block.split(":", 1)[1]
-    assert pf.banned_words_block(["—"]) == ""
+def test_adverb_abschwaecher_werden_gestrichen():
+    assert (
+        pf.strip_hedges("Your setup probably stays on default templates.")
+        == "Your setup stays on default templates."
+    )
+    assert (
+        pf.strip_hedges("Your flows likely earn less, and campaigns most likely go out late.")
+        == "Your flows earn less, and campaigns go out late."
+    )
+    assert pf.strip_hedges("Probably, your flows stay default.") == "Your flows stay default."
+    assert pf.strip_hedges("Dein Setup bringt vermutlich weniger.") == "Dein Setup bringt weniger."
+    assert pf.strip_hedges("Nothing to strip here.") == "Nothing to strip here."
+    assert pf.strip_hedges("The unlikely-sounding plan.") == "The unlikely-sounding plan."

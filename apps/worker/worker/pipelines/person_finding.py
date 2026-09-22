@@ -583,23 +583,28 @@ PERSON_BANNED_DE = [
 ]
 
 
-def banned_words_block(banned: list[str]) -> str:
-    """Die Verbotsliste noch einmal als Woerter, nicht als Zeichen.
+# Abschwaecher, die sich ohne Sinnverlust streichen lassen, weil sie Adverbien
+# sind: "Your setup probably stays on default templates" wird zu "Your setup
+# stays on default templates", und genau das will Youssef (Regel vom
+# 2026-09-22: keine Konjunktive, kein ich denke, koennte, wuerde). Verb-
+# Abschwaecher (would, could, may not) lassen sich nicht so streichen; die
+# bleiben Sache von validate und der Korrekturrunde.
+_HEDGE_ADVERBS = re.compile(
+    r"(?i)(?<![\w-])(?:most |very |quite |sehr )?"
+    r"(?:probably|likely|perhaps|maybe|possibly|presumably|"
+    r"vielleicht|wahrscheinlich|vermutlich|moeglicherweise|möglicherweise|eventuell|wohl)"
+    r"(?![\w-]),?\s*"
+)
 
-    constraint_block nennt alles unter "Never use these characters", was fuer
-    Striche stimmt und fuer "likely" oder "may not" nicht: in Lauf 4 am
-    2026-09-22 standen diese Woerter in vier von zehn Absaetzen, auch nach
-    der Korrekturrunde. Hier stehen die Woerter als Woerter, mit dem Grund.
-    """
-    words = [w for w in banned if w.strip() and not personalize._is_punctuation_only(w.strip())]
-    if not words:
-        return ""
-    return (
-        "\n- Never use these words or phrases, in any form: "
-        + ", ".join(sorted(set(words)))
-        + ". Most of them hedge; you state things. 'Your flows likely stay on default "
-        "templates' becomes 'Your flows stay on default templates'."
-    )
+
+def strip_hedges(text: str) -> str:
+    """Adverb-Abschwaecher streichen, Satzanfang und Abstaende reparieren."""
+    out = _HEDGE_ADVERBS.sub("", text or "")
+    out = re.sub(r"[ \t]{2,}", " ", out)
+    out = re.sub(r"\s+([.,;:!?])", r"\1", out)
+    # Nach dem Streichen am Satzanfang kann ein Kleinbuchstabe stehen.
+    out = re.sub(r"(^|[.!?]\s+)([a-zäöü])", lambda m: m.group(1) + m.group(2).upper(), out)
+    return out.strip()
 
 
 def person_banned_words(workspace_banned: list[str], language: str) -> list[str]:
@@ -801,19 +806,17 @@ def resolve_anchor(
 # viel verworfen als ein Krankheitsverlauf in der ersten Zeile.
 PRIVATE_WORDS = (
     "cancer",
-    "tumor",
-    "tumour",
+    "tumou?r",
     "chemo",
-    "diagnos",
+    "diagnos\\w*",
     "illness",
     "disease",
     "surgery",
     "hospital",
     "depression",
-    "burnout",
-    "burn-out",
+    "burn-?out",
     "miscarriage",
-    "pregnan",
+    "pregnan\\w*",
     "divorce",
     "passed away",
     "death of",
@@ -823,20 +826,45 @@ PRIVATE_WORDS = (
     "role was eliminated",
     "position was eliminated",
     "let go",
+    # Familie. "son" nur als Wort, sonst trifft es "person" und "Johnson";
+    # deshalb ist die ganze Liste ein Muster mit Wortgrenzen.
+    "sons?",
+    "daughters?",
+    "kids?",
+    "children",
+    "wife",
+    "husband",
+    "mother",
+    "father",
+    "mom",
+    "dad",
+    "parents?",
+    "family",
     "krebs",
     "krankheit",
     "diagnose",
     "operation",
     "krankenhaus",
-    "schwanger",
+    "schwanger\\w*",
     "fehlgeburt",
     "scheidung",
     "verstorben",
     "gestorben",
     "beerdigung",
     "gekuendigt",
+    "gekündigt",
     "entlassen",
+    "sohn",
+    "tochter",
+    "kinder",
+    "ehefrau",
+    "ehemann",
+    "mutter",
+    "vater",
+    "eltern",
+    "familie",
 )
+_PRIVATE = re.compile(r"(?i)(?<![\w-])(?:" + "|".join(PRIVATE_WORDS) + r")(?![\w-])")
 
 
 def touches_private(finding: dict) -> bool:
@@ -851,7 +879,7 @@ def touches_private(finding: dict) -> bool:
     text = " ".join(
         str(finding.get(k) or "") for k in ("claim", "verbatim", "identity_evidence")
     ).lower()
-    return any(w in text for w in PRIVATE_WORDS)
+    return bool(_PRIVATE.search(text))
 
 
 def why_unusable(finding: dict, contact: dict, now: datetime | None = None) -> str | None:
@@ -1438,12 +1466,15 @@ def run(job: dict) -> None:
         # der Person. Beides loest die Korrekturrunde aus wie jeder andere
         # Verstoss und bleibt danach als Pruefflag stehen.
         banned = banned + own_brand_words(offer) + person_name_words(contact)
-        system_prompt = (
-            write_prompt(cfg["language"], fund["angle"], has_offer=bool(offer_block(offer)))
-            + personalize.constraint_block(
-                PERSON_FINDING_MAX_WORDS, banned, cfg["language"], subject="paragraph"
-            )
-            + banned_words_block(banned)
+        # Keine eigene Liste der Verbotswoerter im Prompt. Lauf 6 am 2026-09-22
+        # hatte eine ("Never use these words: likely, may not, probably ..."),
+        # und danach standen genau diese Woerter in sieben von zehn Absaetzen,
+        # in Lauf 5 ohne die Liste in einem. Das Modell liest die Liste als
+        # Wortschatz. Abschwaecher entfernt stattdessen strip_hedges im Code.
+        system_prompt = write_prompt(
+            cfg["language"], fund["angle"], has_offer=bool(offer_block(offer))
+        ) + personalize.constraint_block(
+            PERSON_FINDING_MAX_WORDS, banned, cfg["language"], subject="paragraph"
         )
         context = person_context(contact, biz, fund, offer, cfg["language"])
 
@@ -1478,11 +1509,11 @@ def run(job: dict) -> None:
                 )
             return probleme
 
-        absatz = write()
+        absatz = strip_hedges(write())
         problems = pruefe(absatz)
         needs_review = False
         if problems:
-            absatz = write(correction="; ".join(problems))
+            absatz = strip_hedges(write(correction="; ".join(problems)))
             absatz = personalize.sanitize_banned_punctuation(absatz, banned)
             needs_review = bool(pruefe(absatz))
         # Unbestaetigte Bindung geht in die Pruefung, unabhaengig von den
