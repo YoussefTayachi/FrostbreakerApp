@@ -136,11 +136,14 @@ RESEARCH_MODEL = "gpt-4.1"
 # FINDING_MAX_WORDS in website_finding.py: die Laenge haengt an der Form des
 # Textes, nicht am Geschmack des Workspaces.
 #
-# 45, weil die Absaetze, die am 2026-09-22 als Vorlage gedient haben, zwischen
-# 38 und 46 Woertern lagen und laengere Fassungen nicht persoenlicher wurden,
-# sondern aufsatzhafter. Der Torwart rechnet die erste Mail auf 90 Woerter;
-# 45 laesst Anrede und Bitte Platz.
-PERSON_FINDING_MAX_WORDS = 45
+# 60 seit dem Abend des 2026-09-22. Vorher 45: die Vorlagen lagen zwischen 38
+# und 46 Woertern. Dann kamen die Labels in der Ich-Form ("I just read on your
+# LinkedIn profile that", neun Woerter statt vier) und Teil 2 mit zwei Saetzen;
+# im ersten Lauf danach lagen acht von zehn Absaetzen bei 48 bis 57 Woertern
+# und landeten alle wegen der Grenze in der Pruefung, mit gequetschten Saetzen
+# ("no time or expertise fully to leverage"). Der Torwart rechnet die erste
+# Mail auf 90 Woerter; 60 laesst Anrede und Bitte noch Platz.
+PERSON_FINDING_MAX_WORDS = 60
 
 # Deckel je Suche. Eine versehentlich grosse Liste kostet damit hoechstens
 # 300 Websuchen. Was darueber liegt, bekommt Status 'skipped_limit' und ist

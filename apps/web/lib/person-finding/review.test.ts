@@ -21,8 +21,8 @@ describe("validatePersonFindingText", () => {
     expect(probleme.length).toBeGreaterThan(0);
   });
 
-  it("haelt die Wortgrenze von 45", () => {
-    const lang = Array.from({ length: 60 }, () => "word").join(" ");
+  it("haelt die Wortgrenze von 60", () => {
+    const lang = Array.from({ length: 61 }, () => "word").join(" ");
     expect(validatePersonFindingText(lang, [], "en").length).toBeGreaterThan(0);
   });
 });

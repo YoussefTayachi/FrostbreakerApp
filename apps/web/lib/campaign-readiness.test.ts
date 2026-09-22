@@ -278,6 +278,6 @@ describe("estimateWords mit personFinding", () => {
   it("zaehlt den Platzhalter mit seiner Hoechstlaenge", () => {
     const ohne = estimateWords("Hi {{firstName}}, kurz.", 10);
     const mit = estimateWords("Hi {{firstName}}, {{personFinding}} kurz.", 10);
-    expect(mit - ohne).toBe(45);
+    expect(mit - ohne).toBe(60);
   });
 });

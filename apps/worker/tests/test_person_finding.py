@@ -547,7 +547,7 @@ def test_unbestaetigte_bindung_geht_in_die_pruefung(monkeypatch, cfg):
 
 def test_regelverstoss_bekommt_korrekturrunde_und_pruefflag(monkeypatch, cfg):
     db = _Db({"businesses": [business()], "contacts": [contact()]})
-    zu_lang = " ".join(["wort"] * 60)
+    zu_lang = " ".join(["wort"] * 70)
     aufrufe = _run_contact(monkeypatch, db, [finding()], text=zu_lang)
     pf.run(job({"contact_id": "c-1"}))
     row = db.tables["contacts"][0]

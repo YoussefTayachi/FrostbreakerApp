@@ -13,13 +13,13 @@
 /**
  * Die Wortgrenze des Absatzes.
  *
- * Gegenstueck zu PERSON_FINDING_MAX_WORDS im Worker. 45, weil die Absaetze,
- * die am 2026-09-22 als Vorlage dienten, zwischen 38 und 46 Woertern lagen
- * und laengere Fassungen nicht persoenlicher wurden, sondern aufsatzhafter.
- * Der Torwart rechnet die erste Mail auf 90 Woerter; 45 laesst Anrede und
- * Bitte Platz.
+ * Gegenstueck zu PERSON_FINDING_MAX_WORDS im Worker. 60 seit dem 2026-09-22,
+ * vorher 45: die Labels in der Ich-Form kosten neun Woerter statt vier, und
+ * Teil 2 hat zwei Saetze. Acht von zehn Absaetzen lagen danach bei 48 bis 57
+ * Woertern und fielen alle in die Pruefung. Der Torwart rechnet die erste
+ * Mail auf 90 Woerter; 60 laesst Anrede und Bitte noch Platz.
  */
-export const PERSON_FINDING_MAX_WORDS = 45;
+export const PERSON_FINDING_MAX_WORDS = 60;
 
 /**
  * Die eigene Verbotsliste dieses Textes, je Sprache.
