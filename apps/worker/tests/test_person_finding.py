@@ -785,3 +785,19 @@ def test_rueckfall_braucht_wenigstens_einen_namen():
 
 def test_rueckfall_verliert_gegen_jeden_echten_fund():
     assert pf.ANGLE_RANK["company"] > pf.ANGLE_RANK["role_vs_size"]
+
+
+# ── Erzwungene Suche (2026-09-22) ──────────────────────────────────────────
+
+
+def test_suchaufrufe_werden_gezaehlt():
+    class _O:
+        def __init__(self, type):
+            self.type = type
+
+    class _R:
+        output = [_O("web_search_call"), _O("message"), _O("web_search_call")]
+
+    assert pf.search_calls(_R()) == 2
+    assert pf.search_calls(type("_Leer", (), {"output": [_O("message")]})()) == 0
+    assert pf.search_calls(type("_Nichts", (), {})()) == 0

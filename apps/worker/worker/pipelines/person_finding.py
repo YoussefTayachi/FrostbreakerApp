@@ -1054,13 +1054,24 @@ def research(
     """Was hat diese Person oeffentlich gesagt, und was weiss Apollo schon.
 
     Dieselbe Bauart wie find_decisionmaker.research: Websuche als Werkzeug,
-    striktes JSON-Schema, Zeitlimit ueber dem gemessenen Normalfall von 50
-    bis 60 Sekunden. tenacity nur zweimal; alles Weitere ist Sache der Queue.
+    striktes JSON-Schema. tenacity nur zweimal; alles Weitere ist Sache der
+    Queue.
+
+    DIE SUCHE IST ERZWUNGEN (tool_choice). Gemessen am 2026-09-22 an zehn
+    US-Leads: ohne Zwang hat gpt-4.1 bei sieben von zehn gar nicht gesucht
+    (1.300 bis 1.500 Tokens statt 18.000 bis 19.000, kein web_search_call
+    in der Antwort) und trotzdem "own_post"-Funde geliefert, also Beitraege
+    erfunden ("emphasized the importance of holistic health"). Mit Zwang
+    kam derselbe Lead in 4,6 s mit echten Beitraegen zurueck (ohne: 8,4 s
+    mit erfundenen). Die Suche kostet also keine Zeit, sie spart sie. Der
+    Waechter darunter faengt den Fall, dass die API den Zwang ignoriert:
+    ohne Suchaufruf ist die Antwort nichts wert, tenacity holt sie neu.
     """
     client = OpenAI(api_key=api_key, timeout=120.0, max_retries=1)
     resp = client.responses.create(
         model=RESEARCH_MODEL,
         tools=[{"type": "web_search"}],
+        tool_choice={"type": "web_search"},
         input=[
             {"role": "system", "content": RESEARCH_PROMPT},
             {
@@ -1085,9 +1096,20 @@ def research(
     )
     if workspace_id:
         usage.record_openai(workspace_id, "person_finding_research", resp, search_id=search_id)
+    if search_calls(resp) == 0:
+        raise RuntimeError("Recherche ohne Websuche: Funde waeren erfunden")
     data = json.loads(resp.output_text)
     findings = data.get("findings") or []
     return [f for f in findings if isinstance(f, dict)]
+
+
+def search_calls(resp) -> int:
+    """Wie oft die Antwort tatsaechlich gesucht hat (web_search_call-Eintraege)."""
+    return sum(
+        1
+        for o in (getattr(resp, "output", None) or [])
+        if getattr(o, "type", "") == "web_search_call"
+    )
 
 
 def company_fallback(business: dict) -> dict | None:
