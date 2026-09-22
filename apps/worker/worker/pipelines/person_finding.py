@@ -321,12 +321,16 @@ WRITE_BASE_EN = (
     "not a greeting, not a sign off, not a PS. Only the paragraph, as three or four short "
     "lines.\n\n"
     "Four parts, in this order:\n"
-    "1. WHERE AND WHAT. Start with the source label you are given, word for word, then "
-    "what the person said or did, in your own words. Concrete enough that they recognise "
-    "it.\n"
-    "2. WHAT IT MEANS. One short sentence: what this means for the problem described "
-    "under <offer>. Not an opinion about the person, not praise. Derived from the offer's "
-    "problem, nothing else.\n"
+    "1. WHERE AND WHAT. Start with the source label you are given, word for word, and "
+    "continue the sentence with what the person said or did. The label already says 'I "
+    "just read ... that' or '... where you', so what follows completes it. Concrete "
+    "enough that they recognise it. This is a person who just looked, not a database.\n"
+    "2. WHAT IT MEANS. One or two short sentences, direct and confident: tell them "
+    "plainly what they are leaving on the table, using the problem under <offer>. Say "
+    "that their flows can do more than they do today and that average templates cost "
+    "them revenue in a channel where the template decides the number. Respectful, never "
+    "insulting, no hedging. The goal is that they feel it and respect the person who "
+    "said it.\n"
     "3. THE NUMBER. If the material under <offer> contains a number, use it plainly. If "
     "not, skip this part. Never invent a number.\n"
     "4. THE MECHANISM. One plain sentence on how the offer handles it. No pitch, no "
@@ -356,12 +360,16 @@ WRITE_BASE_DE = (
     "keine Anrede, keinen Gruss, kein PS. Nur den Absatz, als drei oder vier kurze "
     "Zeilen.\n\n"
     "Vier Teile, in dieser Reihenfolge:\n"
-    "1. WO UND WAS. Beginne mit dem Quellenlabel, das du bekommst, Wort fuer Wort, dann "
-    "was die Person gesagt oder getan hat, in deinen Worten. Konkret genug, dass sie es "
-    "wiedererkennt.\n"
-    "2. WAS ES HEISST. Ein kurzer Satz: was das fuer das Problem unter <offer> heisst. "
-    "Keine Meinung ueber die Person, kein Lob. Nur aus dem Problem des Angebots "
-    "abgeleitet.\n"
+    "1. WO UND WAS. Beginne mit dem Quellenlabel, das du bekommst, Wort fuer Wort, und "
+    "fuehre den Satz mit dem fort, was die Person gesagt oder getan hat. Das Label sagt "
+    "schon 'Ich habe gerade ... gelesen, dass' oder '... in dem du'; was folgt, "
+    "vervollstaendigt es. Konkret genug, dass sie es wiedererkennt. Hier hat ein Mensch "
+    "gerade hingesehen, keine Datenbank.\n"
+    "2. WAS ES HEISST. Ein oder zwei kurze Saetze, direkt und selbstsicher: sag klar, "
+    "was liegen bleibt, mit dem Problem unter <offer>. Sag, dass die Flows mehr koennen "
+    "als heute und dass mittelmaessige Vorlagen Umsatz kosten, in einem Kanal, in dem "
+    "die Vorlage die Zahl entscheidet. Respektvoll, nie beleidigend, keine Abschwaecher. "
+    "Ziel ist, dass die Person es spuert und den respektiert, der es sagt.\n"
     "3. DIE ZAHL. Steht im Material unter <offer> eine Zahl, nenne sie schlicht. Sonst "
     "faellt dieser Teil weg. Erfinde nie eine Zahl.\n"
     "4. DER MECHANISMUS. Ein schlichter Satz, wie das Angebot das loest. Kein "
@@ -913,25 +921,25 @@ def offer_block(offer: dict | None) -> str:
 
 
 SOURCE_LABEL_EN = {
-    "company_site": "On your site",
-    "profile": "On your LinkedIn profile",
-    "own_post": "On LinkedIn you wrote",
-    "company_post_quote": "In a post on your company's LinkedIn page you said",
-    "interview": "In your interview with {host}",
-    "podcast": "On the {host} podcast",
-    "talk": "In your talk covered on {host}",
-    "article": "In your piece on {host}",
+    "company_site": "I just looked at your site and",
+    "profile": "I just read on your LinkedIn profile that",
+    "own_post": "I just read your LinkedIn post where you",
+    "company_post_quote": "I just read the post on your company's LinkedIn page where you",
+    "interview": "I just read your interview with {host} where you",
+    "podcast": "I just listened to your episode on the {host} podcast where you",
+    "talk": "I just read about your talk on {host} where you",
+    "article": "I just read your piece on {host} where you",
 }
 
 SOURCE_LABEL_DE = {
-    "company_site": "Auf eurer Seite",
-    "profile": "Auf deinem LinkedIn-Profil",
-    "own_post": "Auf LinkedIn hast du geschrieben",
-    "company_post_quote": "In einem Beitrag auf der LinkedIn-Seite eurer Firma hast du gesagt",
-    "interview": "In deinem Interview bei {host}",
-    "podcast": "Im Podcast von {host}",
-    "talk": "In deinem Vortrag, festgehalten auf {host}",
-    "article": "In deinem Beitrag auf {host}",
+    "company_site": "Ich habe mir gerade eure Seite angesehen und",
+    "profile": "Ich habe gerade auf deinem LinkedIn-Profil gelesen, dass",
+    "own_post": "Ich habe gerade deinen LinkedIn-Beitrag gelesen, in dem du",
+    "company_post_quote": "Ich habe gerade den Beitrag auf der LinkedIn-Seite eurer Firma gelesen, in dem du",
+    "interview": "Ich habe gerade dein Interview bei {host} gelesen, in dem du",
+    "podcast": "Ich habe gerade deine Folge im Podcast von {host} gehoert, in der du",
+    "talk": "Ich habe gerade ueber deinen Vortrag auf {host} gelesen, in dem du",
+    "article": "Ich habe gerade deinen Beitrag auf {host} gelesen, in dem du",
 }
 
 

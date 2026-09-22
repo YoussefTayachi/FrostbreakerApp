@@ -347,13 +347,16 @@ def test_verbotsliste_nimmt_nur_striche_aus_dem_workspace():
 
 
 def test_quellenlabel_kommt_aus_dem_code():
-    assert pf.source_label(finding(), "en") == "On LinkedIn you wrote"
+    assert pf.source_label(finding(), "en") == "I just read your LinkedIn post where you"
     pod = finding(source_kind="podcast", source_url="https://www.techpixies.com/episode280/")
-    assert pf.source_label(pod, "en") == "On the techpixies.com podcast"
+    assert (
+        pf.source_label(pod, "en")
+        == "I just listened to your episode on the techpixies.com podcast where you"
+    )
     prof = finding(
         source_kind="profile", source_url="https://www.linkedin.com/in/kate-prince-5aa8283b"
     )
-    assert pf.source_label(prof, "de") == "Auf deinem LinkedIn-Profil"
+    assert pf.source_label(prof, "de") == "Ich habe gerade auf deinem LinkedIn-Profil gelesen, dass"
 
 
 def test_bekannte_fakten_werden_gekappt():
@@ -391,7 +394,9 @@ def test_schreibprompt_traegt_den_typblock():
 def test_kontext_grenzt_daten_ab_und_beginnt_mit_dem_label():
     fund = dict(finding(), anchor="linkedin_url")
     ctx = pf.person_context(contact(), business(), fund, {"problem": "p", "offering": "o"}, "en")
-    assert ctx.startswith("Source label, use it word for word to open: On LinkedIn you wrote")
+    assert ctx.startswith(
+        "Source label, use it word for word to open: I just read your LinkedIn post where you"
+    )
     assert "<finding>" in ctx and "</finding>" in ctx
     assert "<known_facts>" in ctx and "<offer>" in ctx
     assert ctx.index("<finding>") < ctx.index("<offer>")
@@ -521,7 +526,7 @@ def test_erfolg_schreibt_absatz_und_provenienz(monkeypatch, cfg):
     src = row["person_finding_source"]
     assert src["angle"] == "statement"
     assert src["identity_anchor"] == "linkedin_url"
-    assert src["source_label"] == "On LinkedIn you wrote"
+    assert src["source_label"] == "I just read your LinkedIn post where you"
     assert src["review_reason"] is None
 
 
@@ -601,7 +606,7 @@ def test_die_harten_vorgaben_reden_vom_absatz():
 
 def test_linkedin_artikel_wird_nicht_als_eigener_beitrag_ausgegeben():
     art = finding(source_kind="article", source_url="https://www.linkedin.com/pulse/some-title")
-    assert pf.source_label(art, "en") == "In your piece on linkedin.com"
+    assert pf.source_label(art, "en") == "I just read your piece on linkedin.com where you"
 
 
 def test_ohne_angebot_nur_teil_eins():
@@ -769,7 +774,7 @@ def test_ohne_fund_schreibt_der_shop_den_absatz(monkeypatch, cfg):
     assert row["person_finding_status"] == "found"
     assert row["person_finding_needs_review"] is False
     assert row["person_finding_source"]["angle"] == "company"
-    assert row["person_finding_source"]["source_label"] == "On your site"
+    assert row["person_finding_source"]["source_label"] == "I just looked at your site and"
 
 
 def test_rueckfall_braucht_wenigstens_einen_namen():
