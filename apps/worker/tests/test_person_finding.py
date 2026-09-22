@@ -258,7 +258,7 @@ def test_fremder_beitrag_mit_beleg_geht_in_die_pruefung():
         source_url="https://www.linkedin.com/posts/someone-else_activity-1_x",
         identity_evidence="Kate Prince, founder of Ancient + Brave, said",
     )
-    best = pf.best_finding([f], contact())
+    best = pf.best_finding([f], contact(_business_name="Ancient + Brave"))
     assert best["anchor"] == "company_and_role"
     assert best["review_reason"] == "unverified_anchor"
 
@@ -691,3 +691,33 @@ def test_dritte_person_loest_korrekturrunde_aus(monkeypatch, cfg):
     row = db.tables["contacts"][0]
     assert aufrufe["generate"] == 2
     assert row["person_finding_needs_review"] is True
+
+
+# ── Nach Lauf 3 ────────────────────────────────────────────────────────────
+
+
+def test_eigener_beitrag_auf_dem_eigenen_profil_ist_gebunden():
+    """Das Modell liest Beitraege von der Aktivitaetsseite und nennt das
+    Profil als Quelle (Lauf 3: Stroeken, Van Velzen)."""
+    f = finding(source_url="https://www.linkedin.com/in/kate-prince-5aa8283b")
+    best = pf.best_finding([f], contact())
+    assert best["anchor"] == "linkedin_url"
+    assert best["review_reason"] is None
+
+
+def test_beleg_ohne_firma_belegt_nichts():
+    """Lauf 3: ein anderer Pedro Principe, Beleg "Pedro Principe's own
+    LinkedIn post". Ohne Firmennennung ist die Bindung nicht belegt."""
+    f = finding(
+        source_url="https://pt.linkedin.com/posts/pedroprincipe_activity-1_x",
+        identity_anchor="company_and_role",
+        identity_evidence="Pedro Principe's own LinkedIn post",
+    )
+    assert pf.best_finding([f], contact(_business_name="COCON")) is None
+    mit_firma = finding(
+        source_url="https://pt.linkedin.com/posts/pedroprincipe_activity-1_x",
+        identity_anchor="company_and_role",
+        identity_evidence="Pedro Principe, CEO of COCON, said",
+    )
+    best = pf.best_finding([mit_firma], contact(_business_name="COCON"))
+    assert best["anchor"] == "company_and_role"

@@ -660,13 +660,36 @@ def _enrichment_fresh(contact: dict, now: datetime) -> bool:
     return now - created <= FRESH_MOVE_MAX_ENRICHMENT_AGE
 
 
-def resolve_anchor(finding: dict, contact_slug: str | None) -> str:
+def _mentions_company(evidence: str, business_name: str | None) -> bool:
+    """Nennt der Beleg die Firma? Ein Wort der Firma mit mindestens vier
+    Zeichen reicht ("Latest in Beauty" -> "latest", "beauty").
+
+    Lauf 3 am 2026-09-22: der Beleg zu Pedro Principe lautete "Pedro
+    Principe's own LinkedIn post", und der Beitrag war von einem anderen
+    Pedro Principe (PUBIN, Portugal) statt vom CEO der Spa-Firma COCON. Ein
+    Beleg, der die Firma nicht nennt, belegt die Bindung nicht.
+    """
+    if not business_name:
+        return False
+    text = (evidence or "").lower()
+    tokens = [t for t in re.split(r"[^a-z0-9]+", business_name.lower()) if len(t) >= 4]
+    return any(t in text for t in tokens)
+
+
+def resolve_anchor(
+    finding: dict, contact_slug: str | None, business_name: str | None = None
+) -> str:
     """Den Anker nachpruefen, statt ihn zu glauben.
 
     'linkedin_url' gilt nur, wenn der Code die Bindung selbst sieht: beim
-    Profil ueber Slug-Gleichheit, beim Beitrag ueber den Autoren-Slug. Alles
-    andere wird auf 'company_and_role' herabgestuft, und das braucht einen
-    Beleg, sonst ist es 'none'.
+    Profil ueber Slug-Gleichheit, beim Beitrag ueber den Autoren-Slug im
+    Pfad ODER ueber die Profil-URL der Person selbst. Letzteres, weil das
+    Modell Beitraege von der Aktivitaetsseite des Profils liest und dann das
+    Profil als Quelle nennt (Lauf 3: Stroeken, Van Velzen); ein Beitrag auf
+    dem eigenen Profil ist an die Person gebunden.
+
+    Alles andere wird auf 'company_and_role' herabgestuft, und das braucht
+    einen Beleg, der die Firma nennt; sonst ist es 'none'.
     """
     kind = finding.get("source_kind")
     url = finding.get("source_url")
@@ -678,9 +701,11 @@ def resolve_anchor(finding: dict, contact_slug: str | None) -> str:
             return "linkedin_url"
         if kind in ("own_post", "company_post_quote") and linkedin_post_author(url) == contact_slug:
             return "linkedin_url"
+        if kind == "own_post" and canonical_linkedin(url) == contact_slug:
+            return "linkedin_url"
 
     if claimed in ("linkedin_url", "company_and_role") and evidence:
-        return "company_and_role"
+        return "company_and_role" if _mentions_company(evidence, business_name) else "none"
     return "none"
 
 
@@ -712,7 +737,12 @@ def why_unusable(finding: dict, contact: dict, now: datetime | None = None) -> s
         # oder "background" aus dem blossen Titel, weil die Testkontakte keine
         # Apollo-Daten trugen. "Du bist CEO" ist kein Aufhaenger.
         return "no_known_facts"
-    if resolve_anchor(finding, canonical_linkedin(contact.get("linkedin"))) == "none":
+    if (
+        resolve_anchor(
+            finding, canonical_linkedin(contact.get("linkedin")), contact.get("_business_name")
+        )
+        == "none"
+    ):
         return "anchor"
     return None
 
@@ -721,7 +751,9 @@ def usable(finding: dict, contact: dict, now: datetime | None = None) -> str | N
     """Der gepruefte Anker, wenn der Fund brauchbar ist, sonst None."""
     if why_unusable(finding, contact, now) is not None:
         return None
-    return resolve_anchor(finding, canonical_linkedin(contact.get("linkedin")))
+    return resolve_anchor(
+        finding, canonical_linkedin(contact.get("linkedin")), contact.get("_business_name")
+    )
 
 
 def rejected_findings(findings: list[dict], chosen: dict | None, contact: dict) -> list[dict]:
@@ -1141,6 +1173,8 @@ def run(job: dict) -> None:
         return
 
     search_id = biz.get("search_id")
+    # Fuer den Beleg-Check in resolve_anchor; nicht in der Datenbank.
+    contact["_business_name"] = biz.get("name")
     try:
         api_key = get_api_key(ws, "openai")
         findings = research(contact, biz, api_key, workspace_id=ws, search_id=search_id)
