@@ -129,3 +129,29 @@ describe("detectOptOut mit Betreff", () => {
     expect(detectOptOut("Klingt gut!", null).optOut).toBe(false);
   });
 });
+
+/**
+ * Abmeldungen in anderen Sprachen, gemessen am 2026-09-22: die Kampagnen
+ * gehen nach Spanien, Frankreich und in die Niederlande, die Wortliste kannte
+ * aber nur Englisch und Deutsch. "Dar de baja" stand als einziger Satz im
+ * Text einer Antwort und blieb folgenlos.
+ */
+describe("detectOptOut in anderen Sprachen", () => {
+  it.each([
+    "Dar de baja",
+    "Quiero cancelar la suscripción, gracias.",
+    "No quiero recibir más correos.",
+    "Merci de me désabonner.",
+    "Graag uitschrijven uit deze lijst.",
+    "Vänligen avregistrera mig.",
+  ])("erkennt %s", (body) => {
+    expect(detectOptOut(body).optOut).toBe(true);
+  });
+
+  // "baja" heisst auf Spanisch auch "niedrig", "afmelden" steht in jeder
+  // zweiten niederlaendischen Fusszeile. Nur die vollstaendige Wendung zaehlt.
+  it("sperrt nicht an einem einzelnen Wort", () => {
+    expect(detectOptOut("La conversión es baja, pero nos interesa.").optOut).toBe(false);
+    expect(detectOptOut("Klinkt goed, ik meld me morgen.").optOut).toBe(false);
+  });
+});

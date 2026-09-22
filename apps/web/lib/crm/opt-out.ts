@@ -97,6 +97,26 @@ const OPT_OUT_PATTERNS: RegExp[] = [
   /\bnicht\s+mehr\s+(schreiben|kontaktieren|anschreiben)\b/i,
   /\bbitte\s+l[oö]schen\s+sie\s+(meine|unsere)\s+(daten|adresse)\b/i,
   /\bwiderspruch\b/i,
+  /**
+   * Und in den Sprachen, in die die Kampagnen tatsaechlich gehen.
+   *
+   * Gemessen am 2026-09-22: "Dar de baja" stand als einziger Satz im Text
+   * einer Antwort und blieb folgenlos, weil die Liste nur Englisch und
+   * Deutsch kannte. Die Zusage "reply 'stop' and I'll leave you alone" gilt
+   * aber unabhaengig davon, in welcher Sprache jemand sie einloest.
+   *
+   * Bewusst nur die vollstaendigen Wendungen: "baja" allein heisst auf
+   * Spanisch auch "niedrig", und ein Wort, das die halbe Liste sperrt, waere
+   * genau der Schredder, vor dem der Kopf dieser Datei warnt.
+   */
+  /\bdar(me|nos)?\s+de\s+baja\b/i, // es
+  /\bcancelar\s+(la\s+)?suscripci[oó]n\b/i, // es
+  /\bno\s+(quiero|deseo)\s+recibir\s+m[aá]s\b/i, // es
+  /\bd[eé]sabonn(er|ez|ement)\b/i, // fr
+  /\bme\s+d[eé]sinscrire\b/i, // fr
+  /\buitschrijven\b/i, // nl
+  /\bafmelden\s+(voor|van)\b/i, // nl
+  /\bavregistrera\b/i, // sv
 ];
 
 export type OptOutMatch = {

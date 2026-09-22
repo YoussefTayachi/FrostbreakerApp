@@ -198,9 +198,10 @@ async function classifyReply(
 }
 
 /** Sucht einen Kontakt zur Absenderadresse und upserted die Mail immer in
- *  messages, mit oder ohne Treffer. KI-Klassifizierung und das Hochstufen
- *  des outreach_status bleiben echten CRM-Kontakten vorbehalten (kein
- *  OpenAI-Aufruf fuer Mails ohne Lead-Bezug). Ersetzt sowohl das fruehere
+ *  messages, mit oder ohne Treffer. Eingestuft wird jede eingegangene
+ *  Antwort, mit Kontakt oder ohne (siehe Begruendung bei aiInterest); nur
+ *  das Hochstufen des outreach_status braucht einen echten CRM-Kontakt.
+ *  Ersetzt sowohl das fruehere
  *  Python-_process_reply (das Mails ohne Treffer verwarf) als auch
  *  _process_email; es gibt jetzt nur noch dieses eine Verhalten. */
 /** Gibt eine Fehlermeldung zurueck statt null, wenn der Upsert fehlschlaegt.
@@ -358,11 +359,36 @@ async function processEmail(
    */
   const optOut = inbound ? detectOptOut(bodyText, email.subject ?? null) : { optOut: false, phrase: null };
 
+  /**
+   * DIE EINSTUFUNG HAENGT NICHT AM CRM-KONTAKT.
+   *
+   * Bis zum 2026-09-22 stand hier zusaetzlich `contact &&`, mit der
+   * Begruendung, keinen bezahlten Modellaufruf fuer Mails ohne Lead-Bezug
+   * auszuloesen. Die Begruendung traegt nicht: eine EINGEHENDE Mail ohne
+   * Instantlys "lead"-Feld wird weiter oben ohnehin verworfen. Was hier
+   * uebrig bleibt, ist immer die Antwort eines angeschriebenen Empfaengers --
+   * auch dann, wenn er nicht in contacts steht, weil die Liste direkt bei
+   * Instantly hochgeladen wurde statt in Frostbreaker entstanden zu sein.
+   *
+   * Genau das war der Normalfall und nicht die Ausnahme. Gemessen am
+   * 2026-09-22 im Posteingang von ramy@retaiyn.com: 163 von 163 eingegangenen
+   * Antworten hatten keinen contact_id. Eingestuft wurde deshalb keine
+   * einzige. Was trotzdem ein Etikett trug, kam aus dem Mustervergleich
+   * darueber (132 Abwesenheitsnotizen); die restlichen 31 standen ohne
+   * Etikett im Posteingang und waren nur ueber "Ungelesen" zu finden --
+   * darunter "Am interested", "Sure", "What is your product?" und ein
+   * halbes Dutzend Absagen. Die Filter "Interessiert", "Rueckfrage" und
+   * "Kein Interesse" waren in diesem Workspace durchgehend leer.
+   *
+   * Das Etikett beschreibt die Mail, nicht den Kontakt. Was daraus fuer den
+   * Kontakt folgt, entscheidet der Block weiter unten, und der prueft
+   * weiterhin selbst, ob es einen gibt.
+   */
   const aiInterest = auto.autoReply
     ? "out_of_office"
     : optOut.optOut
       ? "not_interested"
-      : inbound && contact && openaiKey && bodyText
+      : inbound && openaiKey && bodyText
         ? await classifyReply(supabase, workspaceId, openaiKey, email.subject ?? null, bodyText)
         : null;
 
@@ -405,54 +431,14 @@ async function processEmail(
     if (error) return `contact contacted ${contact.id}: ${error.message}`;
   }
 
-  /**
-   * Welche Stufe eine eingegangene Antwort ausloest.
-   *
-   * Vorher waren das zwei getrennte Bloecke: einer hob auf 'replied' an, ein
-   * zweiter setzte bei einer Absage 'not_interested'. Mit 'lead' als dritter
-   * moeglicher Zielstufe waeren daraus drei Bloecke geworden, die sich
-   * gegenseitig ueberschreiben. Also einmal die Zielstufe bestimmen und
-   * einmal schreiben.
-   *
-   *   'not_interested'  hat abgesagt
-   *   'interested'      will etwas von uns -> 'lead', die Spalte, in der man
-   *                     morgens nachsieht, mit wem man gerade schreibt
-   *   sonst             (Rueckfrage, Abwesenheitsnotiz) -> 'replied'
-   */
+  // Was die Einstufung fuer den Kontakt bedeutet, steht in
+  // applyInterestToContact. Hier bleibt nur, was an DIESEN Durchlauf
+  // gebunden ist: die Benachrichtigung bei der ersten Antwort.
   if (contact && direction === "inbound") {
     const vorher = STATUS_RANK[contact.outreach_status] ?? 0;
-    const ziel =
-      aiInterest === "not_interested"
-        ? "not_interested"
-        : aiInterest === "interested"
-          ? "lead"
-          : "replied";
 
-    /**
-     * Die Absage gilt auch abwaerts, alles andere nur aufwaerts.
-     *
-     * Ein Kontakt kann erst freundlich antworten und im zweiten Zug absagen;
-     * 'not_interested' liegt im Rang aber absichtlich niedrig (siehe
-     * STATUS_RANK), damit eine spaetere echte Antwort ihn wieder anheben
-     * kann. Eine reine Rangpruefung wuerde die Absage deshalb verschlucken.
-     *
-     * Bewusst NICHT in die Sperrliste: "kein Interesse" heisst "diesmal
-     * nicht", nicht "nie wieder". Der Kontaktstatus reicht:
-     * api/instantly/campaigns schliesst 'not_interested' beim Anlegen jeder
-     * neuen Kampagne aus.
-     */
-    const schreiben =
-      ziel === "not_interested"
-        ? contact.outreach_status !== "not_interested"
-        : (STATUS_RANK[ziel] ?? 0) > vorher;
-
-    if (schreiben) {
-      const { error } = await supabase
-        .from("contacts")
-        .update({ outreach_status: ziel })
-        .eq("id", contact.id);
-      if (error) return `contact status update ${contact.id}: ${error.message}`;
-    }
+    const err = await applyInterestToContact(supabase, contact, aiInterest);
+    if (err) return err;
 
     // Nur bei der ERSTEN Antwort eines Kontakts benachrichtigen, unabhaengig
     // davon, wie sie ausfaellt: eine Absage will man genauso erfahren. Die
@@ -473,6 +459,185 @@ async function processEmail(
   }
 
   return null;
+}
+
+/**
+ * Welche Stufe eine eingegangene Antwort ausloest.
+ *
+ * Vorher waren das zwei getrennte Bloecke: einer hob auf 'replied' an, ein
+ * zweiter setzte bei einer Absage 'not_interested'. Mit 'lead' als dritter
+ * moeglicher Zielstufe waeren daraus drei Bloecke geworden, die sich
+ * gegenseitig ueberschreiben. Also einmal die Zielstufe bestimmen und einmal
+ * schreiben.
+ *
+ *   'not_interested'  hat abgesagt
+ *   'interested'      will etwas von uns -> 'lead', die Spalte, in der man
+ *                     morgens nachsieht, mit wem man gerade schreibt
+ *   sonst             (Rueckfrage, Abwesenheitsnotiz) -> 'replied'
+ *
+ * Als eigene Funktion, seit der Nachtrag (classifyBacklog) dieselbe Frage
+ * stellt: eine Antwort, die erst Wochen spaeter ein Etikett bekommt, muss
+ * denselben Weg in die Pipeline nehmen wie eine frisch eingegangene. Zwei
+ * Kopien dieser Regel waeren genau die Sorte Unterschied, die niemand
+ * bemerkt, bis ein Lead in der falschen Spalte steht.
+ */
+async function applyInterestToContact(
+  supabase: SupabaseClient,
+  contact: { id: string; outreach_status: string },
+  aiInterest: string | null
+): Promise<string | null> {
+  const ziel =
+    aiInterest === "not_interested"
+      ? "not_interested"
+      : aiInterest === "interested"
+        ? "lead"
+        : "replied";
+
+  /**
+   * Die Absage gilt auch abwaerts, alles andere nur aufwaerts.
+   *
+   * Ein Kontakt kann erst freundlich antworten und im zweiten Zug absagen;
+   * 'not_interested' liegt im Rang aber absichtlich niedrig (siehe
+   * STATUS_RANK), damit eine spaetere echte Antwort ihn wieder anheben kann.
+   * Eine reine Rangpruefung wuerde die Absage deshalb verschlucken.
+   *
+   * Bewusst NICHT in die Sperrliste: "kein Interesse" heisst "diesmal nicht",
+   * nicht "nie wieder". Der Kontaktstatus reicht: api/instantly/campaigns
+   * schliesst 'not_interested' beim Anlegen jeder neuen Kampagne aus.
+   */
+  const schreiben =
+    ziel === "not_interested"
+      ? contact.outreach_status !== "not_interested"
+      : (STATUS_RANK[ziel] ?? 0) > (STATUS_RANK[contact.outreach_status] ?? 0);
+
+  if (!schreiben) return null;
+
+  const { error } = await supabase
+    .from("contacts")
+    .update({ outreach_status: ziel })
+    .eq("id", contact.id);
+  return error ? `contact status update ${contact.id}: ${error.message}` : null;
+}
+
+/**
+ * Wie viele liegengebliebene Antworten ein Tick nachtraeglich einstuft.
+ *
+ * Zehn, weil jede davon ein bezahlter Modellaufruf ist und diese Route jede
+ * Minute laeuft: ein Rueckstau von hundert Mails ist damit in zehn Minuten
+ * aufgeloest, ohne dass ein einzelner Tick in die 60-Sekunden-Grenze von
+ * Vercel laeuft (maxDuration oben) oder die Kosten eines Tages in einer
+ * Minute anfallen.
+ */
+const BACKLOG_BUDGET = 10;
+
+/**
+ * Antworten nachtraeglich einstufen, die ohne Etikett in messages stehen.
+ *
+ * WARUM ES SIE GIBT. Eine Zeile bekommt ihr ai_interest beim Einfuegen, und
+ * nur dort. Fehlte in dem Moment etwas -- der OpenAI-Schluessel, der
+ * Kontakt, ein Muster, das die Erkennung noch nicht kannte -- blieb das Feld
+ * leer, und zwar dauerhaft. Im Posteingang heisst leer: die Unterhaltung
+ * taucht unter "Alle" und "Ungelesen" auf und sonst nirgends. Am 2026-09-22
+ * waren das 31 von 163 Antworten in einem Workspace, darunter mehrere
+ * Rueckfragen und ein "Am interested".
+ *
+ * Damit ist das hier nicht nur ein einmaliges Aufraeumen, sondern die
+ * Antwort auf eine wiederkehrende Frage: wer die Erkennung verbessert, will
+ * nicht auch noch eine Migration schreiben, damit die Verbesserung die schon
+ * gespeicherten Mails erreicht. Der Nachtrag holt sie beim naechsten Tick.
+ *
+ * Neueste zuerst: eine Antwort von gestern ist noch warm, eine von vor sechs
+ * Wochen ist Statistik.
+ *
+ * Muster vor Modell, in derselben Reihenfolge wie beim Einfuegen -- sonst
+ * bekaeme dieselbe Mail je nach Weg ein anderes Etikett.
+ */
+async function classifyBacklog(
+  supabase: SupabaseClient,
+  workspaceId: string,
+  openaiKey: string | null
+): Promise<{ classified: number; skipped?: string; errors?: string[] }> {
+  if (!openaiKey) return { classified: 0, skipped: "kein OpenAI-Schluessel" };
+
+  const { data, error } = await supabase
+    .from("messages")
+    .select("id, contact_id, from_email, subject, body")
+    .eq("workspace_id", workspaceId)
+    .eq("direction", "inbound")
+    .is("ai_interest", null)
+    .not("body", "is", null)
+    .order("sent_at", { ascending: false })
+    .limit(BACKLOG_BUDGET);
+  if (error) return { classified: 0, skipped: error.message };
+
+  const errors: string[] = [];
+  let classified = 0;
+
+  for (const row of data ?? []) {
+    const bodyText = (row.body as string | null)?.trim() ?? "";
+    // Ohne Text gibt es nichts einzustufen. Die Zeile bleibt leer und kommt
+    // beim naechsten Tick wieder hoch; das kostet eine Abfrage, aber keinen
+    // Modellaufruf. Am 2026-09-22 gab es keine einzige solche Zeile.
+    if (!bodyText) continue;
+
+    const subject = (row.subject as string | null) ?? null;
+    const auto = detectAutoReply(subject, bodyText);
+    const optOut = detectOptOut(bodyText, subject);
+    const label = auto.autoReply
+      ? "out_of_office"
+      : optOut.optOut
+        ? "not_interested"
+        : await classifyReply(supabase, workspaceId, openaiKey, subject, bodyText);
+
+    // Das Modell war nicht erreichbar oder hat nichts Brauchbares geliefert.
+    // Die Zeile bleibt, wie sie ist, und wird beim naechsten Tick erneut
+    // versucht -- besser als ein geratenes Etikett, das dann feststeht.
+    if (!label) continue;
+
+    const { error: updateError } = await supabase
+      .from("messages")
+      .update({ ai_interest: label })
+      .eq("id", row.id);
+    if (updateError) {
+      errors.push(`backlog ${row.id}: ${updateError.message}`);
+      continue;
+    }
+    classified++;
+
+    /**
+     * Und die Folgen nachziehen, als waere die Mail gerade eingegangen.
+     *
+     * Ohne das waere der Nachtrag reine Kosmetik: die Unterhaltung stuende im
+     * richtigen Filter, aber ein nachtraeglich erkanntes "kein Interesse"
+     * wuerde den Kontakt weiterhin in die naechste Kampagne schicken, und
+     * eine nachtraeglich erkannte Abmeldebitte bliebe uneingeloest -- genau
+     * die Zusage, wegen der lib/crm/opt-out.ts ueberhaupt existiert.
+     *
+     * Nicht benachrichtigt wird: die Mail ist alt, und "X hat gerade
+     * geantwortet" waere dieselbe Luege, die runBackfill mit notify:false
+     * schon vermeidet.
+     */
+    if (row.contact_id) {
+      const { data: contactRows } = await supabase
+        .from("contacts")
+        .select("id, outreach_status")
+        .eq("id", row.contact_id)
+        .limit(1);
+      const contact = contactRows?.[0];
+      if (contact) {
+        const err = await applyInterestToContact(supabase, contact, label);
+        if (err) errors.push(err);
+      }
+    }
+
+    const fromEmail = ((row.from_email as string | null) ?? "").trim().toLowerCase();
+    if (fromEmail) {
+      const err = await suppressOnOptOut(supabase, workspaceId, fromEmail, optOut);
+      if (err) errors.push(err);
+    }
+  }
+
+  return errors.length ? { classified, errors } : { classified };
 }
 
 /**
@@ -1443,7 +1608,21 @@ export async function POST(req: Request) {
             watchBounces(supabase, workspaceId, apiKey),
           ]);
 
-          return { workspaceId, status: "ok", campaigns, backfill, inbox, domains, bounces };
+          // Ganz zum Schluss: der Nachtrag arbeitet auf dem, was in messages
+          // steht, und soll die Mails aus diesem Tick gleich mitnehmen statt
+          // eine Minute auf sie zu warten.
+          const backlog = await classifyBacklog(supabase, workspaceId, openaiKey);
+
+          return {
+            workspaceId,
+            status: "ok",
+            campaigns,
+            backfill,
+            inbox,
+            backlog,
+            domains,
+            bounces,
+          };
         } catch (e) {
           return { workspaceId, status: "error", message: (e as Error).message };
         }
