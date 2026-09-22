@@ -685,14 +685,9 @@ def rejected_findings(findings: list[dict], chosen: dict | None, contact: dict) 
     """Alle Funde ausser dem gewaehlten, mit Grund. Gekappt, weil sie in eine
     JSON-Spalte gehen und nicht in einen Prompt."""
     out = []
-    for f in findings or []:
-        if chosen is not None and f is chosen:
-            continue
-        if (
-            chosen is not None
-            and f.get("source_url") == chosen.get("source_url")
-            and f.get("angle") == chosen.get("angle")
-        ):
+    gewaehlt = chosen.get("_index") if chosen else None
+    for index, f in enumerate(findings or []):
+        if index == gewaehlt:
             continue
         out.append(
             {
@@ -715,11 +710,12 @@ def best_finding(findings: list[dict], contact: dict, now: datetime | None = Non
     Pruefgrund (`review_reason`), falls die Bindung nur behauptet ist.
     """
     kandidaten = []
-    for f in findings or []:
+    for index, f in enumerate(findings or []):
         anchor = usable(f, contact, now)
         if anchor is None:
             continue
         kopie = dict(f)
+        kopie["_index"] = index
         kopie["anchor"] = anchor
         kopie["review_reason"] = None if anchor == "linkedin_url" else "unverified_anchor"
         kandidaten.append(kopie)
