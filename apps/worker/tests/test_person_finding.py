@@ -997,3 +997,9 @@ def test_absenderprofil_steht_im_material():
     assert "<sender>" in ctx and "ex Chatarmin" in ctx
     assert pf.sender_block({"sender_profile": "  "}) == ""
     assert pf.sender_block(None) == ""
+
+
+def test_knappe_fassung_haengt_am_suchfilter():
+    assert "COMPACT MODE" not in pf.snippet_prompt("en", [])
+    assert "COMPACT MODE" in pf.snippet_prompt("en", [], compact=True)
+    assert "KNAPPE FASSUNG" in pf.snippet_prompt("de", [], compact=True)

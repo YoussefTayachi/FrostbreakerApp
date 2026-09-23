@@ -832,12 +832,43 @@ def platform_label(finding: dict, language: str) -> str:
     return host or ("LinkedIn")
 
 
-def snippet_prompt(language: str, banned: list[str]) -> str:
+# Die knappe Fassung (filters.person_snippets_compact, seit 2026-09-23).
+# Youssef nach den ersten drei Nischen: "den Teil der Personalisierung etwas
+# kuerzer, nicht soviel Text, mehr straight to the point, aber dennoch
+# personalisiert und relevant". Dieselben sechs Variablen, dieselben Netze,
+# nur engere Ziele: die Mail landet bei rund 90 statt 150 Woertern.
+SNIPPET_COMPACT_EN = (
+    "\n\nCOMPACT MODE, overrides the lengths above:\n"
+    "- opener: ONE sentence, 12 to 24 words: where you read it, what they said, and if "
+    "there is a straight line to buying twice, three to six words of why. No second "
+    "sentence.\n"
+    "- segments: ONE sentence, 14 to 30 words: what the shop sells and how, then exactly "
+    "TWO buyer groups in the shop's own terms.\n"
+    "- promise: ONE sentence, 12 to 22 words, naming one of their groups.\n"
+    "- Every word has to earn its place; cut adjectives and anything the reader already "
+    "knows about their own shop."
+)
+SNIPPET_COMPACT_DE = (
+    "\n\nKNAPPE FASSUNG, ueberschreibt die Laengen oben:\n"
+    "- opener: EIN Satz, 12 bis 24 Woerter: wo gelesen, was gesagt, und wenn es eine "
+    "gerade Linie zum zweiten Kauf gibt, drei bis sechs Woerter warum. Kein zweiter "
+    "Satz.\n"
+    "- segments: EIN Satz, 14 bis 30 Woerter: was der Shop verkauft und wie, dann genau "
+    "ZWEI Kaeufergruppen in den Worten des Shops.\n"
+    "- promise: EIN Satz, 12 bis 22 Woerter, mit einer ihrer Gruppen.\n"
+    "- Jedes Wort muss seinen Platz verdienen; Adjektive und alles, was der Leser ueber "
+    "seinen eigenen Shop schon weiss, fliegt raus."
+)
+
+
+def snippet_prompt(language: str, banned: list[str], compact: bool = False) -> str:
     """System-Prompt fuer die Schnipsel: Sprache und Strich-Verbote wie beim Absatz."""
     striche = sorted(
         {w.strip() for w in banned if w.strip() and personalize._is_punctuation_only(w.strip())}
     )
     base = SNIPPET_PROMPT_DE if language == "de" else SNIPPET_PROMPT_EN
+    if compact:
+        base += SNIPPET_COMPACT_DE if language == "de" else SNIPPET_COMPACT_EN
     lines = [base, "", f"- Write every value in {'German' if language == 'de' else 'English'}."]
     if striche:
         lines.append("- Never use these characters: " + " ".join(striche))
@@ -1934,7 +1965,11 @@ def run(job: dict) -> None:
         # denselben Korrekturrunden. Ein Verstoss, der bleibt, setzt dasselbe
         # Pruefflag wie beim Absatz: die Copy geht mit Loch oder gar nicht.
         platform = platform_label(fund, cfg["language"])
-        snippet_system = snippet_prompt(cfg["language"], banned)
+        snippet_system = snippet_prompt(
+            cfg["language"],
+            banned,
+            compact=bool(search_filters(biz).get("person_snippets_compact")),
+        )
 
         def schnipsel(correction: str | None = None) -> dict:
             return write_snippets(
