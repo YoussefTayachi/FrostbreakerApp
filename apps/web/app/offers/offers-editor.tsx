@@ -1207,6 +1207,25 @@ export default function OffersEditor({
                     Lesbar sind 60 bis 75. */}
                 <p className="mt-1.5 max-w-[54ch] text-xs leading-relaxed text-faint">{O.signatureHint}</p>
               </div>
+
+              {/* Das Absenderprofil (Migration 0122): Material fuer die
+                  Personen-Schnipsel, deshalb hier beim Absender und nicht
+                  bei den zwoelf Feldern der Mail. */}
+              <div className="mt-5 border-t border-edge/70 pt-4">
+                <label htmlFor="feld-sender-profile" className="block text-sm font-medium text-ink">
+                  {O.senderProfileHeading}
+                </label>
+                <p className="mb-2 mt-0.5 text-xs text-faint">{O.senderProfileSubtitle}</p>
+                <textarea
+                  id="feld-sender-profile"
+                  value={entwurf.sender_profile}
+                  onChange={(e) => setzeFeld("sender_profile", e.target.value)}
+                  rows={7}
+                  placeholder={O.senderProfilePlaceholder}
+                  className={textfeldCls}
+                />
+                <p className="mt-1.5 max-w-[54ch] text-xs leading-relaxed text-faint">{O.senderProfileHint}</p>
+              </div>
             </Karte>
 
             <Karte label={O.websiteHeading}>

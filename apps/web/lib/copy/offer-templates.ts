@@ -104,7 +104,7 @@ import { DEFAULT_DELAYS, type DraftStep } from "./sequence-prompt";
 /** Die zwoelf inhaltlichen Felder plus Anrede/Sprache -- alles, was
  *  `emptyOffer()` nicht schon mit '' vorbelegt. `custom_fields` bleibt leer:
  *  die Vorlage kennt keine eigenen Felder eines Workspaces (Migration 0098). */
-export type OfferTemplateFields = Omit<Offer, "id" | "is_default" | "website" | "custom_fields" | "signature"> & {
+export type OfferTemplateFields = Omit<Offer, "id" | "is_default" | "website" | "custom_fields" | "signature" | "sender_profile"> & {
   website: null;
   custom_fields: Record<string, never>;
   signature: "";

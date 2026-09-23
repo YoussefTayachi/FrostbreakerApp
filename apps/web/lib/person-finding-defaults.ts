@@ -30,7 +30,7 @@ export const PERSON_SNIPPET_MAX_WORDS: Record<string, number> = {
   thingWeHaveInCommon: 6,
   platformWhereIGotIt: 6,
   whatTheySaid: 16,
-  thingWeHaveSynergyAround: 10,
+  thingWeHaveSynergyAround: 25,
   whatTheyDoWell: 10,
   whatTheyLeaveOnTheTable: 20,
 };

@@ -2022,6 +2022,12 @@ const de = {
     signaturePlaceholder: "Beste Grüße\nYoussef\nFrostbreaker",
     signatureHint:
       "Steht unter jeder Mail. Bleibt das Feld leer, endet die Mail ohne Unterschrift: die KI denkt sich keinen Namen aus.",
+    senderProfileHeading: "Absenderprofil",
+    senderProfileSubtitle: "Wer schreibt hier, und was hat die Person selbst erlebt?",
+    senderProfilePlaceholder:
+      "Ramy, CRO & Co-Founder. Vorher Sales bei einer WhatsApp-Marketing-Software in Wien. These: der zweite Kauf ist der wichtigste. Hat mit seinem besten Freund gegründet.",
+    senderProfileHint:
+      "Werdegang, These, Zahlen, was die Person den ganzen Tag tut. Zwei bis drei Sätze je Absender. Daraus entstehen Gemeinsamkeit und Synergie in den Personen-Schnipseln; nichts davon steht wörtlich in der Mail.",
     readWebsite: "Aus Website übernehmen",
     reading: "Liest...",
     suggestionsReady: (n: number) => `${n} Vorschläge aus der Website`,
@@ -4816,6 +4822,12 @@ const en: Dictionary = {
     signaturePlaceholder: "Best,\nYoussef\nFrostbreaker",
     signatureHint:
       "Sits under every email. Leave it empty and the email ends without a signature: the AI does not make up a name.",
+    senderProfileHeading: "Sender profile",
+    senderProfileSubtitle: "Who is writing, and what have they been through themselves?",
+    senderProfilePlaceholder:
+      "Ramy, CRO & Co-Founder. Previously sales at a WhatsApp marketing software in Vienna. Thesis: the second purchase is the one that matters. Founded the company with his best friend.",
+    senderProfileHint:
+      "Career, thesis, numbers, what the person does all day. Two or three sentences per sender. This is where the thing in common and the synergy in the person snippets come from; none of it appears word for word in the email.",
     readWebsite: "Read from website",
     reading: "Reading...",
     suggestionsReady: (n: number) => `${n} suggestions from the website`,

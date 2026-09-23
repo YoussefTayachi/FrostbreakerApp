@@ -38,7 +38,13 @@ import {
   type CampaignDraftStep,
 } from "@/lib/instantly/campaign-draft";
 import { createInstantlyCampaign, type CreateCampaignResult } from "@/lib/instantly/create-campaign";
-import { OFFER_COLUMNS, OFFER_TEXT_FIELDS, type OfferTextField } from "@/lib/offers";
+import {
+  OFFER_COLUMNS,
+  OFFER_EXTRA_TEXT_FIELDS,
+  OFFER_TEXT_FIELDS,
+  type OfferExtraTextField,
+  type OfferTextField,
+} from "@/lib/offers";
 
 /**
  * Die Werkzeuge, die der MCP-Server anbietet.
@@ -1351,7 +1357,7 @@ export const TOOLS: Record<ToolName, McpTool> = {
       let query = supabase
         .from("offers")
         .select(
-          "id, name, offering, icp, problem, outcome, proof, cta, tone, friction, friction_reason, mechanism, preview_asset, review_time, signature, address_form, language, website, is_default, custom_fields, created_at"
+          "id, name, offering, icp, problem, outcome, proof, cta, tone, friction, friction_reason, mechanism, preview_asset, review_time, signature, sender_profile, address_form, language, website, is_default, custom_fields, created_at"
         )
         .eq("workspace_id", tor.workspaceId);
 
@@ -2805,7 +2811,7 @@ export const TOOLS: Record<ToolName, McpTool> = {
         },
         field: {
           type: "string",
-          description: `One of the twelve fixed fields (${OFFER_TEXT_FIELDS.join(", ")}) or the key of one of the workspace's own fields.`,
+          description: `One of the twelve fixed fields (${OFFER_TEXT_FIELDS.join(", ")}), the sender profile (${OFFER_EXTRA_TEXT_FIELDS.join(", ")}) or the key of one of the workspace's own fields.`,
         },
         value: { type: "string", description: "The new text. May be empty to clear the field." },
       },
@@ -2860,7 +2866,11 @@ export const TOOLS: Record<ToolName, McpTool> = {
         );
       }
 
-      const istFestesFeld = (OFFER_TEXT_FIELDS as readonly string[]).includes(field);
+      // Die zwoelf Textfelder plus die Spalten daneben, die ein Werkzeug
+      // sinnvoll fuellt (sender_profile, Migration 0122).
+      const istFestesFeld =
+        (OFFER_TEXT_FIELDS as readonly string[]).includes(field) ||
+        (OFFER_EXTRA_TEXT_FIELDS as readonly string[]).includes(field);
 
       /**
        * Die eigenen Felder (Migration 0098).
@@ -2879,7 +2889,7 @@ export const TOOLS: Record<ToolName, McpTool> = {
       if (!istFestesFeld && !def) {
         const eigene = defs.map((d) => d.key);
         return fail(
-          `Unknown field "${field}". Use one of the twelve fixed fields (${OFFER_TEXT_FIELDS.join(", ")})` +
+          `Unknown field "${field}". Use one of the twelve fixed fields (${OFFER_TEXT_FIELDS.join(", ")}), the sender profile (${OFFER_EXTRA_TEXT_FIELDS.join(", ")})` +
             (eigene.length > 0
               ? ` or one of this workspace's own fields (${eigene.join(", ")}).`
               : ". This workspace has no custom offer fields; they are created in Frostbreaker under Offers.")
@@ -2897,7 +2907,7 @@ export const TOOLS: Record<ToolName, McpTool> = {
           .from("offers")
           // Der Feldname stammt aus OFFER_TEXT_FIELDS, nicht aus dem Argument:
           // die Pruefung oben laesst nur diese zwoelf Namen durch.
-          .update({ [field as OfferTextField]: value })
+          .update({ [field as OfferTextField | OfferExtraTextField]: value })
           .eq("id", offer.id as string)
           // Beide Bedingungen; die id allein traefe mit Service-Role jedes
           // Angebot der Datenbank.
@@ -4699,7 +4709,8 @@ function zielFuerFeld(row: WriteLogRow): UndoZiel | null {
   }
   if (row.field.startsWith("offers.")) {
     const spalte = row.field.slice("offers.".length);
-    return (OFFER_TEXT_FIELDS as readonly string[]).includes(spalte)
+    return (OFFER_TEXT_FIELDS as readonly string[]).includes(spalte) ||
+      (OFFER_EXTRA_TEXT_FIELDS as readonly string[]).includes(spalte)
       ? { table: "offers", rowId: row.offer_id, column: spalte }
       : null;
   }

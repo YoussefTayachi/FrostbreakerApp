@@ -926,3 +926,14 @@ def test_platform_label():
     assert pf.platform_label(site, "de") == "eurer Seite"
     art = finding(source_kind="article", source_url="https://forbes.com/x")
     assert pf.platform_label(art, "en") == "forbes.com"
+
+
+def test_absenderprofil_steht_im_material():
+    offer = {
+        "offering": "Klaviyo flows",
+        "sender_profile": "Two founders from Vienna, ex Chatarmin.",
+    }
+    ctx = pf.person_context(contact(), business(), finding(), offer, "en")
+    assert "<sender>" in ctx and "ex Chatarmin" in ctx
+    assert pf.sender_block({"sender_profile": "  "}) == ""
+    assert pf.sender_block(None) == ""

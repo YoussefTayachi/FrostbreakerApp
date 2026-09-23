@@ -36,6 +36,7 @@ const angebot: Offer = {
   language: "de",
   website: "https://beispiel.de",
   signature: "",
+  sender_profile: "",
   custom_fields: {},
   is_default: true,
 };

@@ -570,6 +570,12 @@ setzt der Code aus der Quelle. Benutzt eine Sequenz einen Schnipsel, haelt
 der Upload Kontakte ohne vollstaendige Schnipsel zurueck (aeltere Kontakte
 haben nur den Absatz); ein neuer Lauf zieht sie nach.
 
+**Absenderprofil (Migration 0122).** `offers.sender_profile`, im Angebot
+unter dem Absender: Werdegang, These, Zahlen, was die Person selbst tut.
+Geht als `<sender>` ins Material der Schnipsel; ohne Profil stand
+"Email marketing for ecommerce" zehnmal als Gemeinsamkeit (2026-09-23).
+Ueber MCP mit `set_offer_field(field="sender_profile")` beschreibbar.
+
 **Pruefung.** Absaetze mit `person_finding_needs_review = true` gehen nicht
 raus (der Upload haelt sie zurueck) und stehen unter `/person-finding` zur
 Freigabe. Zwei Gruende: die Quelle ist nicht eindeutig an die Person

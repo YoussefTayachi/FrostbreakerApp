@@ -50,6 +50,14 @@ export const OFFER_TEXT_FIELDS = [
 
 export type OfferTextField = (typeof OFFER_TEXT_FIELDS)[number];
 
+/**
+ * Spalten neben den zwoelf, die ueber MCP (set_offer_field) beschreibbar
+ * sind: Text, den ein Werkzeug sinnvoll fuellen kann, ohne dass er zur
+ * Vollstaendigkeit oder zur Karte zaehlt.
+ */
+export const OFFER_EXTRA_TEXT_FIELDS = ["sender_profile"] as const;
+export type OfferExtraTextField = (typeof OFFER_EXTRA_TEXT_FIELDS)[number];
+
 export type Offer = {
   id: string;
   name: string;
@@ -79,6 +87,10 @@ export type Offer = {
    *  workspaces.reply_sender_name; ist auch das leer, endet die Mail ohne
    *  Unterschrift statt mit einem erfundenen Namen (Migration 0091). */
   signature: string;
+  /** Wer schreibt: Werdegang, These, was die Person selbst tut (Migration
+   *  0122). Material fuer die Personen-Schnipsel, nie woertlich in der Mail.
+   *  Eine Spalte wie signature, keines der zwoelf Textfelder. */
+  sender_profile: string;
   /**
    * Die Werte der eigenen Felder (Migration 0098), Schluessel =
    * offer_field_defs.key.
@@ -100,7 +112,7 @@ export type Offer = {
  *  leitet die Feldtypen aus dem String ab und faellt sonst auf
  *  GenericStringError zurueck (dieselbe Falle wie in app/ai-agent/page.tsx). */
 export const OFFER_COLUMNS =
-  "id, name, offering, icp, problem, friction, friction_reason, outcome, mechanism, proof, preview_asset, review_time, cta, tone, address_form, language, website, signature, custom_fields, is_default";
+  "id, name, offering, icp, problem, friction, friction_reason, outcome, mechanism, proof, preview_asset, review_time, cta, tone, address_form, language, website, signature, sender_profile, custom_fields, is_default";
 
 export function emptyOffer(name: string, language: OfferLanguage = "de"): Omit<Offer, "id" | "is_default"> {
   return {
@@ -121,6 +133,7 @@ export function emptyOffer(name: string, language: OfferLanguage = "de"): Omit<O
     language,
     website: null,
     signature: "",
+    sender_profile: "",
     // Kein Backfill, kein Zwang: ein Workspace ohne eigene Felder hat hier
     // dauerhaft ein leeres Objekt und merkt von Migration 0098 nichts.
     custom_fields: {},
