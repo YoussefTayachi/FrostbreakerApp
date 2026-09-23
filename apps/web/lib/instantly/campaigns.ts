@@ -59,10 +59,11 @@ export const PERSON_FINDING_FIELD = "personFinding";
  * dieselbe Rueckhalte-Regel (usesPersonFinding, hasPersonFinding).
  */
 export const PERSON_SNIPPET_FIELDS = [
-  "thingWeHaveInCommon",
+  "subjectLine",
+  "opener",
   "platformWhereIGotIt",
   "whatTheySaid",
-  "thingWeHaveSynergyAround",
+  "bridge",
   "whatTheyDoWell",
   "whatTheyLeaveOnTheTable",
 ] as const;

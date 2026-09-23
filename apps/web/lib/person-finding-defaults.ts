@@ -27,10 +27,11 @@ export const PERSON_FINDING_MAX_WORDS = 120;
  * SNIPPET_FIELDS im Worker; der Drift-Test liest sie von dort.
  */
 export const PERSON_SNIPPET_MAX_WORDS: Record<string, number> = {
-  thingWeHaveInCommon: 6,
+  subjectLine: 7,
+  opener: 34,
   platformWhereIGotIt: 6,
   whatTheySaid: 16,
-  thingWeHaveSynergyAround: 25,
+  bridge: 34,
   whatTheyDoWell: 10,
   whatTheyLeaveOnTheTable: 20,
 };

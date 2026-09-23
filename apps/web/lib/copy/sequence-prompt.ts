@@ -84,10 +84,11 @@ export const EMAIL_MERGE_TAGS = [
   "personFinding",
   // Die sechs Schnipsel fuer eine feste Copy (Migration 0121): Personali-
   // sierung IN der Copy statt als Absatz davor. Eigene Felder wie oben.
-  "thingWeHaveInCommon",
+  "subjectLine",
+  "opener",
   "platformWhereIGotIt",
   "whatTheySaid",
-  "thingWeHaveSynergyAround",
+  "bridge",
   "whatTheyDoWell",
   "whatTheyLeaveOnTheTable",
 ] as const;

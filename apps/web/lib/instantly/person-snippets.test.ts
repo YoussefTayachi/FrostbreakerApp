@@ -10,10 +10,11 @@ import {
 import { hasPersonSnippets, pickLeadsForSend, type CampaignContactRow } from "./create-campaign";
 
 const schnipsel = {
-  thingWeHaveInCommon: "Email marketing for ecom brands",
+  subjectLine: "walmart launch and repeat buyers",
+  opener: "What you said on LinkedIn about Womaness launching in over a thousand Walmart stores stuck with me.",
   platformWhereIGotIt: "LinkedIn",
   whatTheySaid: "Womaness launching in over a thousand Walmart stores",
-  thingWeHaveSynergyAround: "revenue from customers you already have",
+  bridge: "Here is why I am writing.",
   whatTheyDoWell: "built a brand women come back to",
   whatTheyLeaveOnTheTable: "default templates leave that money on the table",
 };
@@ -48,7 +49,7 @@ describe("Schnipsel als Merge-Tags", () => {
   });
 
   it("erkennt eine Sequenz, die Schnipsel benutzt, als Personen-Sequenz", () => {
-    const steps = [{ subject: "Hi", body: "{{thingWeHaveInCommon}} is what I do too." }];
+    const steps = [{ subject: "Hi", body: "{{opener}}" }];
     expect(usesPersonSnippets(steps)).toBe(true);
     expect(usesPersonFinding(steps)).toBe(true);
     expect(usesPersonSnippets([{ subject: "", body: "{{personFinding}}" }])).toBe(false);

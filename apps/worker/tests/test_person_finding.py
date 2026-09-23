@@ -457,9 +457,10 @@ def test_auffaechern_setzt_bei_enqueue_fehler_zurueck(monkeypatch):
 
 
 GUTE_SCHNIPSEL = {
-    "thingWeHaveInCommon": "Email marketing for ecom brands",
+    "subjectLine": "collagen and repeat buyers",
+    "opener": "What you said on LinkedIn about the Forbes feature on your growth stuck with me.",
     "whatTheySaid": "the Forbes feature on your growth",
-    "thingWeHaveSynergyAround": "revenue from customers you already have",
+    "bridge": "Here is why I am writing.",
     "whatTheyDoWell": "run a fast-growing collagen brand",
     "whatTheyLeaveOnTheTable": "your flows stay on default templates and campaigns go out late",
 }
@@ -788,7 +789,13 @@ def test_ohne_fund_schreibt_der_shop_den_absatz(monkeypatch, cfg):
             "contacts": [contact()],
         }
     )
-    aufrufe = _run_contact(monkeypatch, db, [], text="On your site you sell collagen powders.")
+    aufrufe = _run_contact(
+        monkeypatch,
+        db,
+        [],
+        text="On your site you sell collagen powders.",
+        snippets=dict(GUTE_SCHNIPSEL, opener="I just read on your site that you sell collagen."),
+    )
     pf.run(job({"contact_id": "c-1"}))
     row = db.tables["contacts"][0]
     assert aufrufe == {"research": 1, "generate": 1}
@@ -912,14 +919,26 @@ def test_validate_snippets_streicht_abschwaecher_und_punkt():
         GUTE_SCHNIPSEL,
         whatTheyDoWell="You lead a supplement brand",
         whatTheySaid="Posts detailing the launch of an electrolyte product",
+        opener="What you said on LinkedIn about the launch stuck with me",
+        subjectLine="electrolyte launch.",
     )
-    out, _ = pf.validate_snippets(doppelt, "LinkedIn", [], [])
+    out, probleme = pf.validate_snippets(doppelt, "LinkedIn", [], [])
+    assert probleme == []
     assert out["whatTheyDoWell"] == "lead a supplement brand"
     assert out["whatTheySaid"] == "the launch of an electrolyte product"
-    out, _ = pf.validate_snippets(
-        dict(GUTE_SCHNIPSEL, thingWeHaveInCommon="Retention is what I do"), "LinkedIn", [], []
+    assert out["opener"].endswith("stuck with me.")
+    assert out["subjectLine"] == "electrolyte launch"
+    # Der opener muss die Quelle nennen, die bridge darf nicht "synergy" sagen.
+    _, probleme = pf.validate_snippets(
+        dict(
+            GUTE_SCHNIPSEL, opener="Your post stuck with me.", bridge="There is real synergy here."
+        ),
+        "LinkedIn",
+        [],
+        [],
     )
-    assert out["thingWeHaveInCommon"] == "Retention"
+    assert any("name the source" in p for p in probleme)
+    assert any("synergy" in p for p in probleme)
 
 
 def test_platform_label():
