@@ -665,6 +665,10 @@ SNIPPET_FIELDS = (
     ("ctaTail", 14),
 )
 SNIPPET_MAX_WORDS = dict(SNIPPET_FIELDS)
+# Die knappe Fassung (filters.person_snippets_compact): engere Deckel, die
+# validate_snippets wie Regelverstoesse behandelt, damit die Korrekturrunde
+# kuerzt. Gemessen am 2026-09-23: ohne Deckel nannte segments vier Gruppen.
+SNIPPET_COMPACT_MAX_WORDS = {"opener": 26, "segments": 30, "promise": 22}
 # platformWhereIGotIt setzt der Code aus der Quelle des Funds, nicht das
 # Modell: da gibt es nichts zu erfinden.
 SNIPPET_MODEL_FIELDS = tuple(f for f, _ in SNIPPET_FIELDS if f != "platformWhereIGotIt")
@@ -842,8 +846,9 @@ SNIPPET_COMPACT_EN = (
     "- opener: ONE sentence, 12 to 24 words: where you read it, what they said, and if "
     "there is a straight line to buying twice, three to six words of why. No second "
     "sentence.\n"
-    "- segments: ONE sentence, 14 to 30 words: what the shop sells and how, then exactly "
-    "TWO buyer groups in the shop's own terms.\n"
+    "- segments: ONE sentence, 14 to 28 words: what the shop sells and how, then exactly "
+    "TWO buyer groups in the shop's own terms. Two, not three, not four; a list of four "
+    "fails.\n"
     "- promise: ONE sentence, 12 to 22 words, naming one of their groups.\n"
     "- Every word has to earn its place; cut adjectives and anything the reader already "
     "knows about their own shop."
@@ -853,8 +858,8 @@ SNIPPET_COMPACT_DE = (
     "- opener: EIN Satz, 12 bis 24 Woerter: wo gelesen, was gesagt, und wenn es eine "
     "gerade Linie zum zweiten Kauf gibt, drei bis sechs Woerter warum. Kein zweiter "
     "Satz.\n"
-    "- segments: EIN Satz, 14 bis 30 Woerter: was der Shop verkauft und wie, dann genau "
-    "ZWEI Kaeufergruppen in den Worten des Shops.\n"
+    "- segments: EIN Satz, 14 bis 28 Woerter: was der Shop verkauft und wie, dann genau "
+    "ZWEI Kaeufergruppen in den Worten des Shops. Zwei, nicht drei, nicht vier.\n"
     "- promise: EIN Satz, 12 bis 22 Woerter, mit einer ihrer Gruppen.\n"
     "- Jedes Wort muss seinen Platz verdienen; Adjektive und alles, was der Leser ueber "
     "seinen eigenen Shop schon weiss, fliegt raus."
@@ -938,7 +943,7 @@ _SETUP_CLAIM = re.compile(
 
 
 def validate_snippets(
-    raw: dict, platform: str, banned: list[str], material: list[str]
+    raw: dict, platform: str, banned: list[str], material: list[str], compact: bool = False
 ) -> tuple[dict, list[str]]:
     """Dieselben Netze wie beim Absatz, je Schnipsel: Abschwaecher gestrichen,
     dann Wortgrenze, Verbotswoerter, erfundene Zahlen und Saetze ueber alle.
@@ -971,7 +976,10 @@ def validate_snippets(
         if not text:
             problems.append(f"{field} is empty")
             continue
-        for p in personalize.validate(text, SNIPPET_MAX_WORDS[field], banned):
+        deckel = SNIPPET_MAX_WORDS[field]
+        if compact:
+            deckel = min(deckel, SNIPPET_COMPACT_MAX_WORDS.get(field, deckel))
+        for p in personalize.validate(text, deckel, banned):
             problems.append(f"{field}: {p}")
         erfunden = invented_numbers(text, *material)
         if erfunden:
@@ -1965,11 +1973,8 @@ def run(job: dict) -> None:
         # denselben Korrekturrunden. Ein Verstoss, der bleibt, setzt dasselbe
         # Pruefflag wie beim Absatz: die Copy geht mit Loch oder gar nicht.
         platform = platform_label(fund, cfg["language"])
-        snippet_system = snippet_prompt(
-            cfg["language"],
-            banned,
-            compact=bool(search_filters(biz).get("person_snippets_compact")),
-        )
+        compact = bool(search_filters(biz).get("person_snippets_compact"))
+        snippet_system = snippet_prompt(cfg["language"], banned, compact=compact)
 
         def schnipsel(correction: str | None = None) -> dict:
             return write_snippets(
@@ -1982,12 +1987,14 @@ def run(job: dict) -> None:
                 search_id=search_id,
             )
 
-        snips, snippet_problems = validate_snippets(schnipsel(), platform, banned, material)
+        snips, snippet_problems = validate_snippets(
+            schnipsel(), platform, banned, material, compact=compact
+        )
         for _ in range(CORRECTION_ROUNDS):
             if not snippet_problems:
                 break
             snips, snippet_problems = validate_snippets(
-                schnipsel("; ".join(snippet_problems)), platform, banned, material
+                schnipsel("; ".join(snippet_problems)), platform, banned, material, compact=compact
             )
         if snippet_problems:
             needs_review = True

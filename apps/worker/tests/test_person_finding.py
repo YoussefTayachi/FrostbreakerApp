@@ -1003,3 +1003,11 @@ def test_knappe_fassung_haengt_am_suchfilter():
     assert "COMPACT MODE" not in pf.snippet_prompt("en", [])
     assert "COMPACT MODE" in pf.snippet_prompt("en", [], compact=True)
     assert "KNAPPE FASSUNG" in pf.snippet_prompt("de", [], compact=True)
+
+
+def test_knappe_fassung_hat_harte_deckel():
+    lang = dict(GUTE_SCHNIPSEL, segments=" ".join(["wort"] * 40) + ".")
+    _, normal = pf.validate_snippets(lang, "LinkedIn", [], [])
+    _, knapp = pf.validate_snippets(lang, "LinkedIn", [], [], compact=True)
+    assert not any("segments" in p for p in normal)
+    assert any("segments" in p and "zu lang" in p for p in knapp)
