@@ -942,6 +942,24 @@ _SETUP_CLAIM = re.compile(
 )
 
 
+def compact_only_length_problems(snips: dict, problems: list[str]) -> list[str]:
+    """Die Verstoesse, die NUR die knappen Deckel reissen, nicht die normalen.
+
+    Die Korrekturrunde soll sie kuerzen; bleiben sie, sind sie kein Grund
+    fuer die Pruefung (zweiter knapper Lauf am 2026-09-23: 22 von 26
+    Prueffaellen waren nur ein paar Woerter ueber dem knappen Deckel).
+    """
+    weich = []
+    for p in problems:
+        feld, _, rest = p.partition(":")
+        if feld not in SNIPPET_COMPACT_MAX_WORDS or "zu lang" not in rest:
+            continue
+        n = len((snips.get(feld) or "").split())
+        if n <= SNIPPET_MAX_WORDS[feld]:
+            weich.append(p)
+    return weich
+
+
 def validate_snippets(
     raw: dict, platform: str, banned: list[str], material: list[str], compact: bool = False
 ) -> tuple[dict, list[str]]:
@@ -1996,6 +2014,11 @@ def run(job: dict) -> None:
             snips, snippet_problems = validate_snippets(
                 schnipsel("; ".join(snippet_problems)), platform, banned, material, compact=compact
             )
+        if compact:
+            # Nur die knappen Deckel gerissen: kuerzen war das Ziel, nicht
+            # zurueckhalten. Bleibt in der Provenienz sichtbar.
+            weich = compact_only_length_problems(snips, snippet_problems)
+            snippet_problems = [p for p in snippet_problems if p not in weich]
         if snippet_problems:
             needs_review = True
 

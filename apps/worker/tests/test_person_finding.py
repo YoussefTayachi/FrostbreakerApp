@@ -1011,3 +1011,12 @@ def test_knappe_fassung_hat_harte_deckel():
     _, knapp = pf.validate_snippets(lang, "LinkedIn", [], [], compact=True)
     assert not any("segments" in p for p in normal)
     assert any("segments" in p and "zu lang" in p for p in knapp)
+
+
+def test_nur_knapper_deckel_gerissen_ist_kein_pruefgrund():
+    snips = dict(GUTE_SCHNIPSEL, segments=" ".join(["wort"] * 40) + ".")
+    _, probleme = pf.validate_snippets(snips, "LinkedIn", [], [], compact=True)
+    assert pf.compact_only_length_problems(snips, probleme) == probleme
+    zu_lang = dict(GUTE_SCHNIPSEL, segments=" ".join(["wort"] * 80) + ".")
+    _, probleme = pf.validate_snippets(zu_lang, "LinkedIn", [], [], compact=True)
+    assert pf.compact_only_length_problems(zu_lang, probleme) == []
