@@ -1050,3 +1050,13 @@ def test_winkel_haengt_anlass_satz_und_betreff_an():
         dict(snips, opener="I just read your post about the launch"), "q4", "en", "X"
     )
     assert ohne_punkt["opener"].startswith("I just read your post about the launch. Q4 is when")
+
+
+def test_kommentare_und_zweiwortzitate_sind_kein_fund():
+    kommentar = finding(
+        claim="Ryan commented 'YASSSSS!!!' on a post about the launch.", verbatim="YASSSSS!!!"
+    )
+    assert pf.why_unusable(kommentar, contact()) == "trivial"
+    kurz = finding(claim="She said the launch went well.", verbatim="So proud!")
+    assert pf.why_unusable(kurz, contact()) == "trivial"
+    assert pf.why_unusable(finding(), contact()) is None

@@ -1397,6 +1397,25 @@ PRIVATE_WORDS = (
 _PRIVATE = re.compile(r"(?i)(?<![\w-])(?:" + "|".join(PRIVATE_WORDS) + r")(?![\w-])")
 
 
+_TRIVIAL = re.compile(
+    r"(?i)\b(?:commented|reacted|liked|reposted|kommentiert|reagiert|geliked|geteilt)\b"
+)
+
+
+def is_trivial(finding: dict) -> bool:
+    """Ein Kommentar, eine Reaktion oder ein Zitat aus zwei Woertern.
+
+    Q4-Lauf am 2026-09-23: "where you commented 'YASSSSS!!!'" stand als
+    Eroeffnung in einer Mail. Der Fund muss etwas sein, das die Person gesagt
+    oder getan hat, nicht, dass sie unter jemandes Beitrag gejubelt hat.
+    """
+    claim = str(finding.get("claim") or "")
+    verbatim = str(finding.get("verbatim") or "").strip().strip("\"'“”‘’")
+    if _TRIVIAL.search(claim):
+        return True
+    return bool(verbatim and len(verbatim.split()) < 4 and finding.get("angle") == "statement")
+
+
 def touches_private(finding: dict) -> bool:
     """Beruehrt der Fund Gesundheit, Familie, Tod oder einen Jobverlust?
 
@@ -1428,6 +1447,8 @@ def why_unusable(finding: dict, contact: dict, now: datetime | None = None) -> s
         return "claim_empty"
     if touches_private(finding):
         return "private"
+    if is_trivial(finding):
+        return "trivial"
     kind = finding.get("source_kind")
     if kind not in SOURCE_KINDS:
         return "source_kind"
