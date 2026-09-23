@@ -128,7 +128,14 @@ MODEL = "gpt-4.1-mini"
 # zwei Monate, von denen mini keinen einzigen fand, sondern eine
 # Pressemitteilung. Die Suche ist der teure Teil an Zeit, nicht an Geld;
 # ein staerkeres Modell kostet hier Cent, ein leerer Absatz kostet den Lead.
-RESEARCH_MODEL = "gpt-4.1"
+# gpt-4.1-mini seit dem 2026-09-23 nachmittags, vorher gpt-4.1. Youssefs
+# Regel: nur das guenstige Modell, ein teureres nur nach Ansage. Gemessen:
+# ein gpt-4.1-Recherche-Aufruf kostete rund 5 Cent (1 Cent Websuche plus
+# 19.000 Tokens Suchergebnis zu $2/M), mini mit kleinem Suchkontext rund
+# 1,5 Cent. Mini hat gestern ohne Zwang gar nicht gesucht; der Zwang
+# (tool_choice) besteht seit heute, damit ist der Vergleich offen und wird
+# an den ersten Laeufen gemessen.
+RESEARCH_MODEL = "gpt-4.1-mini"
 
 # Wortgrenze dieses Absatzes. Die einzige Konstante dafuer; gespiegelt in
 # apps/web/lib/person-finding-defaults.ts, dort mit einem Test, der diese
@@ -1761,7 +1768,10 @@ def research(
     client = OpenAI(api_key=api_key, timeout=120.0, max_retries=1)
     resp = client.responses.create(
         model=RESEARCH_MODEL,
-        tools=[{"type": "web_search"}],
+        # search_context_size low: weniger Suchergebnis-Tokens je Aufruf. Die
+        # Tokens sind der groessere Posten (2026-09-23: 19.000 je Aufruf bei
+        # medium), die Suche selbst kostet fest 1 Cent.
+        tools=[{"type": "web_search", "search_context_size": "low"}],
         tool_choice={"type": "web_search"},
         input=[
             {"role": "system", "content": RESEARCH_PROMPT},

@@ -15,6 +15,7 @@ Das Festhalten darf nie den eigentlichen Arbeitsschritt kippen. Schlaegt der
 Schreibvorgang fehl, wird das protokolliert und der Lauf geht weiter. Eine
 fehlende Kostenzeile ist aergerlich, ein abgebrochener Lead-Import teuer.
 """
+
 import logging
 
 from worker.db import sb
@@ -42,6 +43,37 @@ OPENAI_USD_PER_1M_OUTPUT = 1.60
 # innerhalb einer laufenden Suche ueberwiegend gecacht gelesen. Ohne diesen
 # Satz haette die Kostenzeile ihn viermal zu teuer verbucht.
 OPENAI_USD_PER_1M_CACHED_INPUT = 0.10
+
+# Preise je Modell, nachgesehen am 2026-09-23 auf
+# https://developers.openai.com/api/docs/pricing: gpt-4.1 Input $2.00,
+# Cached $0.50, Output $8.00; gpt-4.1-mini $0.40 / $0.10 / $1.60.
+#
+# WARUM DAS HIER STEHT: bis zum 2026-09-23 hat dieses Buch JEDEN OpenAI-
+# Aufruf zum mini-Tarif verbucht, auch die Personen-Recherche mit gpt-4.1
+# (fuenfmal teurer), und die Websuche gar nicht. Youssef hat 30 Euro
+# nachgeladen, die in einem Nachmittag weg waren, waehrend das Buch 11 Dollar
+# zeigte. Die echte Rechnung: 662 Recherche-Aufrufe mit je einer Websuche
+# (1 Cent) und rund 19.000 Tokens Suchergebnis zu gpt-4.1-Preisen (3,8 Cent).
+OPENAI_PRICES_PER_1M = {
+    # (Input, Cached Input, Output)
+    "gpt-4.1": (2.00, 0.50, 8.00),
+    "gpt-4.1-mini": (0.40, 0.10, 1.60),
+}
+# Die Websuche als Werkzeug: $10 je 1.000 Aufrufe, alle Modelle, zuzueglich
+# der Suchergebnis-Tokens zum Modellpreis (dieselbe Seite, 2026-09-23).
+OPENAI_USD_PER_WEB_SEARCH_CALL = 0.01
+
+
+def openai_prices(model: str | None) -> tuple[float, float, float]:
+    """Der Tarif zum Modellnamen; OpenAI meldet ihn mit Datumsanhang
+    ("gpt-4.1-2025-04-14"), deshalb Praefixvergleich, laengster zuerst."""
+    name = (model or "").lower()
+    for key in sorted(OPENAI_PRICES_PER_1M, key=len, reverse=True):
+        if name.startswith(key):
+            return OPENAI_PRICES_PER_1M[key]
+    return (OPENAI_USD_PER_1M_INPUT, OPENAI_USD_PER_1M_CACHED_INPUT, OPENAI_USD_PER_1M_OUTPUT)
+
+
 # Hunter und Apollo rechnen in Credits ab, deren Eurowert vom gebuchten Tarif
 # abhaengt und deshalb nicht allgemein bezifferbar ist. Wir halten die Credits
 # fest und lassen den Betrag offen, statt einen Tarif zu unterstellen.
@@ -55,7 +87,9 @@ NEVERBOUNCE_USD_PER_CHECK = 0.008
 # Migration, die einen Constraint zurueckbaut, ist mehr Risiko als Nutzen.
 
 
-def openai_cost_usd(input_tokens: int, output_tokens: int, cached_input_tokens: int = 0) -> float:
+def openai_cost_usd(
+    input_tokens: int, output_tokens: int, cached_input_tokens: int = 0, model: str | None = None
+) -> float:
     """cached_input_tokens ist ein TEIL von input_tokens, kein Zusatz.
 
     OpenAI meldet input_tokens als Gesamtsumme und den gecachten Anteil
@@ -65,10 +99,20 @@ def openai_cost_usd(input_tokens: int, output_tokens: int, cached_input_tokens: 
     wer beide Zahlen addierte, wuerde den Vorspann doppelt berechnen.
     """
     frisch = max(input_tokens - cached_input_tokens, 0)
+    p_in, p_cached, p_out = openai_prices(model)
     return (
-        frisch / 1_000_000 * OPENAI_USD_PER_1M_INPUT
-        + cached_input_tokens / 1_000_000 * OPENAI_USD_PER_1M_CACHED_INPUT
-        + output_tokens / 1_000_000 * OPENAI_USD_PER_1M_OUTPUT
+        frisch / 1_000_000 * p_in
+        + cached_input_tokens / 1_000_000 * p_cached
+        + output_tokens / 1_000_000 * p_out
+    )
+
+
+def web_search_calls(response: object) -> int:
+    """Wie oft die Antwort tatsaechlich gesucht hat (web_search_call-Eintraege)."""
+    return sum(
+        1
+        for o in (getattr(response, "output", None) or [])
+        if getattr(o, "type", "") == "web_search_call"
     )
 
 
@@ -97,7 +141,9 @@ def record(
             }
         ).execute()
     except Exception as exc:  # noqa: BLE001 (siehe Modul-Docstring)
-        log.warning("Verbrauch (%s/%s) konnte nicht festgehalten werden: %s", provider, operation, exc)
+        log.warning(
+            "Verbrauch (%s/%s) konnte nicht festgehalten werden: %s", provider, operation, exc
+        )
 
 
 def record_openai(
@@ -127,12 +173,26 @@ def record_openai(
     gesamt = eingang + ausgang
     if gesamt <= 0:
         return
+    model = str(getattr(response, "model", "") or "")
     record(
         workspace_id,
         "openai",
         operation,
         gesamt,
         "tokens",
-        cost_usd=openai_cost_usd(eingang, ausgang, gecacht),
+        cost_usd=openai_cost_usd(eingang, ausgang, gecacht, model=model),
         search_id=search_id,
     )
+    # Die Websuche als eigene Zeile: sie ist ein eigener Posten auf OpenAIs
+    # Rechnung und soll im Buch nicht in den Tokens verschwinden.
+    suchen = web_search_calls(response)
+    if suchen:
+        record(
+            workspace_id,
+            "openai",
+            operation + "_web_search",
+            suchen,
+            "calls",
+            cost_usd=suchen * OPENAI_USD_PER_WEB_SEARCH_CALL,
+            search_id=search_id,
+        )
