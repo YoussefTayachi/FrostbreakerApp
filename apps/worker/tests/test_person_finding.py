@@ -832,3 +832,16 @@ def test_adverb_abschwaecher_werden_gestrichen():
     assert pf.strip_hedges("Dein Setup bringt vermutlich weniger.") == "Dein Setup bringt weniger."
     assert pf.strip_hedges("Nothing to strip here.") == "Nothing to strip here."
     assert pf.strip_hedges("The unlikely-sounding plan.") == "The unlikely-sounding plan."
+
+
+def test_saetze_ueber_alle_werden_erkannt():
+    text = (
+        "I just read your post about the launch. Many ecommerce teams using Klaviyo lack "
+        "time. Your flows stay on default templates. Most of the impact comes from flows."
+    )
+    treffer = pf.generic_sentences(text)
+    assert treffer == ["Many ecommerce teams using Klaviyo lack time."]
+    assert pf.generic_sentences("Most teams don't have time or know-how.") != []
+    assert pf.generic_sentences("Almost every shop runs Klaviyo.") != []
+    assert pf.generic_sentences("Die meisten Shops lassen die Flows liegen.") != []
+    assert pf.generic_sentences("You run many campaigns a year.") == []

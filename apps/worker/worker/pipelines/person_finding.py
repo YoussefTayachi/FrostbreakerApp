@@ -597,6 +597,25 @@ _HEDGE_ADVERBS = re.compile(
 )
 
 
+# Saetze ueber alle statt ueber diese Person. Der Prompt verbietet sie seit
+# Lauf 4, trotzdem standen in Lauf 7 am 2026-09-23 noch "Many ecommerce teams
+# using Klaviyo", "Most ecommerce brands" und "Most teams don't have time" in
+# drei von zehn Absaetzen, weil das Angebot sein Problem selbst so formuliert
+# und das Modell es uebernimmt. Ein Treffer ist ein Regelverstoss wie ein
+# Verbotswort: Korrekturrunde, danach Pruefflag.
+_GENERIC = re.compile(
+    r"(?i)\b(?:most|many|almost every|almost all|the majority of|nearly every|"
+    r"die meisten|viele|fast jede[rs]?|fast alle)\s+(?:\w+[\s-]+){0,3}?"
+    r"(?:brands?|teams?|shops?|stores?|compan(?:y|ies)|business(?:es)?|founders?|"
+    r"marken?|teams?|shops?|firmen|unternehmen|gruender)\b"
+)
+
+
+def generic_sentences(text: str) -> list[str]:
+    """Die Saetze, die ueber alle reden statt ueber die Person."""
+    return [s.strip() for s in re.split(r"(?<=[.!?])\s+", text or "") if _GENERIC.search(s)]
+
+
 def strip_hedges(text: str) -> str:
     """Adverb-Abschwaecher streichen, Satzanfang und Abstaende reparieren."""
     out = _HEDGE_ADVERBS.sub("", text or "")
@@ -1506,6 +1525,12 @@ def run(job: dict) -> None:
             if erfunden:
                 probleme.append(
                     "contains numbers that are not in the material: " + ", ".join(erfunden)
+                )
+            allgemein = generic_sentences(text)
+            if allgemein:
+                probleme.append(
+                    "talks about other brands or teams instead of this person, remove or "
+                    "rewrite about them: " + " | ".join(allgemein)
                 )
             return probleme
 
