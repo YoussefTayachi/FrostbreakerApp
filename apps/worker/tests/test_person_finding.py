@@ -1017,6 +1017,9 @@ def test_nur_knapper_deckel_gerissen_ist_kein_pruefgrund():
     snips = dict(GUTE_SCHNIPSEL, segments=" ".join(["wort"] * 40) + ".")
     _, probleme = pf.validate_snippets(snips, "LinkedIn", [], [], compact=True)
     assert pf.compact_only_length_problems(snips, probleme) == probleme
+    # Ueber dem NORMALEN Deckel (70) bleibt es ein harter Verstoss.
     zu_lang = dict(GUTE_SCHNIPSEL, segments=" ".join(["wort"] * 80) + ".")
     _, probleme = pf.validate_snippets(zu_lang, "LinkedIn", [], [], compact=True)
-    assert pf.compact_only_length_problems(zu_lang, probleme) == []
+    weich = pf.compact_only_length_problems(zu_lang, probleme)
+    assert any(p.startswith("segments") for p in probleme)
+    assert not any(p.startswith("segments") for p in weich)
