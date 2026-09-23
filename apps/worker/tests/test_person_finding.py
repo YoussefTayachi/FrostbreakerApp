@@ -935,13 +935,13 @@ def test_validate_snippets_streicht_abschwaecher_und_punkt():
     assert probleme == []
     assert out["whatTheySaid"] == "the launch of an electrolyte product"
     assert out["subjectLine"] == "electrolyte launch"
-    out, _ = pf.validate_snippets(
+    out2, _ = pf.validate_snippets(
         dict(GUTE_SCHNIPSEL, whatTheySaid="what you said about the 80 percent split"),
         "LinkedIn",
         [],
         [],
     )
-    assert out["whatTheySaid"] == "the 80 percent split"
+    assert out2["whatTheySaid"] == "the 80 percent split"
     assert out["ctaTail"] == "the segments I'd build first for Snap"
     # Der opener muss die Quelle nennen; Behauptungen ueber das Setup fallen durch.
     _, probleme = pf.validate_snippets(
