@@ -1031,3 +1031,11 @@ def test_saisonaler_winkel_haengt_am_suchfilter():
     assert "ANGLE Q4" in pf.snippet_prompt("en", [], compact=True, angle="q4")
     assert "WINKEL Q4" in pf.snippet_prompt("de", [], angle="q4")
     assert "ANGLE" not in pf.snippet_prompt("en", [], angle="unbekannt")
+
+
+def test_winkel_laesst_der_eroeffnung_zwei_saetze():
+    lang = dict(GUTE_SCHNIPSEL, opener=" ".join(["wort"] * 40) + ".")
+    _, knapp = pf.validate_snippets(lang, "LinkedIn", [], [], compact=True)
+    _, winkel = pf.validate_snippets(lang, "LinkedIn", [], [], compact=True, angle="q4")
+    assert any(p.startswith("opener") and "zu lang" in p for p in knapp)
+    assert not any(p.startswith("opener") and "zu lang" in p for p in winkel)
