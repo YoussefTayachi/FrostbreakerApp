@@ -1,5 +1,5 @@
 "use client";
-import { useCallback, useEffect, useState } from "react";
+import { Fragment, useCallback, useEffect, useState } from "react";
 import { useT } from "../language-provider";
 import { useToast } from "../toast-provider";
 import { inputCls, primaryBtnSmCls, secondaryBtnSmCls } from "@/lib/ui";
@@ -119,6 +119,18 @@ export default function PersonFindingReview() {
                     />
                   ) : (
                     <p className="mt-3 whitespace-pre-line text-sm text-ink">{row.person_finding}</p>
+                  )}
+
+                  {/* Die Schnipsel: dieselbe Freigabe wie der Absatz, nur zum Ansehen. */}
+                  {row.person_snippets && (
+                    <dl className="mt-3 grid gap-x-4 gap-y-1 text-sm sm:grid-cols-[auto_1fr]">
+                      {Object.entries(row.person_snippets).map(([k, v]) => (
+                        <Fragment key={k}>
+                          <dt className="font-mono text-xs text-faint">{`{{${k}}}`}</dt>
+                          <dd className="text-ink">{v}</dd>
+                        </Fragment>
+                      ))}
+                    </dl>
                   )}
 
                   {/* Die Provenienz: das, worueber jemand hier entscheidet. */}

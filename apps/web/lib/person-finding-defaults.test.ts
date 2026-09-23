@@ -5,6 +5,7 @@ import {
   PERSON_BANNED_DE,
   PERSON_BANNED_EN,
   PERSON_FINDING_MAX_WORDS,
+  PERSON_SNIPPET_MAX_WORDS,
   personBannedWords,
 } from "./person-finding-defaults";
 
@@ -35,6 +36,16 @@ describe("Personen-Befund: Spiegel des Workers", () => {
   it("hat dieselbe Wortgrenze wie der Worker", () => {
     const match = source.match(/^PERSON_FINDING_MAX_WORDS = (\d+)$/m);
     expect(match?.[1]).toBe(String(PERSON_FINDING_MAX_WORDS));
+  });
+
+  it("hat dieselben Schnipsel-Grenzen wie der Worker", () => {
+    const start = source.indexOf("SNIPPET_FIELDS = (");
+    const end = source.indexOf("\n)", start);
+    const block = source.slice(start, end);
+    const paare = Object.fromEntries(
+      Array.from(block.matchAll(/\("(\w+)", (\d+)\)/g)).map((m) => [m[1], Number(m[2])])
+    );
+    expect(paare).toEqual(PERSON_SNIPPET_MAX_WORDS);
   });
 
   it("hat dieselbe englische Verbotsliste wie der Worker", () => {

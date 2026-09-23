@@ -559,6 +559,17 @@ Haengt etwas auf `running`, ist der Worker mitten im Job gestorben;
 `claim_job` holt den Job nach 15 Minuten zurueck, und der Job setzt den
 Status dann selbst weiter.
 
+**Schnipsel (Migration 0121).** Seit dem 2026-09-23 liefert derselbe Lauf
+zusaetzlich sechs kurze Variablen in `contacts.person_snippets`
+(`thingWeHaveInCommon`, `platformWhereIGotIt`, `whatTheySaid`,
+`thingWeHaveSynergyAround`, `whatTheyDoWell`, `whatTheyLeaveOnTheTable`) fuer
+eine feste Copy, in der nur die Schnipsel wechseln. Ein mini-Aufruf mehr je
+Kontakt (`api_usage.operation = person_snippets`), dieselben Netze und
+Korrekturrunden wie beim Absatz, dasselbe Pruefflag. `platformWhereIGotIt`
+setzt der Code aus der Quelle. Benutzt eine Sequenz einen Schnipsel, haelt
+der Upload Kontakte ohne vollstaendige Schnipsel zurueck (aeltere Kontakte
+haben nur den Absatz); ein neuer Lauf zieht sie nach.
+
 **Pruefung.** Absaetze mit `person_finding_needs_review = true` gehen nicht
 raus (der Upload haelt sie zurueck) und stehen unter `/person-finding` zur
 Freigabe. Zwei Gruende: die Quelle ist nicht eindeutig an die Person

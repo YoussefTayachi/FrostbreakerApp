@@ -25,7 +25,7 @@ import {
 const MAX_ROWS = 500;
 
 const SELECT =
-  "id, full_name, title, email, person_finding, person_finding_needs_review, person_finding_source, " +
+  "id, full_name, title, email, person_finding, person_finding_needs_review, person_finding_source, person_snippets, " +
   "businesses!inner(name, searches!inner(deleted_at))";
 
 type RawRow = PersonReviewRow & {
@@ -66,6 +66,7 @@ export async function GET() {
     person_finding: r.person_finding,
     person_finding_needs_review: r.person_finding_needs_review,
     person_finding_source: r.person_finding_source,
+    person_snippets: r.person_snippets ?? null,
     businesses: r.businesses ? { name: r.businesses.name } : null,
   }));
   return NextResponse.json({ items, truncated: (data ?? []).length >= MAX_ROWS });

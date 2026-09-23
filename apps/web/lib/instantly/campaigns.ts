@@ -53,6 +53,22 @@ export const WEBSITE_FINDING_FIELD = "websiteFinding";
 export const PERSON_FINDING_FIELD = "personFinding";
 
 /**
+ * Die sechs Schnipsel (contacts.person_snippets, Migration 0121), benannt
+ * wie die Tags im Text. Sie entstehen im selben Worker-Lauf wie der Absatz
+ * und teilen sich mit ihm Status und Pruefflag; deshalb gilt fuer sie
+ * dieselbe Rueckhalte-Regel (usesPersonFinding, hasPersonFinding).
+ */
+export const PERSON_SNIPPET_FIELDS = [
+  "thingWeHaveInCommon",
+  "platformWhereIGotIt",
+  "whatTheySaid",
+  "thingWeHaveSynergyAround",
+  "whatTheyDoWell",
+  "whatTheyLeaveOnTheTable",
+] as const;
+export type PersonSnippetField = (typeof PERSON_SNIPPET_FIELDS)[number];
+
+/**
  * Benutzt diese Sequenz eine eigene Variable?
  *
  * Geprueft werden ALLE Fassungen und auch die Betreffzeilen: eine Variable,
@@ -66,10 +82,21 @@ export function usesMergeTag(
   return new RegExp(`\\{\\{\\s*${field}\\s*\\}\\}`).test(alles);
 }
 
+/** Benutzt die Sequenz einen der sechs Schnipsel? */
+export function usesPersonSnippets(
+  variants: { subject?: string | null; body?: string | null }[]
+): boolean {
+  return PERSON_SNIPPET_FIELDS.some((f) => usesMergeTag(variants, f));
+}
+
+/**
+ * Benutzt die Sequenz den Absatz ODER einen Schnipsel? Beides haengt am
+ * selben Lauf und am selben Pruefflag, also gilt eine Rueckhalte-Regel.
+ */
 export function usesPersonFinding(
   variants: { subject?: string | null; body?: string | null }[]
 ): boolean {
-  return usesMergeTag(variants, PERSON_FINDING_FIELD);
+  return usesMergeTag(variants, PERSON_FINDING_FIELD) || usesPersonSnippets(variants);
 }
 
 /**
@@ -108,6 +135,8 @@ export type MergeTagSource = {
   /** Haelt beim Upload zurueck, bis ein Mensch die Provenienz gesehen hat
    *  (splitByPersonFinding in create-campaign.ts). */
   person_finding_needs_review?: boolean | null;
+  /** Die sechs Schnipsel (Migration 0121); fehlende Schluessel bleiben leer. */
+  person_snippets?: Partial<Record<PersonSnippetField, string>> | null;
   businesses: {
     name: string | null;
     personalization: string | null;
@@ -156,6 +185,9 @@ export function mergeTagValues(lead: MergeTagSource): MergeTagValues {
     personalization: lead.businesses?.personalization ?? "",
     [WEBSITE_FINDING_FIELD]: lead.businesses?.website_finding ?? "",
     [PERSON_FINDING_FIELD]: lead.person_finding ?? "",
+    ...Object.fromEntries(
+      PERSON_SNIPPET_FIELDS.map((f) => [f, (lead.person_snippets?.[f] ?? "").trim()])
+    ) as Record<PersonSnippetField, string>,
   };
 }
 
@@ -197,6 +229,7 @@ export function buildInstantlyLead(lead: MergeTagSource) {
   const eigene: Record<string, string> = {};
   if (v[WEBSITE_FINDING_FIELD]) eigene[WEBSITE_FINDING_FIELD] = v[WEBSITE_FINDING_FIELD];
   if (v[PERSON_FINDING_FIELD]) eigene[PERSON_FINDING_FIELD] = v[PERSON_FINDING_FIELD];
+  for (const f of PERSON_SNIPPET_FIELDS) if (v[f]) eigene[f] = v[f];
   return {
     email: v.email,
     first_name: v.firstName || undefined,

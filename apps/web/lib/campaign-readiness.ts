@@ -32,7 +32,8 @@
  */
 import { wordCount } from "./personalization-defaults";
 import { FINDING_MAX_WORDS } from "./website-finding-defaults";
-import { PERSON_FINDING_MAX_WORDS } from "./person-finding-defaults";
+import { PERSON_FINDING_MAX_WORDS, PERSON_SNIPPET_MAX_WORDS } from "./person-finding-defaults";
+import { PERSON_SNIPPET_FIELDS } from "./instantly/campaigns";
 
 export type Severity = "blocker" | "warning" | "ok";
 
@@ -184,6 +185,11 @@ const PERSONALIZATION_PLACEHOLDER = "personalization";
 const WEBSITE_FINDING_PLACEHOLDER = "websitefinding";
 // Und der Personen-Absatz, mit seiner eigenen Grenze aus dem Worker-Spiegel.
 const PERSON_FINDING_PLACEHOLDER = "personfinding";
+// Die Schnipsel, kleingeschrieben wie die Platzhalter beim Zaehlen, mit
+// ihrer Hoechstlaenge aus dem Worker-Spiegel.
+const SNIPPET_PLACEHOLDER_WORDS: Record<string, number> = Object.fromEntries(
+  PERSON_SNIPPET_FIELDS.map((f) => [f.toLowerCase(), PERSON_SNIPPET_MAX_WORDS[f]])
+);
 
 /** Platzhalter der Form {{name}}. */
 const PLACEHOLDER = /\{\{\s*([\w.]+)\s*\}\}/g;
@@ -201,6 +207,8 @@ export function estimateWords(body: string, personalizationWords: number): numbe
     if (key === PERSONALIZATION_PLACEHOLDER) return "x ".repeat(personalizationWords);
     if (key === WEBSITE_FINDING_PLACEHOLDER) return "x ".repeat(FINDING_MAX_WORDS);
     if (key === PERSON_FINDING_PLACEHOLDER) return "x ".repeat(PERSON_FINDING_MAX_WORDS);
+    const snippet = SNIPPET_PLACEHOLDER_WORDS[key];
+    if (snippet) return "x ".repeat(snippet);
     return "x";
   });
   return wordCount(filled);
@@ -223,8 +231,10 @@ export function hasLink(body: string): boolean {
 }
 
 export function stepFacts(body: string, personalizationWords: number): StepFacts {
+  // Absatz oder Schnipsel: beide tragen die Personalisierung, fuer beide gilt
+  // die 150-Woerter-Grenze der ersten Mail.
   const usesPersonFinding = Array.from(body.matchAll(PLACEHOLDER)).some(
-    (m) => m[1].toLowerCase() === PERSON_FINDING_PLACEHOLDER,
+    (m) => m[1].toLowerCase() === PERSON_FINDING_PLACEHOLDER || m[1].toLowerCase() in SNIPPET_PLACEHOLDER_WORDS,
   );
   return { words: estimateWords(body, personalizationWords), hasLink: hasLink(body), usesPersonFinding };
 }

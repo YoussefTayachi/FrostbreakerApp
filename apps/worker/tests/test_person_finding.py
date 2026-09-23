@@ -456,9 +456,29 @@ def test_auffaechern_setzt_bei_enqueue_fehler_zurueck(monkeypatch):
 # ── Der Kontaktjob ─────────────────────────────────────────────────────────
 
 
-def _run_contact(monkeypatch, db, findings, text="Absatz.", research_raises=None):
+GUTE_SCHNIPSEL = {
+    "thingWeHaveInCommon": "Email marketing for ecom brands",
+    "whatTheySaid": "the Forbes feature on your growth",
+    "thingWeHaveSynergyAround": "revenue from customers you already have",
+    "whatTheyDoWell": "run a fast-growing collagen brand",
+    "whatTheyLeaveOnTheTable": "your flows stay on default templates and campaigns go out late",
+}
+
+
+aufrufe_schnipsel: dict = {}
+
+
+def _run_contact(monkeypatch, db, findings, text="Absatz.", research_raises=None, snippets=None):
     monkeypatch.setattr(pf, "sb", lambda: db)
     aufrufe = {"research": 0, "generate": 0}
+    schnipsel_aufrufe = {"n": 0}
+
+    def fake_snippets(*a, **k):
+        schnipsel_aufrufe["n"] += 1
+        return dict(snippets or GUTE_SCHNIPSEL)
+
+    monkeypatch.setattr(pf, "write_snippets", fake_snippets)
+    aufrufe_schnipsel[id(db)] = schnipsel_aufrufe
 
     def fake_research(*a, **k):
         aufrufe["research"] += 1
@@ -587,6 +607,7 @@ def test_finaler_schreibzugriff_ueberschreibt_keinen_fremden_text(monkeypatch, c
     monkeypatch.setattr(pf, "sb", lambda: db)
     monkeypatch.setattr(pf, "research", lambda *a, **k: [finding()])
     monkeypatch.setattr(personalize, "generate", generate_und_mensch_schreibt)
+    monkeypatch.setattr(pf, "write_snippets", lambda *a, **k: dict(GUTE_SCHNIPSEL))
     pf.run(job({"contact_id": "c-1"}))
     assert row["person_finding"] == "von Hand"
     # Der bedingte Update traf keine Zeile; der Status folgt dem Text von Hand.
@@ -848,3 +869,51 @@ def test_saetze_ueber_alle_werden_erkannt():
     assert pf.generic_sentences("Brands with a tailored setup see an uplift of 30%.") != []
     assert pf.generic_sentences("Ecommerce brands miss this.") != []
     assert pf.generic_sentences("Your brands page looks fine.") == []
+
+
+# ── Die Schnipsel (2026-09-23) ─────────────────────────────────────────────
+
+
+def test_schnipsel_landen_am_kontakt(monkeypatch, cfg):
+    db = _Db({"businesses": [business()], "contacts": [contact()]})
+    _run_contact(monkeypatch, db, [finding()])
+    pf.run(job({"contact_id": "c-1"}))
+    row = db.tables["contacts"][0]
+    assert row["person_snippets"]["platformWhereIGotIt"] == "LinkedIn"
+    assert row["person_snippets"]["whatTheySaid"] == "the Forbes feature on your growth"
+    assert row["person_finding_needs_review"] is False
+    assert aufrufe_schnipsel[id(db)]["n"] == 1
+
+
+def test_schlechte_schnipsel_bekommen_korrekturrunden_und_pruefflag(monkeypatch, cfg):
+    db = _Db({"businesses": [business()], "contacts": [contact()]})
+    schlecht = dict(GUTE_SCHNIPSEL, whatTheyLeaveOnTheTable="most brands lose 30% of revenue")
+    _run_contact(monkeypatch, db, [finding()], snippets=schlecht)
+    pf.run(job({"contact_id": "c-1"}))
+    row = db.tables["contacts"][0]
+    assert aufrufe_schnipsel[id(db)]["n"] == 1 + pf.CORRECTION_ROUNDS
+    assert row["person_finding_needs_review"] is True
+    assert row["person_finding_source"]["review_reason"] == "rules"
+    assert any(
+        "whatTheyLeaveOnTheTable" in p for p in row["person_finding_source"]["snippet_problems"]
+    )
+
+
+def test_validate_snippets_streicht_abschwaecher_und_punkt():
+    raw = dict(GUTE_SCHNIPSEL, whatTheyDoWell="probably run a collagen brand.")
+    out, probleme = pf.validate_snippets(raw, "LinkedIn", [], ["Forbes feature"])
+    assert probleme == []
+    assert out["whatTheyDoWell"] == "run a collagen brand"
+    assert out["platformWhereIGotIt"] == "LinkedIn"
+    leer, probleme = pf.validate_snippets(dict(GUTE_SCHNIPSEL, whatTheySaid=""), "LinkedIn", [], [])
+    assert probleme == ["whatTheySaid is empty"]
+
+
+def test_platform_label():
+    assert pf.platform_label(finding(), "en") == "LinkedIn"
+    pod = finding(source_kind="podcast", source_url="https://www.techpixies.com/episode280/")
+    assert pf.platform_label(pod, "en") == "the techpixies.com podcast"
+    site = {"source_kind": "company_site", "source_url": "https://f.de"}
+    assert pf.platform_label(site, "de") == "eurer Seite"
+    art = finding(source_kind="article", source_url="https://forbes.com/x")
+    assert pf.platform_label(art, "en") == "forbes.com"

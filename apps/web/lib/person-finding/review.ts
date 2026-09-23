@@ -41,6 +41,9 @@ export type PersonReviewRow = {
   person_finding: string | null;
   person_finding_needs_review: boolean | null;
   person_finding_source: PersonFindingSource | null;
+  /** Die sechs Schnipsel (Migration 0121), zum Ansehen; freigegeben wird
+   *  der ganze Lauf, Absatz und Schnipsel zusammen. */
+  person_snippets?: Record<string, string> | null;
   businesses: { name: string | null } | null;
 };
 

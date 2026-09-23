@@ -4,7 +4,13 @@ import { useT } from "../../language-provider";
 import { useToast } from "../../toast-provider";
 import { useWorkspace } from "../../workspace-provider";
 import { inputCls } from "@/lib/ui";
-import { plainTextToInstantlyHtml, variantLabel, PERSON_FINDING_FIELD, WEBSITE_FINDING_FIELD } from "@/lib/instantly/campaigns";
+import {
+  plainTextToInstantlyHtml,
+  variantLabel,
+  PERSON_FINDING_FIELD,
+  PERSON_SNIPPET_FIELDS,
+  WEBSITE_FINDING_FIELD,
+} from "@/lib/instantly/campaigns";
 import EmailQualityPanel from "./email-quality-panel";
 import HighlightedTextarea from "../../highlighted-textarea";
 import type { Highlights } from "@/lib/email-quality";
@@ -46,6 +52,7 @@ export function mergeTagOptions(
     { token: "{{personalization}}", label: F.variablePersonalization },
     { token: `{{${WEBSITE_FINDING_FIELD}}}`, label: F.variableWebsiteFinding },
     { token: `{{${PERSON_FINDING_FIELD}}}`, label: F.variablePersonFinding },
+    ...PERSON_SNIPPET_FIELDS.map((f) => ({ token: `{{${f}}}`, label: F.variableSnippet[f] })),
   ];
 }
 

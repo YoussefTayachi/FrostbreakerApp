@@ -63,6 +63,7 @@ function toPreviewLead(row: CampaignContactRow): MergeTagSource {
     // das Feld hier nie an.
     person_finding: row.person_finding ?? null,
     person_finding_needs_review: row.person_finding_needs_review ?? null,
+    person_snippets: row.person_snippets ?? null,
     businesses: {
       name: row.businesses?.name ?? null,
       personalization: row.businesses?.personalization ?? null,

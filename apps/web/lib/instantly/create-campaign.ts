@@ -33,6 +33,8 @@ import {
   primaryVariant,
   toLocalStatus,
   usesPersonFinding,
+  usesPersonSnippets,
+  PERSON_SNIPPET_FIELDS,
   usesWebsiteFinding,
   PERSON_FINDING_FIELD,
   WEBSITE_FINDING_FIELD,
@@ -62,6 +64,8 @@ export type CampaignContactRow = {
    *  weil aeltere Abfragen die Spalten nicht laden. */
   person_finding?: string | null;
   person_finding_needs_review?: boolean | null;
+  /** Die sechs Schnipsel (Migration 0121), am Kontakt wie der Absatz. */
+  person_snippets?: Record<string, string> | null;
   businesses: {
     name: string | null;
     website: string | null;
@@ -77,7 +81,7 @@ export type CampaignContactRow = {
  *  und muss deshalb durch dieselbe Abfrage und dieselben Filter
  *  (planCampaignLeads) gehen wie der Versand. */
 export const CONTACT_COLUMNS =
-  "id, email, first_name, last_name, title, business_id, is_primary, outreach_status, email_verification_status, person_finding, person_finding_needs_review, businesses!inner(name, website, personalization, website_finding, search_id)";
+  "id, email, first_name, last_name, title, business_id, is_primary, outreach_status, email_verification_status, person_finding, person_finding_needs_review, person_snippets, businesses!inner(name, website, personalization, website_finding, search_id)";
 
 /**
  * Leads ohne Website-Befund von einer Sequenz trennen, die ihn benutzt.
@@ -132,6 +136,17 @@ export function hasPersonFinding(c: {
 }
 
 /**
+ * Hat dieser Kontakt alle sechs Schnipsel? Kontakte von vor Migration 0121
+ * haben einen Absatz, aber keine Schnipsel; benutzt die Sequenz Schnipsel,
+ * bekaemen sie eine Mail mit Loechern. Also zurueckhalten, bis der Lauf
+ * nachgezogen ist.
+ */
+export function hasPersonSnippets(c: { person_snippets?: Record<string, string> | null }): boolean {
+  const s = c.person_snippets;
+  return !!s && PERSON_SNIPPET_FIELDS.every((f) => !!(s[f] ?? "").trim());
+}
+
+/**
  * Eine Person je Firma, und zwar die richtige, wenn die Sequenz
  * {{personFinding}} benutzt.
  *
@@ -153,12 +168,14 @@ export function hasPersonFinding(c: {
  */
 export function pickLeadsForSend<T extends CampaignContactRow>(
   sendable: T[],
-  requirePersonFinding: boolean
+  requirePersonFinding: boolean,
+  requirePersonSnippets = false
 ): { rows: T[]; withoutPersonFinding: T[]; personFindingNeedsReview: number } {
   if (!requirePersonFinding) {
     return { rows: pickPrimaryContactPerBusiness(sendable), withoutPersonFinding: [], personFindingNeedsReview: 0 };
   }
-  const rows = pickPrimaryContactPerBusiness(sendable.filter(hasPersonFinding));
+  const versendbar = (c: T) => hasPersonFinding(c) && (!requirePersonSnippets || hasPersonSnippets(c));
+  const rows = pickPrimaryContactPerBusiness(sendable.filter(versendbar));
   const versorgt = new Set(rows.map((c) => c.business_id));
   const rest = sendable.filter((c) => !versorgt.has(c.business_id));
   // Je Firma EIN Vertreter, sonst zaehlt eine Firma mit vier Kontakten
@@ -194,7 +211,7 @@ export function planCampaignLeads(
   contacts: CampaignContactRow[],
   suppression: { email: string | null; domain: string | null }[],
   archivedEmails: (string | null)[],
-  options: { requirePersonFinding?: boolean } = {}
+  options: { requirePersonFinding?: boolean; requirePersonSnippets?: boolean } = {}
 ): {
   rows: CampaignContactRow[];
   engaged: CampaignContactRow[];
@@ -218,7 +235,8 @@ export function planCampaignLeads(
   const { sendable, unsendable } = splitBySendability(erlaubt);
   const { rows, withoutPersonFinding, personFindingNeedsReview } = pickLeadsForSend(
     sendable,
-    options.requirePersonFinding === true
+    options.requirePersonFinding === true,
+    options.requirePersonSnippets === true
   );
   return { rows, engaged, suppressed, unsendable, withoutPersonFinding, personFindingNeedsReview };
 }
@@ -503,6 +521,7 @@ export async function createInstantlyCampaign(
   // stehen vollstaendig in planCampaignLeads, damit beide Wege in diese
   // Kampagne (Formular und MCP) durch dieselben vier Filter gehen.
   const nutztPerson = usesPersonFinding(allVariants(steps));
+  const nutztSchnipsel = usesPersonSnippets(allVariants(steps));
   const {
     rows: erlaubte,
     engaged,
@@ -514,7 +533,7 @@ export async function createInstantlyCampaign(
     (contacts ?? []) as unknown as CampaignContactRow[],
     (suppression ?? []) as { email: string | null; domain: string | null }[],
     ((archived ?? []) as { email: string | null }[]).map((a) => a.email),
-    { requirePersonFinding: nutztPerson }
+    { requirePersonFinding: nutztPerson, requirePersonSnippets: nutztSchnipsel }
   );
 
   if (erlaubte.length === 0 && withoutPersonFinding.length > 0) {

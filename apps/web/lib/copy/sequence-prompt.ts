@@ -82,6 +82,14 @@ export const EMAIL_MERGE_TAGS = [
   // Der Absatz ueber den Menschen (PERSON_FINDING_FIELD, Migration 0118).
   // Gleiche Begruendung wie websiteFinding: eigenes Feld, kein Instantly-Tag.
   "personFinding",
+  // Die sechs Schnipsel fuer eine feste Copy (Migration 0121): Personali-
+  // sierung IN der Copy statt als Absatz davor. Eigene Felder wie oben.
+  "thingWeHaveInCommon",
+  "platformWhereIGotIt",
+  "whatTheySaid",
+  "thingWeHaveSynergyAround",
+  "whatTheyDoWell",
+  "whatTheyLeaveOnTheTable",
 ] as const;
 export type EmailMergeTag = (typeof EMAIL_MERGE_TAGS)[number];
 

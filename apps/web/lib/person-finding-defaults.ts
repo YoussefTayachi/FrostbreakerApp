@@ -23,6 +23,19 @@
 export const PERSON_FINDING_MAX_WORDS = 120;
 
 /**
+ * Die Wortgrenzen der sechs Schnipsel (Migration 0121), Gegenstueck zu
+ * SNIPPET_FIELDS im Worker; der Drift-Test liest sie von dort.
+ */
+export const PERSON_SNIPPET_MAX_WORDS: Record<string, number> = {
+  thingWeHaveInCommon: 6,
+  platformWhereIGotIt: 6,
+  whatTheySaid: 16,
+  thingWeHaveSynergyAround: 10,
+  whatTheyDoWell: 10,
+  whatTheyLeaveOnTheTable: 20,
+};
+
+/**
  * Die eigene Verbotsliste dieses Textes, je Sprache.
  *
  * Nicht die Workspace-Liste: die verbietet im retaiyn-Workspace "I saw" und

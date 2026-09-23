@@ -5,7 +5,7 @@ import { runDeliverabilityCheck } from "@/lib/deliverability";
 import { splitByEngagement, splitBySendability } from "@/lib/contacts";
 import { filterSuppressed } from "@/lib/suppression";
 import { assessCampaign, stepFacts, type DomainAuth, type ReadinessFacts } from "@/lib/campaign-readiness";
-import { usesPersonFinding, usesWebsiteFinding } from "@/lib/instantly/campaigns";
+import { usesPersonFinding, usesPersonSnippets, usesWebsiteFinding } from "@/lib/instantly/campaigns";
 import { pickLeadsForSend, splitByWebsiteFinding, type CampaignContactRow } from "@/lib/instantly/create-campaign";
 import { reviewIcebreaker, reviewSettingsFromWorkspace } from "@/lib/personalization/review";
 
@@ -91,7 +91,7 @@ export async function POST(req: Request) {
         .from("contacts")
         .select(
           "id, email, title, business_id, is_primary, outreach_status, email_verification_status, " +
-            "person_finding, person_finding_needs_review, person_finding_status, " +
+            "person_finding, person_finding_needs_review, person_finding_status, person_snippets, " +
             "businesses!inner(search_id, website, personalization, personalization_needs_review, " +
             "website_finding, name, id)"
         )
@@ -128,10 +128,14 @@ export async function POST(req: Request) {
   const { sendable } = splitBySendability(filterSuppressed(notDeclined, suppression ?? []));
   // Dieselbe Reihenfolge wie beim Anlegen (pickLeadsForSend): benutzt die
   // Sequenz {{personFinding}}, kommt der Split VOR der Auswahl je Firma.
-  const nutztPerson = usesPersonFinding(
-    steps.flatMap((s) => s.variants ?? [{ subject: s.subject, body: s.body }])
+  const alleFassungen = steps.flatMap((s) => s.variants ?? [{ subject: s.subject, body: s.body }]);
+  const nutztPerson = usesPersonFinding(alleFassungen);
+  const nutztSchnipsel = usesPersonSnippets(alleFassungen);
+  const gewaehlt = pickLeadsForSend(
+    sendable as unknown as CampaignContactRow[],
+    nutztPerson,
+    nutztSchnipsel
   );
-  const gewaehlt = pickLeadsForSend(sendable as unknown as CampaignContactRow[], nutztPerson);
   const finalLeads = gewaehlt.rows as unknown as Row[];
   // Zustaende des Personen-Befunds ueber alle sendbaren Kontakte, damit der
   // Torwart sagen kann, warum ein Lead fehlt.
