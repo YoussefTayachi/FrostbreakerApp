@@ -716,31 +716,35 @@ SNIPPET_PROMPT_EN = (
     "Fill:\n"
     "- opener: TWO sentences, 20 to 55 words. First: where you read it and what they said, "
     "concrete enough that they recognise it ('I just read your LinkedIn post where you "
-    "said ...' / 'I just read on <platform> that ...'). Second: 'That stuck with me, "
-    "because ...' and WHY it matters for their kind of shop, tied to the second purchase "
-    "or repeat buyers. Claim nothing about yourself here.\n"
+    "said ...' / 'I just read on <platform> that ...'). Second: 'That stuck with me' plus "
+    "WHY, only if there is a straight line from what they said to buying twice in their "
+    "kind of shop (a launch, a channel, a product that gets reordered, a customer they "
+    "describe). No analogies, no 'also requires', no 'similarly'. If there is no straight "
+    "line, the second sentence is just 'That stuck with me.' Claim nothing about "
+    "yourself here.\n"
     "- whatTheySaid: 5 to 14 words, the same concrete thing as a noun phrase for a "
     "follow-up ('what you said about ...'). Lower case unless it is a name.\n"
-    "- segments: ONE or TWO sentences, 25 to 65 words, naming the two to four buyer "
-    "groups that exist in THIS shop's model, derived from <finding> and <known_facts> "
-    "(subscriptions: first-time buyer, subscriber about to pause, one-time buyer who "
-    "never came back; a product that varies by climate or season: buyers by climate, by "
-    "season change; retail plus DTC: the retail customer who never bought online, the "
-    "online buyer who bought once). Shape: 'You run <shop> on <model>, so your buyers "
-    "already fall into groups that deserve different emails: ..., ..., ....' Every group "
-    "must follow from something in the material. Never say what their setup does or "
+    "- segments: ONE or TWO sentences, 25 to 65 words: first what THIS shop sells and "
+    "how (from <finding> and <known_facts>: subscription, retail plus online, a product "
+    "that depends on season or climate, bundles, a launch), then the two to four buyer "
+    "groups that follow from exactly that model, named concretely in the shop's own "
+    "terms (the customer who bought the starter kit once, the subscriber whose next "
+    "delivery is due, the Walmart shopper who never bought online). Every group must "
+    "follow from the material, not from a generic list. End with the last group, no "
+    "closing sentence about 'tailored approaches'. Never say what their setup does or "
     "lacks.\n"
-    "- promise: ONE sentence, 18 to 40 words, confident, in the sender's voice ('we'): "
-    "what we can do, in this shape but in your own words each time: 'We have the "
-    "expertise to segment your buyers exactly along those lines and send each group the "
-    "right email at the right moment, so they become reliable repeat buyers instead of "
-    "one-time customers.' Refer to THEIR groups. Never a claim about their current "
-    "setup, never 'default templates', never 'nobody has built'.\n"
+    "- promise: ONE sentence, 18 to 40 words, confident, in the sender's voice ('we'), "
+    "carrying three things in your own words: that we know how to split their buyers "
+    "into exactly those groups, that each group then gets the email that fits it at the "
+    "moment it fits, and what that turns them into (buyers who come back on their own). "
+    "Name at least one of THEIR groups in it. Written fresh for this person; a sentence "
+    "that fits every shop is wrong. Never a claim about their current setup.\n"
     "- ctaTail: 4 to 12 words completing 'with ...' at the end of the ask: what you "
     "would do first for them, naming their company ('the segments I'd build first for "
     "<company>'). No final punctuation.\n"
-    "- subjectLine: 3 to 7 words, lower case, about the thing they said or their groups, "
-    "may end with 'at <company>', no punctuation, no 'you', no sales words.\n\n"
+    "- subjectLine: 3 to 7 words, lower case except names, about the thing they said or "
+    "one of their groups, may end with 'at <company>' with the company name written as "
+    "they write it, no punctuation, no 'you', no sales words.\n\n"
     "Rules:\n"
     "- Address them as 'you'. Never their name in the body, never your own company name.\n"
     "- State things. Nothing hedged, no guesses dressed as guesses.\n"
@@ -768,8 +772,10 @@ SNIPPET_PROMPT_DE = (
     "Fuelle:\n"
     "- opener: ZWEI Saetze, 20 bis 55 Woerter. Erstens: wo du es gelesen hast und was die "
     "Person gesagt hat, konkret genug zum Wiedererkennen. Zweitens: 'Das ist mir haengen "
-    "geblieben, weil ...' und WARUM es fuer diese Art Shop zaehlt, mit Bezug auf den "
-    "zweiten Kauf oder Wiederkaeufer. Hier nichts ueber dich behaupten.\n"
+    "geblieben' plus WARUM, nur wenn es eine gerade Linie vom Gesagten zum zweiten Kauf "
+    "in dieser Art Shop gibt. Keine Analogien, kein 'genauso wie'. Gibt es keine gerade "
+    "Linie, ist der zweite Satz nur 'Das ist mir haengen geblieben.' Hier nichts ueber "
+    "dich behaupten.\n"
     "- whatTheySaid: 5 bis 14 Woerter, dieselbe Sache als Nominalphrase fuer eine "
     "Nachfassmail. Klein, ausser bei Namen.\n"
     "- segments: EIN oder ZWEI Saetze, 25 bis 65 Woerter, mit den zwei bis vier "
@@ -781,11 +787,11 @@ SNIPPET_PROMPT_DE = (
     "verschiedene Mails verdienen: ..., ..., ....' Jede Gruppe muss aus dem Material "
     "folgen. Nie sagen, was ihr Setup tut oder nicht tut.\n"
     "- promise: EIN Satz, 18 bis 40 Woerter, selbstsicher, in der Stimme des Absenders "
-    "('wir'): was wir koennen, in dieser Form, aber jedes Mal in eigenen Worten: 'Wir "
-    "haben die Erfahrung, deine Kaeufer genau entlang dieser Linien zu segmentieren und "
-    "jeder Gruppe die richtige Mail zum richtigen Zeitpunkt zu schicken, damit aus "
-    "Einmalkaeufern verlaessliche Wiederkaeufer werden.' Bezieht sich auf IHRE Gruppen. "
-    "Nie eine Behauptung ueber ihr jetziges Setup, nie 'Standardvorlagen'.\n"
+    "('wir'), mit drei Dingen in eigenen Worten: dass wir ihre Kaeufer genau in diese "
+    "Gruppen teilen koennen, dass jede Gruppe dann die passende Mail im passenden Moment "
+    "bekommt, und was daraus wird (Kaeufer, die von selbst wiederkommen). Nenne "
+    "mindestens eine IHRER Gruppen. Frisch fuer diese Person geschrieben; ein Satz, der "
+    "auf jeden Shop passt, ist falsch. Nie eine Behauptung ueber ihr jetziges Setup.\n"
     "- ctaTail: 4 bis 12 Woerter passend zu 'mit ...' am Ende der Bitte: was du zuerst "
     "fuer sie tun wuerdest, mit Firmenname ('den Segmenten, die ich fuer <Firma> zuerst "
     "bauen wuerde'). Kein Satzzeichen am Ende.\n"
@@ -1148,6 +1154,9 @@ PRIVATE_WORDS = (
     "depression",
     "panic attacks?",
     "anxiety",
+    "lonel(?:y|iness)",
+    "survival plan",
+    "breakdown",
     "mental health",
     "therapy",
     "grief",
@@ -1187,6 +1196,8 @@ PRIVATE_WORDS = (
     "scheidung",
     "verstorben",
     "panikattacke",
+    "einsam\\w*",
+    "zusammenbruch",
     "angststoerung",
     "psychisch",
     "therapie",
