@@ -1666,6 +1666,21 @@ const de = {
        *  Instantly gibt es sie noch nicht. */
       mcpDraftBadge: "Entwurf aus Claude",
       mcpDraftReview: "Prüfen und anlegen",
+      /** In einem Zug bei Instantly anlegen und starten, ohne das Formular;
+       *  nur für Entwürfe, an denen schon Postfächer hängen. */
+      mcpDraftPublish: "Anlegen & starten",
+      mcpDraftPublishing: "Läuft …",
+      mcpDraftPublishAll: (n: number) => (n === 1 ? "1 Entwurf anlegen & starten" : `Alle ${n} anlegen & starten`),
+      mcpDraftPublishConfirm: (name: string, mailboxes: number) =>
+        `"${name}" jetzt bei Instantly anlegen und sofort starten? Sendet über ${mailboxes} Postfächer, ab dem nächsten Sendefenster gehen echte Mails raus.`,
+      mcpDraftPublishAllConfirm: (n: number) =>
+        `Alle ${n} Entwürfe bei Instantly anlegen und sofort starten? Ab dem nächsten Sendefenster gehen echte Mails raus.`,
+      mcpDraftPublished: (name: string, leads: number) => `"${name}" läuft: ${leads} Leads hochgeladen, Kampagne gestartet.`,
+      mcpDraftCreatedNotStarted: (name: string) =>
+        `"${name}" ist bei Instantly angelegt, aber nicht gestartet. Starte sie im Kampagnen-Detail.`,
+      mcpDraftPublishedAll: (ok: number, n: number) => `${ok} von ${n} Kampagnen angelegt und gestartet.`,
+      mcpDraftPublishError: (name: string, grund: string) => `"${name}" konnte nicht angelegt werden: ${grund}`,
+      mcpDraftNoMailboxes: "keine Postfächer am Entwurf. Öffne „Prüfen und anlegen“ und wähle welche.",
       mcpDraftsHint: (n: number) =>
         n === 1
           ? "1 Entwurf aus Claude wartet auf deine Prüfung. Beim Anlegen entscheidest du über Postfächer und Start."
@@ -4485,6 +4500,19 @@ const en: Dictionary = {
       manage: "Manage",
       mcpDraftBadge: "Draft from Claude",
       mcpDraftReview: "Review and create",
+      mcpDraftPublish: "Create & start",
+      mcpDraftPublishing: "Working …",
+      mcpDraftPublishAll: (n: number) => (n === 1 ? "Create & start 1 draft" : `Create & start all ${n}`),
+      mcpDraftPublishConfirm: (name: string, mailboxes: number) =>
+        `Create "${name}" in Instantly and start it right away? It sends from ${mailboxes} mailboxes; real emails go out from the next sending window.`,
+      mcpDraftPublishAllConfirm: (n: number) =>
+        `Create all ${n} drafts in Instantly and start them right away? Real emails go out from the next sending window.`,
+      mcpDraftPublished: (name: string, leads: number) => `"${name}" is running: ${leads} leads uploaded, campaign started.`,
+      mcpDraftCreatedNotStarted: (name: string) =>
+        `"${name}" was created in Instantly but not started. Start it from the campaign detail.`,
+      mcpDraftPublishedAll: (ok: number, n: number) => `${ok} of ${n} campaigns created and started.`,
+      mcpDraftPublishError: (name: string, grund: string) => `"${name}" could not be created: ${grund}`,
+      mcpDraftNoMailboxes: "no mailboxes on the draft. Open \"Review and create\" and pick some.",
       mcpDraftsHint: (n: number) =>
         n === 1
           ? "1 draft from Claude is waiting for your review. You pick the mailboxes and the start when you create it."

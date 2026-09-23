@@ -37,6 +37,70 @@ export default function InstantlyCampaignsPage() {
   const [items, setItems] = useState<CampaignListItem[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  /** Der Entwurf, der gerade bei Instantly angelegt und gestartet wird;
+   *  "all" waehrend der Reihe ueber alle Entwuerfe. */
+  const [publishingId, setPublishingId] = useState<string | null>(null);
+
+  async function ladeListe() {
+    const r = await fetch("/api/instantly/campaigns");
+    const body = await r.json().catch(() => ({}));
+    if (r.ok) setItems(body.items ?? []);
+  }
+
+  /**
+   * Entwurf in einem Zug anlegen und starten (Youssef, 2026-09-23: "anstatt
+   * dass ich jede campaign einzeln anklicken muss"). Gleicher Weg wie das
+   * Formular, nur ohne den Umweg; Postfaecher muessen am Entwurf haengen,
+   * sonst antwortet die Route mit no_mailboxes und der Link "Pruefen und
+   * anlegen" bleibt der Weg.
+   */
+  async function publishDraft(c: CampaignListItem, leise = false): Promise<boolean> {
+    const res = await fetch(`/api/instantly/campaigns/${c.id}/publish`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ activate: true }),
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      const grund = body.error === "no_mailboxes" ? C.mcpDraftNoMailboxes : (body.error ?? String(res.status));
+      push(C.mcpDraftPublishError(c.name, grund), "error");
+      return false;
+    }
+    if (!leise) {
+      push(
+        body.activated ? C.mcpDraftPublished(c.name, body.leads_added ?? 0) : C.mcpDraftCreatedNotStarted(c.name),
+        body.activated ? "success" : "error"
+      );
+    }
+    return true;
+  }
+
+  async function publishOne(c: CampaignListItem) {
+    if (!confirm(C.mcpDraftPublishConfirm(c.name, c.mailboxes.length))) return;
+    setPublishingId(c.id);
+    try {
+      await publishDraft(c);
+      await ladeListe();
+    } finally {
+      setPublishingId(null);
+    }
+  }
+
+  async function publishAll() {
+    const drafts = (items ?? []).filter((c) => c.is_draft && c.mailboxes.length > 0);
+    if (drafts.length === 0 || !confirm(C.mcpDraftPublishAllConfirm(drafts.length))) return;
+    setPublishingId("all");
+    let ok = 0;
+    try {
+      // Nacheinander, nicht parallel: jede Kampagne laedt bis zu 1000 Leads
+      // hoch, und Instantly begrenzt auf 20 Anfragen je Minute und Workspace.
+      for (const c of drafts) if (await publishDraft(c, true)) ok++;
+      push(C.mcpDraftPublishedAll(ok, drafts.length), ok === drafts.length ? "success" : "error");
+      await ladeListe();
+    } finally {
+      setPublishingId(null);
+    }
+  }
 
   async function deleteCampaign(c: CampaignListItem) {
     if (!confirm(c.is_draft ? C.mcpDraftDeleteConfirm(c.name) : C.deleteConfirm(c.name))) return;
@@ -111,8 +175,22 @@ export default function InstantlyCampaignsPage() {
       {/* Steht ueber der Tabelle, weil er der Grund ist, warum in ihr etwas
           Neues steht, das der Nutzer nie selbst angelegt hat. */}
       {!error && entwuerfe > 0 && (
-        <div className="rounded-xl border border-sky-500/30 bg-sky-500/5 px-4 py-3 text-sm text-soft">
-          {C.mcpDraftsHint(entwuerfe)}
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-sky-500/30 bg-sky-500/5 px-4 py-3 text-sm text-soft">
+          <span>{C.mcpDraftsHint(entwuerfe)}</span>
+          {/* Nur Entwuerfe MIT Postfaechern lassen sich so anlegen; die
+              anderen fuehren weiter ins Formular. */}
+          {(items ?? []).some((c) => c.is_draft && c.mailboxes.length > 0) && (
+            <button
+              type="button"
+              disabled={publishingId !== null}
+              onClick={publishAll}
+              className={primaryBtnCls + " shrink-0 disabled:opacity-50"}
+            >
+              {publishingId === "all"
+                ? C.mcpDraftPublishing
+                : C.mcpDraftPublishAll((items ?? []).filter((c) => c.is_draft && c.mailboxes.length > 0).length)}
+            </button>
+          )}
         </div>
       )}
 
@@ -248,6 +326,16 @@ export default function InstantlyCampaignsPage() {
                       min-w der Tabelle. */}
                   <td className="whitespace-nowrap px-4 py-3 text-right">
                     <span className="flex items-center justify-end gap-3">
+                      {c.is_draft && c.mailboxes.length > 0 && (
+                        <button
+                          type="button"
+                          disabled={publishingId !== null}
+                          onClick={() => publishOne(c)}
+                          className="rounded-lg bg-sky-600 px-3 py-1.5 text-sm font-medium text-white shadow-sm transition-[background-color,transform] duration-150 hover:bg-sky-500 active:scale-[0.98] disabled:opacity-50"
+                        >
+                          {publishingId === c.id ? C.mcpDraftPublishing : C.mcpDraftPublish}
+                        </button>
+                      )}
                       <Link
                         href={c.is_draft ? `/instantly/campaigns/new?draft=${c.id}` : `/instantly/campaigns/${c.id}`}
                         className="text-sm font-medium text-sky-600 transition-colors hover:text-sky-500 dark:text-sky-400"
@@ -349,6 +437,16 @@ export default function InstantlyCampaignsPage() {
                     Textlinks nebeneinander, mit dem Daumen trifft man die
                     nicht. */}
                 <div className="mt-3 flex items-center gap-2">
+                  {c.is_draft && c.mailboxes.length > 0 && (
+                    <button
+                      type="button"
+                      disabled={publishingId !== null}
+                      onClick={() => publishOne(c)}
+                      className="flex-1 rounded-lg bg-sky-600 px-3 py-2.5 text-center text-sm font-medium text-white shadow-sm transition-[background-color,transform] duration-150 hover:bg-sky-500 active:scale-[0.98] disabled:opacity-50"
+                    >
+                      {publishingId === c.id ? C.mcpDraftPublishing : C.mcpDraftPublish}
+                    </button>
+                  )}
                   <Link
                     href={c.is_draft ? `/instantly/campaigns/new?draft=${c.id}` : `/instantly/campaigns/${c.id}`}
                     className="flex-1 rounded-lg border border-edge2 bg-panel px-3 py-2.5 text-center text-sm font-medium text-sky-600 shadow-sm transition-[border-color,transform] duration-150 hover:border-sky-500 active:scale-[0.98] dark:text-sky-400"
