@@ -28,12 +28,12 @@ export const PERSON_FINDING_MAX_WORDS = 120;
  */
 export const PERSON_SNIPPET_MAX_WORDS: Record<string, number> = {
   subjectLine: 7,
-  opener: 34,
+  opener: 60,
   platformWhereIGotIt: 6,
   whatTheySaid: 16,
-  bridge: 34,
-  whatTheyDoWell: 10,
-  whatTheyLeaveOnTheTable: 20,
+  segments: 70,
+  promise: 45,
+  ctaTail: 14,
 };
 
 /**

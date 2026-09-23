@@ -88,9 +88,9 @@ export const EMAIL_MERGE_TAGS = [
   "opener",
   "platformWhereIGotIt",
   "whatTheySaid",
-  "bridge",
-  "whatTheyDoWell",
-  "whatTheyLeaveOnTheTable",
+  "segments",
+  "promise",
+  "ctaTail",
 ] as const;
 export type EmailMergeTag = (typeof EMAIL_MERGE_TAGS)[number];
 

@@ -457,12 +457,22 @@ def test_auffaechern_setzt_bei_enqueue_fehler_zurueck(monkeypatch):
 
 
 GUTE_SCHNIPSEL = {
-    "subjectLine": "collagen and repeat buyers",
-    "opener": "What you said on LinkedIn about the Forbes feature on your growth stuck with me.",
-    "whatTheySaid": "the Forbes feature on your growth",
-    "bridge": "Here is why I am writing.",
-    "whatTheyDoWell": "run a fast-growing collagen brand",
-    "whatTheyLeaveOnTheTable": "your flows stay on default templates and campaigns go out late",
+    "subjectLine": "collagen and second purchases",
+    "opener": (
+        "I just read your LinkedIn post where you said the Forbes feature doubled your traffic. "
+        "That stuck with me, because for a collagen brand the real money sits in who buys twice."
+    ),
+    "whatTheySaid": "the Forbes feature doubling your traffic",
+    "segments": (
+        "You sell collagen on subscription, so your buyers already fall into groups that deserve "
+        "different emails: the first-time buyer, the subscriber about to pause, the one-time "
+        "buyer who never came back."
+    ),
+    "promise": (
+        "We have the expertise to segment your buyers exactly along those lines and send each "
+        "group the right email at the right moment, so they become reliable repeat buyers."
+    ),
+    "ctaTail": "the segments I'd build first for Ancient + Brave",
 }
 
 
@@ -841,6 +851,8 @@ def test_private_themen_fallen_durch():
     assert pf.why_unusable(weg, contact()) == "private"
     sohn = finding(claim="He said his son did not care about the problem he was dealing with.")
     assert pf.why_unusable(sohn, contact()) == "private"
+    panik = finding(claim="He shared rebuilding the business after a panic attack.")
+    assert pf.why_unusable(panik, contact()) == "private"
     # Wortgrenzen: "person" und "Johnson" enthalten "son", sind aber kein Grund.
     ok = finding(claim="The person Johnson said the analytics dashboard ships next week.")
     assert pf.why_unusable(ok, contact()) is None
@@ -887,58 +899,56 @@ def test_schnipsel_landen_am_kontakt(monkeypatch, cfg):
     pf.run(job({"contact_id": "c-1"}))
     row = db.tables["contacts"][0]
     assert row["person_snippets"]["platformWhereIGotIt"] == "LinkedIn"
-    assert row["person_snippets"]["whatTheySaid"] == "the Forbes feature on your growth"
+    assert row["person_snippets"]["whatTheySaid"] == "the Forbes feature doubling your traffic"
     assert row["person_finding_needs_review"] is False
     assert aufrufe_schnipsel[id(db)]["n"] == 1
 
 
 def test_schlechte_schnipsel_bekommen_korrekturrunden_und_pruefflag(monkeypatch, cfg):
     db = _Db({"businesses": [business()], "contacts": [contact()]})
-    schlecht = dict(GUTE_SCHNIPSEL, whatTheyLeaveOnTheTable="most brands lose 30% of revenue")
+    schlecht = dict(GUTE_SCHNIPSEL, promise="Most brands lose 30% of revenue, we fix that.")
     _run_contact(monkeypatch, db, [finding()], snippets=schlecht)
     pf.run(job({"contact_id": "c-1"}))
     row = db.tables["contacts"][0]
     assert aufrufe_schnipsel[id(db)]["n"] == 1 + pf.CORRECTION_ROUNDS
     assert row["person_finding_needs_review"] is True
     assert row["person_finding_source"]["review_reason"] == "rules"
-    assert any(
-        "whatTheyLeaveOnTheTable" in p for p in row["person_finding_source"]["snippet_problems"]
-    )
+    assert any("promise" in p for p in row["person_finding_source"]["snippet_problems"])
 
 
 def test_validate_snippets_streicht_abschwaecher_und_punkt():
-    raw = dict(GUTE_SCHNIPSEL, whatTheyDoWell="probably run a collagen brand.")
+    raw = dict(GUTE_SCHNIPSEL, ctaTail="probably the segments I'd build first for Snap.")
     out, probleme = pf.validate_snippets(raw, "LinkedIn", [], ["Forbes feature"])
     assert probleme == []
-    assert out["whatTheyDoWell"] == "run a collagen brand"
+    assert out["ctaTail"] == "the segments I'd build first for Snap"
     assert out["platformWhereIGotIt"] == "LinkedIn"
     leer, probleme = pf.validate_snippets(dict(GUTE_SCHNIPSEL, whatTheySaid=""), "LinkedIn", [], [])
     assert probleme == ["whatTheySaid is empty"]
-    # Das "you" steht schon im Template, "Posts about" auch sinngemaess.
+    # "Posts about" vor whatTheySaid, Satzzeichen im Betreff, "with" im ctaTail.
     doppelt = dict(
         GUTE_SCHNIPSEL,
-        whatTheyDoWell="You lead a supplement brand",
         whatTheySaid="Posts detailing the launch of an electrolyte product",
-        opener="What you said on LinkedIn about the launch stuck with me",
         subjectLine="electrolyte launch.",
+        ctaTail="with the segments I'd build first for Snap",
     )
     out, probleme = pf.validate_snippets(doppelt, "LinkedIn", [], [])
     assert probleme == []
-    assert out["whatTheyDoWell"] == "lead a supplement brand"
     assert out["whatTheySaid"] == "the launch of an electrolyte product"
-    assert out["opener"].endswith("stuck with me.")
     assert out["subjectLine"] == "electrolyte launch"
-    # Der opener muss die Quelle nennen, die bridge darf nicht "synergy" sagen.
+    assert out["ctaTail"] == "the segments I'd build first for Snap"
+    # Der opener muss die Quelle nennen; Behauptungen ueber das Setup fallen durch.
     _, probleme = pf.validate_snippets(
         dict(
-            GUTE_SCHNIPSEL, opener="Your post stuck with me.", bridge="There is real synergy here."
+            GUTE_SCHNIPSEL,
+            opener="Your post stuck with me.",
+            promise="Right now your flows stay on default templates, we fix that.",
         ),
         "LinkedIn",
         [],
         [],
     )
     assert any("name the source" in p for p in probleme)
-    assert any("synergy" in p for p in probleme)
+    assert any("asserts what their setup" in p for p in probleme)
 
 
 def test_platform_label():

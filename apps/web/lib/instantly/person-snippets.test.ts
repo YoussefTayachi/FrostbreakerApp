@@ -10,13 +10,16 @@ import {
 import { hasPersonSnippets, pickLeadsForSend, type CampaignContactRow } from "./create-campaign";
 
 const schnipsel = {
-  subjectLine: "walmart launch and repeat buyers",
-  opener: "What you said on LinkedIn about Womaness launching in over a thousand Walmart stores stuck with me.",
+  subjectLine: "walmart buyers at Womaness",
+  opener:
+    "I just read your LinkedIn post where you announced Womaness launching in over a thousand Walmart stores. That stuck with me, because for a wellness brand the real money sits in who buys twice.",
   platformWhereIGotIt: "LinkedIn",
   whatTheySaid: "Womaness launching in over a thousand Walmart stores",
-  bridge: "Here is why I am writing.",
-  whatTheyDoWell: "built a brand women come back to",
-  whatTheyLeaveOnTheTable: "default templates leave that money on the table",
+  segments:
+    "You sell Womaness in Walmart and online, so your buyers already fall into groups that deserve different emails: the Walmart customer who never bought online, the online buyer who bought once, the subscriber.",
+  promise:
+    "We have the expertise to segment your buyers along those lines and send each group the right email at the right moment, so they become reliable repeat buyers.",
+  ctaTail: "the segments I'd build first for Womaness",
 };
 
 function lead(extra: Partial<MergeTagSource> = {}): MergeTagSource {

@@ -63,9 +63,9 @@ export const PERSON_SNIPPET_FIELDS = [
   "opener",
   "platformWhereIGotIt",
   "whatTheySaid",
-  "bridge",
-  "whatTheyDoWell",
-  "whatTheyLeaveOnTheTable",
+  "segments",
+  "promise",
+  "ctaTail",
 ] as const;
 export type PersonSnippetField = (typeof PERSON_SNIPPET_FIELDS)[number];
 
