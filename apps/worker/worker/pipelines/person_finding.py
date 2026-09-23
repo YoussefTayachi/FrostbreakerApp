@@ -871,76 +871,82 @@ SNIPPET_COMPACT_DE = (
 # Satz der Eroeffnung bindet den Fund an den Anlass. Youssefs drei Texte
 # (Q4, Black Friday, Weihnachten) sind die Vorlage.
 SNIPPET_ANGLE_EN = {
-    "q4": (
-        "\n\nANGLE Q4, overrides the opener rules above: the opener is TWO sentences, "
-        "up to 45 words. First sentence: where you read it and what they said, as before. "
-        "Second sentence: what Q4 means for THIS shop, only if it follows honestly from "
-        "what they said or sell (a launch, a channel, a product people reorder). If there "
-        "is no honest link, the second sentence is exactly: 'Q4 is when most of your "
-        "customers buy for the first time, and the question is who comes back in "
-        "January.' Never glue 'in Q4' onto the first sentence. Never mention Christmas.\n"
-        "subjectLine: 3 to 6 words, lower case except names, built from what they said "
-        "plus the season, for example the product or launch they mentioned and 'q4' or "
-        "'january buyers'. Different for every person; never the same phrase twice."
-    ),
+    "q4": "\n\nANGLE Q4: never mention Q4, Black Friday or Christmas yourself; the campaign adds that.",
     "black_friday": (
-        "\n\nANGLE BLACK FRIDAY, overrides the opener rules above: the opener is TWO "
-        "sentences, up to 45 words. First sentence: where you read it and what they said, "
-        "as before. Second sentence: what Black Friday means for THIS shop, only if it "
-        "follows honestly from what they said or sell. If there is no honest link, the "
-        "second sentence is exactly: 'Black Friday is nine weeks out, and it is the first "
-        "time most of your customers buy twice, if the email is right.' Never glue "
-        "'Black Friday' onto the first sentence. Never mention Christmas.\n"
-        "subjectLine: 3 to 6 words, lower case except names, built from what they said "
-        "plus 'black friday'. Different for every person; never the same phrase twice."
+        "\n\nANGLE BLACK FRIDAY: never mention Black Friday, Q4 or Christmas yourself; the "
+        "campaign adds that."
     ),
-    "holiday": (
-        "\n\nANGLE HOLIDAY, overrides the opener rules above: the opener is TWO sentences, "
-        "up to 45 words. First sentence: where you read it and what they said. Second "
-        "sentence: what December gifting and the January reorder mean for THIS shop, only "
-        "if it follows honestly from what they said or sell. If there is no honest link, "
-        "the second sentence is exactly: 'The gift buyer in December is your cheapest new "
-        "customer of the year, and the January email decides if she stays.'\n"
-        "subjectLine: 3 to 6 words, lower case except names, built from what they said "
-        "plus 'december' or 'january'. Different for every person."
-    ),
+    "holiday": "\n\nANGLE HOLIDAY: never mention December, Christmas or January yourself; the campaign adds that.",
 }
 SNIPPET_ANGLE_DE = {
+    "q4": "\n\nWINKEL Q4: nenne Q4, Black Friday oder Weihnachten nie selbst; das ergaenzt die Kampagne.",
+    "black_friday": "\n\nWINKEL BLACK FRIDAY: nenne Black Friday, Q4 oder Weihnachten nie selbst; das ergaenzt die Kampagne.",
+    "holiday": "\n\nWINKEL WEIHNACHTEN: nenne Dezember, Weihnachten oder Januar nie selbst; das ergaenzt die Kampagne.",
+}
+# Der Anlass-Satz je Winkel, an den ersten Satz der Eroeffnung gehaengt, und
+# der Betreff. Youssefs Vorlagen vom 2026-09-23, Wort fuer Wort.
+ANGLE_SENTENCE_EN = {
     "q4": (
-        "\n\nWINKEL Q4, ersetzt die Regeln zur Eroeffnung oben: die Eroeffnung hat ZWEI "
-        "Saetze, bis 45 Woerter. Erster Satz: wo gelesen, was gesagt. Zweiter Satz: was Q4 "
-        "fuer DIESEN Shop heisst, nur wenn es ehrlich aus dem Gesagten oder dem Sortiment "
-        "folgt. Sonst lautet der zweite Satz genau: 'Im vierten Quartal kaufen die meisten "
-        "deiner Kunden zum ersten Mal, und die Frage ist, wer im Januar wiederkommt.' Nie "
-        "'in Q4' an den ersten Satz kleben. Nie Weihnachten nennen.\n"
-        "subjectLine: 3 bis 6 Woerter, klein ausser Namen, aus dem Gesagten plus 'q4' oder "
-        "'januar'. Bei jeder Person anders."
+        "Q4 is when most of your customers buy for the first time, and the question is who "
+        "comes back in January."
     ),
     "black_friday": (
-        "\n\nWINKEL BLACK FRIDAY, ersetzt die Regeln zur Eroeffnung oben: die Eroeffnung "
-        "hat ZWEI Saetze, bis 45 Woerter. Erster Satz: wo gelesen, was gesagt. Zweiter "
-        "Satz: was Black Friday fuer DIESEN Shop heisst, nur wenn es ehrlich aus dem "
-        "Gesagten oder dem Sortiment folgt. Sonst lautet der zweite Satz genau: 'Black "
-        "Friday ist in neun Wochen, und es ist das erste Mal, dass die meisten deiner "
-        "Kunden zweimal kaufen, wenn die Mail stimmt.' Nie 'Black Friday' an den ersten "
-        "Satz kleben. Nie Weihnachten nennen.\n"
-        "subjectLine: 3 bis 6 Woerter, klein ausser Namen, aus dem Gesagten plus 'black "
-        "friday'. Bei jeder Person anders."
+        "Black Friday is nine weeks out, and it is the first time most of your customers "
+        "buy twice, if the email is right."
     ),
     "holiday": (
-        "\n\nWINKEL WEIHNACHTEN, ersetzt die Regeln zur Eroeffnung oben: die Eroeffnung hat "
-        "ZWEI Saetze, bis 45 Woerter. Erster Satz: wo gelesen, was gesagt. Zweiter Satz: "
-        "was Dezembergeschaeft und Januar-Nachkauf fuer DIESEN Shop heissen, nur wenn es "
-        "ehrlich folgt. Sonst lautet der zweite Satz genau: 'Die Geschenkkaeuferin im "
-        "Dezember ist deine guenstigste Neukundin des Jahres, und die Januar-Mail "
-        "entscheidet, ob sie bleibt.'\n"
-        "subjectLine: 3 bis 6 Woerter, klein ausser Namen, aus dem Gesagten plus "
-        "'dezember' oder 'januar'. Bei jeder Person anders."
+        "The gift buyer in December is your cheapest new customer of the year, and the "
+        "January email decides if she stays."
     ),
 }
-# Im Winkel darf die Eroeffnung zwei Saetze haben, auch in der knappen
-# Fassung: der Anlass braucht seinen eigenen Satz.
-SNIPPET_ANGLE_OPENER_MAX_WORDS = 45
+ANGLE_SENTENCE_DE = {
+    "q4": (
+        "Im vierten Quartal kaufen die meisten deiner Kunden zum ersten Mal, und die Frage "
+        "ist, wer im Januar wiederkommt."
+    ),
+    "black_friday": (
+        "Black Friday ist in neun Wochen, und es ist das erste Mal, dass die meisten deiner "
+        "Kunden zweimal kaufen, wenn die Mail stimmt."
+    ),
+    "holiday": (
+        "Die Geschenkkaeuferin im Dezember ist deine guenstigste Neukundin des Jahres, und "
+        "die Januar-Mail entscheidet, ob sie bleibt."
+    ),
+}
+ANGLE_SUBJECT_EN = {
+    "q4": "q4 repeat buyers at {company}",
+    "black_friday": "black friday flows at {company}",
+    "holiday": "december buyers at {company}",
+}
+ANGLE_SUBJECT_DE = {
+    "q4": "Q4-Wiederkaeufer bei {company}",
+    "black_friday": "Black-Friday-Flows bei {company}",
+    "holiday": "Dezember-Kaeufer bei {company}",
+}
+
+
+def apply_angle(snips: dict, angle: str | None, language: str, company: str) -> dict:
+    """Anlass-Satz und Betreff aus dem Code, der Fund bleibt vom Modell.
+
+    Die Eroeffnung wird auf ihren ersten Satz gekuerzt (der Fund), dann kommt
+    der feste Anlass-Satz. Gemessen an zwei Laeufen am 2026-09-23: gibt man
+    dem Modell den Anlass, klebt es ihn als Halbsatz an den Fund
+    ("...marking a milestone that shows buyer momentum in Q4").
+    """
+    if not angle:
+        return snips
+    saetze = ANGLE_SENTENCE_DE if language == "de" else ANGLE_SENTENCE_EN
+    betreff = ANGLE_SUBJECT_DE if language == "de" else ANGLE_SUBJECT_EN
+    if angle not in saetze:
+        return snips
+    out = dict(snips)
+    opener = (out.get("opener") or "").strip()
+    erster = re.split(r"(?<=[.!?])\s+", opener, maxsplit=1)[0].strip() if opener else ""
+    if erster and erster[-1] not in ".!?":
+        erster += "."
+    out["opener"] = (erster + " " + saetze[angle]).strip()
+    out["subjectLine"] = betreff[angle].format(company=company.strip() or "your shop")
+    return out
 
 
 def snippet_prompt(
@@ -1084,8 +1090,6 @@ def validate_snippets(
         deckel = SNIPPET_MAX_WORDS[field]
         if compact:
             deckel = min(deckel, SNIPPET_COMPACT_MAX_WORDS.get(field, deckel))
-        if angle and field == "opener":
-            deckel = SNIPPET_ANGLE_OPENER_MAX_WORDS
         for p in personalize.validate(text, deckel, banned):
             problems.append(f"{field}: {p}")
         erfunden = invented_numbers(text, *material)
@@ -2114,6 +2118,7 @@ def run(job: dict) -> None:
             # zurueckhalten. Bleibt in der Provenienz sichtbar.
             weich = compact_only_length_problems(snips, snippet_problems)
             snippet_problems = [p for p in snippet_problems if p not in weich]
+        snips = apply_angle(snips, angle, cfg["language"], biz.get("name") or "")
         if snippet_problems:
             needs_review = True
 

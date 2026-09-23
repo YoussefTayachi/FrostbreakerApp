@@ -1033,9 +1033,20 @@ def test_saisonaler_winkel_haengt_am_suchfilter():
     assert "ANGLE" not in pf.snippet_prompt("en", [], angle="unbekannt")
 
 
-def test_winkel_laesst_der_eroeffnung_zwei_saetze():
-    lang = dict(GUTE_SCHNIPSEL, opener=" ".join(["wort"] * 40) + ".")
-    _, knapp = pf.validate_snippets(lang, "LinkedIn", [], [], compact=True)
-    _, winkel = pf.validate_snippets(lang, "LinkedIn", [], [], compact=True, angle="q4")
-    assert any(p.startswith("opener") and "zu lang" in p for p in knapp)
-    assert not any(p.startswith("opener") and "zu lang" in p for p in winkel)
+def test_winkel_haengt_anlass_satz_und_betreff_an():
+    snips = dict(
+        GUTE_SCHNIPSEL,
+        opener="I just read your LinkedIn post where you said the launch doubled traffic. That stuck with me because collagen gets reordered.",
+        subjectLine="collagen and second purchases",
+    )
+    out = pf.apply_angle(snips, "black_friday", "en", "Ancient + Brave")
+    assert out["opener"].startswith(
+        "I just read your LinkedIn post where you said the launch doubled traffic. Black Friday is nine weeks out"
+    )
+    assert out["subjectLine"] == "black friday flows at Ancient + Brave"
+    assert pf.apply_angle(snips, None, "en", "X") == snips
+    assert pf.apply_angle(snips, "unbekannt", "en", "X") == snips
+    ohne_punkt = pf.apply_angle(
+        dict(snips, opener="I just read your post about the launch"), "q4", "en", "X"
+    )
+    assert ohne_punkt["opener"].startswith("I just read your post about the launch. Q4 is when")
