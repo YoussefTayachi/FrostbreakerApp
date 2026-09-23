@@ -916,6 +916,10 @@ def test_validate_snippets_streicht_abschwaecher_und_punkt():
     out, _ = pf.validate_snippets(doppelt, "LinkedIn", [], [])
     assert out["whatTheyDoWell"] == "lead a supplement brand"
     assert out["whatTheySaid"] == "the launch of an electrolyte product"
+    out, _ = pf.validate_snippets(
+        dict(GUTE_SCHNIPSEL, thingWeHaveInCommon="Retention is what I do"), "LinkedIn", [], []
+    )
+    assert out["thingWeHaveInCommon"] == "Retention"
 
 
 def test_platform_label():

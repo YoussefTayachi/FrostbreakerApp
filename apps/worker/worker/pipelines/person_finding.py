@@ -682,7 +682,7 @@ SNIPPET_TEMPLATE_EN = (
     "Hey {{firstName}},\n\n"
     "{{thingWeHaveInCommon}} is what I do all day too, so what you said on "
     "{{platformWhereIGotIt}} about {{whatTheySaid}} stuck with me.\n\n"
-    "We have real synergy around {{thingWeHaveSynergyAround}}: you {{whatTheyDoWell}}, "
+    "There is real synergy here: {{thingWeHaveSynergyAround}}. You {{whatTheyDoWell}}, "
     "we take that further with what we build. Right now {{whatTheyLeaveOnTheTable}}.\n\n"
     "Can I send you something for {{companyName}}?"
 )
@@ -690,7 +690,7 @@ SNIPPET_TEMPLATE_DE = (
     "Hi {{firstName}},\n\n"
     "{{thingWeHaveInCommon}} ist auch mein Alltag, deshalb ist mir haengen geblieben, was "
     "du auf {{platformWhereIGotIt}} zu {{whatTheySaid}} gesagt hast.\n\n"
-    "Wir haben echte Synergie bei {{thingWeHaveSynergyAround}}: du {{whatTheyDoWell}}, wir "
+    "Da ist echte Synergie: {{thingWeHaveSynergyAround}}. Du {{whatTheyDoWell}}, wir "
     "bauen darauf auf. Gerade {{whatTheyLeaveOnTheTable}}.\n\n"
     "Darf ich dir etwas fuer {{companyName}} schicken?"
 )
@@ -709,11 +709,12 @@ SNIPPET_PROMPT_EN = (
     "- whatTheySaid: 5 to 14 words, the concrete thing from <finding>, completing 'what "
     "you said on ... about ...'. A noun phrase in lower case unless it is a name, no "
     "'you', not 'posts about ...'.\n"
-    "- thingWeHaveSynergyAround: 8 to 22 words completing 'synergy around ...': one "
-    "clause that ties what they said to what the sender believes or went through, taken "
-    "from <sender> (their thesis, their path, their numbers). Example shape: 'that first "
-    "try, because my co-founder and I built our company on the bet that the second "
-    "purchase is the one that matters'. Personal, specific, never a slogan.\n"
+    "- thingWeHaveSynergyAround: 8 to 22 words, a full sentence after 'There is real "
+    "synergy here:' in the sender's voice ('I', 'we', 'my co-founder and I'), that ties "
+    "what THIS person said to something specific the sender believes, did or went "
+    "through, taken from <sender>. Shape: [what they said, in two or three words] + [the "
+    "sender's own experience or thesis that connects to it]. Different for every person; "
+    "never reuse a sentence, never a slogan, no final period.\n"
     "- whatTheyDoWell: 3 to 8 words completing 'you ...': a plain fact about what they do, "
     "from <finding> or <known_facts>, present tense, starting with the verb ('run a "
     "supplement brand direct to consumer'), never with 'you'. No praise, no adjectives "
@@ -747,10 +748,11 @@ SNIPPET_PROMPT_DE = (
     "gross.\n"
     "- whatTheySaid: 5 bis 14 Woerter, das Konkrete aus <finding>, passend zu 'was du "
     "auf ... zu ... gesagt hast'. Nominalphrase, kein Satz, kein 'du'.\n"
-    "- thingWeHaveSynergyAround: 8 bis 22 Woerter passend zu 'Synergie bei ...': ein "
-    "Teilsatz, der die Aussage der Person mit dem verbindet, was der Absender glaubt oder "
-    "erlebt hat, aus <sender> (These, Werdegang, Zahlen). Persoenlich, konkret, nie ein "
-    "Slogan.\n"
+    "- thingWeHaveSynergyAround: 8 bis 22 Woerter, ein ganzer Satz nach 'Da ist echte "
+    "Synergie:' in der Stimme des Absenders ('ich', 'wir', 'mein Mitgruender und ich'), "
+    "der die Aussage DIESER Person mit etwas Konkretem verbindet, das der Absender "
+    "glaubt, getan oder erlebt hat, aus <sender>. Bei jeder Person anders; nie einen Satz "
+    "wiederverwenden, nie ein Slogan, kein Punkt am Ende.\n"
     "- whatTheyDoWell: 3 bis 8 Woerter passend zu 'du ...': eine schlichte Tatsache, was "
     "die Person tut, aus <finding> oder <known_facts>, Praesens, mit dem Verb beginnend, "
     "nie mit 'du'. Kein Lob.\n"
@@ -851,6 +853,10 @@ def validate_snippets(
         # whatTheySaid, wo das Template schon "what you said ... about" sagt.
         if field == "whatTheyDoWell":
             text = re.sub(r"(?i)^(?:you|du)\s+", "", text)
+        if field == "thingWeHaveInCommon":
+            # "Retention is what I do" + Template "is what I do all day too"
+            # ergaebe den Satz zweimal.
+            text = re.sub(r"(?i)\s+(?:is|ist) (?:what i do|auch mein alltag).*$", "", text)
         if field == "whatTheySaid":
             text = re.sub(
                 r"(?i)^(?:a |the )?(?:linkedin )?posts?\s+(?:about|detailing|on)\s+", "", text
