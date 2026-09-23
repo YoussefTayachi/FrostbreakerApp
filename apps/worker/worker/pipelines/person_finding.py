@@ -158,6 +158,8 @@ PERSON_FINDING_MAX_PER_SEARCH = 300
 # Wie viele Funde die Recherche zurueckgeben darf. Drei, damit die Auswahl
 # eine Auswahl ist: der erste Treffer einer Websuche ist oft der aelteste.
 MAX_FINDINGS = 5
+# Korrekturrunden nach dem ersten Schreibversuch, siehe run().
+CORRECTION_ROUNDS = 2
 
 # Kappung fuer alles, was aus fremden Quellen in einen Prompt geht.
 MAX_FIELD_CHARS = 300
@@ -611,9 +613,22 @@ _GENERIC = re.compile(
 )
 
 
+_GENERIC_SUBJECT = re.compile(
+    r"(?i)^(?:(?:ecommerce|e-commerce|dtc|d2c|online|other)\s+)?"
+    r"(?:brands|companies|teams|shops|stores|businesses|founders|"
+    r"marken|firmen|teams|shops|unternehmen|gruender)\b"
+)
+
+
 def generic_sentences(text: str) -> list[str]:
-    """Die Saetze, die ueber alle reden statt ueber die Person."""
-    return [s.strip() for s in re.split(r"(?<=[.!?])\s+", text or "") if _GENERIC.search(s)]
+    """Die Saetze, die ueber alle reden statt ueber die Person.
+
+    Zwei Muster: "most/many ... brands" irgendwo im Satz, und "Brands ..."
+    als Satzanfang (Lauf 8 am 2026-09-23: "Brands with a tailored email
+    setup see an uplift of 30% or more").
+    """
+    saetze = [s.strip() for s in re.split(r"(?<=[.!?])\s+", text or "")]
+    return [s for s in saetze if s and (_GENERIC.search(s) or _GENERIC_SUBJECT.match(s))]
 
 
 def strip_hedges(text: str) -> str:
@@ -1537,10 +1552,17 @@ def run(job: dict) -> None:
         absatz = strip_hedges(write())
         problems = pruefe(absatz)
         needs_review = False
-        if problems:
+        # Bis zu zwei Korrekturrunden. Lauf 8 am 2026-09-23: nach einer Runde
+        # trugen alle drei neu geschriebenen Absaetze noch einen Verstoss
+        # ("could", eine erfundene 30 %, ein Satz ueber "Brands"). Eine Runde
+        # mehr kostet einen mini-Aufruf und erspart die Handpruefung.
+        for _ in range(CORRECTION_ROUNDS):
+            if not problems:
+                break
             absatz = strip_hedges(write(correction="; ".join(problems)))
             absatz = personalize.sanitize_banned_punctuation(absatz, banned)
-            needs_review = bool(pruefe(absatz))
+            problems = pruefe(absatz)
+        needs_review = bool(problems)
         # Unbestaetigte Bindung geht in die Pruefung, unabhaengig von den
         # Schreibregeln: das Modell behauptet, der Mensch bestaetigt.
         if fund.get("review_reason"):

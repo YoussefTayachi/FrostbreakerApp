@@ -551,7 +551,7 @@ def test_regelverstoss_bekommt_korrekturrunde_und_pruefflag(monkeypatch, cfg):
     aufrufe = _run_contact(monkeypatch, db, [finding()], text=zu_lang)
     pf.run(job({"contact_id": "c-1"}))
     row = db.tables["contacts"][0]
-    assert aufrufe["generate"] == 2
+    assert aufrufe["generate"] == 1 + pf.CORRECTION_ROUNDS
     assert row["person_finding_needs_review"] is True
     assert row["person_finding_source"]["review_reason"] == "rules"
 
@@ -696,7 +696,7 @@ def test_dritte_person_loest_korrekturrunde_aus(monkeypatch, cfg):
     )
     pf.run(job({"contact_id": "c-1"}))
     row = db.tables["contacts"][0]
-    assert aufrufe["generate"] == 2
+    assert aufrufe["generate"] == 1 + pf.CORRECTION_ROUNDS
     assert row["person_finding_needs_review"] is True
 
 
@@ -749,7 +749,7 @@ def test_erfundene_zahl_loest_korrekturrunde_aus(monkeypatch, cfg):
     )
     pf.run(job({"contact_id": "c-1"}))
     row = db.tables["contacts"][0]
-    assert aufrufe["generate"] == 2
+    assert aufrufe["generate"] == 1 + pf.CORRECTION_ROUNDS
     assert row["person_finding_needs_review"] is True
 
 
@@ -845,3 +845,6 @@ def test_saetze_ueber_alle_werden_erkannt():
     assert pf.generic_sentences("Almost every shop runs Klaviyo.") != []
     assert pf.generic_sentences("Die meisten Shops lassen die Flows liegen.") != []
     assert pf.generic_sentences("You run many campaigns a year.") == []
+    assert pf.generic_sentences("Brands with a tailored setup see an uplift of 30%.") != []
+    assert pf.generic_sentences("Ecommerce brands miss this.") != []
+    assert pf.generic_sentences("Your brands page looks fine.") == []
