@@ -192,7 +192,11 @@ def record_openai(
             "openai",
             operation + "_web_search",
             suchen,
-            "calls",
+            # "requests", nicht "calls": api_usage.unit_kind ist ein CHECK auf
+            # credits/checks/tokens/requests (Migration 0097). Mit "calls" hat
+            # die Zeile am 2026-09-23 still gefehlt, record() schluckt den
+            # Fehler absichtlich.
+            "requests",
             cost_usd=suchen * OPENAI_USD_PER_WEB_SEARCH_CALL,
             search_id=search_id,
         )
