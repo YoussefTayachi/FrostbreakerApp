@@ -66,6 +66,15 @@ export default function InstantlyCampaignsPage() {
       push(C.mcpDraftPublishError(c.name, grund), "error");
       return false;
     }
+    // Sofort in der Zeile sichtbar, nicht erst nach dem Neuladen der Liste:
+    // aus dem Entwurf wird eine laufende Kampagne mit Status-Badge, der Knopf
+    // verschwindet, der Link wird zu "Verwalten". Youssef am 2026-09-23: nach
+    // dem Klick muss erkennbar sein, dass sie gestartet ist.
+    setItems((prev) =>
+      (prev ?? []).map((x) =>
+        x.id === c.id ? { ...x, is_draft: false, status: body.activated ? "active" : "draft" } : x
+      )
+    );
     if (!leise) {
       push(
         body.activated ? C.mcpDraftPublished(c.name, body.leads_added ?? 0) : C.mcpDraftCreatedNotStarted(c.name),
