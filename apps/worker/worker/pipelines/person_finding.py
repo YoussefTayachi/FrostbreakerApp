@@ -700,19 +700,23 @@ SNIPPET_PROMPT_EN = (
     "already written; only the variables change. Here it is, so your fragments fit its "
     "grammar:\n\n<template>\n" + SNIPPET_TEMPLATE_EN + "\n</template>\n\n"
     "Fill:\n"
-    "- thingWeHaveInCommon: 2 to 5 words, a noun phrase for the field the offer works in "
-    "(taken from <offer>), opening the sentence 'X is what I do all day too'. Capitalise "
-    "the first word.\n"
+    "- thingWeHaveInCommon: 2 to 5 words naming OUR field from <offer> (what the sender "
+    "does all day: for example 'Email marketing for ecom brands', 'Klaviyo flows'), never "
+    "the person's product category or niche. It opens the sentence 'X is what I do all "
+    "day too', so it must be true of the sender. Capitalise the first word.\n"
     "- whatTheySaid: 5 to 14 words, the concrete thing from <finding>, completing 'what "
-    "you said on ... about ...'. A noun phrase, not a sentence, no 'you'.\n"
+    "you said on ... about ...'. A noun phrase in lower case unless it is a name, no "
+    "'you', not 'posts about ...'.\n"
     "- thingWeHaveSynergyAround: 3 to 8 words completing 'synergy around ...': what the "
     "offer does for them, tied to what they said. Noun phrase.\n"
     "- whatTheyDoWell: 3 to 8 words completing 'you ...': a plain fact about what they do, "
-    "from <finding> or <known_facts>, in present tense. No praise, no adjectives like great "
-    "or impressive.\n"
-    "- whatTheyLeaveOnTheTable: 6 to 18 words completing 'Right now ...': what they lose, "
-    "from the problem under <offer>, said plainly and confidently. Subject is 'your ...', "
-    "never other brands.\n\n"
+    "from <finding> or <known_facts>, present tense, starting with the verb ('run a "
+    "supplement brand direct to consumer'), never with 'you'. No praise, no adjectives "
+    "like great or impressive.\n"
+    "- whatTheyLeaveOnTheTable: 6 to 18 words completing 'Right now ...': a full clause "
+    "with subject and verb ('your flows stay on default templates and campaigns go out "
+    "when someone remembers'), what they lose, from the problem under <offer>, said "
+    "plainly. Subject is 'your ...', never other brands. Not a noun phrase.\n\n"
     "Rules:\n"
     "- Fragments, not sentences: no final period, no greeting.\n"
     "- Address them as 'you'. Never their name, never your own company name.\n"
@@ -729,17 +733,21 @@ SNIPPET_PROMPT_DE = (
     "steht schon; nur die Variablen wechseln. Hier ist sie, damit deine Fragmente "
     "grammatisch passen:\n\n<template>\n" + SNIPPET_TEMPLATE_DE + "\n</template>\n\n"
     "Fuelle:\n"
-    "- thingWeHaveInCommon: 2 bis 5 Woerter, ein Nomen fuer das Feld des Angebots (aus "
-    "<offer>), als Satzanfang 'X ist auch mein Alltag'. Erstes Wort gross.\n"
+    "- thingWeHaveInCommon: 2 bis 5 Woerter fuer UNSER Feld aus <offer> (was der Absender "
+    "den ganzen Tag tut, etwa 'E-Mail-Marketing fuer Shops'), nie die Nische der Person. "
+    "Es beginnt den Satz 'X ist auch mein Alltag', muss also fuer den Absender stimmen. "
+    "Erstes Wort gross.\n"
     "- whatTheySaid: 5 bis 14 Woerter, das Konkrete aus <finding>, passend zu 'was du "
     "auf ... zu ... gesagt hast'. Nominalphrase, kein Satz, kein 'du'.\n"
     "- thingWeHaveSynergyAround: 3 bis 8 Woerter passend zu 'Synergie bei ...': was das "
     "Angebot fuer die Person tut, verknuepft mit dem Gesagten. Nominalphrase.\n"
     "- whatTheyDoWell: 3 bis 8 Woerter passend zu 'du ...': eine schlichte Tatsache, was "
-    "die Person tut, aus <finding> oder <known_facts>, Praesens. Kein Lob.\n"
-    "- whatTheyLeaveOnTheTable: 6 bis 18 Woerter passend zu 'Gerade ...': was liegen "
-    "bleibt, aus dem Problem unter <offer>, klar und sicher. Subjekt ist 'dein ...', nie "
-    "andere Marken.\n\n"
+    "die Person tut, aus <finding> oder <known_facts>, Praesens, mit dem Verb beginnend, "
+    "nie mit 'du'. Kein Lob.\n"
+    "- whatTheyLeaveOnTheTable: 6 bis 18 Woerter passend zu 'Gerade ...': ein ganzer "
+    "Teilsatz mit Subjekt und Verb ('bleiben deine Flows auf der Standardvorlage'), was "
+    "liegen bleibt, aus dem Problem unter <offer>. Subjekt ist 'dein ...', nie andere "
+    "Marken. Keine Nominalphrase.\n\n"
     "Regeln:\n"
     "- Fragmente, keine Saetze: kein Punkt am Ende, keine Anrede.\n"
     "- Sprich die Person mit Du an. Nie ihr Name, nie der Name deiner eigenen Firma.\n"
@@ -826,6 +834,15 @@ def validate_snippets(
     problems: list[str] = []
     for field in SNIPPET_MODEL_FIELDS:
         text = strip_hedges(str(raw.get(field) or ""), sentences=False).rstrip(".").strip()
+        # Im Template steht das "you" schon ("you {{whatTheyDoWell}}"); ein
+        # zweites vom Modell ergaebe "you you run". Genauso "Posts about" vor
+        # whatTheySaid, wo das Template schon "what you said ... about" sagt.
+        if field == "whatTheyDoWell":
+            text = re.sub(r"(?i)^(?:you|du)\s+", "", text)
+        if field == "whatTheySaid":
+            text = re.sub(
+                r"(?i)^(?:a |the )?(?:linkedin )?posts?\s+(?:about|detailing|on)\s+", "", text
+            )
         out[field] = text
         if not text:
             problems.append(f"{field} is empty")

@@ -907,6 +907,15 @@ def test_validate_snippets_streicht_abschwaecher_und_punkt():
     assert out["platformWhereIGotIt"] == "LinkedIn"
     leer, probleme = pf.validate_snippets(dict(GUTE_SCHNIPSEL, whatTheySaid=""), "LinkedIn", [], [])
     assert probleme == ["whatTheySaid is empty"]
+    # Das "you" steht schon im Template, "Posts about" auch sinngemaess.
+    doppelt = dict(
+        GUTE_SCHNIPSEL,
+        whatTheyDoWell="You lead a supplement brand",
+        whatTheySaid="Posts detailing the launch of an electrolyte product",
+    )
+    out, _ = pf.validate_snippets(doppelt, "LinkedIn", [], [])
+    assert out["whatTheyDoWell"] == "lead a supplement brand"
+    assert out["whatTheySaid"] == "the launch of an electrolyte product"
 
 
 def test_platform_label():
