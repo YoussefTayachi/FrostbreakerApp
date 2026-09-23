@@ -881,6 +881,18 @@ def write_snippets(
 
 SENTENCE_FIELDS = {"opener", "segments", "promise"}
 
+# Lob in Verkleidung: "reflects a deep understanding", "shows your commitment".
+_PRAISE = re.compile(
+    r"(?i)\b(?:reflects?|shows?|demonstrates?|proves?|speaks to|highlights?)\b[^.]{0,40}"
+    r"\b(?:understanding|expertise|commitment|passion|dedication|vision|leadership|"
+    r"insight|excellence|Verstaendnis|Expertise|Engagement|Leidenschaft|Weitblick)\b"
+)
+# Der Fuellsatz nach der Gruppenliste.
+_FILLER_TAIL = re.compile(
+    r"(?i)\s*(?:these|those|each|all of these|diese|jede)\s+(?:groups?|segments?|gruppen?|"
+    r"segmente?)\b[^.]*\.\s*$"
+)
+
 # Behauptungen ueber das Setup der Person. Youssef (2026-09-23): "das ist eine
 # random behauptung ... wir muessen nix ueber die behaupten sondern
 # selbstsicher versprechen, was wir machen koennen".
@@ -934,6 +946,18 @@ def validate_snippets(
             problems.append(f"{field}: talks about other brands or teams instead of this person")
         if field == "opener" and platform and platform.lower() not in text.lower():
             problems.append(f"opener must name the source word for word: {platform}")
+        if field == "segments":
+            # "These groups emerge naturally from ..." nach der Liste: weg.
+            text = _FILLER_TAIL.sub(".", text).strip()
+            if text.endswith(".."):
+                text = text[:-1]
+            out[field] = text
+        if field == "opener" and _PRAISE.search(text):
+            problems.append(
+                "opener: praises the person in disguise; state what they said and, if there "
+                "is a straight line to buying twice, why it matters, nothing about their "
+                "qualities"
+            )
         if field in ("segments", "promise", "opener") and _SETUP_CLAIM.search(text):
             problems.append(
                 f"{field}: asserts what their setup does or lacks, which you cannot know; "

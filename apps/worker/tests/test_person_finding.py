@@ -949,6 +949,26 @@ def test_validate_snippets_streicht_abschwaecher_und_punkt():
     )
     assert any("name the source" in p for p in probleme)
     assert any("asserts what their setup" in p for p in probleme)
+    # Lob in Verkleidung faellt durch, der Fuellsatz nach der Liste wird gestrichen.
+    out, probleme = pf.validate_snippets(
+        dict(
+            GUTE_SCHNIPSEL,
+            opener=(
+                "I just read your LinkedIn post about the talk. That stuck with me because your "
+                "dual role reflects a deep understanding of customer needs."
+            ),
+            segments=(
+                "Plant People sells supplements on subscription, so your buyers fall into groups: "
+                "the subscriber, the starter-pack buyer. These groups emerge naturally from your "
+                "subscription approach."
+            ),
+        ),
+        "LinkedIn",
+        [],
+        [],
+    )
+    assert any("praises" in p for p in probleme)
+    assert out["segments"].endswith("the subscriber, the starter-pack buyer.")
 
 
 def test_platform_label():
