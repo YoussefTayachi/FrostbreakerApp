@@ -866,7 +866,57 @@ SNIPPET_COMPACT_DE = (
 )
 
 
-def snippet_prompt(language: str, banned: list[str], compact: bool = False) -> str:
+# Saisonale Winkel (filters.person_snippets_angle, seit 2026-09-23). Die
+# Copy dieser Kampagnen ist fest bis auf Betreff und Eroeffnung; der zweite
+# Satz der Eroeffnung bindet den Fund an den Anlass. Youssefs drei Texte
+# (Q4, Black Friday, Weihnachten) sind die Vorlage.
+SNIPPET_ANGLE_EN = {
+    "q4": (
+        "\n\nANGLE Q4: the campaign is about the fourth quarter. The second sentence of "
+        "the opener ties what they said to Q4 in their shop: the first purchase happens at "
+        "scale now, the question is who comes back in January. subjectLine names Q4 or "
+        "the buyer group ('q4 repeat buyers at <company>'). Keep the opener under 40 "
+        "words. Never mention Christmas."
+    ),
+    "black_friday": (
+        "\n\nANGLE BLACK FRIDAY: the campaign is about Black Friday, nine weeks out. The "
+        "second sentence of the opener ties what they said to Black Friday in their shop: "
+        "the first time most of their customers buy twice, if the email is right. "
+        "subjectLine names Black Friday ('black friday flows at <company>'). Keep the "
+        "opener under 40 words. Never mention Christmas."
+    ),
+    "holiday": (
+        "\n\nANGLE HOLIDAY: the campaign is about December gifting and the January "
+        "reorder. The second sentence of the opener ties what they said to the gift buyer "
+        "who comes back in spring. subjectLine names December ('december buyers at "
+        "<company>'). Keep the opener under 40 words."
+    ),
+}
+SNIPPET_ANGLE_DE = {
+    "q4": (
+        "\n\nWINKEL Q4: die Kampagne dreht sich ums vierte Quartal. Der zweite Satz der "
+        "Eroeffnung bindet das Gesagte an Q4 in diesem Shop: der Erstkauf passiert jetzt in "
+        "Masse, die Frage ist, wer im Januar wiederkommt. subjectLine nennt Q4 oder die "
+        "Kaeufergruppe. Eroeffnung unter 40 Woertern. Nie Weihnachten nennen."
+    ),
+    "black_friday": (
+        "\n\nWINKEL BLACK FRIDAY: die Kampagne dreht sich um Black Friday in neun Wochen. "
+        "Der zweite Satz der Eroeffnung bindet das Gesagte an Black Friday in diesem Shop: "
+        "das erste Mal, dass die meisten Kunden zweimal kaufen, wenn die Mail stimmt. "
+        "subjectLine nennt Black Friday. Eroeffnung unter 40 Woertern. Nie Weihnachten."
+    ),
+    "holiday": (
+        "\n\nWINKEL WEIHNACHTEN: die Kampagne dreht sich um das Dezembergeschaeft und den "
+        "Nachkauf im Januar. Der zweite Satz der Eroeffnung bindet das Gesagte an die "
+        "Geschenkkaeuferin, die im Fruehjahr wiederkommt. subjectLine nennt Dezember. "
+        "Eroeffnung unter 40 Woertern."
+    ),
+}
+
+
+def snippet_prompt(
+    language: str, banned: list[str], compact: bool = False, angle: str | None = None
+) -> str:
     """System-Prompt fuer die Schnipsel: Sprache und Strich-Verbote wie beim Absatz."""
     striche = sorted(
         {w.strip() for w in banned if w.strip() and personalize._is_punctuation_only(w.strip())}
@@ -874,6 +924,9 @@ def snippet_prompt(language: str, banned: list[str], compact: bool = False) -> s
     base = SNIPPET_PROMPT_DE if language == "de" else SNIPPET_PROMPT_EN
     if compact:
         base += SNIPPET_COMPACT_DE if language == "de" else SNIPPET_COMPACT_EN
+    winkel = (SNIPPET_ANGLE_DE if language == "de" else SNIPPET_ANGLE_EN).get(angle or "")
+    if winkel:
+        base += winkel
     lines = [base, "", f"- Write every value in {'German' if language == 'de' else 'English'}."]
     if striche:
         lines.append("- Never use these characters: " + " ".join(striche))
@@ -1992,7 +2045,8 @@ def run(job: dict) -> None:
         # Pruefflag wie beim Absatz: die Copy geht mit Loch oder gar nicht.
         platform = platform_label(fund, cfg["language"])
         compact = bool(search_filters(biz).get("person_snippets_compact"))
-        snippet_system = snippet_prompt(cfg["language"], banned, compact=compact)
+        angle = str(search_filters(biz).get("person_snippets_angle") or "") or None
+        snippet_system = snippet_prompt(cfg["language"], banned, compact=compact, angle=angle)
 
         def schnipsel(correction: str | None = None) -> dict:
             return write_snippets(

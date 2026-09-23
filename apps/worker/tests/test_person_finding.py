@@ -1023,3 +1023,11 @@ def test_nur_knapper_deckel_gerissen_ist_kein_pruefgrund():
     weich = pf.compact_only_length_problems(zu_lang, probleme)
     assert any(p.startswith("segments") for p in probleme)
     assert not any(p.startswith("segments") for p in weich)
+
+
+def test_saisonaler_winkel_haengt_am_suchfilter():
+    assert "ANGLE" not in pf.snippet_prompt("en", [])
+    assert "ANGLE BLACK FRIDAY" in pf.snippet_prompt("en", [], angle="black_friday")
+    assert "ANGLE Q4" in pf.snippet_prompt("en", [], compact=True, angle="q4")
+    assert "WINKEL Q4" in pf.snippet_prompt("de", [], angle="q4")
+    assert "ANGLE" not in pf.snippet_prompt("en", [], angle="unbekannt")
