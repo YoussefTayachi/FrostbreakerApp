@@ -928,9 +928,12 @@ def validate_snippets(
         if field == "whatTheyDoWell":
             text = re.sub(r"(?i)^(?:you|du)\s+", "", text)
         if field == "whatTheySaid":
+            # Die Nachfassmail sagt schon "What you said about {{whatTheySaid}}";
+            # Hudson-Lauf 3: "what you said about product should do ..." doppelt.
             text = re.sub(
                 r"(?i)^(?:a |the )?(?:linkedin )?posts?\s+(?:about|detailing|on)\s+", "", text
             )
+            text = re.sub(r"(?i)^(?:what you (?:said|wrote|shared) (?:about|on)\s+)+", "", text)
         if field == "subjectLine":
             text = re.sub(r"[.!?:,;]+$", "", text).strip()
         out[field] = text
