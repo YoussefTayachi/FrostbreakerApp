@@ -10,6 +10,8 @@ import { sendEmail } from "@/lib/email";
 import { detectOptOut } from "@/lib/crm/opt-out";
 import { classificationInput } from "@/lib/crm/interest";
 import { detectAutoReply } from "@/lib/crm/auto-reply";
+import { parseReturnDate, toIsoDate } from "@/lib/crm/ooo-date";
+import { ensureHistoryContact } from "@/lib/wiederkontakt-server";
 import { emailBodyText } from "@/lib/instantly/email-body";
 import { parseStepRef } from "@/lib/instantly/step-ref";
 import { runDeliverabilityCheck } from "@/lib/deliverability";
@@ -37,6 +39,7 @@ export const maxDuration = 60;
 const STATUS_RANK: Record<string, number> = {
   new: 0,
   contacted: 1,
+  out_of_office: 1,
   not_interested: 1,
   replied: 2,
   lead: 3,
@@ -360,6 +363,19 @@ async function processEmail(
   const optOut = inbound ? detectOptOut(bodyText, email.subject ?? null) : { optOut: false, phrase: null };
 
   /**
+   * Abwesenheitsnotiz ohne Kontakt: den Kontakt anlegen.
+   *
+   * Die Leads aus Instantlys aelteren Kampagnen wurden nie in Frostbreaker
+   * angelegt (161 von 165 Abwesenheitsantworten am 2026-09-25 ohne
+   * contact_id). Ohne Kontakt gibt es keinen Ort fuer das Rueckkehrdatum und
+   * keinen Weg in die Wiederkontakt-Liste. Nur fuer Abwesenheitsnotizen:
+   * eine echte Antwort ohne Kontakt bleibt, wie sie war, im Posteingang.
+   */
+  if (inbound && !contact && auto.autoReply && leadEmail) {
+    contact = await ensureHistoryContact(supabase, workspaceId, leadEmail);
+  }
+
+  /**
    * DIE EINSTUFUNG HAENGT NICHT AM CRM-KONTAKT.
    *
    * Bis zum 2026-09-22 stand hier zusaetzlich `contact &&`, mit der
@@ -437,7 +453,11 @@ async function processEmail(
   if (contact && direction === "inbound") {
     const vorher = STATUS_RANK[contact.outreach_status] ?? 0;
 
-    const err = await applyInterestToContact(supabase, contact, aiInterest);
+    const err = await applyInterestToContact(supabase, contact, aiInterest, {
+      subject: email.subject ?? null,
+      body: bodyText,
+      received: email.timestamp_email ? new Date(email.timestamp_email) : new Date(),
+    });
     if (err) return err;
 
     // Nur bei der ERSTEN Antwort eines Kontakts benachrichtigen, unabhaengig
@@ -445,7 +465,11 @@ async function processEmail(
     // Bedingung haengt am Rang VOR dieser Mail, der genau einmal unterhalb
     // von 'replied' liegt; ohne sie meldete ein Hin und Her im selben Thread
     // jedes Mal erneut.
-    if (vorher < STATUS_RANK.replied && options.notify !== false) {
+    //
+    // Eine Abwesenheitsnotiz ist keine Antwort und wird nicht gemeldet: sie
+    // liegt im Rang unter 'replied', die naechste echte Mail meldet sich
+    // also weiterhin als erste.
+    if (vorher < STATUS_RANK.replied && aiInterest !== "out_of_office" && options.notify !== false) {
       await notifyReply(supabase, workspaceId, leadEmail, email.subject ?? "", bodyText);
     }
   }
@@ -484,8 +508,35 @@ async function processEmail(
 async function applyInterestToContact(
   supabase: SupabaseClient,
   contact: { id: string; outreach_status: string },
-  aiInterest: string | null
+  aiInterest: string | null,
+  mail?: { subject: string | null; body: string; received: Date }
 ): Promise<string | null> {
+  /**
+   * Abwesenheitsnotiz: Rueckkehrdatum an den Kontakt, Stufe 'out_of_office'.
+   *
+   * Nur von 'new', 'contacted', 'out_of_office' oder 'replied' aus. Wer schon
+   * Lead ist, bleibt Lead und bekommt nur das Datum; wer abgesagt hat, bleibt
+   * abgesagt. 'replied' faellt ZURUECK auf 'out_of_office': vor Migration
+   * 0123 setzte der Sync die Abwesenheitsnotiz selbst auf 'replied', und
+   * genau diese Kontakte holt der Nachlauf (backfillOutOfOffice) so wieder in
+   * die Wiederkontakt-Liste. Eine echte Antwort neben der Notiz hebt den
+   * Kontakt beim naechsten Durchlauf ohnehin wieder an.
+   */
+  if (aiInterest === "out_of_office") {
+    const received = mail?.received ?? new Date();
+    const r = parseReturnDate(mail?.subject, mail?.body, received);
+    const patch: Record<string, unknown> = {
+      ooo_until: toIsoDate(r.date),
+      ooo_estimated: r.estimated,
+      ooo_seen_at: received.toISOString(),
+    };
+    if ((STATUS_RANK[contact.outreach_status] ?? 0) <= STATUS_RANK.replied && contact.outreach_status !== "not_interested") {
+      patch.outreach_status = "out_of_office";
+    }
+    const { error } = await supabase.from("contacts").update(patch).eq("id", contact.id);
+    return error ? `contact ooo update ${contact.id}: ${error.message}` : null;
+  }
+
   const ziel =
     aiInterest === "not_interested"
       ? "not_interested"
@@ -561,7 +612,7 @@ async function classifyBacklog(
 
   const { data, error } = await supabase
     .from("messages")
-    .select("id, contact_id, from_email, subject, body")
+    .select("id, contact_id, from_email, subject, body, sent_at")
     .eq("workspace_id", workspaceId)
     .eq("direction", "inbound")
     .is("ai_interest", null)
@@ -625,7 +676,11 @@ async function classifyBacklog(
         .limit(1);
       const contact = contactRows?.[0];
       if (contact) {
-        const err = await applyInterestToContact(supabase, contact, label);
+        const err = await applyInterestToContact(supabase, contact, label, {
+          subject,
+          body: bodyText,
+          received: row.sent_at ? new Date(row.sent_at as string) : new Date(),
+        });
         if (err) errors.push(err);
       }
     }

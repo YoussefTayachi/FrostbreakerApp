@@ -24,9 +24,20 @@
  * Ohne diese Spalte gibt es zwischen "hat geantwortet" und "Termin steht"
  * keinen Platz, und genau dort spielt sich das Geschaeft ab.
  */
+/**
+ * 'out_of_office' steht neben 'contacted', nicht ueber 'replied'.
+ *
+ * Bis Migration 0123 setzte eine Abwesenheitsnotiz den Kontakt auf 'replied',
+ * und 'replied' zaehlt in lib/contacts.ts als "hat reagiert": der Kontakt fiel
+ * aus jeder kuenftigen Kampagne. Gemessen am 2026-09-25 im retaiyn-Workspace:
+ * 165 Abwesenheitsantworten, keine je wieder angeschrieben. Der eigene Status
+ * haelt sie sichtbar und traegt das Rueckkehrdatum (contacts.ooo_until); die
+ * Wiederkontakt-Liste (lib/wiederkontakt.ts) liest genau diese Stufe.
+ */
 export const OUTREACH_STAGES = [
   "new",
   "contacted",
+  "out_of_office",
   "replied",
   "lead",
   "meeting_booked",
@@ -52,6 +63,7 @@ export function isOutreachStage(value: string): value is OutreachStage {
 const STAGE_RANK: Record<OutreachStage, number> = {
   new: 0,
   contacted: 1,
+  out_of_office: 1,
   not_interested: 1,
   replied: 2,
   lead: 3,
@@ -68,6 +80,10 @@ export const STAGE_SELECT_CLS: Record<OutreachStage, string> = {
   new: "border-edge2 bg-chip text-soft",
   contacted:
     "border-blue-300 bg-blue-50 text-blue-700 dark:border-blue-500/30 dark:bg-blue-500/10 dark:text-blue-300",
+  // Grau mit Rand statt einer Signalfarbe: Abwesenheit ist kein Fortschritt
+  // und kein Rueckschlag, nur ein Datum, an dem es weitergeht.
+  out_of_office:
+    "border-zinc-300 bg-zinc-50 text-zinc-700 dark:border-zinc-500/30 dark:bg-zinc-500/10 dark:text-zinc-300",
   replied:
     "border-sky-300 bg-sky-50 text-sky-700 dark:border-sky-500/30 dark:bg-sky-500/10 dark:text-sky-300",
   // Bernstein zwischen dem Blau der Antwort und dem Violett des Termins: eine
@@ -86,6 +102,7 @@ export const STAGE_SELECT_CLS: Record<OutreachStage, string> = {
 export const STAGE_DOT_CLS: Record<OutreachStage, string> = {
   new: "bg-mute",
   contacted: "bg-blue-500",
+  out_of_office: "bg-zinc-400",
   replied: "bg-sky-500",
   lead: "bg-amber-500",
   meeting_booked: "bg-violet-500",

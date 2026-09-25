@@ -132,6 +132,7 @@ export default function Nav() {
       parent: { href: "/instantly", label: t.nav.instantly, icon: IconSend },
       children: [
         { href: "/inbox", label: t.nav.inbox, icon: IconInbox, badge: unread },
+        { href: "/wiederkontakt", label: t.nav.wiederkontakt, icon: IconUsers },
         { href: "/wirkung", label: t.nav.effectiveness, icon: IconChart },
         // Unter der Wirkung und nicht darueber: die Wirkung beantwortet "was
         // funktioniert", die Provision "was davon war meins". Die zweite

@@ -86,7 +86,11 @@ export function splitBySendability<T extends { email_verification_status: string
  * 'not_interested'. Wer geantwortet hatte, landete in jeder neuen Kampagne
  * derselben Suche erneut.
  */
-const ENGAGED_STATUS = new Set(["replied", "lead", "meeting_booked", "customer", "not_interested"]);
+// 'out_of_office' gehoert dazu: wer im Urlaub ist, bekommt keine zweite
+// Kaltmail in den vollen Posteingang, sondern nach der Rueckkehr die
+// Wiederkontakt-Mail (lib/wiederkontakt.ts), und die geht ueber eine Kopie
+// mit Status 'new' in einer eigenen Liste.
+const ENGAGED_STATUS = new Set(["replied", "lead", "meeting_booked", "customer", "not_interested", "out_of_office"]);
 
 export function isColdContactable(status: string | null | undefined): boolean {
   return !ENGAGED_STATUS.has(status ?? "new");
