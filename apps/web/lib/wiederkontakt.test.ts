@@ -48,8 +48,11 @@ describe("Namen und Sequenz", () => {
   it("hat drei Stufen mit einem Tag Abstand, eigenem Angebot je Stufe und der Signatur des Absenders", () => {
     const steps = reengageSteps("ramy");
     expect(steps.map((s) => s.wait_days)).toEqual([0, 1, 1]);
-    expect(steps[0].body).toContain("I wrote while you were out");
-    expect(steps[1].body).toContain("segmentation");
+    expect(steps[0].body).toContain("second purchase");
+    expect(steps[0].body).toContain("free 5-minute video audit");
+    expect(steps.every((s) => s.subject.length > 0)).toBe(true);
+    expect(steps[0].subject).not.toMatch(/while you were out/i);
+    expect(steps[1].body).toContain("repeat buyers");
     expect(steps[2].body).toContain("audit");
     for (const s of steps) {
       expect(s.body).toContain("ramy@retaiyn.com");

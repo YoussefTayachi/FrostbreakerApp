@@ -89,11 +89,16 @@ const SIGNATURE: Record<Sender, string> = {
     "Kind regards from Vienna,\nRamy Tichy\nCRO & Co-Founder\nramy@retaiyn.com\n+1 (283) 300-4592\nlinkedin.com/in/ramy-tichy\nReply \"stop\" and I'll take you off the list.",
 };
 
+
 /**
- * Die Wiederkontakt-Sequenz: drei Stufen, ein Tag Abstand, jede mit einem
- * anderen Angebot (Regel vom 2026-09-24: nie "bumping", immer neuer Wert).
- * Stufe 1 nennt den ersten Versuch beim Namen; das ist der Grund, warum die
- * Mail jetzt kommt, und kein Trick.
+ * Die Wiederkontakt-Sequenz: drei Stufen, ein Tag Abstand, jede mit eigenem
+ * Winkel (Regel vom 2026-09-24: nie "bumping", immer neuer Wert).
+ *
+ * Format und CTA nach der Mail an Persona Nutrition vom 2026-09-23, die zu
+ * einem Termin fuehrte: ein Satz zum Umsatz im zweiten Kauf, ein Satz zu
+ * dem, was wir bauen, dann das kostenlose 5-Minuten-Video-Audit. "your shop"
+ * statt Firmenname: bei den Kontakten aus Instantlys Historie ist nur die
+ * Domain bekannt. Jede Stufe hat einen eigenen Betreff (Youssef, 2026-09-25).
  */
 export function reengageSteps(sender: Sender) {
   const sig = SIGNATURE[sender];
@@ -101,27 +106,27 @@ export function reengageSteps(sender: Sender) {
     {
       step_order: 0,
       wait_days: 0,
-      subject: "while you were out",
+      subject: "the second purchase",
       body:
-        "Hey {{firstName}},\n\nI wrote while you were out, so once more, short: we run email marketing for 200+ ecommerce shops and know how to lift revenue from the customers you already have by up to 30%.\n\nWant to see how that works for you? Just reply yes.\n\n" +
+        "Hey {{firstName}},\n\nYour shop's revenue sits in the second purchase, and it only happens when the right buyer group gets the right email at the right moment. With Q4 weeks away, that is the fastest revenue you can still unlock.\n\nWe build exactly that, for 200+ ecommerce brands.\n\nCan I send you a free 5-minute video audit of your Klaviyo emails, with the segments I'd build first for your shop?\n\n" +
         sig,
       variants: [] as { subject: string; body: string }[],
     },
     {
       step_order: 1,
       wait_days: 1,
-      subject: "",
+      subject: "first-time vs repeat buyers",
       body:
-        "Hey {{firstName}},\n\nYou are a good fit for what we do. When email brings less than it should, the reason is almost always segmentation: everyone gets the same email, so the right customer never gets the right one.\n\nI will tell you for free how to fix that in your shop. Reply yes.\n\n" +
+        "Hey {{firstName}},\n\nThe first thing I check in a shop's Klaviyo emails: do first-time buyers and repeat buyers get different emails? When they don't, the second purchase is left to chance.\n\nSplitting those two groups is the fastest lift we know, up to 30% more revenue from customers you already have.\n\nCan I show you in a free 5-minute video how that looks for your shop?\n\n" +
         sig,
       variants: [],
     },
     {
       step_order: 2,
       wait_days: 1,
-      subject: "",
+      subject: "3 fixes for your flows",
       body:
-        "Hey {{firstName}},\n\nLast one from me: we audit your email marketing for free and send you three concrete points you can improve right away, no call needed.\n\nReply yes and it is yours within two days.\n\n" +
+        "Hey {{firstName}},\n\nLast one from me. The free audit is still yours: a 5-minute video with three concrete points you can change in your Klaviyo emails right away, no call needed.\n\nReply yes and you have it within two days.\n\n" +
         sig,
       variants: [],
     },
