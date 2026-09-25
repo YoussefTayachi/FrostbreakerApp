@@ -87,6 +87,45 @@ export function estimateReturn(received: Date): Date {
   return new Date(received.getTime() + 14 * 24 * 3600 * 1000);
 }
 
+const WEEKDAYS: Record<string, number> = {
+  sunday: 0, monday: 1, tuesday: 2, wednesday: 3, thursday: 4, friday: 5, saturday: 6,
+  sonntag: 0, montag: 1, dienstag: 2, mittwoch: 3, donnerstag: 4, freitag: 5, samstag: 6,
+};
+const WEEKDAY_RE = Object.keys(WEEKDAYS).join("|");
+
+/** "back on Wednesday", "returning Monday": der naechste solche Tag nach Eingang.
+ *  Nicht, wenn ein Datum folgt ("returning Wednesday 9th September"). */
+const ON_WEEKDAY = new RegExp(
+  `(?:back|return(?:ing)?|returns?|zur[uü]ck)(?:\\s+(?:in|to)\\s+(?:the\\s+)?office)?\\s*(?:on|am)?\\s*` +
+    `(?<wd>${WEEKDAY_RE})\\b(?!,?\\s*(?:\\d|(?:${MONTH_RE})\\b))`,
+  "i"
+);
+
+/** "back in the office in April 2027": der Erste des Monats. */
+const IN_MONTH = new RegExp(
+  `(?:back|return(?:ing)?|returns?|zur[uü]ck)[^.]{0,30}?\\b(?:in|im|ab)\\s+(?<m>${MONTH_RE})\\b(?:\\s+(?<y>\\d{4}))?`,
+  "i"
+);
+
+/**
+ * Offene lange Abwesenheit ohne Datum: Elternzeit, "until further notice".
+ * Zwei Wochen waeren hier falsch; vier Monate, als geschaetzt markiert.
+ * Gesehen am 2026-09-25: "on maternity leave until further notice".
+ */
+const LONG_LEAVE = /\b(?:maternity|paternity|parental)\s+leave\b|\buntil further notice\b|\bsabbatical\b|\belternzeit\b|\bmutterschutz\b/i;
+
+/**
+ * Nicht abwesend, sondern weg: "I have now left the business", "no longer
+ * with the company". Diese Kontakte bekommen keinen Wiederkontakt. Gesehen
+ * am 2026-09-25 zwischen den Abwesenheitsnotizen.
+ */
+const LEFT_COMPANY =
+  /\b(?:(?:have|has)\s+(?:now\s+)?left\s+(?:the\s+)?(?:business|company|organi[sz]ation|team)|no longer (?:with|at|works? (?:for|at)|working (?:for|at))|left the business|nicht mehr (?:im|bei|f[uü]r)|hat das unternehmen verlassen)\b/i;
+
+export function hasLeftCompany(subject: string | null | undefined, body: string | null | undefined): boolean {
+  return LEFT_COMPANY.test(`${subject ?? ""} ${body ?? ""}`.replace(/\s+/g, " "));
+}
+
 export function parseReturnDate(subject: string | null | undefined, body: string | null | undefined, received: Date): ReturnDate {
   const text = `${subject ?? ""}\n${body ?? ""}`.replace(/\s+/g, " ");
   const on = ON_DAY.exec(text);
@@ -103,6 +142,22 @@ export function parseReturnDate(subject: string | null | undefined, body: string
   if (through?.groups) {
     const d = toDate(through.groups, received);
     if (d) return { date: new Date(d.getTime() + 24 * 3600 * 1000), estimated: false };
+  }
+  const wd = ON_WEEKDAY.exec(text);
+  if (wd?.groups?.wd) {
+    const ziel = WEEKDAYS[wd.groups.wd.toLowerCase()];
+    const d = new Date(Date.UTC(received.getUTCFullYear(), received.getUTCMonth(), received.getUTCDate()));
+    const diff = (ziel - d.getUTCDay() + 7) % 7 || 7;
+    d.setUTCDate(d.getUTCDate() + diff);
+    return { date: d, estimated: false };
+  }
+  const im = IN_MONTH.exec(text);
+  if (im?.groups?.m) {
+    const d = toDate({ m1: im.groups.m, d1: "1", y1: im.groups.y }, received);
+    if (d) return { date: d, estimated: false };
+  }
+  if (LONG_LEAVE.test(text)) {
+    return { date: new Date(received.getTime() + 120 * 24 * 3600 * 1000), estimated: true };
   }
   return { date: estimateReturn(received), estimated: true };
 }

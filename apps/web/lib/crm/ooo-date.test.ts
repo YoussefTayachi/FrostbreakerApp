@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { estimateReturn, isoWeekStart, parseReturnDate, toIsoDate } from "./ooo-date";
+import { estimateReturn, hasLeftCompany, isoWeekStart, parseReturnDate, toIsoDate } from "./ooo-date";
 
 const eingang = new Date("2026-09-24T12:00:00Z");
 
@@ -52,5 +52,34 @@ describe("isoWeekStart", () => {
     expect(isoWeekStart(new Date("2026-10-06T00:00:00Z"))).toBe("2026-10-05"); // Dienstag
     expect(isoWeekStart(new Date("2026-10-05T00:00:00Z"))).toBe("2026-10-05"); // Montag
     expect(isoWeekStart(new Date("2026-10-11T00:00:00Z"))).toBe("2026-10-05"); // Sonntag
+  });
+});
+
+describe("Formen aus den echten Notizen (2026-09-25)", () => {
+  it("liest einen blossen Wochentag als den naechsten solchen Tag", () => {
+    const r = parseReturnDate(null, "I am away from my desk - back on Wednesday and will get back to you then.", new Date("2026-09-15T12:00:00Z"));
+    expect(toIsoDate(r.date)).toBe("2026-09-16");
+    expect(r.estimated).toBe(false);
+  });
+
+  it("nimmt den Wochentag vor einem Datum nicht als bloßen Wochentag", () => {
+    expect(toIsoDate(parseReturnDate(null, "returning Wednesday 9th September.", new Date("2026-08-31T12:00:00Z")).date)).toBe("2026-09-09");
+  });
+
+  it("liest 'in April 2027' als den Ersten des Monats", () => {
+    const r = parseReturnDate(null, "I'm now on Maternity Leave and will be back in the office in April 2027.", eingang);
+    expect(toIsoDate(r.date)).toBe("2027-04-01");
+  });
+
+  it("schaetzt offene Elternzeit lang statt zwei Wochen", () => {
+    const r = parseReturnDate(null, "I am on maternity leave until further notice.", eingang);
+    expect(r.estimated).toBe(true);
+    expect(r.date.getTime() - eingang.getTime()).toBeGreaterThan(90 * 24 * 3600 * 1000);
+  });
+
+  it("erkennt, wer das Unternehmen verlassen hat", () => {
+    expect(hasLeftCompany("Left the Business", "Hi There, I have now left the business. Please contact Jamal")).toBe(true);
+    expect(hasLeftCompany(null, "Sarah is no longer with the company.")).toBe(true);
+    expect(hasLeftCompany(null, "I am out of the office until October 5th.")).toBe(false);
   });
 });

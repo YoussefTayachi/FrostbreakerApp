@@ -9,7 +9,7 @@
  * auf welche Accounts jemand zugreifen darf (CLAUDE.md).
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { parseReturnDate, toIsoDate } from "./crm/ooo-date";
+import { hasLeftCompany, parseReturnDate, toIsoDate } from "./crm/ooo-date";
 import { bucketName, groupByWeek, reengageSteps, senderOfMailbox, type Sender, type WaitingContact } from "./wiederkontakt";
 
 export type WaitingRow = WaitingContact & {
@@ -336,19 +336,25 @@ export async function ensureHistoryContact(
  * Datumserkennung, Kontakte anlegen, wo keine sind. Laeuft einmal nach
  * Migration 0123 und bei Bedarf wieder; idempotent.
  */
-export async function backfillOutOfOffice(supabase: SupabaseClient, workspaceId: string): Promise<{ messages: number; contacts: number; created: number }> {
+export async function backfillOutOfOffice(supabase: SupabaseClient, workspaceId: string): Promise<{ messages: number; contacts: number; created: number; left: number }> {
   const { data: msgs } = await supabase
     .from("messages")
     .select("id, contact_id, from_email, subject, body, sent_at, created_at")
     .eq("workspace_id", workspaceId)
     .eq("direction", "inbound")
     .eq("ai_interest", "out_of_office")
-    .order("created_at", { ascending: true })
+    // Neueste zuerst: gilt je Kontakt die juengste Notiz, nicht die aelteste.
+    .order("sent_at", { ascending: false, nullsFirst: false })
     .limit(5000);
   let contacts = 0;
   let created = 0;
   const gesehen = new Set<string>();
+  let left = 0;
   for (const m of (msgs ?? []) as { id: string; contact_id: string | null; from_email: string | null; subject: string | null; body: string | null; sent_at: string | null; created_at: string }[]) {
+    if (hasLeftCompany(m.subject, m.body)) {
+      left++;
+      continue;
+    }
     let contact: { id: string; outreach_status: string } | null = null;
     if (m.contact_id) {
       const { data } = await supabase.from("contacts").select("id, outreach_status").eq("id", m.contact_id).maybeSingle();
@@ -366,7 +372,7 @@ export async function backfillOutOfOffice(supabase: SupabaseClient, workspaceId:
     const err = await markOutOfOffice(supabase, contact, { until: toIsoDate(r.date), estimated: r.estimated, seenAt: received.toISOString() });
     if (!err) contacts++;
   }
-  return { messages: (msgs ?? []).length, contacts, created };
+  return { messages: (msgs ?? []).length, contacts, created, left };
 }
 
 const RANK: Record<string, number> = { new: 0, contacted: 1, out_of_office: 1, not_interested: 1, replied: 2, lead: 3, meeting_booked: 4, customer: 5 };

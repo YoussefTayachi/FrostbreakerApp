@@ -10,7 +10,7 @@ import { sendEmail } from "@/lib/email";
 import { detectOptOut } from "@/lib/crm/opt-out";
 import { classificationInput } from "@/lib/crm/interest";
 import { detectAutoReply } from "@/lib/crm/auto-reply";
-import { parseReturnDate, toIsoDate } from "@/lib/crm/ooo-date";
+import { hasLeftCompany, parseReturnDate, toIsoDate } from "@/lib/crm/ooo-date";
 import { ensureHistoryContact } from "@/lib/wiederkontakt-server";
 import { emailBodyText } from "@/lib/instantly/email-body";
 import { parseStepRef } from "@/lib/instantly/step-ref";
@@ -371,7 +371,7 @@ async function processEmail(
    * keinen Weg in die Wiederkontakt-Liste. Nur fuer Abwesenheitsnotizen:
    * eine echte Antwort ohne Kontakt bleibt, wie sie war, im Posteingang.
    */
-  if (inbound && !contact && auto.autoReply && leadEmail) {
+  if (inbound && !contact && auto.autoReply && leadEmail && !hasLeftCompany(email.subject, bodyText)) {
     contact = await ensureHistoryContact(supabase, workspaceId, leadEmail);
   }
 
@@ -523,6 +523,9 @@ async function applyInterestToContact(
    * Kontakt beim naechsten Durchlauf ohnehin wieder an.
    */
   if (aiInterest === "out_of_office") {
+    // Wer das Unternehmen verlassen hat, kommt nicht zurueck: kein Datum,
+    // keine Stufe. Der Kontakt bleibt, wie er war.
+    if (hasLeftCompany(mail?.subject, mail?.body)) return null;
     const received = mail?.received ?? new Date();
     const r = parseReturnDate(mail?.subject, mail?.body, received);
     const patch: Record<string, unknown> = {
