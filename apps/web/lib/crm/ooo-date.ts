@@ -120,7 +120,7 @@ const LONG_LEAVE = /\b(?:maternity|paternity|parental)\s+leave\b|\buntil further
  * am 2026-09-25 zwischen den Abwesenheitsnotizen.
  */
 const LEFT_COMPANY =
-  /\b(?:(?:have|has)\s+(?:now\s+)?left\s+(?:the\s+)?(?:business|company|organi[sz]ation|team)|no longer (?:with|at|works? (?:for|at)|working (?:for|at))|left the business|nicht mehr (?:im|bei|f[uü]r)|hat das unternehmen verlassen)\b/i;
+  /\b(?:(?:have|has)\s+(?:now\s+)?left\s+(?:the\s+)?(?:business|company|organi[sz]ation|team)|no longer (?:with|at|works? (?:for|at)|working (?:for|at)|checking this inbox|monitored)|left the business|wrapped up my time|does not work (?:at|for) [^.]{1,60}? any ?longer|(?:does not|no longer) ha(?:ve|s) access to this (?:email|e-mail|inbox)|nicht mehr (?:im|bei|f[uü]r)|hat das unternehmen verlassen)\b/i;
 
 export function hasLeftCompany(subject: string | null | undefined, body: string | null | undefined): boolean {
   return LEFT_COMPANY.test(`${subject ?? ""} ${body ?? ""}`.replace(/\s+/g, " "));

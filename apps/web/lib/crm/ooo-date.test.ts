@@ -80,6 +80,9 @@ describe("Formen aus den echten Notizen (2026-09-25)", () => {
   it("erkennt, wer das Unternehmen verlassen hat", () => {
     expect(hasLeftCompany("Left the Business", "Hi There, I have now left the business. Please contact Jamal")).toBe(true);
     expect(hasLeftCompany(null, "Sarah is no longer with the company.")).toBe(true);
+    expect(hasLeftCompany(null, "As of October 31st, I've wrapped up my time at Ceremony Coffee Roasters and am no longer checking this inbox.")).toBe(true);
+    expect(hasLeftCompany("This person does not have access to this email address", "This person does not work at MenScience any longer.")).toBe(true);
     expect(hasLeftCompany(null, "I am out of the office until October 5th.")).toBe(false);
+    expect(hasLeftCompany(null, "I am out of the office on a fabulous much needed vacation.")).toBe(false);
   });
 });
