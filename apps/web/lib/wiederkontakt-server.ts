@@ -104,7 +104,7 @@ async function mailboxesFor(supabase: SupabaseClient, workspaceId: string, sende
 const BUSINESS_COPY = "name, website, address, phone_national, phone_international, company_summary, personalization, website_finding";
 /** Spalten, die vom Kontakt in die Kopie wandern. */
 const CONTACT_COPY =
-  "email, first_name, last_name, full_name, title, seniority, department, linkedin, custom, person_finding, person_snippets, person_finding_source, person_finding_status";
+  "source, email_type, email, first_name, last_name, full_name, title, seniority, department, linkedin, custom, person_finding, person_snippets, person_finding_source, person_finding_status";
 
 export type BucketResult = { search_id: string; campaign_id: string; name: string; copied: number; existed: boolean };
 
@@ -182,7 +182,10 @@ export async function createBucket(
       person_finding_needs_review: false,
       reengaged_from_contact_id: contactId,
     });
-    if (cErr) continue;
+    if (cErr) {
+      console.error("wiederkontakt: Kopie", contactId, cErr.message);
+      continue;
+    }
     await supabase.from("contacts").update({ reengaged_at: new Date().toISOString() }).eq("id", contactId);
     copied++;
   }
@@ -307,7 +310,7 @@ export async function ensureHistoryContact(
   const vorname = /^[a-z]{3,}$/.test(teil) && !/^(info|hello|hi|team|office|contact|support|sales|admin|mail)$/.test(teil)
     ? teil[0].toUpperCase() + teil.slice(1)
     : "there";
-  const { data: kontakt } = await supabase
+  const { data: kontakt, error: kErr } = await supabase
     .from("contacts")
     .insert({
       workspace_id: workspaceId,
@@ -316,10 +319,15 @@ export async function ensureHistoryContact(
       first_name: vorname,
       full_name: vorname,
       is_primary: true,
+      // contacts.source kennt nur hunter, ai_websearch, apollo, manual und
+      // prospeo (CHECK); ohne Wert scheiterte am 2026-09-25 jede dieser 149
+      // Zeilen stumm am NOT NULL.
+      source: "manual",
       outreach_status: "contacted",
     })
     .select("id, outreach_status")
     .single();
+  if (kErr) console.error("wiederkontakt: Historie-Kontakt", adresse, kErr.message);
   return kontakt ?? null;
 }
 
