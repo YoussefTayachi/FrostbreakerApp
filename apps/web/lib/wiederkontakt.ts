@@ -34,12 +34,49 @@ export type WaitingContact = {
   /** Postfach, von dem die erste Mail ging (messages.eaccount); leer, wenn
    *  die Abwesenheitsnotiz ohne ausgehende Mail bekannt ist. */
   eaccount: string | null;
+  /** Herkunft fuer das Sendefenster (regionOf); ohne Angabe "us". */
+  region?: Region;
+};
+
+export type Region = "us" | "uk";
+
+/**
+ * Woher ein Wartender kommt, fuer das Sendefenster.
+ *
+ * Gemessen am 2026-09-25 an den 114 Abwesenden im retaiyn-Workspace: 35 mit
+ * .co.uk/.uk-Domain, 19 weitere mit britischen Hinweisen in der Notiz
+ * ("annual leave", +44), 56 mit .com aus den alten Kampagnen "BERAT_SMBs
+ * WhatsApp Marketing" und "RAMY_SMBs WhatsApp Marketing", die auf
+ * europaeischer Zeit (09:00 bis 12:00) liefen, und nur 3 aus einer US-Kampagne.
+ * Also: britische Domain oder Herkunft ohne US-Kampagne heisst "uk"; wer aus
+ * einer Kampagne mit amerikanischer Zeitzone kam, heisst "us".
+ */
+export function regionOf(email: string | null | undefined, campaignTimezone: string | null | undefined): Region {
+  const domain = (email ?? "").toLowerCase().split("@")[1] ?? "";
+  if (/\.(co\.uk|uk)$/.test(domain)) return "uk";
+  if (campaignTimezone && /^America\//.test(campaignTimezone)) return "us";
+  return "uk";
+}
+
+/**
+ * Sendefenster je Herkunft.
+ *
+ * US wie jede andere retaiyn-Kampagne (08:00 bis 17:00 New York, Detroit ist
+ * Instantlys Name dafuer). UK: der britische Vormittag, 08:00 bis 12:00
+ * London, das ist 09:00 bis 13:00 in Wien und trifft damit auch die
+ * Leads vom Kontinent am Vormittag. Europe/Isle_of_Man ist Instantlys Name
+ * fuer britische Zeit samt Sommerzeit (TIMEZONE_ALIASES).
+ */
+export const REGION_SCHEDULE: Record<Region, { timezone: string; from: string; to: string; label: string }> = {
+  us: { timezone: "America/Detroit", from: "08:00", to: "17:00", label: "US" },
+  uk: { timezone: "Europe/Isle_of_Man", from: "08:00", to: "12:00", label: "UK" },
 };
 
 export type WeekBucket<T extends WaitingContact> = {
   /** Montag der ISO-Woche, "YYYY-MM-DD". */
   week: string;
   sender: Sender;
+  region: Region;
   contacts: T[];
 };
 
@@ -60,17 +97,22 @@ export function groupByWeek<T extends WaitingContact>(contacts: T[], today: Date
     let week = isoWeekStart(new Date(c.ooo_until + "T00:00:00Z"));
     if (week < current) week = current;
     const sender = senderOfMailbox(c.eaccount);
-    const key = `${week}|${sender}`;
-    const bucket = map.get(key) ?? { week, sender, contacts: [] };
+    const region = c.region ?? "us";
+    const key = `${week}|${sender}|${region}`;
+    const bucket = map.get(key) ?? { week, sender, region, contacts: [] };
     bucket.contacts.push(c);
     map.set(key, bucket);
   }
-  return [...map.values()].sort((a, b) => (a.week === b.week ? a.sender.localeCompare(b.sender) : a.week.localeCompare(b.week)));
+  return [...map.values()].sort(
+    (a, b) =>
+      a.week.localeCompare(b.week) || a.sender.localeCompare(b.sender) || b.region.localeCompare(a.region)
+  );
 }
 
-/** "yoyo Klaviyo | Wiederkontakt KW 41 | Berat" */
-export function bucketName(week: string, sender: Sender): string {
-  return `yoyo Klaviyo | Wiederkontakt KW ${isoWeekNumber(week)} | ${sender === "berat" ? "Berat" : "Ramy"}`;
+/** "yoyo Klaviyo | Wiederkontakt KW 41 | UK | Berat", Region wie im Namensschema der Kampagnen. */
+export function bucketName(week: string, sender: Sender, region?: Region): string {
+  const r = region ? ` | ${REGION_SCHEDULE[region].label}` : "";
+  return `yoyo Klaviyo | Wiederkontakt KW ${isoWeekNumber(week)}${r} | ${sender === "berat" ? "Berat" : "Ramy"}`;
 }
 
 export function isoWeekNumber(isoDate: string): number {

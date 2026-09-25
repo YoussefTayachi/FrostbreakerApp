@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { bucketName, groupByWeek, isoWeekNumber, reengageSteps, senderOfMailbox } from "./wiederkontakt";
+import { bucketName, groupByWeek, isoWeekNumber, reengageSteps, regionOf, REGION_SCHEDULE, senderOfMailbox } from "./wiederkontakt";
 
 describe("senderOfMailbox", () => {
   it("ordnet die retaiyn-Postfaecher dem richtigen Absender zu", () => {
@@ -59,5 +59,31 @@ describe("Namen und Sequenz", () => {
       expect(s.body).not.toMatch(/\b(would|could|might|maybe|probably|bumping|following up)\b/i);
     }
     expect(reengageSteps("berat")[0].body).toContain("berat@retaiyn.com");
+  });
+});
+
+describe("Herkunft und Sendefenster", () => {
+  it("ordnet UK-Domains und alte EU-Kampagnen UK zu, US-Kampagnen US", () => {
+    expect(regionOf("jo@shop.co.uk", "America/Detroit")).toBe("uk");
+    expect(regionOf("jo@shop.com", "America/Detroit")).toBe("us");
+    expect(regionOf("jo@shop.com", null)).toBe("uk");
+    expect(regionOf("jo@shop.com", "Arctic/Longyearbyen")).toBe("uk");
+  });
+
+  it("trennt dieselbe Woche und denselben Absender nach Herkunft", () => {
+    const g = groupByWeek(
+      [
+        { id: "a", ooo_until: "2026-10-06", ooo_estimated: false, eaccount: "berat@retaiyn.de", region: "uk" },
+        { id: "b", ooo_until: "2026-10-06", ooo_estimated: false, eaccount: "berat@retaiyn.de", region: "us" },
+      ],
+      new Date("2026-09-25T10:00:00Z")
+    );
+    expect(g.map((b) => b.region)).toEqual(["us", "uk"]);
+    expect(bucketName(g[1].week, "berat", "uk")).toBe("yoyo Klaviyo | Wiederkontakt KW 41 | UK | Berat");
+  });
+
+  it("sendet UK am britischen Vormittag, US im New Yorker Arbeitstag", () => {
+    expect(REGION_SCHEDULE.uk).toMatchObject({ timezone: "Europe/Isle_of_Man", from: "08:00", to: "12:00" });
+    expect(REGION_SCHEDULE.us).toMatchObject({ timezone: "America/Detroit", from: "08:00", to: "17:00" });
   });
 });

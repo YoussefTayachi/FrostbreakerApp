@@ -10,7 +10,17 @@
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { hasLeftCompany, parseReturnDate, toIsoDate } from "./crm/ooo-date";
-import { bucketName, groupByWeek, reengageSteps, senderOfMailbox, type Sender, type WaitingContact } from "./wiederkontakt";
+import {
+  bucketName,
+  groupByWeek,
+  reengageSteps,
+  regionOf,
+  REGION_SCHEDULE,
+  senderOfMailbox,
+  type Region,
+  type Sender,
+  type WaitingContact,
+} from "./wiederkontakt";
 
 export type WaitingRow = WaitingContact & {
   first_name: string | null;
@@ -63,9 +73,13 @@ export async function loadWaiting(supabase: SupabaseClient, workspaceId: string)
   }
   const campaignIds = [...new Set([...eaccountOf.values()].map((v) => v.campaign_id).filter(Boolean))] as string[];
   const nameOf = new Map<string, string>();
+  const tzOf = new Map<string, string | null>();
   if (campaignIds.length) {
-    const { data: camps } = await supabase.from("campaigns").select("id, name").in("id", campaignIds);
-    for (const c of (camps ?? []) as { id: string; name: string }[]) nameOf.set(c.id, c.name);
+    const { data: camps } = await supabase.from("campaigns").select("id, name, timezone").in("id", campaignIds);
+    for (const c of (camps ?? []) as { id: string; name: string; timezone: string | null }[]) {
+      nameOf.set(c.id, c.name);
+      tzOf.set(c.id, c.timezone);
+    }
   }
   return rows.map((r) => {
     const b = Array.isArray(r.businesses) ? r.businesses[0] : r.businesses;
@@ -81,6 +95,7 @@ export async function loadWaiting(supabase: SupabaseClient, workspaceId: string)
       ooo_estimated: r.ooo_estimated,
       eaccount: m?.eaccount ?? null,
       campaign_name: m?.campaign_id ? (nameOf.get(m.campaign_id) ?? null) : null,
+      region: regionOf(r.email, m?.campaign_id ? tzOf.get(m.campaign_id) : null),
     };
   });
 }
@@ -121,9 +136,11 @@ export async function createBucket(
   workspaceId: string,
   week: string,
   sender: Sender,
-  contactIds: string[]
+  contactIds: string[],
+  region: Region = "us"
 ): Promise<BucketResult> {
-  const name = bucketName(week, sender);
+  const name = bucketName(week, sender, region);
+  const plan = REGION_SCHEDULE[region];
   const { data: vorhanden } = await supabase
     .from("searches")
     .select("id")
@@ -143,12 +160,12 @@ export async function createBucket(
       name,
       source: "reengage",
       query: `wiederkontakt · ${week} · ${sender}`,
-      location: "United States",
+      location: region === "uk" ? "United Kingdom" : "United States",
       max_results: contactIds.length,
       target_email_count: contactIds.length,
       schedule: "none",
       status: "completed",
-      filters: { reengage: true, week, sender, skip_personalize: true },
+      filters: { reengage: true, week, sender, region, skip_personalize: true },
     })
     .select("id")
     .single();
@@ -200,9 +217,9 @@ export async function createBucket(
       search_id: search.id,
       mailboxes,
       days: [1, 2, 3, 4, 5],
-      send_window_start: "08:00",
-      send_window_end: "17:00",
-      timezone: "America/Detroit",
+      send_window_start: plan.from,
+      send_window_end: plan.to,
+      timezone: plan.timezone,
       daily_limit: 300,
       open_tracking: false,
       link_tracking: false,
@@ -232,7 +249,7 @@ export async function createCurrentWeek(supabase: SupabaseClient, workspaceId: s
   const out: BucketResult[] = [];
   for (const b of buckets) {
     if (b.week !== current) continue;
-    out.push(await createBucket(supabase, workspaceId, b.week, b.sender, b.contacts.map((c) => c.id)));
+    out.push(await createBucket(supabase, workspaceId, b.week, b.sender, b.contacts.map((c) => c.id), b.region));
   }
   return out;
 }

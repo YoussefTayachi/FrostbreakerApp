@@ -17,7 +17,15 @@ type Contact = {
   ooo_estimated: boolean;
   campaign_name: string | null;
 };
-type Bucket = { week: string; kw: number; sender: "berat" | "ramy"; contacts: Contact[] };
+type Bucket = {
+  week: string;
+  kw: number;
+  sender: "berat" | "ramy";
+  region: "us" | "uk";
+  region_label: string;
+  window: string;
+  contacts: Contact[];
+};
 type Created = { campaign_id: string; name: string; copied: number; existed: boolean };
 
 /**
@@ -48,13 +56,13 @@ export default function WiederkontaktList() {
   }, [load]);
 
   async function create(b: Bucket) {
-    const key = `${b.week}|${b.sender}`;
+    const key = `${b.week}|${b.sender}|${b.region}`;
     setBusy(key);
     try {
       const res = await fetch("/api/wiederkontakt", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ week: b.week, sender: b.sender }),
+        body: JSON.stringify({ week: b.week, sender: b.sender, region: b.region }),
       });
       const body = (await res.json().catch(() => ({}))) as Created & { error?: string };
       if (!res.ok || body.error) {
@@ -84,7 +92,7 @@ export default function WiederkontaktList() {
     <div className="space-y-4">
       <div className="text-sm text-soft">{W.waitingTotal(total)}</div>
       {buckets.map((b) => {
-        const key = `${b.week}|${b.sender}`;
+        const key = `${b.week}|${b.sender}|${b.region}`;
         const fertig = done[key];
         return (
           <section key={key} className="rounded-xl border border-edge/70 bg-panel shadow-sm">
@@ -99,7 +107,10 @@ export default function WiederkontaktList() {
                   </span>
                 )}
                 <span className="text-sm text-soft">
-                  {W.sender[b.sender]} · {W.contacts(b.contacts.length)}
+                  {W.sender[b.sender]} · {b.region_label} · {W.contacts(b.contacts.length)}
+                </span>
+                <span className="text-xs text-faint" title={W.windowTitle}>
+                  {W.window(b.window, b.region_label)}
                 </span>
               </div>
               {fertig ? (
