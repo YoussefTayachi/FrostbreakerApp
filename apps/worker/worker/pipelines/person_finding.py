@@ -137,6 +137,33 @@ MODEL = "gpt-4.1-mini"
 # an den ersten Laeufen gemessen.
 RESEARCH_MODEL = "gpt-4.1-mini"
 
+# Sparschalter je Lead-Liste (Test vom 2026-09-28, Youssef: "so guenstig wie
+# moeglich"). Ohne Eintrag in searches.filters bleibt alles wie bisher.
+#
+# filters.research_tool = "web_search_preview": gemessen am 2026-09-28 an
+# einem Lead (Yak9 Chews), gleiche Anfrage, gpt-4.1-mini, context low:
+#   web_search          10.139 Eingangs-Tokens, 1 Suche, 3 Funde, 8,8 s
+#   web_search_preview   1.947 Eingangs-Tokens, 1 Suche, 5 Funde, 5,8 s
+# Laut OpenAIs Preisseite sind die Suchergebnis-Tokens der Vorschau-Suche
+# bei Nicht-Reasoning-Modellen frei; die Antwort meldet sie auch nicht.
+# Die feste Gebuehr von 1 Cent je Suche bleibt.
+#
+# filters.writing_model = "gpt-4.1-nano": Absatz und Schnipsel mit dem
+# kleinsten Modell (0,10 / 0,40 $ statt 0,40 / 1,60 $ je 1 Mio. Tokens).
+# Nur Modelle aus dieser Liste; alles andere faellt auf MODEL zurueck.
+RESEARCH_TOOLS = ("web_search", "web_search_preview")
+WRITING_MODELS = ("gpt-4.1-mini", "gpt-4.1-nano")
+
+
+def research_tool_for(filters: dict) -> str:
+    tool = str((filters or {}).get("research_tool") or "")
+    return tool if tool in RESEARCH_TOOLS else "web_search"
+
+
+def writing_model_for(filters: dict) -> str:
+    model = str((filters or {}).get("writing_model") or "")
+    return model if model in WRITING_MODELS else MODEL
+
 # Wortgrenze dieses Absatzes. Die einzige Konstante dafuer; gespiegelt in
 # apps/web/lib/person-finding-defaults.ts, dort mit einem Test, der diese
 # Datei einliest. Keine Workspace-Einstellung, aus demselben Grund wie
@@ -983,6 +1010,7 @@ def write_snippets(
     correction: str | None = None,
     workspace_id: str | None = None,
     search_id: str | None = None,
+    model: str | None = None,
 ) -> dict:
     """Ein mini-Aufruf mit striktem Schema, Kosten unter person_snippets."""
     client = OpenAI(api_key=api_key, timeout=90.0, max_retries=1)
@@ -993,7 +1021,7 @@ def write_snippets(
             "keep everything else."
         )
     resp = client.responses.create(
-        model=MODEL,
+        model=model or MODEL,
         input=[{"role": "system", "content": system_prompt}, {"role": "user", "content": user}],
         text={
             "format": {
@@ -1748,6 +1776,7 @@ def research(
     api_key: str,
     workspace_id: str | None = None,
     search_id: str | None = None,
+    tool: str = "web_search",
 ) -> list[dict]:
     """Was hat diese Person oeffentlich gesagt, und was weiss Apollo schon.
 
@@ -1771,8 +1800,8 @@ def research(
         # search_context_size low: weniger Suchergebnis-Tokens je Aufruf. Die
         # Tokens sind der groessere Posten (2026-09-23: 19.000 je Aufruf bei
         # medium), die Suche selbst kostet fest 1 Cent.
-        tools=[{"type": "web_search", "search_context_size": "low"}],
-        tool_choice={"type": "web_search"},
+        tools=[{"type": tool, "search_context_size": "low"}],
+        tool_choice={"type": tool},
         input=[
             {"role": "system", "content": RESEARCH_PROMPT},
             {
@@ -2011,7 +2040,10 @@ def run(job: dict) -> None:
     contact["_business_name"] = biz.get("name")
     try:
         api_key = get_api_key(ws, "openai")
-        findings = research(contact, biz, api_key, workspace_id=ws, search_id=search_id)
+        sparen = search_filters(biz)
+        findings = research(
+            contact, biz, api_key, workspace_id=ws, search_id=search_id, tool=research_tool_for(sparen)
+        )
         fund = best_finding(findings, contact)
         rejected = rejected_findings(findings, fund, contact)
         if fund is None:
@@ -2068,6 +2100,7 @@ def run(job: dict) -> None:
                 workspace_id=ws,
                 search_id=search_id,
                 operation="person_finding",
+                model=writing_model_for(sparen),
             )
 
         material = [
@@ -2128,6 +2161,7 @@ def run(job: dict) -> None:
                 correction=correction,
                 workspace_id=ws,
                 search_id=search_id,
+                model=writing_model_for(sparen),
             )
 
         snips, snippet_problems = validate_snippets(

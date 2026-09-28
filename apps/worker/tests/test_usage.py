@@ -52,3 +52,10 @@ def test_preise_je_modell_und_websuche():
 
     assert u.web_search_calls(_R()) == 1
     assert u.OPENAI_USD_PER_WEB_SEARCH_CALL == 0.01
+
+
+def test_nano_hat_eigenen_preis():
+    from worker.usage import openai_prices
+
+    assert openai_prices("gpt-4.1-nano-2025-04-14") == (0.10, 0.025, 0.40)
+    assert openai_prices("gpt-4.1-mini-2025-04-14") == (0.40, 0.10, 1.60)

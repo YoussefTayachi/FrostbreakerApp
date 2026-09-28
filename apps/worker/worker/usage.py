@@ -58,6 +58,7 @@ OPENAI_PRICES_PER_1M = {
     # (Input, Cached Input, Output)
     "gpt-4.1": (2.00, 0.50, 8.00),
     "gpt-4.1-mini": (0.40, 0.10, 1.60),
+    "gpt-4.1-nano": (0.10, 0.025, 0.40),
 }
 # Die Websuche als Werkzeug: $10 je 1.000 Aufrufe, alle Modelle, zuzueglich
 # der Suchergebnis-Tokens zum Modellpreis (dieselbe Seite, 2026-09-23).

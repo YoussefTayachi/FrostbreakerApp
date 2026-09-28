@@ -1060,3 +1060,14 @@ def test_kommentare_und_zweiwortzitate_sind_kein_fund():
     kurz = finding(claim="She said the launch went well.", verbatim="So proud!")
     assert pf.why_unusable(kurz, contact()) == "trivial"
     assert pf.why_unusable(finding(), contact()) is None
+
+
+def test_sparschalter_je_liste():
+    from worker.pipelines.person_finding import MODEL, research_tool_for, writing_model_for
+
+    assert research_tool_for({}) == "web_search"
+    assert research_tool_for({"research_tool": "web_search_preview"}) == "web_search_preview"
+    assert research_tool_for({"research_tool": "irgendwas"}) == "web_search"
+    assert writing_model_for({}) == MODEL
+    assert writing_model_for({"writing_model": "gpt-4.1-nano"}) == "gpt-4.1-nano"
+    assert writing_model_for({"writing_model": "gpt-4.1"}) == MODEL

@@ -552,6 +552,7 @@ def generate(
     search_id: str | None = None,
     examples: list[dict] | None = None,
     operation: str = "personalize",
+    model: str | None = None,
 ) -> str:
     # Timeout und nur EIN clientseitiger Wiederholungsversuch. Gemessen am
     # 2026-08-31: zwei Aufrufe hingen 6 bis 8 Minuten und blockierten damit
@@ -561,7 +562,7 @@ def generate(
     # Worker und macht sie im Dashboard sichtbar.
     client = OpenAI(api_key=api_key, timeout=90.0, max_retries=1)
     resp = client.responses.create(
-        model=MODEL,
+        model=model or MODEL,
         input=build_input(system_prompt, company_name, context, examples, correction),
     )
     # Direkt hier festhalten statt beim Aufrufer: ein Korrektur-Versuch ist ein
