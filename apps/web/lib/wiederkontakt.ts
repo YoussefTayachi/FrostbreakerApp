@@ -126,9 +126,9 @@ export function isoWeekNumber(isoDate: string): number {
 
 const SIGNATURE: Record<Sender, string> = {
   berat:
-    "Kind regards from Vienna,\nBerat Günes\nCEO & Co-Founder\nberat@retaiyn.com\n+1 (283) 300-4592\nlinkedin.com/in/bero\nReply \"stop\" and I'll take you off the list.",
+    "Kind regards from Vienna,\nBerat Günes\nCEO & Co-Founder\nberat@retaiyn.com\n+1 708-809-3644\nlinkedin.com/in/bero\nReply \"stop\" and I'll take you off the list.",
   ramy:
-    "Kind regards from Vienna,\nRamy Tichy\nCRO & Co-Founder\nramy@retaiyn.com\n+1 (283) 300-4592\nlinkedin.com/in/ramy-tichy\nReply \"stop\" and I'll take you off the list.",
+    "Kind regards from Vienna,\nRamy Tichy\nCRO & Co-Founder\nramy@retaiyn.com\n+1 708-809-3644\nlinkedin.com/in/ramy-tichy\nReply \"stop\" and I'll take you off the list.",
 };
 
 
