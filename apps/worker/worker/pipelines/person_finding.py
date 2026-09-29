@@ -164,6 +164,7 @@ def writing_model_for(filters: dict) -> str:
     model = str((filters or {}).get("writing_model") or "")
     return model if model in WRITING_MODELS else MODEL
 
+
 # Wortgrenze dieses Absatzes. Die einzige Konstante dafuer; gespiegelt in
 # apps/web/lib/person-finding-defaults.ts, dort mit einem Test, der diese
 # Datei einliest. Keine Workspace-Einstellung, aus demselben Grund wie
@@ -1958,6 +1959,14 @@ def _faechere_auf(ws: str, biz: dict) -> None:
         )
     if not geclaimt:
         return
+    # Claude mit Aside recherchiert (filters.person_findings_mode = "claude",
+    # Migration 0125): kein OpenAI-Job, die Kontakte warten auf die Sitzung,
+    # die sie ueber das Frostbreaker-MCP abholt. Der Deckel oben gilt trotzdem.
+    if str(search_filters(biz).get("person_findings_mode") or "") == "claude":
+        sb().table("contacts").update({"person_finding_status": "awaiting_research"}).in_(
+            "id", geclaimt
+        ).eq("person_finding_status", "pending").execute()
+        return
     try:
         enqueue_many(ws, "write_person_finding", [{"contact_id": cid} for cid in geclaimt])
     except Exception:
@@ -2042,7 +2051,12 @@ def run(job: dict) -> None:
         api_key = get_api_key(ws, "openai")
         sparen = search_filters(biz)
         findings = research(
-            contact, biz, api_key, workspace_id=ws, search_id=search_id, tool=research_tool_for(sparen)
+            contact,
+            biz,
+            api_key,
+            workspace_id=ws,
+            search_id=search_id,
+            tool=research_tool_for(sparen),
         )
         fund = best_finding(findings, contact)
         rejected = rejected_findings(findings, fund, contact)

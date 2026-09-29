@@ -21,6 +21,7 @@ from worker.pipelines import (
     browser_check,
     check_website,
     confirm_unreachable,
+    external_findings,
     find_decisionmaker,
     get_businesses,
     hunt_persons,
@@ -115,6 +116,10 @@ HANDLERS = {
     # recherchiert er. Opt-in je Suche (filters.person_findings), jede
     # Person ist eine bezahlte Websuche.
     "write_person_finding": person_finding.run,
+    # Die Pruefung eines Befunds, den Claude mit Aside abgeliefert hat
+    # (Migration 0125). Kein Modellaufruf, darum kein Eintrag in
+    # PROVIDER_BY_JOB_TYPE.
+    "validate_person_snippets": external_findings.run,
     # Der Gesendet-Ordner eines Postfachs per IMAP. Einziger Job hier, der
     # nicht zur Leadsuche gehoert, und der einzige, den pg_cron einreiht
     # (Migration 0114) statt eines vorangegangenen Jobs.

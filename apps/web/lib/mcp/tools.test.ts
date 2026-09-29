@@ -162,7 +162,7 @@ function logZeilen(aufrufe: Aufruf[]): Record<string, unknown>[] {
 }
 
 describe("listTools", () => {
-  it("bietet genau die zweiundzwanzig vereinbarten Werkzeuge, in fester Reihenfolge", () => {
+  it("bietet genau die vierundzwanzig vereinbarten Werkzeuge, in fester Reihenfolge", () => {
     // Feste Reihenfolge, weil die Spezifikation eine deterministische
     // Sortierung verlangt -- und weil sie den Arbeitsweg abbildet: erst der
     // Workspace, dann die Liste, dann die Leads, und ganz zum Schluss das,
@@ -193,11 +193,14 @@ describe("listTools", () => {
       "set_campaign_sequence",
       "update_campaign",
       "publish_campaign",
+      // Die Recherche mit Claude und Aside (Migration 0125): abholen, abliefern.
+      "get_research_queue",
+      "set_person_findings",
       "undo_writes",
     ]);
   });
 
-  it("kennzeichnet elf Werkzeuge als nur lesend und elf als schreibend", () => {
+  it("kennzeichnet zwoelf Werkzeuge als nur lesend und zwoelf als schreibend", () => {
     const schreibend = listTools().filter((t) => t.annotations.readOnlyHint === false);
     expect(schreibend.map((t) => t.name)).toEqual([
       "set_lead_icebreaker",
@@ -210,6 +213,7 @@ describe("listTools", () => {
       "set_campaign_sequence",
       "update_campaign",
       "publish_campaign",
+      "set_person_findings",
       "undo_writes",
     ]);
   });

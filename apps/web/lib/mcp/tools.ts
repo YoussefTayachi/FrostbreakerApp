@@ -26,6 +26,12 @@ import {
   SUBJECT_MAX_WORDS,
 } from "@/lib/copy/playbook";
 import { MANUAL_FINDING_MAX_WORDS } from "@/lib/website-finding-defaults";
+import {
+  PERSON_RESEARCH_SNIPPETS,
+  RESEARCH_ANGLES,
+  RESEARCH_SOURCE_KINDS,
+  researchRulesPayload,
+} from "@/lib/person-research-rules";
 import { getApiKey } from "@/lib/api-keys";
 import { getBillingStatusForUser } from "@/lib/billing";
 import { instantlyRequest, InstantlyApiError } from "@/lib/instantly";
@@ -415,6 +421,8 @@ const BOUNCE_ALERT_MIN_SENT = 20;
  * deshalb sechs Aufrufe mit sechs Bestaetigungen.
  */
 const MAX_BULK_LEADS = 50;
+/** Wie viele Leads eine Recherche-Runde mit Claude abholt und abliefert. */
+const MAX_RESEARCH_BATCH = 20;
 
 /**
  * Wie viele Werte undo_writes je Aufruf WIEDERHERSTELLT.
@@ -3856,6 +3864,324 @@ export const TOOLS: Record<ToolName, McpTool> = {
         written: true,
         next_steps:
           "The campaign now exists in Instantly and has sent nothing: a newly created campaign stays idle until someone starts it. Starting it happens in Frostbreaker under Instantly > Campaigns and in no tool here.",
+      });
+    },
+  },
+
+  // ── get_research_queue ─────────────────────────────────────────────────
+  /**
+   * Die Warteschlange fuer die Recherche mit Claude und Aside (Migration 0125).
+   *
+   * Nur Listen mit filters.person_findings_mode = "claude": dort reiht der
+   * Worker keine OpenAI-Recherche ein, sondern setzt die Kontakte auf
+   * 'awaiting_research'. Die Regeln kommen mit (lib/person-research-rules.ts),
+   * damit jede Sitzung nach denselben schreibt, gegen die der Worker prueft.
+   */
+  get_research_queue: {
+    title: "Get research queue",
+    description: TOOL_DESCRIPTIONS.get_research_queue,
+    inputSchema: {
+      type: "object",
+      properties: {
+        workspace_id: WORKSPACE_PROPERTY,
+        search_id: { type: "string", description: "The lead list, from list_lead_lists." },
+        limit: {
+          type: "integer",
+          description: `How many leads to return. Default 10, at most ${MAX_RESEARCH_BATCH}.`,
+        },
+      },
+      required: ["workspace_id", "search_id"],
+      additionalProperties: false,
+    },
+    annotations: READ_ONLY_ANNOTATIONS("Get research queue"),
+    scope: "read",
+    async handler(supabase, ctx, args) {
+      const tor = gate(ctx, args, "read");
+      if (!tor.ok) return tor.result;
+      const searchId = readString(args, "search_id");
+      if (!searchId) return fail('"search_id" is required. Call list_lead_lists for the ids.');
+      const anzahl = readCount(args, "limit", 10, MAX_RESEARCH_BATCH);
+      if (!anzahl.ok) return fail(anzahl.message);
+
+      const { data: suche, error: suchFehler } = await supabase
+        .from("searches")
+        .select("id, name, filters")
+        .eq("id", searchId)
+        .eq("workspace_id", tor.workspaceId)
+        .maybeSingle();
+      if (suchFehler) return dbFail("get_research_queue", suchFehler);
+      if (!suche) return fail("No lead list with that search_id in this workspace.");
+      const filters = (suche.filters ?? {}) as Record<string, unknown>;
+      if (filters.person_findings_mode !== "claude") {
+        return fail(
+          "This lead list is not set to research with Claude. Its leads are researched by the Frostbreaker worker; nothing to do here."
+        );
+      }
+
+      const [{ data: zeilen, error }, { count: offen }, { data: angebot }] = await Promise.all([
+        supabase
+          .from("contacts")
+          .select(
+            "id, full_name, first_name, title, seniority, department, linkedin, businesses!inner(id, name, website, company_summary, search_id)"
+          )
+          .eq("workspace_id", tor.workspaceId)
+          .eq("businesses.search_id", searchId)
+          .eq("person_finding_status", "awaiting_research")
+          .order("created_at", { ascending: true })
+          .limit(anzahl.value),
+        supabase
+          .from("contacts")
+          .select("id, businesses!inner(search_id)", { count: "exact", head: true })
+          .eq("workspace_id", tor.workspaceId)
+          .eq("businesses.search_id", searchId)
+          .eq("person_finding_status", "awaiting_research"),
+        supabase
+          .from("offers")
+          .select("offering, problem, outcome, sender_profile")
+          .eq("workspace_id", tor.workspaceId)
+          .order("is_default", { ascending: false })
+          .limit(1),
+      ]);
+      if (error) return dbFail("get_research_queue", error);
+
+      const leads = (zeilen ?? []).map((z) => {
+        const b = (Array.isArray(z.businesses) ? z.businesses[0] : z.businesses) as {
+          id: string;
+          name: string | null;
+          website: string | null;
+          company_summary: string | null;
+        };
+        return {
+          contact_id: z.id,
+          name: z.full_name,
+          first_name: z.first_name,
+          title: z.title,
+          seniority: z.seniority,
+          department: z.department,
+          linkedin: z.linkedin,
+          business_id: b?.id ?? null,
+          company: b?.name ?? null,
+          website: b?.website ?? null,
+          company_summary: shorten(b?.company_summary),
+        };
+      });
+
+      return okUntrusted("research_queue", {
+        lead_list: suche.name,
+        waiting_total: offen ?? leads.length,
+        returned: leads.length,
+        leads,
+        offer: (angebot ?? [])[0] ?? null,
+        ...researchRulesPayload(),
+        next_step:
+          "Research each lead in the browser, then call set_person_findings with up to " +
+          `${MAX_RESEARCH_BATCH} leads. Leads with nothing usable go in with no_finding: true.`,
+      });
+    },
+  },
+
+  // ── set_person_findings ────────────────────────────────────────────────
+  /**
+   * Fund und Schnipsel abliefern, die Claude im Browser recherchiert hat.
+   *
+   * Schreibt Status 'submitted' und reiht je Kontakt validate_person_snippets
+   * ein. Erst der Worker setzt 'found' und entscheidet ueber die Pruefung:
+   * dieselben Netze wie beim OpenAI-Weg plus der Abgleich des Zitats mit der
+   * Seite. Nur Kontakte aus Listen im Claude-Modus; ein OpenAI-Befund laesst
+   * sich hier nicht ueberschreiben.
+   */
+  set_person_findings: {
+    title: "Set person findings",
+    description: TOOL_DESCRIPTIONS.set_person_findings,
+    inputSchema: {
+      type: "object",
+      properties: {
+        workspace_id: WORKSPACE_PROPERTY,
+        findings: {
+          type: "array",
+          minItems: 1,
+          maxItems: MAX_RESEARCH_BATCH,
+          description: `One entry per researched lead, at most ${MAX_RESEARCH_BATCH}.`,
+          items: {
+            type: "object",
+            properties: {
+              contact_id: { type: "string" },
+              no_finding: { type: "boolean", description: "True when nothing usable was found." },
+              source_kind: { type: "string", enum: [...RESEARCH_SOURCE_KINDS] },
+              angle: { type: "string", enum: [...RESEARCH_ANGLES] },
+              source_url: { type: "string" },
+              claim: { type: "string", description: "One sentence: what the finding is." },
+              verbatim: { type: "string", description: "The exact sentence from the page." },
+              age_months: { type: "integer" },
+              identity_evidence: { type: "string" },
+              snippets: {
+                type: "object",
+                properties: Object.fromEntries(
+                  PERSON_RESEARCH_SNIPPETS.map((f) => [f, { type: "string" }])
+                ),
+                additionalProperties: false,
+              },
+            },
+            required: ["contact_id"],
+            additionalProperties: false,
+          },
+        },
+        dry_run: { type: "boolean", description: "True writes nothing. Default false." },
+      },
+      required: ["workspace_id", "findings"],
+      additionalProperties: false,
+    },
+    annotations: WRITE_ANNOTATIONS("Set person findings", true),
+    scope: "read_write",
+    async handler(supabase, ctx, args) {
+      const tor = gate(ctx, args, "read_write");
+      if (!tor.ok) return tor.result;
+      const liste = readList(
+        args,
+        "findings",
+        MAX_RESEARCH_BATCH,
+        `Split it up: ${MAX_RESEARCH_BATCH} leads per call.`
+      );
+      if (!liste.ok) return fail(liste.message);
+      const probelauf = readFlag(args, "dry_run", false);
+      if (!probelauf.ok) return fail(probelauf.message);
+
+      type Eintrag = {
+        contact_id: string;
+        none: boolean;
+        source: Record<string, unknown>;
+        snippets: Record<string, string>;
+      };
+      const eintraege: Eintrag[] = [];
+      const gesehen = new Set<string>();
+      for (const [i, roh] of liste.value.entries()) {
+        const id = readString(roh, "contact_id");
+        if (!id) return fail(`Entry ${i + 1} needs "contact_id" from get_research_queue.`);
+        if (gesehen.has(id)) return fail(`contact_id "${id}" appears twice. Nothing was written.`);
+        gesehen.add(id);
+        if (roh.no_finding === true) {
+          eintraege.push({ contact_id: id, none: true, source: {}, snippets: {} });
+          continue;
+        }
+        const kind = readString(roh, "source_kind");
+        if (!kind || !(RESEARCH_SOURCE_KINDS as readonly string[]).includes(kind)) {
+          return fail(`Entry ${i + 1}: "source_kind" must be one of ${RESEARCH_SOURCE_KINDS.join(", ")}.`);
+        }
+        const angle = readString(roh, "angle") ?? (kind === "company_site" ? "company" : null);
+        if (!angle || !(RESEARCH_ANGLES as readonly string[]).includes(angle)) {
+          return fail(`Entry ${i + 1}: "angle" must be one of ${RESEARCH_ANGLES.join(", ")}.`);
+        }
+        const url = readString(roh, "source_url");
+        const claim = readString(roh, "claim");
+        if (!url || !claim) return fail(`Entry ${i + 1} needs "source_url" and "claim".`);
+        const rohSnips = (roh.snippets ?? {}) as Record<string, unknown>;
+        const snippets: Record<string, string> = {};
+        for (const f of PERSON_RESEARCH_SNIPPETS) {
+          const v = rohSnips[f];
+          if (typeof v !== "string" || !v.trim()) {
+            return fail(`Entry ${i + 1}: snippet "${f}" is missing. All of ${PERSON_RESEARCH_SNIPPETS.join(", ")} are required.`);
+          }
+          if (v.length > MAX_FINDING_CHARS) return fail(`Entry ${i + 1}: snippet "${f}" is too long.`);
+          snippets[f] = v.trim();
+        }
+        const age = roh.age_months;
+        eintraege.push({
+          contact_id: id,
+          none: false,
+          snippets,
+          source: {
+            angle,
+            source_kind: kind,
+            source_url: url.slice(0, 500),
+            claim: claim.slice(0, 600),
+            verbatim: (readString(roh, "verbatim") ?? "").slice(0, 1200),
+            age_months: typeof age === "number" && Number.isInteger(age) ? age : kind === "company_site" ? -1 : null,
+            identity_evidence: (readString(roh, "identity_evidence") ?? "").slice(0, 600),
+            identity_anchor: "company_and_role",
+          },
+        });
+      }
+
+      const ids = eintraege.map((e) => e.contact_id);
+      const { data: kontakte, error } = await supabase
+        .from("contacts")
+        .select("id, full_name, person_finding_status, businesses!inner(name, searches!inner(filters))")
+        .eq("workspace_id", tor.workspaceId)
+        .in("id", ids);
+      if (error) return dbFail("set_person_findings", error);
+      const bekannt = new Map((kontakte ?? []).map((k) => [k.id as string, k]));
+      const fremd = ids.filter((id) => !bekannt.has(id));
+      if (fremd.length) {
+        return fail(`${fremd.length} contact_ids are not in this workspace: ${fremd.slice(0, 5).join(", ")}. Nothing was written.`);
+      }
+      const nichtClaude = ids.filter((id) => {
+        const k = bekannt.get(id) as unknown as {
+          businesses: { searches: { filters: Record<string, unknown> | null } | null } | null;
+        };
+        return k?.businesses?.searches?.filters?.person_findings_mode !== "claude";
+      });
+      if (nichtClaude.length) {
+        return fail(
+          `${nichtClaude.length} contacts belong to lead lists that are researched by the worker, not by Claude: ${nichtClaude.slice(0, 5).join(", ")}. Nothing was written.`
+        );
+      }
+
+      if (probelauf.value) {
+        return okJson({
+          dry_run: true,
+          written: false,
+          count: eintraege.length,
+          no_finding: eintraege.filter((e) => e.none).length,
+          note: "Nothing was written. Call again without dry_run; the worker then checks every lead and decides which ones go to review.",
+        });
+      }
+
+      const jetzt = new Date().toISOString();
+      const geschrieben: string[] = [];
+      const fehlgeschlagen: string[] = [];
+      for (const e of eintraege) {
+        const patch = e.none
+          ? {
+              person_finding_status: "none",
+              person_finding_source: { model: "claude-aside", no_finding: true, submitted_at: jetzt },
+            }
+          : {
+              person_finding: null,
+              person_snippets: e.snippets,
+              person_finding_needs_review: false,
+              person_finding_status: "submitted",
+              person_finding_source: { ...e.source, model: "claude-aside", submitted_at: jetzt },
+            };
+        const { error: fehler } = await supabase
+          .from("contacts")
+          .update(patch)
+          .eq("id", e.contact_id)
+          .eq("workspace_id", tor.workspaceId);
+        if (fehler) {
+          console.error(`[mcp] set_person_findings: ${e.contact_id}:`, fehler.message);
+          fehlgeschlagen.push(e.contact_id);
+          continue;
+        }
+        geschrieben.push(e.contact_id);
+      }
+      const zuPruefen = eintraege.filter((e) => !e.none && geschrieben.includes(e.contact_id));
+      if (zuPruefen.length) {
+        const { error: jobFehler } = await supabase.from("jobs").insert(
+          zuPruefen.map((e) => ({
+            workspace_id: tor.workspaceId,
+            type: "validate_person_snippets",
+            payload: { contact_id: e.contact_id },
+          }))
+        );
+        if (jobFehler) return dbFail("set_person_findings", jobFehler);
+      }
+      return okJson({
+        dry_run: false,
+        written: geschrieben.length,
+        submitted_for_check: zuPruefen.length,
+        no_finding: eintraege.filter((e) => e.none && geschrieben.includes(e.contact_id)).length,
+        ...(fehlgeschlagen.length ? { failed: fehlgeschlagen } : {}),
+        note: "The worker checks each submitted lead within a minute (rules, invented numbers, quote on the page). Leads that fail land in review in Frostbreaker; call get_research_queue for the next batch.",
       });
     },
   },
