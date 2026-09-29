@@ -24,6 +24,7 @@ from __future__ import annotations
 import html
 import logging
 import re
+import time
 from datetime import datetime, timezone
 
 import httpx
@@ -113,18 +114,29 @@ def check_quote(url: str | None, verbatim: str | None) -> str:
         return "fetch_failed"
     if is_linkedin_host(host):
         return "linkedin"
-    try:
-        resp = httpx.get(
-            url or "",
-            timeout=15.0,
-            follow_redirects=True,
-            headers={"User-Agent": "Mozilla/5.0 (Frostbreaker quote check)"},
-        )
-    except httpx.HTTPError:
-        return "fetch_failed"
-    if resp.status_code >= 400:
-        return "fetch_failed"
-    return "verified" if quote_on_page(verbatim or "", resp.text) else "not_found"
+    # Zwei Versuche. Am 2026-09-29 meldete der erste Abruf von xymogen.com
+    # vom Railway-Worker "nicht gefunden", ein zweiter Minuten spaeter
+    # "gefunden", lokal stand der Satz ebenfalls im HTML. Ein einzelner
+    # Ausreisser soll keinen echten Fund in die Pruefung schicken.
+    ergebnis = "fetch_failed"
+    for versuch in range(2):
+        if versuch:
+            time.sleep(3)
+        try:
+            resp = httpx.get(
+                url or "",
+                timeout=15.0,
+                follow_redirects=True,
+                headers={"User-Agent": "Mozilla/5.0 (Frostbreaker quote check)"},
+            )
+        except httpx.HTTPError:
+            continue
+        if resp.status_code >= 400:
+            continue
+        if quote_on_page(verbatim or "", resp.text):
+            return "verified"
+        ergebnis = "not_found"
+    return ergebnis
 
 
 def finding_problem(finding: dict, contact: dict) -> str | None:
