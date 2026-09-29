@@ -1905,6 +1905,18 @@ CONTACT_COLUMNS = (
 )
 
 
+def findings_mode(ws: str, biz: dict) -> str:
+    """'claude' oder 'openai': erst die Suche (filters.person_findings_mode),
+    sonst der Workspace (workspaces.person_findings_mode, Migration 0126)."""
+    mode = str(search_filters(biz).get("person_findings_mode") or "")
+    if mode in ("claude", "openai"):
+        return mode
+    rows = (
+        sb().table("workspaces").select("person_findings_mode").eq("id", ws).limit(1).execute().data
+    )
+    return str((rows[0] if rows else {}).get("person_findings_mode") or "openai")
+
+
 def _faechere_auf(ws: str, biz: dict) -> None:
     """Je Kontakt dieser Firma einen Rechercheauftrag, unter dem Deckel.
 
@@ -1959,10 +1971,10 @@ def _faechere_auf(ws: str, biz: dict) -> None:
         )
     if not geclaimt:
         return
-    # Claude mit Aside recherchiert (filters.person_findings_mode = "claude",
-    # Migration 0125): kein OpenAI-Job, die Kontakte warten auf die Sitzung,
-    # die sie ueber das Frostbreaker-MCP abholt. Der Deckel oben gilt trotzdem.
-    if str(search_filters(biz).get("person_findings_mode") or "") == "claude":
+    # Claude mit Aside recherchiert (Migrationen 0125, 0126): kein OpenAI-Job,
+    # die Kontakte warten auf die Sitzung, die sie ueber das Frostbreaker-MCP
+    # abholt. Der Deckel oben gilt trotzdem.
+    if findings_mode(ws, biz) == "claude":
         sb().table("contacts").update({"person_finding_status": "awaiting_research"}).in_(
             "id", geclaimt
         ).eq("person_finding_status", "pending").execute()
@@ -2029,6 +2041,15 @@ def run(job: dict) -> None:
     # weiterhin an. Sonst zurueck auf null und Ende ohne Kosten.
     if not biz or search_is_deleted(biz) or not search_filters(biz).get("person_findings"):
         _status(contact_id, None)
+        return
+
+    # Workspace oder Suche im Claude-Modus: nie OpenAI, auch wenn ein alter
+    # oder von Hand eingereihter Job hier ankommt (Youssef, 2026-09-29:
+    # "nur noch mit Aside"). Der Kontakt wartet dann auf die Aside-Sitzung.
+    if findings_mode(ws, biz) == "claude":
+        sb().table("contacts").update({"person_finding_status": "awaiting_research"}).eq(
+            "id", contact_id
+        ).in_("person_finding_status", ["pending", "failed"]).execute()
         return
 
     # Claim atomar: nur wer 'pending' -> 'running' schafft, recherchiert.

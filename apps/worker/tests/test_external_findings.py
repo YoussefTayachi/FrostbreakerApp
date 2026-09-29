@@ -40,3 +40,20 @@ def test_firmenseite_darf_claude_liefern_aber_nicht_privat():
     assert finding_problem(gut, kontakt) is None
     leer = {**gut, "claim": " "}
     assert finding_problem(leer, kontakt) == "claim_empty"
+
+
+def test_befund_modus_der_suche_geht_vor(monkeypatch):
+    from worker.pipelines import person_finding as pf
+
+    def kein_db_zugriff():
+        raise AssertionError("Suche hat einen Modus, der Workspace darf nicht gefragt werden")
+
+    monkeypatch.setattr(pf, "sb", kein_db_zugriff)
+    assert (
+        pf.findings_mode("ws", {"searches": {"filters": {"person_findings_mode": "claude"}}})
+        == "claude"
+    )
+    assert (
+        pf.findings_mode("ws", {"searches": {"filters": {"person_findings_mode": "openai"}}})
+        == "openai"
+    )

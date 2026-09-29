@@ -421,6 +421,25 @@ const BOUNCE_ALERT_MIN_SENT = 20;
  * deshalb sechs Aufrufe mit sechs Bestaetigungen.
  */
 const MAX_BULK_LEADS = 50;
+/**
+ * Wer die Personen einer Liste recherchiert: die Suche entscheidet
+ * (filters.person_findings_mode), sonst der Workspace (Migration 0126).
+ * Dieselbe Regel wie person_finding.findings_mode im Worker.
+ */
+function effectiveFindingsMode(filters: Record<string, unknown> | null, workspaceMode: string): string {
+  const eigen = filters?.person_findings_mode;
+  return eigen === "claude" || eigen === "openai" ? eigen : workspaceMode;
+}
+
+async function workspaceFindingsMode(supabase: SupabaseClient, workspaceId: string): Promise<string> {
+  const { data } = await supabase
+    .from("workspaces")
+    .select("person_findings_mode")
+    .eq("id", workspaceId)
+    .maybeSingle();
+  return ((data as { person_findings_mode?: string } | null)?.person_findings_mode ?? "openai") as string;
+}
+
 /** Wie viele Leads eine Recherche-Runde mit Claude abholt und abliefert. */
 const MAX_RESEARCH_BATCH = 20;
 
@@ -3912,7 +3931,8 @@ export const TOOLS: Record<ToolName, McpTool> = {
       if (suchFehler) return dbFail("get_research_queue", suchFehler);
       if (!suche) return fail("No lead list with that search_id in this workspace.");
       const filters = (suche.filters ?? {}) as Record<string, unknown>;
-      if (filters.person_findings_mode !== "claude") {
+      const wsModus = await workspaceFindingsMode(supabase, tor.workspaceId);
+      if (effectiveFindingsMode(filters, wsModus) !== "claude") {
         return fail(
           "This lead list is not set to research with Claude. Its leads are researched by the Frostbreaker worker; nothing to do here."
         );
@@ -4114,11 +4134,12 @@ export const TOOLS: Record<ToolName, McpTool> = {
       if (fremd.length) {
         return fail(`${fremd.length} contact_ids are not in this workspace: ${fremd.slice(0, 5).join(", ")}. Nothing was written.`);
       }
+      const wsModus = await workspaceFindingsMode(supabase, tor.workspaceId);
       const nichtClaude = ids.filter((id) => {
         const k = bekannt.get(id) as unknown as {
           businesses: { searches: { filters: Record<string, unknown> | null } | null } | null;
         };
-        return k?.businesses?.searches?.filters?.person_findings_mode !== "claude";
+        return effectiveFindingsMode(k?.businesses?.searches?.filters ?? null, wsModus) !== "claude";
       });
       if (nichtClaude.length) {
         return fail(
