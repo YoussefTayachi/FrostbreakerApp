@@ -30,6 +30,26 @@ Eintraege werden hier mitgesperrt.
 
 from worker.db import sb
 
+# PostgREST liefert je Abfrage hoechstens 1000 Zeilen, ohne Fehler und ohne
+# Hinweis. Am 2026-09-29 hatte retaiyn 1.179 Firmen: die neuesten lagen
+# jenseits der Grenze, und eine zweite Apollo-Suche mit denselben Filtern
+# brachte 87 von 91 Firmen erneut, darunter 41 schon angeschriebene. Deshalb
+# jede Sperrquelle seitenweise lesen.
+PAGE = 1000
+
+
+def _alle(query_factory) -> list[dict]:
+    """Alle Zeilen einer Abfrage, seitenweise. query_factory liefert je Aufruf
+    eine frische Abfrage (die Builder sind nicht wiederverwendbar)."""
+    rows: list[dict] = []
+    start = 0
+    while True:
+        seite = query_factory().range(start, start + PAGE - 1).execute().data or []
+        rows.extend(seite)
+        if len(seite) < PAGE:
+            return rows
+        start += PAGE
+
 
 def filter_blocking(
     businesses: list[dict],
@@ -97,50 +117,50 @@ def businesses_to_skip(workspace_id: str) -> list[dict]:
     (Migration 0095). Die Archiv-Eintraege tragen weder id noch place_id;
     Aufrufer, die darauf zugreifen, muessen .get() benutzen.
     """
-    businesses = (
-        sb()
-        .table("businesses")
-        .select("id, name, website, place_id, search_id")
-        .eq("workspace_id", workspace_id)
-        .execute()
-        .data
-        or []
+    businesses = _alle(
+        lambda: (
+            sb()
+            .table("businesses")
+            .select("id, name, website, place_id, search_id")
+            .eq("workspace_id", workspace_id)
+            .order("id")
+        )
     )
     active_search_ids = {
         s["id"]
-        for s in (
-            sb()
-            .table("searches")
-            .select("id")
-            .eq("workspace_id", workspace_id)
-            .is_("deleted_at", "null")
-            .execute()
-            .data
-            or []
+        for s in _alle(
+            lambda: (
+                sb()
+                .table("searches")
+                .select("id")
+                .eq("workspace_id", workspace_id)
+                .is_("deleted_at", "null")
+                .order("id")
+            )
         )
     }
     contacted_business_ids = {
         c["business_id"]
-        for c in (
-            sb()
-            .table("contacts")
-            .select("business_id")
-            .eq("workspace_id", workspace_id)
-            .neq("outreach_status", "new")
-            .execute()
-            .data
-            or []
+        for c in _alle(
+            lambda: (
+                sb()
+                .table("contacts")
+                .select("business_id")
+                .eq("workspace_id", workspace_id)
+                .neq("outreach_status", "new")
+                .order("id")
+            )
         )
         if c.get("business_id")
     }
-    archive = (
-        sb()
-        .table("contact_archive")
-        .select("domain, company_name")
-        .eq("workspace_id", workspace_id)
-        .execute()
-        .data
-        or []
+    archive = _alle(
+        lambda: (
+            sb()
+            .table("contact_archive")
+            .select("domain, company_name")
+            .eq("workspace_id", workspace_id)
+            .order("domain")
+        )
     )
     return filter_blocking(
         businesses, active_search_ids, contacted_business_ids

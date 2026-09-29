@@ -1,10 +1,16 @@
 """Unit-Tests fuer worker.dedupe (kein Netz, keine DB)."""
+
 from worker.dedupe import archive_as_businesses, filter_blocking
 
 BUSINESSES = [
     {"id": "b1", "website": "https://aktiv.com", "place_id": None, "search_id": "s-aktiv"},
     {"id": "b2", "website": "https://papierkorb.com", "place_id": None, "search_id": "s-geloescht"},
-    {"id": "b3", "website": "https://kontaktiert.com", "place_id": None, "search_id": "s-geloescht"},
+    {
+        "id": "b3",
+        "website": "https://kontaktiert.com",
+        "place_id": None,
+        "search_id": "s-geloescht",
+    },
 ]
 
 
@@ -47,9 +53,7 @@ def test_business_ohne_search_id_blockiert_nicht():
 
 def test_archiv_wird_zur_sperrmenge():
     """Der eigentliche Zweck: die Firma ist als Zeile weg, die Sperre bleibt."""
-    rows = archive_as_businesses(
-        [{"domain": "geloescht.com", "company_name": "Geloescht GmbH"}]
-    )
+    rows = archive_as_businesses([{"domain": "geloescht.com", "company_name": "Geloescht GmbH"}])
     assert rows == [
         {
             "id": None,
@@ -84,3 +88,26 @@ def test_archivzeile_nur_mit_namen_bleibt():
     rows = archive_as_businesses([{"domain": None, "company_name": "Nur Name AG"}])
     assert rows[0]["name"] == "Nur Name AG"
     assert rows[0]["website"] is None
+
+
+def test_sperrquellen_werden_seitenweise_gelesen():
+    """PostgREST liefert hoechstens 1000 Zeilen je Abfrage (2026-09-29: 1.179
+    Firmen, 87 von 91 Dubletten). _alle muss weiterblaettern."""
+    from worker import dedupe
+
+    daten = [{"id": i} for i in range(2500)]
+
+    class Abfrage:
+        def range(self, a, b):
+            self.a, self.b = a, b
+            return self
+
+        def execute(self):
+            class R:
+                pass
+
+            r = R()
+            r.data = daten[self.a : self.b + 1]
+            return r
+
+    assert len(dedupe._alle(lambda: Abfrage())) == 2500
