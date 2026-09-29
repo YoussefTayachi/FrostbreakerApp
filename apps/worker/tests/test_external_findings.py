@@ -57,3 +57,24 @@ def test_befund_modus_der_suche_geht_vor(monkeypatch):
         pf.findings_mode("ws", {"searches": {"filters": {"person_findings_mode": "openai"}}})
         == "openai"
     )
+
+
+def test_duenne_seite_ist_nicht_pruefbar(monkeypatch):
+    import httpx
+
+    from worker.pipelines import external_findings as ef
+
+    class Antwort:
+        status_code = 200
+        text = "<html><body><div id=app></div> loading </body></html>"
+
+    monkeypatch.setattr(httpx, "get", lambda *a, **k: Antwort())
+    monkeypatch.setattr(ef.time, "sleep", lambda s: None)
+    assert ef.check_quote("https://example.com", "a quote that is not there") == "thin_page"
+
+    class Voll:
+        status_code = 200
+        text = "<p>" + "word " * 700 + "</p>"
+
+    monkeypatch.setattr(httpx, "get", lambda *a, **k: Voll())
+    assert ef.check_quote("https://example.com", "a quote that is not there") == "not_found"

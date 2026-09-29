@@ -70,6 +70,11 @@ CONTACT_COLUMNS = (
 # Absaetze anders als die Abschrift.
 QUOTE_PROBE_CHARS = 60
 
+# Unter dieser Wortzahl im reinen HTML gilt eine Seite als nicht pruefbar.
+# Gemessen am 2026-09-29: julianbakery.com 756, beautyblender.com 1.472,
+# glamsquad.com 388 (Text entsteht erst im Browser).
+THIN_PAGE_WORDS = 600
+
 
 def is_claude_mode(filters: dict | None) -> bool:
     return str((filters or {}).get("person_findings_mode") or "") == MODE_CLAUDE
@@ -135,6 +140,13 @@ def check_quote(url: str | None, verbatim: str | None) -> str:
             continue
         if quote_on_page(verbatim or "", resp.text):
             return "verified"
+        # Duenne Seite: im Browser gebaut (GLAMSQUAD, 388 Woerter im Abruf)
+        # oder fuer Abrufe gesperrt (xymogen.com lieferte am 2026-09-29 mal
+        # 421.923 Zeichen, mal 0). Aside sah den Text, wir sehen ihn nicht.
+        # Das ist "nicht pruefbar", kein Beleg fuer ein erfundenes Zitat.
+        if len(_normalize(resp.text).split()) < THIN_PAGE_WORDS:
+            ergebnis = "thin_page"
+            continue
         ergebnis = "not_found"
     return ergebnis
 
