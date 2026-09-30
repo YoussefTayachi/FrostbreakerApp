@@ -124,11 +124,14 @@ export function isoWeekNumber(isoDate: string): number {
   return 1 + Math.round((diff / 86400000 - 3 + ((firstThursday.getUTCDay() + 6) % 7)) / 7);
 }
 
+// Ohne die Zeile 'Reply "stop" ...': Youssef am 2026-09-30, "von allen
+// Signaturen und allen zukuenftigen" entfernt. Abmeldungen laufen weiter ueber
+// die Abmelde-Erkennung im Instantly-Sync (lib/crm/opt-out.ts).
 const SIGNATURE: Record<Sender, string> = {
   berat:
-    "Kind regards from Vienna,\nBerat Günes\nCEO & Co-Founder\nberat@retaiyn.com\n+1 708-809-3644\nlinkedin.com/in/bero\nReply \"stop\" and I'll take you off the list.",
+    "Kind regards from Vienna,\nBerat Günes\nCEO & Co-Founder\nberat@retaiyn.com\n+1 708-809-3644\nlinkedin.com/in/bero",
   ramy:
-    "Kind regards from Vienna,\nRamy Tichy\nCRO & Co-Founder\nramy@retaiyn.com\n+1 708-809-3644\nlinkedin.com/in/ramy-tichy\nReply \"stop\" and I'll take you off the list.",
+    "Kind regards from Vienna,\nRamy Tichy\nCRO & Co-Founder\nramy@retaiyn.com\n+1 708-809-3644\nlinkedin.com/in/ramy-tichy",
 };
 
 
