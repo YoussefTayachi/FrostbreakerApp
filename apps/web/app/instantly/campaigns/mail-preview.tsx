@@ -1,7 +1,13 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
 import { useT } from "../../language-provider";
-import { plainTextToInstantlyHtml, variantLabel, type MergeTagSource } from "@/lib/instantly/campaigns";
+import {
+  plainTextToInstantlyHtml,
+  usesPersonFinding,
+  usesPersonSnippets,
+  variantLabel,
+  type MergeTagSource,
+} from "@/lib/instantly/campaigns";
 import { renderVariablesForLead, hasWebsiteFinding } from "@/lib/instantly/preview";
 import {
   clampPreviewSelection,
@@ -115,6 +121,12 @@ export default function MailPreview({
   // Haengt bewusst NUR an den Lead-Listen und nicht am Sequenztext: sonst
   // liefe diese Abfrage bei jedem Tastendruck im Editor erneut.
   const listenKey = searchIds.join(",");
+  // Ob die Sequenz Personen-Absatz oder Schnipsel benutzt. Nur diese zwei
+  // Flags gehen an die Route, damit sie dieselben Leads zurueckhaelt wie der
+  // Start (planCampaignLeads); sie aendern sich selten, der Text dagegen oft.
+  const alleFassungen = steps.flatMap((s) => s.variants);
+  const brauchtPerson = usesPersonFinding(alleFassungen);
+  const brauchtSchnipsel = usesPersonSnippets(alleFassungen);
   useEffect(() => {
     if (searchIds.length === 0) {
       setDaten({ state: "idle" });
@@ -125,7 +137,12 @@ export default function MailPreview({
     fetch("/api/campaigns/preview-leads", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ searchIds, limit: PREVIEW_BROWSE_LIMIT }),
+      body: JSON.stringify({
+        searchIds,
+        limit: PREVIEW_BROWSE_LIMIT,
+        requirePersonFinding: brauchtPerson,
+        requirePersonSnippets: brauchtSchnipsel,
+      }),
     })
       .then(async (r) => {
         if (!r.ok) throw new Error(String(r.status));
@@ -144,7 +161,7 @@ export default function MailPreview({
     };
     // listenKey statt searchIds: das Array ist bei jedem Rendern ein neues.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [listenKey, versuch]);
+  }, [listenKey, versuch, brauchtPerson, brauchtSchnipsel]);
 
   const tagLabels = useMemo(
     () => new Map(mergeTagOptions(F).map((v) => [v.token, v.label])),

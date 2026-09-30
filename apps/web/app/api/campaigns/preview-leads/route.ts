@@ -47,7 +47,22 @@ import type { MergeTagSource } from "@/lib/instantly/campaigns";
  */
 export const maxDuration = 30;
 
-type Body = { searchIds?: string[]; limit?: number };
+/**
+ * requirePersonFinding / requirePersonSnippets: ob die Sequenz den
+ * Personen-Absatz oder die Schnipsel benutzt. Der Browser rechnet das aus dem
+ * Sequenztext (usesPersonFinding/usesPersonSnippets) und schickt nur die zwei
+ * Flags, damit die Route nicht bei jedem Tastendruck neu laeuft.
+ *
+ * Am 2026-09-30 fehlte das: die Vorschau zeigte bei retaiyn Leads ohne Befund
+ * mit leerem Betreff und leerem Opener, obwohl der Start genau diese Leads
+ * zurueckhaelt (planCampaignLeads mit denselben Optionen in create-campaign.ts).
+ */
+type Body = {
+  searchIds?: string[];
+  limit?: number;
+  requirePersonFinding?: boolean;
+  requirePersonSnippets?: boolean;
+};
 
 /** Nur die Spalten, aus denen mergeTagValues Werte zieht. Der Rest der
  *  Kontaktzeile (id, title, outreach_status, ...) bleibt auf dem Server: die
@@ -108,7 +123,11 @@ export async function POST(req: Request) {
   const { rows } = planCampaignLeads(
     (contacts ?? []) as unknown as CampaignContactRow[],
     (suppression ?? []) as { email: string | null; domain: string | null }[],
-    ((archived ?? []) as { email: string | null }[]).map((a) => a.email)
+    ((archived ?? []) as { email: string | null }[]).map((a) => a.email),
+    {
+      requirePersonFinding: body.requirePersonFinding === true,
+      requirePersonSnippets: body.requirePersonSnippets === true,
+    }
   );
 
   return NextResponse.json({
