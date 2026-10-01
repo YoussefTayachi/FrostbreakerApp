@@ -32,7 +32,7 @@ from worker.http_safety import raise_for_status_safe
 from worker.keys import get_api_key
 from worker.pipelines import apollo, prospeo
 from worker.pipelines.discover import discover_companies, parse_discover_company
-from worker.queue import enqueue_many
+from worker.queue import enqueue, enqueue_many
 from worker.search_state import SearchCancelled, search_is_cancelled
 from worker.suppression import domain_of, is_suppressed, load_suppression
 
@@ -870,6 +870,11 @@ def _queue_website_audits(ws: str, rows: list[dict]) -> None:
 
 def _finish(search_id: str, ws: str, auto_enrich: bool, source: str) -> None:
     sb().table("searches").update({"status": "completed"}).eq("id", search_id).execute()
+    # Adressen live pruefen, unabhaengig von auto_enrich: Apollo und Prospeo
+    # liefern sie schon mit. Der Job selbst entscheidet anhand von
+    # workspaces.auto_verify_emails, ob er etwas tut. Bei verify_first stehen
+    # hier noch keine Adressen; reveal_emails reiht ihn danach erneut ein.
+    enqueue(ws, "verify_emails", {"search_id": search_id})
     if not auto_enrich:
         return
 

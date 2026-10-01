@@ -27,6 +27,7 @@ from worker.db import sb
 from worker.email_classify import classify_email
 from worker.keys import get_api_key
 from worker.pipelines import apollo
+from worker.queue import enqueue
 from worker.suppression import domain_of
 
 log = logging.getLogger(__name__)
@@ -136,6 +137,8 @@ def run(job: dict) -> None:
             }
         ).eq("id", row["id"]).execute()
         done += 1
+    if done:
+        enqueue(ws, "verify_emails", {"search_id": search_id})
     log.info(
         "reveal_emails %s: %s freigeschaltet, %s ohne Adresse, %s andere Firma.",
         search_id,

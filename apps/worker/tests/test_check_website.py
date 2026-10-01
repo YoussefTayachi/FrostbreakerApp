@@ -580,8 +580,22 @@ def _finish_lauf(monkeypatch, filters: dict, source: str = "maps") -> tuple[list
     monkeypatch.setattr(
         get_businesses, "enqueue_many", lambda ws, t, ps: jobs.append(t)
     )
+    # Der Einzel-Job verify_emails geht an allen Schaltern vorbei und wird
+    # deshalb getrennt festgehalten (Test unten).
+    monkeypatch.setattr(get_businesses, "enqueue", lambda ws, t, p: EINZELJOBS.append((t, p)))
     get_businesses._finish("s-1", "ws-1", True, source)
     return audits, jobs
+
+
+EINZELJOBS: list = []
+
+
+def test_finish_reiht_die_pruefung_immer_ein(monkeypatch):
+    """Ob wirklich geprueft wird, entscheidet der Job anhand von
+    workspaces.auto_verify_emails, nicht _finish."""
+    EINZELJOBS.clear()
+    _finish_lauf(monkeypatch, {"verify_first": True}, source="apollo")
+    assert EINZELJOBS == [("verify_emails", {"search_id": "s-1"})]
 
 
 def test_finish_reiht_ohne_schalter_keine_audits_ein(monkeypatch):

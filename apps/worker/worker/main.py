@@ -29,6 +29,7 @@ from worker.pipelines import (
     personalize,
     reveal_emails,
     sync_sent,
+    verify_emails,
     website_finding,
 )
 from worker.search_state import SearchCancelled
@@ -41,6 +42,8 @@ HANDLERS = {
     # Zweite Haelfte von "erst pruefen, dann freischalten" (filters.verify_first):
     # E-Mails erst nach der Recherche und nur fuer passende Firmen kaufen.
     "reveal_emails": reveal_emails.run,
+    # NeverBounce je Liste, nur bei workspaces.auto_verify_emails (0128).
+    "verify_emails": verify_emails.run,
     # Die zweite Stufe des Website-Checks. Eigener Jobtyp aus demselben
     # Grund wie check_website: sie dauert Sekunden statt Millisekunden
     # und darf die Abarbeitung einer Liste nicht aufhalten.
