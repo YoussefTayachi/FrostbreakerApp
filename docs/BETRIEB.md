@@ -128,7 +128,19 @@ alle `catchall`, `accept_all` oder `unknown` sind, wandern in eine eigene
 Liste „<Name> | Catch-all“ (`filters.catchall_of`, Quelle `csv`), damit sie
 eine eigene Kampagne bekommen. Hängt an der Liste schon eine Kampagne oder
 ein Entwurf, wird nichts verschoben. Kosten: ein NeverBounce-Credit je
-Prüfung, gebucht in `api_usage`.
+Prüfung, gebucht in `api_usage`. Seit Migration 0129 für retaiyn wieder
+aus (kostenloser Weg, siehe unten).
+
+### Bounces aus Instantly (`bounces_synced_count`, Migration 0129)
+
+Der Kampagnen-Abgleich im Cron fragt Instantly nach gebouncten Leads
+(`/api/v2/leads/list` mit `filter: "FILTER_VAL_BOUNCED"`), sobald
+`bounced_count` einer Kampagne über `bounces_synced_count` steigt. Im
+Normalfall also keine zusätzliche Anfrage. Die Adressen werden im ganzen
+Workspace auf `invalid` gesetzt (`email_verified_by = instantly_bounce`) und
+damit von jeder neuen Kampagne ausgeschlossen. Achtung: einen unbekannten
+Filternamen ignoriert Instantly still und liefert alle Leads, deshalb wird
+zusätzlich auf `status = -1` geprüft (`lib/instantly/bounce-sync.ts`).
 
 ### Der Befund-Nachtrag (Migration 0109)
 

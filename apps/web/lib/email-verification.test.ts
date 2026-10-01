@@ -14,6 +14,12 @@ describe("needsNeverBounce", () => {
     ).toBe(false);
   });
 
+  it("prueft keine Adresse, die bei Instantly schon gebounct ist", () => {
+    expect(
+      needsNeverBounce({ ...base, email_verification_status: "invalid", email_verified_by: "instantly_bounce" })
+    ).toBe(false);
+  });
+
   it("laesst Hunter-Status stehen, damit nichts doppelt bezahlt wird", () => {
     expect(needsNeverBounce({ ...base, email_verification_status: "valid", sources: ["hunter"] })).toBe(false);
   });

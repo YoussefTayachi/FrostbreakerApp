@@ -47,7 +47,8 @@ def needs_neverbounce(c: dict) -> bool:
     """Spiegel von needsNeverBounce in apps/web/lib/email-verification.ts."""
     if not c.get("email"):
         return False
-    if c.get("email_verified_by") == "neverbounce":
+    # Schon von uns eingestuft: per NeverBounce oder als Instantly-Bounce.
+    if c.get("email_verified_by"):
         return False
     if not c.get("email_verification_status"):
         return True

@@ -14,6 +14,7 @@ import { hasLeftCompany, parseReturnDate, toIsoDate } from "@/lib/crm/ooo-date";
 import { ensureHistoryContact } from "@/lib/wiederkontakt-server";
 import { emailBodyText } from "@/lib/instantly/email-body";
 import { parseStepRef } from "@/lib/instantly/step-ref";
+import { BOUNCED_FILTER, bouncedEmails, needsBounceSync } from "@/lib/instantly/bounce-sync";
 import { runDeliverabilityCheck } from "@/lib/deliverability";
 import {
   assessBounces,
@@ -989,7 +990,7 @@ async function syncCampaigns(
   apiKey: string,
   openaiKey: string | null,
   campaignIds: Map<string, string>
-): Promise<{ searches: number; emailsFound: number; errors: string[] }> {
+): Promise<{ searches: number; emailsFound: number; bouncesMarked: number; errors: string[] }> {
   const { data: searches } = await supabase
     .from("searches")
     .select("id, instantly_campaign_id, instantly_last_polled_at")
@@ -1000,10 +1001,16 @@ async function syncCampaigns(
 
   const errors: string[] = [];
   let emailsFound = 0;
+  let bouncesMarked = 0;
 
   await Promise.all(
     (searches ?? []).map(async (search) => {
       const campaignId = search.instantly_campaign_id as string;
+      const { data: before } = await supabase
+        .from("instantly_campaign_stats")
+        .select("bounces_synced_count")
+        .eq("search_id", search.id)
+        .maybeSingle();
 
       const analytics = await instantlyRequest<Record<string, number>[]>(
         apiKey,
@@ -1033,6 +1040,21 @@ async function syncCampaigns(
           },
           { onConflict: "search_id" }
         );
+
+        // Gebouncte Adressen zurueckholen (Migration 0129). Eine Anfrage nur,
+        // wenn die Kampagne seit dem letzten Mal neue Bounces meldet; im
+        // Normalfall kostet das kein Anfragebudget.
+        if (needsBounceSync(a.bounced_count, before?.bounces_synced_count)) {
+          try {
+            bouncesMarked += await markBounces(supabase, workspaceId, apiKey, campaignId);
+            await supabase
+              .from("instantly_campaign_stats")
+              .update({ bounces_synced_count: a.bounced_count ?? 0 })
+              .eq("search_id", search.id);
+          } catch (e) {
+            errors.push(`bounces ${campaignId}: ${(e as Error).message}`);
+          }
+        }
       }
 
       /**
@@ -1090,7 +1112,53 @@ async function syncCampaigns(
     })
   );
 
-  return { searches: searches?.length ?? 0, emailsFound, errors };
+  return { searches: searches?.length ?? 0, emailsFound, bouncesMarked, errors };
+}
+
+/** Hoechstens so viele Seiten Bounces je Kampagne und Lauf. Bei einer
+ *  gesunden Kampagne ist es eine einzige. */
+const BOUNCE_MAX_PAGES = 3;
+
+/**
+ * Gebouncte Adressen einer Kampagne als 'invalid' markieren.
+ *
+ * Workspace-weit, nicht nur in der Liste der Kampagne: eine Adresse, die
+ * zurueckkam, kommt auch aus jeder anderen Liste zurueck. 'invalid' sortiert
+ * die Kampagnen-Erstellung schon aus (lib/contacts.ts), dafuer braucht es
+ * keinen weiteren Filter.
+ */
+async function markBounces(
+  supabase: SupabaseClient,
+  workspaceId: string,
+  apiKey: string,
+  campaignId: string
+): Promise<number> {
+  const emails: string[] = [];
+  let startingAfter: string | undefined;
+  for (let page = 0; page < BOUNCE_MAX_PAGES; page++) {
+    const body: Record<string, unknown> = { campaign: campaignId, filter: BOUNCED_FILTER, limit: 100 };
+    if (startingAfter) body.starting_after = startingAfter;
+    const data = await instantlyRequest<{
+      items?: { email?: string | null; status?: number | null }[];
+      next_starting_after?: string;
+    }>(apiKey, "/api/v2/leads/list", { method: "POST", body: JSON.stringify(body) });
+    emails.push(...bouncedEmails(data.items ?? []));
+    startingAfter = data.next_starting_after;
+    if (!startingAfter || !data.items?.length) break;
+  }
+  let marked = 0;
+  for (const email of new Set(emails)) {
+    // ilike, weil die Schreibweise in contacts von der Quelle abhaengt;
+    // % und _ werden maskiert, sonst waeren sie Platzhalter.
+    const { data } = await supabase
+      .from("contacts")
+      .update({ email_verification_status: "invalid", email_confidence: 0, email_verified_by: "instantly_bounce" })
+      .eq("workspace_id", workspaceId)
+      .ilike("email", email.replace(/[\\%_]/g, (m) => "\\" + m))
+      .select("id");
+    marked += data?.length ?? 0;
+  }
+  return marked;
 }
 
 // Instantly erlaubt max. 20 Requests/Minute auf /api/v2/emails. Ein Workspace

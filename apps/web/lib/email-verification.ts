@@ -20,7 +20,8 @@ export type VerifiableContact = {
 
 export function needsNeverBounce(c: VerifiableContact): boolean {
   if (!c.email) return false;
-  if (c.email_verified_by === "neverbounce") return false;
+  // Schon von uns eingestuft: per NeverBounce oder als Instantly-Bounce.
+  if (c.email_verified_by) return false;
   if (!c.email_verification_status) return true;
   return c.sources.includes("apollo");
 }

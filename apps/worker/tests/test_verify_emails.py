@@ -18,6 +18,16 @@ def test_nichts_wird_zweimal_bezahlt():
     assert not ve.needs_neverbounce(c)
 
 
+def test_instantly_bounce_wird_nicht_nochmal_geprueft():
+    c = {
+        "email": "a@shop.com",
+        "email_verification_status": "invalid",
+        "email_verified_by": "instantly_bounce",
+        "source": "apollo",
+    }
+    assert not ve.needs_neverbounce(c)
+
+
 def test_hunter_status_bleibt_stehen():
     c = {"email": "a@shop.com", "email_verification_status": "valid", "source": "hunter"}
     assert not ve.needs_neverbounce(c)
