@@ -129,9 +129,9 @@ export function isoWeekNumber(isoDate: string): number {
 // die Abmelde-Erkennung im Instantly-Sync (lib/crm/opt-out.ts).
 const SIGNATURE: Record<Sender, string> = {
   berat:
-    "Kind regards from Vienna,\nBerat Günes\nCEO & Co-Founder\nberat@retaiyn.com\n+1 708-809-3644\nlinkedin.com/in/bero",
+    "Kind regards from Vienna,\nBerat Günes\nCEO & Co-Founder\nberat@retaiyn.com\n+1 628-291-6721\nlinkedin.com/in/bero",
   ramy:
-    "Kind regards from Vienna,\nRamy Tichy\nCRO & Co-Founder\nramy@retaiyn.com\n+1 708-809-3644\nlinkedin.com/in/ramy-tichy",
+    "Kind regards from Vienna,\nRamy Tichy\nCRO & Co-Founder\nramy@retaiyn.com\n+1 628-291-6721\nlinkedin.com/in/ramy-tichy",
 };
 
 
