@@ -24,7 +24,7 @@ from datetime import datetime, timedelta, timezone
 import httpx
 from tenacity import retry, stop_after_attempt, wait_exponential
 
-from worker import usage
+from worker import domains, usage
 from worker.db import sb
 from worker.dedupe import businesses_to_skip
 from worker.email_classify import classify_email
@@ -431,6 +431,9 @@ def run_apollo(search: dict, ws: str) -> None:
     wanted = min(search["max_results"], remaining_today)
 
     filters = search.get("filters") or {}
+    if filters.get("verify_first"):
+        run_apollo_verify_first(search, ws, api_key, wanted)
+        return
     # Apollo rechnet pro freigeschalteter Adresse ab. Der Betrag bleibt leer:
     # was ein Credit in Euro wert ist, haengt am gebuchten Tarif und liesse
     # sich hier nur unterstellen (siehe worker/usage.py).
@@ -464,6 +467,7 @@ def run_apollo(search: dict, ws: str) -> None:
         # Wird vor jedem bulk_match-Paket gefragt. Das ist der einzige Punkt,
         # an dem ein Abbruch noch Geld spart; danach ist alles bezahlt.
         should_stop=lambda: search_is_cancelled(search["id"]),
+        one_per_company=bool(filters.get("one_per_company")),
     )
     # Nach der Suche noch einmal: die teuren Folgeschritte (Firmendaten,
     # Aufhaenger je Lead) sollen gar nicht erst anlaufen. Was bis hierher
@@ -527,13 +531,20 @@ def run_apollo(search: dict, ws: str) -> None:
     # apollo.py das Gegenteil, und deshalb wurde er nie verbucht. Eine
     # Apollo-Suche kostet damit rund doppelt so viel, wie die Kostenseite
     # bisher auswies: einmal fuer die Adressen, einmal fuer die Firmendaten.
-    facts = apollo.fetch_company_facts(
-        [domain_of(w) or "" for w in websites],
-        api_key,
-        on_charge=lambda n: usage.record(
-            ws, "apollo", "organizations/bulk_enrich", n, "credits", search_id=search["id"]
-        ),
-    )
+    # filters.skip_company_facts (seit 2026-10-01): die Firmendaten kosten
+    # 1 Credit je Firma und speisen nur company_summary und den Traffic-Rang.
+    # Wer mit Aside recherchiert, liest die Website selbst; am 2026-09-30
+    # waren das 906 von 2333 Credits (39 %) fuer Daten, die niemand las.
+    if filters.get("skip_company_facts"):
+        facts: dict = {}
+    else:
+        facts = apollo.fetch_company_facts(
+            [domain_of(w) or "" for w in websites],
+            api_key,
+            on_charge=lambda n: usage.record(
+                ws, "apollo", "organizations/bulk_enrich", n, "credits", search_id=search["id"]
+            ),
+        )
 
     companies, _contacts = _store_people_pairs(
         search,
@@ -562,6 +573,99 @@ def run_apollo(search: dict, ws: str) -> None:
             "bereits in deiner Liste stehen oder auf der Sperrliste sind. Für neue Leads "
             "hilft nur ein anderer Filter, etwa ein weiteres Land oder andere Positionen.",
         )
+
+
+def run_apollo_verify_first(search: dict, ws: str, api_key: str, wanted: int) -> None:
+    """Modus "erst pruefen, dann freischalten" (filters.verify_first).
+
+    Speichert Firmen und Kandidaten OHNE bezahlte Freischaltung:
+      1. Kandidaten aus Apollos kostenloser Suche, eine Person je Firma.
+      2. Domain je Firma ueber worker.domains (Clearbit, ohne Credits). Ohne
+         sichere Domain wird die Firma ausgelassen, das kostet nichts.
+      3. Kontakte ohne E-Mail, direkt auf 'awaiting_research' fuer die
+         Aside-Recherche. Die Apollo-ID steht in custom.apollo_id.
+
+    Freigeschaltet wird spaeter mit dem Job reveal_emails, und zwar nur fuer
+    Kontakte, deren Recherche einen freigegebenen Befund ergeben hat.
+    Gemessener Anlass und Rechnung: apollo.preview_candidates.
+    """
+    filters = search.get("filters") or {}
+    known_companies = {
+        apollo.normalize_company(b.get("name")) for b in businesses_to_skip(ws) if b.get("name")
+    }
+    known_companies.discard("")
+    # Mehr Kandidaten als gebraucht: die Suche ist gratis, und ein Teil der
+    # Firmen faellt an der Domain-Suche heraus (gemessen rund ein Viertel).
+    candidates = apollo.preview_candidates(
+        filters,
+        api_key,
+        wanted * 3,
+        known_companies=known_companies,
+        should_stop=lambda: search_is_cancelled(search["id"]),
+    )
+    existing = _domains(businesses_to_skip(ws))
+    _, blocked_domains = load_suppression(ws)
+
+    picked: list[tuple[dict, str]] = []
+    seen: set[str] = set()
+    without_domain = 0
+    for cand in candidates:
+        if len(picked) >= wanted or search_is_cancelled(search["id"]):
+            break
+        d = domains.lookup_domain(cand["company"])
+        if not d:
+            without_domain += 1
+            continue
+        if d in existing or d in blocked_domains or d in seen:
+            continue
+        seen.add(d)
+        picked.append((cand, d))
+
+    if not picked:
+        _note(
+            search["id"],
+            f"{len(candidates)} Kandidaten aus der kostenlosen Suche, aber keine Firma mit "
+            "sicherer Domain, die noch nicht in deiner Liste steht. Es wurden keine Credits "
+            "verbraucht.",
+        )
+        return
+
+    biz_rows = [
+        {
+            "workspace_id": ws,
+            "search_id": search["id"],
+            "place_id": None,
+            "name": cand["company"],
+            "website": f"https://{d}",
+            "decisionmaker_status": "found",
+            "hunter_status": "not_found",
+        }
+        for cand, d in picked
+    ]
+    inserted = sb().table("businesses").insert(biz_rows).execute().data or []
+    contact_rows = [
+        {
+            "workspace_id": ws,
+            "business_id": biz["id"],
+            "source": "apollo",
+            "first_name": cand.get("first_name"),
+            "full_name": cand.get("first_name"),
+            "title": cand.get("title"),
+            "email": None,
+            "is_primary": True,
+            "person_finding_status": "awaiting_research",
+            "custom": {"apollo_id": cand["apollo_id"], "reveal": "pending"},
+        }
+        for biz, (cand, _d) in zip(inserted, picked)
+    ]
+    if contact_rows:
+        sb().table("contacts").insert(contact_rows).execute()
+    _note(
+        search["id"],
+        f"Erst pruefen, dann freischalten: {len(inserted)} Firmen gespeichert, ohne Credits. "
+        f"{without_domain} Firmen ohne sichere Domain ausgelassen. Freigeschaltet wird nach "
+        "der Recherche mit dem Job reveal_emails.",
+    )
 
 
 def run_prospeo(search: dict, ws: str) -> None:
@@ -801,6 +905,11 @@ def _finish(search_id: str, ws: str, auto_enrich: bool, source: str) -> None:
     # Beide Schalter gelten nur fuer die Suche, an der sie stehen. Ohne sie
     # laeuft alles wie bisher.
     filters = _search_filters(search_id)
+    if filters.get("verify_first"):
+        # Die Kontakte stehen schon auf 'awaiting_research' und haben noch
+        # keine Adresse. Weder Icebreaker noch Befund-Auffaecherung duerfen
+        # hier anlaufen; der naechste Schritt ist die Aside-Recherche.
+        return
     research_after_finding = bool(filters.get("research_after_finding"))
     skip_personalize = bool(filters.get("skip_personalize"))
     website_findings = bool(filters.get("website_findings")) or research_after_finding

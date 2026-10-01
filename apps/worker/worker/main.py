@@ -27,6 +27,7 @@ from worker.pipelines import (
     hunt_persons,
     person_finding,
     personalize,
+    reveal_emails,
     sync_sent,
     website_finding,
 )
@@ -37,6 +38,9 @@ log = logging.getLogger("worker")
 
 HANDLERS = {
     "get_businesses": get_businesses.run,
+    # Zweite Haelfte von "erst pruefen, dann freischalten" (filters.verify_first):
+    # E-Mails erst nach der Recherche und nur fuer passende Firmen kaufen.
+    "reveal_emails": reveal_emails.run,
     # Die zweite Stufe des Website-Checks. Eigener Jobtyp aus demselben
     # Grund wie check_website: sie dauert Sekunden statt Millisekunden
     # und darf die Abarbeitung einer Liste nicht aufhalten.

@@ -948,6 +948,62 @@ def enrich_people(
     return out[:wanted]
 
 
+def preview_candidates(
+    filters: dict,
+    api_key: str,
+    limit: int,
+    known_companies: "set[str] | None" = None,
+    should_stop: "Callable[[], bool] | None" = None,
+) -> list[dict]:
+    """Kandidaten aus der KOSTENLOSEN Suche, eine Person je Firma, ohne bulk_match.
+
+    Fuer den Modus "erst pruefen, dann freischalten" (filters.verify_first,
+    seit 2026-10-01). Gemessen an fuenf retaiyn-Suchen vom 2026-09-30: 2333
+    Credits fuer 492 versandbereite Leads, also 4,7 Credits je Lead. Davon
+    gingen 906 an Firmendaten, rund 345 an Zweitkontakte derselben Firma und
+    ueber 400 an Firmen, die die Recherche danach als unpassend aussortiert hat.
+    Hier wird deshalb nichts bezahlt; freigeschaltet wird erst nach der
+    Recherche und nur fuer passende Firmen (pipelines/reveal_emails.py).
+
+    Je Kandidat: apollo_id, first_name, title, company (Name wie bei Apollo).
+    """
+    known = known_companies or set()
+    out: list[dict] = []
+    seen_companies: set[str] = set()
+    page = 1
+    while len(out) < limit and page <= (APOLLO_MAX_PER_SEARCH // PER_PAGE):
+        people = search_people(filters, api_key, page)
+        if not people:
+            break
+        for person in people:
+            pid = person.get("id")
+            org_name = ((person.get("organization") or {}).get("name") or "").strip()
+            company = normalize_company(org_name)
+            if not pid or not person.get("has_email") or not company:
+                continue
+            if company in known or company in seen_companies:
+                continue
+            seen_companies.add(company)
+            out.append(
+                {
+                    "apollo_id": pid,
+                    "first_name": person.get("first_name"),
+                    "title": person.get("title"),
+                    "company": org_name,
+                }
+            )
+            if len(out) >= limit:
+                break
+        if len(people) < PER_PAGE:
+            break
+        if should_stop and should_stop():
+            break
+        page += 1
+        if len(out) < limit:
+            time.sleep(PAGE_PAUSE_S)
+    return out
+
+
 def collect_people(
     filters: dict,
     api_key: str,
@@ -956,6 +1012,7 @@ def collect_people(
     known_companies: "set[str] | None" = None,
     on_skip: "Callable[[int], None] | None" = None,
     should_stop: "Callable[[], bool] | None" = None,
+    one_per_company: bool = False,
 ) -> list[dict]:
     """Zweistufig, weil Apollo es so vorgibt: erst kostenlos suchen, dann
     gezielt anreichern.
@@ -1009,6 +1066,7 @@ def collect_people(
     known = known_companies or set()
     ids: list[str] = []
     seen: set[str] = set()
+    chosen_companies: set[str] = set()
     skipped_known = 0
     page = 1
     while len(ids) < target_candidates and page <= (APOLLO_MAX_PER_SEARCH // PER_PAGE):
@@ -1025,6 +1083,14 @@ def collect_people(
             if company and company in known:
                 skipped_known += 1
                 continue
+            # filters.one_per_company (seit 2026-10-01): eine Person je Firma
+            # schon VOR dem Bezahlen. Am 2026-09-30 kosteten Zweitkontakte
+            # derselben Firma rund 345 Credits, angeschrieben wird je Firma
+            # ohnehin nur eine Person (pickPrimaryContactPerBusiness).
+            if one_per_company and company:
+                if company in chosen_companies:
+                    continue
+                chosen_companies.add(company)
             ids.append(pid)
         if len(people) < PER_PAGE:
             break  # letzte Seite
