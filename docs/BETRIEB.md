@@ -118,6 +118,18 @@ fährt, bleibt liegen, und die App zeigt nur eine hängende Suche.
   benutzen `{{personalization}}` nicht; vorher mussten die Jobs nach jedem
   Lauf von Hand verschoben werden.
 
+### Automatische Adressprüfung (`workspaces.auto_verify_emails`, Migration 0128)
+
+Ist der Schalter an (gesetzt für retaiyn), reiht jede fertige Suche und
+jedes Freischalten (`reveal_emails`) einen Job `verify_emails` ein. Er
+prüft jede Adresse per NeverBounce, die NeverBounce noch nicht gesehen hat;
+Apollos eigenes `verified` zählt nicht als geprüft. Firmen, deren Adressen
+alle `catchall`, `accept_all` oder `unknown` sind, wandern in eine eigene
+Liste „<Name> | Catch-all“ (`filters.catchall_of`, Quelle `csv`), damit sie
+eine eigene Kampagne bekommen. Hängt an der Liste schon eine Kampagne oder
+ein Entwurf, wird nichts verschoben. Kosten: ein NeverBounce-Credit je
+Prüfung, gebucht in `api_usage`.
+
 ### Der Befund-Nachtrag (Migration 0109)
 
 `write_website_finding` wartet höchstens vier Minuten auf die
