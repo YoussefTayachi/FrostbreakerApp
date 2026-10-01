@@ -24,6 +24,7 @@ import { useT } from "../language-provider";
 import { useToast } from "../toast-provider";
 import { useWorkspace } from "../workspace-provider";
 import type { Dictionary } from "@/lib/i18n/dict";
+import { needsNeverBounce } from "@/lib/email-verification";
 import type { Lang } from "@/lib/i18n/lang";
 
 type Contact = {
@@ -35,6 +36,7 @@ type Contact = {
   email: string | null;
   email_confidence: number | null;
   email_verification_status: string | null;
+  email_verified_by?: string | null;
   phone: string | null;
   linkedin: string | null;
   source: string;
@@ -76,6 +78,7 @@ type Merged = {
   email: string | null;
   email_confidence: number | null;
   email_verification_status: string | null;
+  email_verified_by: string | null;
   phone: string | null;
   linkedin: string | null;
   outreach_status: string;
@@ -225,6 +228,7 @@ function mergeInto(target: Merged, c: Contact) {
     target.email = c.email;
     target.email_confidence = c.email_confidence;
     target.email_verification_status = c.email_verification_status;
+    target.email_verified_by = c.email_verified_by ?? null;
     target.email_type = c.email_type;
   }
   if (!target.phone && c.phone) target.phone = c.phone;
@@ -286,6 +290,7 @@ function groupContacts(contacts: Contact[]): Group[] {
         email: c.email,
         email_confidence: c.email_confidence,
         email_verification_status: c.email_verification_status,
+        email_verified_by: c.email_verified_by ?? null,
         email_type: c.email_type,
         phone: c.phone,
         linkedin: c.linkedin,
@@ -756,7 +761,7 @@ export default function LeadsTable({
   );
   const shownContacts = filtered.reduce((n, g) => n + g.contacts.length, 0);
   const unverifiedCount = filtered.reduce(
-    (n, g) => n + g.contacts.filter((c) => c.email && !c.email_verification_status).length,
+    (n, g) => n + g.contacts.filter((c) => needsNeverBounce(c)).length,
     0
   );
   const selectedGroups = filtered.filter((g) => selected.has(g.key));
@@ -842,7 +847,7 @@ export default function LeadsTable({
 
   async function verifyEmails(groups: Group[]) {
     const ids = groups.flatMap((g) =>
-      g.contacts.filter((c) => c.email && !c.email_verification_status).map((c) => c.id)
+      g.contacts.filter((c) => needsNeverBounce(c)).map((c) => c.id)
     );
     if (ids.length === 0) return;
     setVerifyStatus(`${L.verifying} ${ids.length}...`);

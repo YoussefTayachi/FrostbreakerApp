@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentWorkspace } from "@/lib/workspace/server";
 import { getApiKey } from "@/lib/api-keys";
+import { needsNeverBounce } from "@/lib/email-verification";
 
 // NeverBounce-Ergebnis -> unsere bestehenden Felder (gleiche Skala wie Hunter, damit
 // die vorhandene VerificationShield-Logik im Frontend unveraendert weiterfunktioniert).
@@ -49,18 +50,19 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Kein NeverBounce-Key in den Einstellungen hinterlegt." }, { status: 400 });
   }
 
-  // Nur eigene, noch unverifizierte Kontakte mit E-Mail; verhindert doppelte
-  // Kosten fuer bereits von Hunter verifizierte Kontakte.
-  const { data: contacts } = await supabase
+  // Nur eigene Kontakte, die laut needsNeverBounce noch nicht live geprueft
+  // sind: Apollos 'verified' zaehlt nicht, Hunters Status schon (doppelte
+  // Kosten vermeiden).
+  const { data: rows } = await supabase
     .from("contacts")
-    .select("id, email")
+    .select("id, email, email_verification_status, email_verified_by, source")
     .eq("workspace_id", ws.workspace.id)
     .in("id", contact_ids.slice(0, MAX_BATCH))
-    .not("email", "is", null)
-    .is("email_verification_status", null);
+    .not("email", "is", null);
+  const contacts = (rows ?? []).filter((c) => needsNeverBounce({ ...c, sources: [c.source] }));
 
   const summary = { checked: 0, valid: 0, invalid: 0, catchall: 0, unknown: 0, disposable: 0, errors: 0 };
-  for (const c of contacts ?? []) {
+  for (const c of contacts) {
     try {
       const result = await checkOne(apiKey, c.email as string);
       await supabase
