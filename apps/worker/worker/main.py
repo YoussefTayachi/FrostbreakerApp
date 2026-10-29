@@ -140,6 +140,22 @@ HANDLERS = {
 }
 
 POLL_INTERVAL_S = 5
+
+# WIE LANGE EIN FADEN BEI LEERER WARTESCHLANGE HOECHSTENS WARTET
+#
+# Jedes claim_job ist eine Anfrage an Supabase und zaehlt zum Egress. Im
+# 5-Sekunden-Takt waren das gemessen 54.391 Aufrufe in 24 Stunden (2026-10-28,
+# Ruhebesetzung 1 Replik mit mehreren Faeden), der groesste Einzelposten.
+# Zusammen mit dem Instantly-Sync hat das im Oktober 8,99 GB Egress erzeugt,
+# das Free-Kontingent liegt bei 5 GB, und Supabase hat am 2026-10-28 das
+# ganze Projekt gesperrt (402, auch kein Login mehr).
+#
+# Deshalb waechst die Pause, solange nichts kommt: 5, 10, 20, dann 30
+# Sekunden. Ein neuer Job wartet im schlimmsten Fall 30 Sekunden auf seinen
+# Start, bei einer Suche, die Minuten laeuft, faellt das nicht auf. Sobald
+# ein Job da war, faellt der Faden sofort auf 5 Sekunden zurueck, damit ein
+# laufender Batch nicht ausgebremst wird.
+IDLE_POLL_MAX_S = 30
 SCHEDULE_INTERVALS = {
     "daily": timedelta(days=1),
     "weekly": timedelta(weeks=1),
@@ -219,6 +235,11 @@ WORKER_JOB_TYPES = [
 ] or None
 
 
+def idle_delay(idle_polls: int) -> int:
+    """Pause nach `idle_polls` leeren Abholungen in Folge (siehe IDLE_POLL_MAX_S)."""
+    return min(POLL_INTERVAL_S * 2 ** min(idle_polls, 3), IDLE_POLL_MAX_S)
+
+
 def job_loop(name: str) -> None:
     """Ein Faden: Jobs holen und ausfuehren, bis der Prozess endet.
 
@@ -228,6 +249,7 @@ def job_loop(name: str) -> None:
     Replik mit.
     """
     consecutive_poll_errors = 0
+    idle_polls = 0
     while True:
         # Das Abholen selbst war frueher ungeschuetzt: ein einzelner
         # Netz-Schluckauf (DNS-Aussetzer, Supabase kurz nicht erreichbar)
@@ -252,8 +274,10 @@ def job_loop(name: str) -> None:
             time.sleep(delay)
             continue
         if job is None:
-            time.sleep(POLL_INTERVAL_S)
+            time.sleep(idle_delay(idle_polls))
+            idle_polls += 1
             continue
+        idle_polls = 0
         log.info("%s: Job %s (%s) gestartet", name, job["id"], job["type"])
         handler = HANDLERS.get(job["type"])
         try:

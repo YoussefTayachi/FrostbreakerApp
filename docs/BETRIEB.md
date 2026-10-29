@@ -19,7 +19,7 @@ Instantly übernimmt das).
 |---|---|---|
 | Next.js-Frontend + alle `/api`-Routen | Vercel, Region `fra1` | Push auf `main` |
 | Python-Worker (Lead-Pipelines) | Railway, Region US West | Push auf `main` |
-| `instantly-sync` (Analytics + Antworten) | Vercel-Route, aufgerufen von Supabase `pg_cron` | jede Minute |
+| `instantly-sync` (Analytics + Antworten) | Vercel-Route, aufgerufen von Supabase `pg_cron` | alle 2 Minuten |
 | `sync_sent` (Gesendet-Ordner per IMAP) | Python-Worker, eingereiht von Supabase `pg_cron` | alle 5 Minuten |
 | Datenbank, Auth, Cron | Supabase | läuft durchgehend |
 
@@ -34,8 +34,9 @@ Projekt `selfless-smile`, Service `System3_App`.
 Projekt-ID `6844c669-740e-411a-a2f1-d4f1fea7e71e`,
 Service-ID `61208364-2b9c-4dd8-9aaa-8df543591aea`.
 
-Der Worker pollt `public.jobs` alle 5 Sekunden über die RPC-Funktion
-`claim_job` und führt die vier Pipelines aus (`get_businesses`,
+Der Worker pollt `public.jobs` über die RPC-Funktion `claim_job`, bei Arbeit
+alle 5 Sekunden, bei leerer Warteschlange bis zu alle 30 Sekunden (Egress,
+siehe unten unter Supabase-Kontingent), und führt die vier Pipelines aus (`get_businesses`,
 `find_decisionmaker`, `hunt_persons`, `personalize`). Er ist ein Daemon ohne
 öffentlichen Port („Unexposed service").
 
@@ -152,7 +153,7 @@ Satz für immer stehen (139 von 240 am 2026-08-31, von Hand nachgezogen).
 
 ### Skalierung und Wächter (`/api/cron/worker-ops`, Migration 0110)
 
-pg_cron ruft die Route jede Minute auf (Auth: `cron_secret` aus dem Vault,
+pg_cron ruft die Route alle 2 Minuten auf (Migration 0130; Auth: `cron_secret` aus dem Vault,
 wie instantly-sync). Sie tut zwei Dinge:
 
 1. **Skalieren.** Railway-Replikzahl folgt der Queue-Tiefe
@@ -217,9 +218,23 @@ railway.com/account/tokens jederzeit widerrufen und ersetzen.
 
 ---
 
+## Supabase: das Egress-Kontingent
+
+Das Projekt läuft im **Free-Plan: 5 GB Egress je Abrechnungszyklus** (Zyklus
+beginnt am 2. jedes Monats). Ist das Kontingent voll, sperrt Supabase das
+ganze Projekt: jede Anfrage bekommt 402, auch der Login. Passiert am
+2026-10-28 mit 8,99 GB, bei rund 128.000 kleinen REST-Anfragen am Tag
+(Worker-Polling 54.000, Instantly-Sync mit vier Workspaces rund 50.000).
+
+Gegenmaßnahmen seit Migration 0130: Instantly-Sync und worker-ops alle 2
+statt jede Minute, Worker pollt im Leerlauf bis zu alle 30 Sekunden. Wer
+einen Cron schneller stellt oder neue Polls einbaut, muss das gegen dieses
+Kontingent rechnen. Verbrauch: Supabase-Dashboard, Organisation, Usage.
+
 ## Supabase: der Cron
 
-`pg_cron`-Job `instantly-sync` ruft jede Minute (Migration 0043) per `pg_net`
+`pg_cron`-Job `instantly-sync` ruft alle 2 Minuten (Migration 0130, vorher
+jede Minute per 0043) per `pg_net`
 die Vercel-Route `api/cron/instantly-sync` auf. Sie erledigt zwei Dinge, die
 früher der Python-Worker gemacht hat:
 

@@ -55,7 +55,7 @@ Betrieb dort nachsehen, nicht aus dem Code ableiten.
 ```
 searches (INSERT aus dem Frontend)
   └─ DB-Trigger enqueue_search_job (Migration 0004) → jobs
-        └─ Worker: claim_job() alle 5s → HANDLERS in worker/main.py
+        └─ Worker: claim_job() alle 5 bis 30s → HANDLERS in worker/main.py
               get_businesses    Firmen finden (Google Maps | Hunter Discover | Apollo | Prospeo | CSV)
                 └─ enqueued je Firma: find_decisionmaker (OpenAI Websuche) + hunt_persons (Hunter/E-Mail-Suche)
                       └─ enqueued: personalize (OpenAI, Eröffnungszeile pro Lead)
@@ -75,7 +75,7 @@ Versuchs.
 
 ### Instantly-Sync läuft nicht im Worker
 
-Supabase `pg_cron` ruft jede Minute per `pg_net` die Vercel-Route
+Supabase `pg_cron` ruft alle 2 Minuten per `pg_net` die Vercel-Route
 `app/api/cron/instantly-sync` auf (Analytics-Rollup + Antworten, beide
 Richtungen). Budgets pro Aufruf existieren wegen Instantlys Grenze von 20
 Requests/Minute pro Workspace. Auth per `CRON_SECRET` aus `supabase_vault`.

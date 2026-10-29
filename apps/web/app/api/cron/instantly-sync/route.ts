@@ -1169,6 +1169,22 @@ async function markBounces(
 // Kampagnen-Teil (syncCampaigns) bleibt, der parallel dazu laeuft.
 const INBOX_REQUEST_BUDGET = 15;
 
+/**
+ * Abstand zweier Aufrufe dieser Route in Minuten. Muss zum Zeitplan des
+ * pg_cron-Jobs 'instantly-sync' passen (Migration 0130).
+ *
+ * Bis 2026-10-29 lief die Route jede Minute (Migration 0043). Mit vier
+ * Workspaces stellte sie rund 50.000 Anfragen am Tag an Supabase, und das
+ * Projekt wurde am 2026-10-28 wegen Egress gesperrt (8,99 von 5 GB im Free-
+ * Plan). Alle zwei Minuten halbiert das, ein voller Postfach-Durchlauf
+ * dauert dafuer doppelt so lange (bei 7 Seiten 14 statt 7 Minuten).
+ *
+ * Die Seitenrotation und der Ueberlappungspuffer rechnen damit. Stimmt der
+ * Wert nicht mit dem Cron ueberein, kommt bei manchen Seitenzahlen immer
+ * dieselbe Seite dran und andere Postfaecher nie.
+ */
+const SYNC_TICK_MINUTES = 2;
+
 /** Beide Richtungen eines Postfachs: die Einheit, in der beide Sync-Teile
  *  und der Nachlauf ihre Arbeit zaehlen. */
 const DIRECTIONS: { emailType: "received" | "sent"; direction: "inbound" | "outbound" }[] = [
@@ -1207,10 +1223,10 @@ async function syncInbox(
   );
 
   const pageCount = Math.max(1, Math.ceil(allPairs.length / INBOX_REQUEST_BUDGET));
-  // Tick-Laenge muss zum tatsaechlichen Cron-Intervall passen (Migration 0043:
-  // jede Minute statt alle 5 Minuten); sonst wuerde dieselbe Seite mehrfach
-  // hintereinander drankommen, statt bei jedem Aufruf weiterzurotieren.
-  const tickIndex = Math.floor(Date.now() / (60 * 1000));
+  // Tick-Laenge muss zum tatsaechlichen Cron-Intervall passen (siehe
+  // SYNC_TICK_MINUTES); sonst wuerde dieselbe Seite mehrfach hintereinander
+  // drankommen, statt bei jedem Aufruf weiterzurotieren.
+  const tickIndex = Math.floor(Date.now() / (SYNC_TICK_MINUTES * 60 * 1000));
   const page = tickIndex % pageCount;
   const pairs = allPairs.slice(page * INBOX_REQUEST_BUDGET, (page + 1) * INBOX_REQUEST_BUDGET);
 
@@ -1274,14 +1290,14 @@ async function syncInbox(
    * adam@partnercommerce.com.
    *
    * Statt now() wird deshalb der Beginn des Zyklus eingetragen, grosszuegig
-   * gerechnet: eine Minute je Seite plus zwei Minuten Sicherheit. Der Sync
+   * gerechnet: ein Tick je Seite plus zwei Ticks Sicherheit. Der Sync
    * sieht dadurch absichtlich einen Teil der Mails mehrfach. Das kostet
    * nichts, weil processEmail bereits bekannte Mails sofort verwirft (siehe
    * dort). Und ein doppelt gesehener Datensatz ist unendlich viel besser
    * als ein verlorener.
    */
   if (page === pageCount - 1) {
-    const overlapMs = (pageCount + 2) * 60 * 1000;
+    const overlapMs = (pageCount + 2) * SYNC_TICK_MINUTES * 60 * 1000;
     await supabase
       .from("workspaces")
       .update({ instantly_inbox_synced_at: new Date(Date.now() - overlapMs).toISOString() })

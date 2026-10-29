@@ -95,3 +95,17 @@ def test_fehler_beim_speichern_des_jobfehlers_beendet_den_worker_nicht(monkeypat
 
     calls, _ = _run_loop_until(monkeypatch, [job, None])
     assert calls["claim"] >= 2, "Loop lief nach dem Doppelfehler weiter"
+
+
+def test_leerlauf_pollt_zunehmend_seltener(monkeypatch):
+    """Leere Warteschlange: 5, 10, 20, dann gedeckelt bei 30 Sekunden (Egress)."""
+    _, sleeps = _run_loop_until(monkeypatch, [None] * 6)
+    assert sleeps[:6] == [5, 10, 20, 30, 30, 30]
+
+
+def test_nach_einem_job_wird_wieder_im_5_sekunden_takt_gepollt(monkeypatch):
+    monkeypatch.setattr(worker_main.queue, "complete_job", lambda job_id: None)
+    monkeypatch.setitem(worker_main.HANDLERS, "leer", lambda job: None)
+    job = {"id": "j1", "type": "leer", "workspace_id": "w1"}
+    _, sleeps = _run_loop_until(monkeypatch, [None, None, None, job, None])
+    assert sleeps[:4] == [5, 10, 20, 5]
